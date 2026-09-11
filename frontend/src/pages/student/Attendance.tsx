@@ -77,7 +77,35 @@ export const StudentAttendance: React.FC = () => {
   const { user } = useAuthStore();
   const studentId = academic.studentId || user?.studentId;
 
-  // Selected Subject for Matrix
+  // Enrolled Courses List
+  const enrolledCourses = useMemo(() => {
+    if (academic.assignedCourses && academic.assignedCourses.length > 0) {
+      return academic.assignedCourses;
+    }
+    if (academic.primaryCourse) {
+      return [academic.primaryCourse];
+    }
+    return [];
+  }, [academic.assignedCourses, academic.primaryCourse]);
+
+  // Selected Course State (For students with multiple courses)
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedCourseId && enrolledCourses.length > 0) {
+      setSelectedCourseId(enrolledCourses[0].id);
+    }
+  }, [enrolledCourses, selectedCourseId]);
+
+  const selectedCourse = useMemo(() => {
+    if (selectedCourseId) {
+      const found = enrolledCourses.find((c) => c.id === selectedCourseId);
+      if (found) return found;
+    }
+    return enrolledCourses[0] || null;
+  }, [enrolledCourses, selectedCourseId]);
+
+  // Selected Subject/Module for Matrix
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [startDate, setStartDate] = useState("2026-08-01");
   const [endDate, setEndDate] = useState("2026-10-31");
@@ -115,10 +143,21 @@ export const StudentAttendance: React.FC = () => {
     };
   }, [studentId]);
 
-  // Dynamically build subjects with heatmaps from student's enrolled course and modules
+  // Dynamically build subjects with heatmaps STRICTLY from student's enrolled course and modules
   const dynamicSubjects: SubjectAttendanceData[] = useMemo(() => {
-    if (academic.assignedModules.length > 0) {
-      return academic.assignedModules.map((mod, idx) => {
+    if (!selectedCourse) {
+      return [];
+    }
+
+    // Filter modules belonging to the selected enrolled course
+    const courseModules = academic.assignedModules.filter(
+      (mod) =>
+        mod.courseId === selectedCourse.id ||
+        mod.courseName.toLowerCase() === selectedCourse.name.toLowerCase()
+    );
+
+    if (courseModules.length > 0) {
+      return courseModules.map((mod, idx) => {
         const modKey = (mod.code || mod.name).toLowerCase();
         const matrix = generateSubjectMatrixData(modKey);
         const modTotal = idx === 0 ? 25 : idx === 1 ? 20 : idx === 2 ? 12 : 8;
@@ -134,41 +173,23 @@ export const StudentAttendance: React.FC = () => {
       });
     }
 
+    // If course has no sub-modules, display the enrolled course itself
+    const courseKey = selectedCourse.name.toLowerCase();
+    const matrix = generateSubjectMatrixData(courseKey);
+    const total = apiSummary?.total || 25;
+    const attended = apiSummary?.present || 23;
+
     return [
       {
-        id: "sub-react",
-        name: "React Development",
-        attended: 23,
-        total: 25,
-        missed: 2,
-        matrix: generateSubjectMatrixData("react"),
-      },
-      {
-        id: "sub-dbms",
-        name: "Database Systems",
-        attended: 17,
-        total: 20,
-        missed: 3,
-        matrix: generateSubjectMatrixData("dbms"),
-      },
-      {
-        id: "sub-java",
-        name: "Java Programming",
-        attended: 12,
-        total: 12,
-        missed: 0,
-        matrix: generateSubjectMatrixData("java"),
-      },
-      {
-        id: "sub-web",
-        name: "Web Technologies",
-        attended: 8,
-        total: 9,
-        missed: 1,
-        matrix: generateSubjectMatrixData("web"),
+        id: selectedCourse.id || "enrolled-course",
+        name: selectedCourse.name,
+        attended,
+        total,
+        missed: Math.max(0, total - attended),
+        matrix,
       },
     ];
-  }, [academic.assignedModules]);
+  }, [selectedCourse, academic.assignedModules, apiSummary]);
 
   // Set initial selected subject if not set or invalid
   useEffect(() => {
@@ -189,43 +210,56 @@ export const StudentAttendance: React.FC = () => {
   } | null>(null);
 
   const currentSubject = useMemo(() => {
-    return dynamicSubjects.find((s) => s.id === selectedSubjectId) || dynamicSubjects[0] || {
-      id: "none",
-      name: "General Attendance",
-      attended: 23,
-      total: 25,
-      missed: 2,
-      matrix: generateSubjectMatrixData("general"),
-    };
-  }, [dynamicSubjects, selectedSubjectId]);
+    return (
+      dynamicSubjects.find((s) => s.id === selectedSubjectId) ||
+      dynamicSubjects[0] || {
+        id: "none",
+        name: selectedCourse?.name || "Enrolled Course",
+        attended: 0,
+        total: 0,
+        missed: 0,
+        matrix: generateSubjectMatrixData("general"),
+      }
+    );
+  }, [dynamicSubjects, selectedSubjectId, selectedCourse]);
 
   const percentage = currentSubject.total > 0
     ? Math.round((currentSubject.attended / currentSubject.total) * 100)
-    : 86;
+    : apiSummary?.percentage ?? 100;
   const isGoodStanding = percentage >= 75;
 
   const rawHistoryList = useMemo(() => {
     if (apiHistory.length > 0) {
-      return apiHistory.map((item: any) => ({
-        id: item.id,
-        date: item.markedAt ? new Date(item.markedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—",
-        timeSlot: item.classSession ? `${item.classSession.startTime || ""} - ${item.classSession.endTime || ""}` : "Class Time",
-        topic: item.classSession?.title || item.remarks || "Class Session",
-        moduleName: item.classSession?.batchModule?.courseModule?.name || academic.primaryCourse?.name || "Curriculum",
-        batchCode: item.classSession?.batch?.code || academic.primaryBatch?.code || "BATCH-01",
-        courseName:
-          getSessionSubjectLabel({
+      return apiHistory
+        .filter((item: any) => {
+          const course = getSessionSubjectLabel({
             title: item.classSession?.title,
             batch: item.classSession?.batch,
-          }) || academic.primaryCourse?.name || "Enrolled Course",
-        facultyName: item.classSession?.faculty?.user?.name || "Faculty",
-        status: (item.status === "PRESENT" ? "PRESENT" : item.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
-        remarks: item.remarks || (item.status === "PRESENT" ? "Marked Present" : "Marked Absent"),
-        markedAt: item.markedAt ? new Date(item.markedAt).toLocaleString("en-IN") : "—",
-      }));
+          }) || item.classSession?.batch?.course?.name;
+          if (course && !academic.isAuthorizedForCourse(course)) return false;
+          if (selectedCourse && course && course.toLowerCase() !== selectedCourse.name.toLowerCase()) return false;
+          return true;
+        })
+        .map((item: any) => ({
+          id: item.id,
+          date: item.markedAt ? new Date(item.markedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+          timeSlot: item.classSession ? `${item.classSession.startTime || ""} - ${item.classSession.endTime || ""}` : "Class Time",
+          topic: item.classSession?.title || item.remarks || "Class Session",
+          moduleName: item.classSession?.batchModule?.courseModule?.name || selectedCourse?.name || "Curriculum",
+          batchCode: item.classSession?.batch?.code || academic.primaryBatch?.code || "BATCH-01",
+          courseName:
+            getSessionSubjectLabel({
+              title: item.classSession?.title,
+              batch: item.classSession?.batch,
+            }) || selectedCourse?.name || "Enrolled Course",
+          facultyName: item.classSession?.faculty?.user?.name || "Faculty",
+          status: (item.status === "PRESENT" ? "PRESENT" : item.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
+          remarks: item.remarks || (item.status === "PRESENT" ? "Marked Present" : "Marked Absent"),
+          markedAt: item.markedAt ? new Date(item.markedAt).toLocaleString("en-IN") : "—",
+        }));
     }
 
-    // Live session attendance logged by faculty
+    // Live session attendance logged by faculty for authorized course
     const liveSessionAttendanceLogs = Object.entries(sessionAttendance).flatMap(([sessId, records]) => {
       const studentMatch = records.find(
         (r) =>
@@ -233,200 +267,53 @@ export const StudentAttendance: React.FC = () => {
           (user?.name && r.studentName?.toLowerCase().includes(user.name.toLowerCase()))
       );
       
-      const targetRecords = studentMatch ? [studentMatch] : records.slice(0, 1);
+      const targetRecords = studentMatch ? [studentMatch] : [];
 
-      return targetRecords.map((r, i) => ({
-        id: `live-att-${sessId}-${i}`,
-        date: r.date || new Date(r.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-        timeSlot: "09:00 AM – 10:00 AM",
-        topic: `${r.subjectName || r.courseName || "Class Session"}`,
-        moduleName: r.subjectName || "Module",
-        batchCode: r.batchCode || "B001",
-        courseName: r.courseName || "Enrolled Course",
-        facultyName: "Faculty01",
-        status: (r.status === "PRESENT" ? "PRESENT" : r.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
-        remarks: `Marked ${r.status === "PRESENT" ? "Present" : r.status === "LEAVE" ? "Leave" : "Absent"} by Faculty`,
-        markedAt: new Date(r.updatedAt).toLocaleString("en-IN"),
-        isLiveUpdate: true,
-      }));
+      return targetRecords
+        .filter((r) => {
+          if (r.courseName && !academic.isAuthorizedForCourse(r.courseName)) return false;
+          if (selectedCourse && r.courseName && r.courseName.toLowerCase() !== selectedCourse.name.toLowerCase()) return false;
+          return true;
+        })
+        .map((r, i) => ({
+          id: `live-att-${sessId}-${i}`,
+          date: r.date || new Date(r.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+          timeSlot: "09:00 AM – 10:00 AM",
+          topic: `${r.subjectName || r.courseName || "Class Session"}`,
+          moduleName: r.subjectName || selectedCourse?.name || "Module",
+          batchCode: r.batchCode || "B001",
+          courseName: r.courseName || selectedCourse?.name || "Enrolled Course",
+          facultyName: "Faculty01",
+          status: (r.status === "PRESENT" ? "PRESENT" : r.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
+          remarks: `Marked ${r.status === "PRESENT" ? "Present" : r.status === "LEAVE" ? "Leave" : "Absent"} by Faculty`,
+          markedAt: new Date(r.updatedAt).toLocaleString("en-IN"),
+          isLiveUpdate: true,
+        }));
     });
 
-    // Default historical attendance logs
-    const sessionHistoryLogs = sessionHistories.map((hist) => ({
-      id: hist.id,
-      date: hist.date || "02 Sep 2026",
-      timeSlot: `${hist.startTime} – ${hist.endTime}`,
-      topic: hist.module || "Live Class Session",
-      moduleName: hist.module || "React & Frontend Development",
-      batchCode: hist.batch || "FSD-01",
-      courseName: hist.course || "Full Stack Web Development",
-      facultyName: hist.facultyName || "Ramesh Kumar",
-      status: "PRESENT" as const,
-      remarks: "Marked Present by Faculty during live session",
-      markedAt: "02 Sep 2026, 10:05 AM",
-    }));
-
-    const baseHistory = [
-      {
-        id: "att-01",
-        date: "02 Sep 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "React Development: Hooks & State Management",
-        moduleName: "React Development",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
+    // Enrolled course history logs
+    const sessionHistoryLogs = sessionHistories
+      .filter((hist) => {
+        if (hist.course && !academic.isAuthorizedForCourse(hist.course)) return false;
+        if (selectedCourse && hist.course && hist.course.toLowerCase() !== selectedCourse.name.toLowerCase()) return false;
+        return true;
+      })
+      .map((hist) => ({
+        id: hist.id,
+        date: hist.date || "02 Sep 2026",
+        timeSlot: `${hist.startTime} – ${hist.endTime}`,
+        topic: hist.module || "Live Class Session",
+        moduleName: hist.module || selectedCourse?.name || "Curriculum",
+        batchCode: hist.batch || "B001",
+        courseName: hist.course || selectedCourse?.name || "Enrolled Course",
+        facultyName: hist.facultyName || "Faculty01",
         status: "PRESENT" as const,
-        remarks: "Marked Present at 10:05 AM",
+        remarks: "Marked Present by Faculty during live session",
         markedAt: "02 Sep 2026, 10:05 AM",
-      },
-      {
-        id: "att-02",
-        date: "01 Sep 2026",
-        timeSlot: "02:00 PM – 04:00 PM",
-        topic: "Database Systems: SQL Joins & Subqueries",
-        moduleName: "Database Systems",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Priya Sharma",
-        status: "PRESENT" as const,
-        remarks: "Marked Present at 02:04 PM",
-        markedAt: "01 Sep 2026, 02:04 PM",
-      },
-      {
-        id: "att-03",
-        date: "01 Sep 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "Web Technologies: CSS Grid & Responsive Layouts",
-        moduleName: "Web Technologies",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "PRESENT" as const,
-        remarks: "Marked Present at 10:00 AM",
-        markedAt: "01 Sep 2026, 10:00 AM",
-      },
-      {
-        id: "att-04",
-        date: "31 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "Java Programming: OOPs Concepts & Inheritance",
-        moduleName: "Java Programming",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ankit Singh",
-        status: "PRESENT" as const,
-        remarks: "Marked Present at 10:02 AM",
-        markedAt: "31 Aug 2026, 10:02 AM",
-      },
-      {
-        id: "att-05",
-        date: "28 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "React Development: Component Architecture & Props",
-        moduleName: "React Development",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "28 Aug 2026, 10:01 AM",
-      },
-      {
-        id: "att-06",
-        date: "26 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "React Development: JSX & Virtual DOM Mechanics",
-        moduleName: "React Development",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "26 Aug 2026, 10:03 AM",
-      },
-      {
-        id: "att-07",
-        date: "25 Aug 2026",
-        timeSlot: "02:00 PM – 04:00 PM",
-        topic: "Database Systems: Normalization & 3NF Forms",
-        moduleName: "Database Systems",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Priya Sharma",
-        status: "ABSENT" as const,
-        remarks: "Unexcused Absence",
-        markedAt: "25 Aug 2026, 02:30 PM",
-      },
-      {
-        id: "att-08",
-        date: "24 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "Java Programming: Abstract Classes & Interfaces",
-        moduleName: "Java Programming",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ankit Singh",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "24 Aug 2026, 10:00 AM",
-      },
-      {
-        id: "att-09",
-        date: "21 Aug 2026",
-        timeSlot: "09:00 AM – 11:00 AM",
-        topic: "Node.js: Express Routing & Middleware",
-        moduleName: "Node.js & Express",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Rajesh Varma",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "21 Aug 2026, 09:05 AM",
-      },
-      {
-        id: "att-10",
-        date: "19 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "React Development: State Hooks & Event Handlers",
-        moduleName: "React Development",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "19 Aug 2026, 10:02 AM",
-      },
-      {
-        id: "att-11",
-        date: "15 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "Web Technologies: Flexbox Deep Dive",
-        moduleName: "Web Technologies",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "EXCUSED" as const,
-        remarks: "Approved Leave Request (Holiday / College Event)",
-        markedAt: "15 Aug 2026, 09:00 AM",
-      },
-      {
-        id: "att-12",
-        date: "14 Aug 2026",
-        timeSlot: "10:00 AM – 12:00 PM",
-        topic: "React Development: Functional Components & Props",
-        moduleName: "React Development",
-        batchCode: "FSD-01",
-        courseName: "Full Stack Web Development",
-        facultyName: "Ramesh Kumar",
-        status: "PRESENT" as const,
-        remarks: "Marked Present",
-        markedAt: "14 Aug 2026, 10:01 AM",
-      },
-    ];
+      }));
 
-    return [...liveSessionAttendanceLogs, ...sessionHistoryLogs, ...baseHistory];
-  }, [apiHistory, sessionHistories, sessionAttendance, user, academic.primaryCourse, academic.primaryBatch, studentId]);
+    return [...liveSessionAttendanceLogs, ...sessionHistoryLogs];
+  }, [apiHistory, sessionHistories, sessionAttendance, user, selectedCourse, academic, studentId]);
 
   const filteredHistory = useMemo(() => {
     return rawHistoryList.filter((item) => {
@@ -443,6 +330,23 @@ export const StudentAttendance: React.FC = () => {
       return true;
     });
   }, [rawHistoryList, academic, historyFilter, searchQuery]);
+
+  // Empty state if not enrolled in any course
+  if (enrolledCourses.length === 0 && !academic.primaryCourse) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
+        <div className="p-12 rounded-3xl bg-white dark:bg-[#0B1120] border border-slate-200/80 dark:border-slate-800/80 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-[#5B50EC] dark:text-indigo-400 flex items-center justify-center mx-auto">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">No Enrolled Courses Found</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Attendance tracking will be available once you are enrolled in a course and assigned to a batch.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
@@ -467,13 +371,44 @@ export const StudentAttendance: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 2. EXACT ATTENDANCE OVERVIEW MATRIX (MATCHING SCREENSHOT) ───── */}
+      {/* ─── ENROLLED COURSE SELECTOR (When multi-course enrolled) ────────── */}
+      {enrolledCourses.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">Enrolled Course:</span>
+          {enrolledCourses.map((c) => {
+            const isCourseActive = c.id === selectedCourse?.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedCourseId(c.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  isCourseActive
+                    ? "bg-[#5B50EC] text-white shadow-xs"
+                    : "bg-white dark:bg-[#111A2E] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800"
+                }`}
+              >
+                {c.name} {c.code ? `(${c.code})` : ""}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ─── 2. EXACT ATTENDANCE OVERVIEW MATRIX ─────────────────────────── */}
       <div className="bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs dark:shadow-2xl p-5 sm:p-7 space-y-6 overflow-hidden transition-colors">
         {/* Row 1: Section Title & Date Range Picker */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <span className="text-xs font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
-            ATTENDANCE
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+              ATTENDANCE
+            </span>
+            {selectedCourse && (
+              <span className="text-xs font-bold text-[#5B50EC] dark:text-indigo-400">
+                • {selectedCourse.name}
+              </span>
+            )}
+          </div>
 
           {/* Date Range Selector */}
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#111A2E] border border-slate-200 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs">
@@ -494,7 +429,7 @@ export const StudentAttendance: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2: Subject Filter Pills Bar */}
+        {/* Row 2: Subject Filter Pills Bar (Strictly Enrolled Modules / Course) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {dynamicSubjects.map((subject) => {
             const isActive = subject.id === selectedSubjectId;
@@ -502,10 +437,11 @@ export const StudentAttendance: React.FC = () => {
               <button
                 key={subject.id}
                 onClick={() => setSelectedSubjectId(subject.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${isActive
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
                     ? "bg-[#2563EB] text-white shadow-md shadow-blue-600/30 scale-102"
                     : "bg-slate-100 dark:bg-[#131C31] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-[#1C2844] border border-slate-200/80 dark:border-slate-800/60"
-                  }`}
+                }`}
               >
                 {subject.name}
               </button>

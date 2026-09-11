@@ -421,7 +421,7 @@ export const StudentLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
         <header className="h-14 bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] border-b border-[#334155] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
-          {/* Hamburger + Greeting */}
+          {/* Left: Mobile Menu Trigger */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -430,15 +430,6 @@ export const StudentLayout: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-
-            <div>
-              <h1 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
-                Hello, {studentName}! 👋
-              </h1>
-              <p className="text-[11px] text-blue-100/80 font-medium hidden sm:block">
-                Here's your class schedule (Only assigned by your Counsellor)
-              </p>
-            </div>
           </div>
 
           {/* Right Header Widgets */}

@@ -243,7 +243,7 @@ export const StudentAssignments: React.FC = () => {
     } catch (err: unknown) {
       alert(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          "Failed to submit assignment. Please try again."
+        "Failed to submit assignment. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -254,16 +254,16 @@ export const StudentAssignments: React.FC = () => {
 
   const canSubmitSelected = selectedAssignment
     ? canStudentSubmit({
-        assignmentStatus: selectedAssignment.assignmentStatus,
-        submissionStatus: currentSubmission?.submissionStatus,
-        dueDate: selectedAssignment.dueDate,
-        allowLate: selectedAssignment.allowLate,
-      }) && !selectedAssignment.restrictStudentUpload
+      assignmentStatus: selectedAssignment.assignmentStatus,
+      submissionStatus: currentSubmission?.submissionStatus,
+      dueDate: selectedAssignment.dueDate,
+      allowLate: selectedAssignment.allowLate,
+    }) && !selectedAssignment.restrictStudentUpload
     : false;
 
   const isCurrentOverdue = selectedAssignment
     ? selectedAssignment.statusInfo.status === "OVERDUE" ||
-      (!canSubmitSelected && !currentSubmission && !!selectedAssignment.dueDate && new Date() > new Date(selectedAssignment.dueDate))
+    (!canSubmitSelected && !currentSubmission && !!selectedAssignment.dueDate && new Date() > new Date(selectedAssignment.dueDate))
     : false;
 
   return (
@@ -314,25 +314,24 @@ export const StudentAssignments: React.FC = () => {
       )}
 
       {/* ─── 2. SUMMARY STATS CARDS ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total */}
         <Card
           onClick={() => setFilterTab("ALL")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-3xl shadow-xs hover:border-[#5B50EC] ${
-            filterTab === "ALL"
+          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-[#5B50EC] ${filterTab === "ALL"
               ? "border-[#5B50EC] ring-2 ring-[#5B50EC]/20"
               : "border-slate-200/80 dark:border-slate-800/80"
-          }`}
+            }`}
         >
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-[#5B50EC] dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Layers className="h-6 w-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-[#5B50EC] dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <Layers className="h-4.5 w-4.5" />
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
                 {stats.total}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
                 Total Assignments
               </p>
             </div>
@@ -342,21 +341,20 @@ export const StudentAssignments: React.FC = () => {
         {/* Pending */}
         <Card
           onClick={() => setFilterTab("PENDING")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-3xl shadow-xs hover:border-amber-500 ${
-            filterTab === "PENDING"
+          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-amber-500 ${filterTab === "PENDING"
               ? "border-amber-500 ring-2 ring-amber-500/20"
               : "border-slate-200/80 dark:border-slate-800/80"
-          }`}
+            }`}
         >
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Clock className="h-6 w-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <Clock className="h-4.5 w-4.5" />
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
                 {stats.pending}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
                 Pending
               </p>
             </div>
@@ -366,21 +364,20 @@ export const StudentAssignments: React.FC = () => {
         {/* Submitted */}
         <Card
           onClick={() => setFilterTab("SUBMITTED")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-3xl shadow-xs hover:border-emerald-500 ${
-            filterTab === "SUBMITTED"
+          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-emerald-500 ${filterTab === "SUBMITTED"
               ? "border-emerald-500 ring-2 ring-emerald-500/20"
               : "border-slate-200/80 dark:border-slate-800/80"
-          }`}
+            }`}
         >
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="h-6 w-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-4.5 w-4.5" />
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
                 {stats.submitted}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
                 Submitted
               </p>
             </div>
@@ -390,21 +387,20 @@ export const StudentAssignments: React.FC = () => {
         {/* Graded */}
         <Card
           onClick={() => setFilterTab("GRADED")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-3xl shadow-xs hover:border-indigo-500 ${
-            filterTab === "GRADED"
+          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-indigo-500 ${filterTab === "GRADED"
               ? "border-indigo-500 ring-2 ring-indigo-500/20"
               : "border-slate-200/80 dark:border-slate-800/80"
-          }`}
+            }`}
         >
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Star className="h-6 w-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <Star className="h-4.5 w-4.5" />
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
                 {stats.graded}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
                 Graded
               </p>
             </div>
@@ -418,11 +414,10 @@ export const StudentAssignments: React.FC = () => {
           <button
             key={tab}
             onClick={() => setFilterTab(tab)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterTab === tab
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${filterTab === tab
                 ? "bg-[#5B50EC] text-white shadow-xs"
                 : "bg-slate-100 dark:bg-[#111C35] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800"
-            }`}
+              }`}
           >
             {tab === "ALL" && "All Assignments"}
             {tab === "PENDING" && `Pending (${stats.pending})`}
@@ -568,11 +563,10 @@ export const StudentAssignments: React.FC = () => {
 
                     <Button
                       onClick={() => handleOpenAssignment(assignment)}
-                      className={`text-xs font-bold h-10 px-5 rounded-2xl cursor-pointer transition-all ${
-                        isSubmitted
+                      className={`text-xs font-bold h-10 px-5 rounded-2xl cursor-pointer transition-all ${isSubmitted
                           ? "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white"
                           : "bg-[#5B50EC] hover:bg-[#4C40DB] text-white shadow-md shadow-indigo-500/20 hover:scale-102"
-                      }`}
+                        }`}
                     >
                       {isSubmitted ? (
                         <>
@@ -614,13 +608,12 @@ export const StudentAssignments: React.FC = () => {
                   </div>
 
                   <Badge
-                    className={`text-xs font-extrabold uppercase px-3 py-1 rounded-xl border ${
-                      currentSubmission
+                    className={`text-xs font-extrabold uppercase px-3 py-1 rounded-xl border ${currentSubmission
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         : isCurrentOverdue
-                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                    }`}
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      }`}
                   >
                     {currentSubmission ? "✓ SUBMITTED" : isCurrentOverdue ? "OVERDUE" : "PENDING"}
                   </Badge>
