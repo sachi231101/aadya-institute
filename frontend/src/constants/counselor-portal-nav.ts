@@ -151,9 +151,9 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     icon: Award,
     moduleKey: "targets",
     items: [
-      { title: L["targets.all"] ?? "Target Plans & Assignments", url: "/counselor/targets", itemKey: "targets.all" },
+      { title: "My Targets & Goals", url: "/counselor/targets", itemKey: "targets.all" },
       { title: L["targets.leaderboard"] ?? "Leaderboard", url: "/counselor/targets/leaderboard", itemKey: "targets.leaderboard" },
-      { title: "Incentive Approvals", url: "/counselor/incentives", itemKey: "targets.incentives" },
+      { title: "My Incentives & Rewards", url: "/counselor/incentives", itemKey: "targets.incentives" },
     ],
   },
   {

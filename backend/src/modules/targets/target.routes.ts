@@ -69,13 +69,11 @@ router.post(
 
 router.get(
   "/my/current",
-  requirePermission("target.read"),
   TargetController.getMyCurrentTargets
 );
 
 router.get(
   "/my/history",
-  requirePermission("target.read"),
   TargetController.getMyPerformanceHistory
 );
 

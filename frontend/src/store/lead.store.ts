@@ -85,8 +85,10 @@ export interface UnifiedLead {
   nextActionLabel: string;
   nextActionSubtext?: string;
   transcript: LeadTranscriptMessage[];
+  rawTranscript?: string;
   lostReason?: string;
   audioRecordingUrl?: string;
+  recordingUrl?: string;
   callLogId?: string;
 }
 

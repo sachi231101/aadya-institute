@@ -106,6 +106,7 @@ export const admissionsApi = {
     courseId?: string;
     status?: string;
     batchId?: string;
+    branchId?: string;
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<Admission[]>> => {

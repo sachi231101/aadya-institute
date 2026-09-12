@@ -181,20 +181,34 @@ describe("Target & Incentive Business Workflows and Security Isolation", () => {
     if (!uAdmin) throw new Error("Admin user not found");
     testInstituteId = uAdmin.instituteId;
 
-    const uCounsellor = await prisma.user.findFirst({
-      where: {
-        instituteId: testInstituteId,
-        email: { in: ["counsellor@aadya.in", "counsellor.ananya@aadya.com"] },
-      },
-    });
+    const uCounsellor =
+      (await prisma.user.findFirst({
+        where: {
+          instituteId: testInstituteId,
+          email: { in: ["counsellor@aadya.in", "counsellor.ananya@aadya.com"] },
+        },
+      })) ||
+      (await prisma.user.findFirst({
+        where: {
+          instituteId: testInstituteId,
+          userRoles: { some: { role: { name: "COUNSELLOR" } } },
+        },
+      }));
     if (!uCounsellor) throw new Error("Counsellor user not found");
 
-    const uManager = await prisma.user.findFirst({
-      where: {
-        instituteId: testInstituteId,
-        email: { in: ["manager@aadya.in", "manager.koramangala@aadya.com"] },
-      },
-    });
+    const uManager =
+      (await prisma.user.findFirst({
+        where: {
+          instituteId: testInstituteId,
+          email: { in: ["manager@aadya.in", "manager.koramangala@aadya.com"] },
+        },
+      })) ||
+      (await prisma.user.findFirst({
+        where: {
+          instituteId: testInstituteId,
+          userRoles: { some: { role: { name: "CENTER_MANAGER" } } },
+        },
+      }));
     if (!uManager) throw new Error("Manager user not found");
 
     branchAId = uCounsellor.branchId || (await prisma.branch.findFirst({ where: { instituteId: testInstituteId } }))!.id;

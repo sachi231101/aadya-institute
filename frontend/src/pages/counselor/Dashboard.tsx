@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Plus,
   TrendingUp,
+  TrendingDown,
   ArrowRight,
   Filter,
   Wallet,
@@ -55,7 +56,7 @@ import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DashboardBaselineView } from "@/components/dashboard/DashboardBaselineView";
-import type { UnifiedLead } from "@/store/lead.store";
+import type { UnifiedLead, AiCallOutcome, LeadTranscriptMessage } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
@@ -63,6 +64,9 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
   useLeads,
+  useLeadDashboard,
+  useFollowUpDashboard,
+  useCounsellorPerformance,
   useCreateLead,
   useChangeLeadStage,
   useMarkLeadLost,
@@ -78,6 +82,8 @@ import {
 } from "@/components/batches/BatchCourseSelector";
 import { coursesApi } from "@/services/courses.api";
 import { facultyApi } from "@/services/faculty.api";
+import { studentsApi } from "@/services/students.api";
+import { admissionsApi } from "@/services/admissions.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -175,8 +181,6 @@ export const CounselorDashboard: React.FC = () => {
   const [activeAiLead, setActiveAiLead] = useState<UnifiedLead | null>(null);
   const [showAiDrawer, setShowAiDrawer] = useState(false);
   const [aiDrawerTab, setAiDrawerTab] = useState<"SUMMARY" | "RECORDING">("SUMMARY");
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
   // Lead Filter States
   const [leadSearchText, setLeadSearchText] = useState("");
@@ -212,63 +216,161 @@ export const CounselorDashboard: React.FC = () => {
   // Real Database Counselor Targets Query
   const { data: myTargetsData } = useMyCurrentTargets();
 
-  const mapApiLeadToUnified = (l: any): UnifiedLead => ({
-    id: l.id,
-    name: l.name,
-    phone: l.phoneNumber || l.phone || "",
-    email: l.email || "",
-    course: l.course?.name || l.interestedIn || "—",
-    source: (l.source === "WALK_IN"
-      ? "Walk-in"
-      : l.source === "GOOGLE"
-        ? "Google Ads"
-        : l.source === "INSTAGRAM"
-          ? "Instagram"
-          : l.source === "REFERRAL"
-            ? "Referral"
-            : l.source === "WHATSAPP"
-              ? "WhatsApp"
-              : l.source || "Website") as any,
-    sourceType: l.source || "Website",
-    stage: l.stage || "NEW",
-    stageColor:
-      l.stage === "CONVERTED"
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-blue-50 text-blue-700 border-blue-200",
-    priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
-    priorityColor:
-      l.priority === "HIGH" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
-    nextFollowUp: l.nextFollowUpAt
-      ? new Date(l.nextFollowUpAt).toLocaleDateString()
-      : "—",
-    attemptsCount: (l.callLogs || []).length,
-    latestResponse: l.notes || "Inbound enquiry logged in database.",
-    assignedCounsellor: l.assignedCounsellor?.name || user?.name || "—",
-    assignedDate: l.createdAt
-      ? new Date(l.createdAt).toLocaleDateString()
-      : "—",
-    hotLead: l.priority === "HIGH",
-    campaign: "—",
-    callDate: l.callLogs?.[0]?.createdAt
-      ? new Date(l.callLogs[0].createdAt).toLocaleDateString()
-      : "—",
-    callStatus: (l.callLogs?.[0]?.status as any) || "PENDING",
-    attempt: (l.callLogs || []).length,
-    aiOutcome: "INTERESTED",
-    aiSummaryShort: l.callLogs?.[0]?.aiSummary || l.notes || "—",
-    aiDetailedSummary: l.notes || "Lead registered in academy pipeline.",
-    keyHighlights: [`Source: ${l.source || "—"}`],
-    callDuration: l.callLogs?.[0]?.duration ? `${l.callLogs[0].duration}s` : "—",
-    callTimestamp: "—",
-    aiScore: Number(l.callLogs?.[0]?.aiScore) || 0,
-    starRating: 0,
-    nextActionType: "CONTACT_NOW",
-    nextActionLabel: "Contact Now",
-    nextActionSubtext: "Active Enquiry",
-    transcript: [],
-    attemptsHistory: [],
-    pipelineStage: l.stage,
+  // Live Dashboard Queries from Leads & Operations (PostgreSQL source of truth)
+  const { data: leadDashboardResponse } = useLeadDashboard(user?.branchId || undefined);
+  const leadDashboardData = leadDashboardResponse?.data;
+
+  const { data: followUpDashboardResponse } = useFollowUpDashboard(user?.branchId || undefined);
+  const followUpDashboardData = followUpDashboardResponse?.data;
+
+  const { data: counsellorPerfResponse } = useCounsellorPerformance(user?.branchId || undefined);
+  const counsellorPerfList: any[] = Array.isArray(counsellorPerfResponse?.data)
+    ? counsellorPerfResponse.data
+    : [];
+
+  const { data: studentsRes } = useQuery({
+    queryKey: ["students", "counselor-dashboard", user?.branchId],
+    queryFn: () => studentsApi.getAll({ limit: 100, branchId: user?.branchId || undefined }),
   });
+  const liveStudents = studentsRes?.data || students;
+
+  const { data: admissionsRes } = useQuery({
+    queryKey: ["admissions", "counselor-dashboard", user?.branchId],
+    queryFn: () => admissionsApi.getAdmissions({ limit: 100, branchId: user?.branchId || undefined }),
+  });
+  const liveAdmissions = admissionsRes?.data || admissions;
+
+  const mapApiLeadToUnified = (l: any): UnifiedLead => {
+    const latestCall = l.callLogs?.[0];
+    const rawOutcome = latestCall?.outcome || latestCall?.interestStatus || latestCall?.qualification || latestCall?.status || null;
+    let mappedAiOutcome: AiCallOutcome = "PENDING_CALL";
+    if (rawOutcome) {
+      const upper = String(rawOutcome).toUpperCase();
+      if (upper.includes("INTERESTED") && !upper.includes("NOT")) {
+        mappedAiOutcome = "INTERESTED";
+      } else if (upper.includes("NOT_INTERESTED") || upper.includes("NOT INTERESTED")) {
+        mappedAiOutcome = "NOT_INTERESTED";
+      } else if (upper.includes("CALLBACK") || upper.includes("CALL_BACK")) {
+        mappedAiOutcome = "CALLBACK_REQUESTED";
+      } else if (upper.includes("COUNSELLOR") || upper.includes("HUMAN")) {
+        mappedAiOutcome = "NEEDS_COUNSELLOR";
+      } else if (upper.includes("NO_RESPONSE") || upper.includes("NO_ANSWER") || upper.includes("BUSY") || upper.includes("FAILED")) {
+        mappedAiOutcome = "NO_RESPONSE";
+      } else if (latestCall) {
+        mappedAiOutcome = "INTERESTED";
+      }
+    }
+
+    const attempts = (l.callLogs || []).length;
+    const callDurationSecs = latestCall?.duration ?? 0;
+    const formattedDuration = callDurationSecs > 0
+      ? callDurationSecs >= 60
+        ? `${Math.floor(callDurationSecs / 60)}m ${callDurationSecs % 60}s`
+        : `${callDurationSecs}s`
+      : "—";
+
+    const aiScoreValue = Number(latestCall?.aiScore) || (
+      mappedAiOutcome === "INTERESTED" ? 85 :
+      mappedAiOutcome === "CALLBACK_REQUESTED" ? 60 :
+      mappedAiOutcome === "NEEDS_COUNSELLOR" ? 75 :
+      mappedAiOutcome === "NOT_INTERESTED" ? 15 :
+      mappedAiOutcome === "NO_RESPONSE" ? 20 : 0
+    );
+
+    const starRatingValue = Math.round((aiScoreValue / 100) * 5);
+
+    let parsedTranscript: LeadTranscriptMessage[] = [];
+    if (latestCall?.transcript) {
+      try {
+        const parsed = JSON.parse(latestCall.transcript);
+        if (Array.isArray(parsed)) {
+          parsedTranscript = parsed.map((item: any) => ({
+            speaker: item.speaker || (item.role === "assistant" ? "AI_AGENT" : "STUDENT"),
+            name: item.name || (item.role === "assistant" ? "Aadya AI Agent" : l.name),
+            time: item.time || "",
+            text: item.text || item.content || String(item),
+          }));
+        }
+      } catch {
+        // Plain text transcript, handled via rawTranscript
+      }
+    }
+
+    return {
+      id: l.id,
+      name: l.name,
+      phone: l.phoneNumber || l.phone || "",
+      email: l.email || "",
+      course: l.course?.name || l.interestedIn || "—",
+      source: (l.source === "WALK_IN"
+        ? "Walk-in"
+        : l.source === "GOOGLE"
+          ? "Google Ads"
+          : l.source === "INSTAGRAM"
+            ? "Instagram"
+            : l.source === "REFERRAL"
+              ? "Referral"
+              : l.source === "WHATSAPP"
+                ? "WhatsApp"
+                : l.source || "Website") as any,
+      sourceType: l.source || "Website",
+      stage: l.stage || "NEW",
+      stageColor:
+        l.stage === "CONVERTED"
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-blue-50 text-blue-700 border-blue-200",
+      priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
+      priorityColor:
+        l.priority === "HIGH" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
+      nextFollowUp: l.nextFollowUpAt
+        ? new Date(l.nextFollowUpAt).toLocaleDateString()
+        : "—",
+      attemptsCount: attempts,
+      latestResponse: l.notes || "Inbound enquiry logged in database.",
+      assignedCounsellor: l.assignedCounsellor?.name || user?.name || "—",
+      assignedDate: l.createdAt
+        ? new Date(l.createdAt).toLocaleDateString()
+        : "—",
+      hotLead: l.priority === "HIGH",
+      campaign: l.campaign || "—",
+      callDate: latestCall?.createdAt
+        ? new Date(latestCall.createdAt).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "—",
+      callStatus: (latestCall?.status as any) || "PENDING",
+      attempt: attempts,
+      aiOutcome: mappedAiOutcome,
+      aiSummaryShort: latestCall?.aiSummary || l.notes || (attempts > 0 ? "Call completed" : "No calls yet"),
+      aiDetailedSummary: latestCall?.aiSummary || l.notes || "Lead registered in academy pipeline.",
+      aiCallingResult: latestCall
+        ? `${latestCall.status}${latestCall.interestStatus ? ` — ${latestCall.interestStatus}` : ""}${latestCall.aiSummary ? `: ${latestCall.aiSummary}` : ""}`
+        : "No AI call initiated yet.",
+      keyHighlights: latestCall?.aiSummary
+        ? [latestCall.aiSummary, `Source: ${l.source || "Direct"}`]
+        : [`Source: ${l.source || "Direct"}`],
+      callDuration: formattedDuration,
+      callTimestamp: latestCall?.createdAt
+        ? new Date(latestCall.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "—",
+      aiScore: aiScoreValue,
+      starRating: starRatingValue,
+      nextActionType: mappedAiOutcome === "PENDING_CALL" ? "CONTACT_NOW" : mappedAiOutcome === "CALLBACK_REQUESTED" ? "CALL_BACK" : "FOLLOW_UP",
+      nextActionLabel: mappedAiOutcome === "PENDING_CALL" ? "Contact Now" : mappedAiOutcome === "CALLBACK_REQUESTED" ? "Schedule Callback" : "Follow Up",
+      nextActionSubtext: mappedAiOutcome === "PENDING_CALL" ? "Active Enquiry" : "AI Call Completed",
+      transcript: parsedTranscript,
+      rawTranscript: latestCall?.transcript || undefined,
+      audioRecordingUrl: latestCall?.recordingUrl || undefined,
+      recordingUrl: latestCall?.recordingUrl || undefined,
+      callLogId: latestCall?.id,
+      attemptsHistory: [],
+      pipelineStage: l.stage,
+    };
+  };
 
   const combinedLeadsList = useMemo(() => {
     const rawDbLeads: any[] = Array.isArray(dbLeadsResponse?.data?.data)
@@ -325,15 +427,29 @@ export const CounselorDashboard: React.FC = () => {
     });
   }, [combinedLeadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter, leadSourceOptions, leadStageOptions]);
 
-  // Summary Metrics for Leads Section
+  // Summary Metrics for Leads Section (Strictly from real database records)
   const leadSummaryCounts = useMemo(() => {
+    const overdue =
+      followUpDashboardData?.summary?.overdue ??
+      combinedLeadsList.filter((l) => l.priority === "Urgent").length;
+    const today =
+      followUpDashboardData?.summary?.today ??
+      combinedLeadsList.filter((l) => l.priority === "Due Today").length;
+    const active =
+      leadDashboardData
+        ? Math.max(0, leadDashboardData.totalLeads - leadDashboardData.converted - leadDashboardData.lost)
+        : combinedLeadsList.filter((l) => !["LOST", "CONVERTED"].includes(l.stage)).length;
+    const converted =
+      leadDashboardData?.converted ??
+      combinedLeadsList.filter((l) => l.stage === "CONVERTED").length;
+
     return {
-      overdue: combinedLeadsList.filter(l => l.priority === "Urgent").length || 4,
-      today: combinedLeadsList.filter(l => l.priority === "Due Today").length || 8,
-      active: combinedLeadsList.filter(l => l.stage !== "LOST" && l.stage !== "CONVERTED").length || 12,
-      converted: combinedLeadsList.filter(l => l.stage === "CONVERTED").length || 5,
+      overdue: Math.max(0, overdue),
+      today: Math.max(0, today),
+      active: Math.max(0, active),
+      converted: Math.max(0, converted),
     };
-  }, [combinedLeadsList]);
+  }, [combinedLeadsList, followUpDashboardData, leadDashboardData]);
 
   // CRUD Modals State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -344,7 +460,11 @@ export const CounselorDashboard: React.FC = () => {
   // Schedule Follow-up Modal State
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpType, setFollowUpType] = useState<"CALL" | "WHATSAPP" | "EMAIL">("CALL");
-  const [followUpDate, setFollowUpDate] = useState("2026-08-25");
+  const [followUpDate, setFollowUpDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [followUpTime, setFollowUpTime] = useState("11:00 AM");
   const [setReminder, setSetReminder] = useState(true);
   const [followUpNotes, setFollowUpNotes] = useState("");
@@ -532,9 +652,9 @@ export const CounselorDashboard: React.FC = () => {
   useEffect(() => {
     fetchCounselors(user?.branchId || undefined);
     fetchEnquiries();
-    fetchAdmissions();
-    fetchStudents();
-  }, []);
+    fetchAdmissions({ limit: 100 } as any);
+    fetchStudents(user?.branchId || undefined);
+  }, [user?.branchId]);
 
   const formatINR = (val: number) => `₹${val.toLocaleString("en-IN")}`;
 
@@ -551,36 +671,77 @@ export const CounselorDashboard: React.FC = () => {
     return now.toLocaleString("en-US", { month: "long", year: "numeric" });
   }, []);
 
-  // Top KPI metrics (from live leads + admissions/students)
+  // Top KPI metrics (strictly calculated from live leads + admissions/students)
   const newLeadsToday = useMemo(() => {
+    if (leadDashboardData?.todayCreated != null) {
+      return leadDashboardData.todayCreated;
+    }
     const today = new Date().toDateString();
     return combinedLeadsList.filter((l) => {
       const raw = (dbLeadsResponse?.data as any[])?.find((d) => d.id === l.id);
       return raw?.createdAt && new Date(raw.createdAt).toDateString() === today;
     }).length;
-  }, [combinedLeadsList, dbLeadsResponse]);
-  const followupsDueCount = combinedLeadsList.filter((l) => l.stage === "FOLLOW_UP").length;
-  const counsellingSessionsCount = combinedLeadsList.filter((l) =>
-    ["CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(l.stage)
-  ).length;
-  const confirmedAdmissionsCount = useMemo(
-    () =>
-      countUniqueAdmissionStudents(
-        admissions.map((a) => ({
-          id: a.id,
-          studentId: (a as { studentId?: string }).studentId,
-          phone: (a as { phone?: string }).phone,
-          studentName: a.studentName,
-        }))
-      ),
-    [admissions]
-  );
-  const registeredStudentsCount = students.length;
+  }, [combinedLeadsList, dbLeadsResponse, leadDashboardData?.todayCreated]);
 
-  // Revenue overview metrics
+  const followupsDueCount = useMemo(() => {
+    if (followUpDashboardData?.summary) {
+      return (followUpDashboardData.summary.today ?? 0) + (followUpDashboardData.summary.overdue ?? 0);
+    }
+    return combinedLeadsList.filter(
+      (l) => l.stage === "FOLLOW_UP" || l.priority === "Due Today" || l.priority === "Urgent"
+    ).length;
+  }, [followUpDashboardData, combinedLeadsList]);
+
+  const counsellingSessionsCount = useMemo(() => {
+    if (followUpDashboardData?.summary?.today != null) {
+      return followUpDashboardData.summary.today;
+    }
+    return combinedLeadsList.filter((l) =>
+      ["CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(l.stage)
+    ).length;
+  }, [followUpDashboardData, combinedLeadsList]);
+
+  const confirmedAdmissionsCount = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const confirmed = liveAdmissions.filter((a) => {
+      const isConfirmed = a.status === "CONFIRMED" || a.status === "ACTIVE";
+      if (!isConfirmed) return false;
+      if (!a.createdAt) return true;
+      const d = new Date(a.createdAt);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+    return countUniqueAdmissionStudents(
+      (confirmed.length > 0 ? confirmed : liveAdmissions.filter((a) => a.status === "CONFIRMED" || a.status === "ACTIVE")).map((a) => ({
+        id: a.id,
+        studentId: (a as { studentId?: string }).studentId,
+        phone: (a as { phone?: string }).phone,
+        studentName: a.studentName,
+      }))
+    );
+  }, [liveAdmissions]);
+
+  const registeredStudentsCount = liveStudents.length;
+
+  // Revenue overview metrics (Live from Financial Reports & PostgreSQL)
   const pendingFeeAmount = financialReport?.summary?.totalPending ?? 0;
   const collectedThisMonthAmount = financialReport?.summary?.totalCollected ?? 0;
-  const prevMonthRevenueAmount = 0;
+  const { prevMonthRevenueAmount, revenueGrowthPct } = useMemo(() => {
+    const trend = financialReport?.monthlyTrend || [];
+    if (trend.length >= 2) {
+      const prev = trend[trend.length - 2]?.collected ?? 0;
+      const current = trend[trend.length - 1]?.collected ?? collectedThisMonthAmount;
+      const growth =
+        prev > 0
+          ? Math.round(((current - prev) / prev) * 100)
+          : current > 0
+            ? 100
+            : 0;
+      return { prevMonthRevenueAmount: prev, revenueGrowthPct: growth };
+    }
+    return { prevMonthRevenueAmount: 0, revenueGrowthPct: null };
+  }, [financialReport?.monthlyTrend, collectedThisMonthAmount]);
 
   const mapLostReasonToApi = (reason: string): string => {
     const lower = reason.toLowerCase();
@@ -832,7 +993,6 @@ export const CounselorDashboard: React.FC = () => {
   const handleOpenAiDrawer = (lead: UnifiedLead) => {
     setActiveAiLead(lead);
     setAiDrawerTab("SUMMARY");
-    setIsPlayingAudio(false);
     setShowAiDrawer(true);
   };
 
@@ -908,6 +1068,93 @@ export const CounselorDashboard: React.FC = () => {
         color: LEAD_SOURCE_COLORS[i % LEAD_SOURCE_COLORS.length],
       }));
   }, [combinedLeadsList]);
+
+  // Admission Funnel Conversion Rate (Dynamically computed from real leads)
+  const funnelConversionRate = useMemo(() => {
+    const total = combinedLeadsList.length;
+    if (total === 0) return "0.0%";
+    const converted = combinedLeadsList.filter(
+      (l) => l.stage === "CONVERTED" || l.pipelineStage === "CONVERTED"
+    ).length;
+    return `${((converted / total) * 100).toFixed(1)}%`;
+  }, [combinedLeadsList]);
+
+  // Student Overview Metrics (Live from PostgreSQL via students store / query)
+  const studentMetrics = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const total = liveStudents.length;
+    const newThisMonth = liveStudents.filter((s) => {
+      if (!s.createdAt) return false;
+      const d = new Date(s.createdAt);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }).length;
+    const active = liveStudents.filter((s) => s.status === "ACTIVE").length;
+    const pendingFees = liveStudents.filter((s) => {
+      const feeSummary = (s as any).fees;
+      if (feeSummary) {
+        return (
+          (feeSummary.dueAmount ?? 0) > 0 ||
+          ["Pending", "Overdue", "Partial"].includes(feeSummary.status)
+        );
+      }
+      return false;
+    }).length;
+
+    return { total, newThisMonth, active, pendingFees };
+  }, [liveStudents]);
+
+  // My Performance Metrics (Live from Counsellor Performance & Targets)
+  const myPerformanceMetrics = useMemo(() => {
+    const perf = counsellorPerfList.find((c) => c.counsellorId === user?.id);
+    const revTarget = myTargetsData?.targets?.find(
+      (t) => t.metric === "ADMISSION_REVENUE" || t.metric === "FEE_COLLECTION"
+    );
+    const revenueFromTargets = Number(revTarget?.currentProgress?.achievedValue ?? 0);
+
+    if (perf) {
+      return {
+        leadsAssigned: perf.totalLeads,
+        followUpsCompleted: perf.followUps,
+        counsellingSessions: perf.interested,
+        admissionsConverted: perf.converted,
+        conversionRate: perf.conversionRate || "0.0%",
+        revenueGenerated: revenueFromTargets,
+      };
+    }
+
+    const myLeads = combinedLeadsList.filter(
+      (l) => l.assignedCounsellor === user?.name || (l as any).assignedCounsellorId === user?.id
+    );
+    const leadsAssigned = myLeads.length;
+    const followUpsCompleted = followUpDashboardData?.summary?.completed ?? 0;
+    const counsellingSessions = myLeads.filter((l) =>
+      ["CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(l.stage)
+    ).length;
+    const admissionsConverted = myLeads.filter((l) => l.stage === "CONVERTED").length;
+    const conversionRate =
+      leadsAssigned > 0
+        ? `${((admissionsConverted / leadsAssigned) * 100).toFixed(1)}%`
+        : "0.0%";
+
+    return {
+      leadsAssigned,
+      followUpsCompleted,
+      counsellingSessions,
+      admissionsConverted,
+      conversionRate,
+      revenueGenerated: revenueFromTargets,
+    };
+  }, [
+    counsellorPerfList,
+    user?.id,
+    user?.name,
+    myTargetsData?.targets,
+    combinedLeadsList,
+    followUpDashboardData?.summary?.completed,
+  ]);
 
   const handleCall = (lead: UnifiedLead) => {
     setActiveLead(lead);
@@ -1210,9 +1457,22 @@ export const CounselorDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs font-extrabold text-emerald-600 flex items-center justify-end gap-0.5">
-                  <TrendingUp className="h-3.5 w-3.5" /> 15%
-                </p>
+                {revenueGrowthPct !== null ? (
+                  <p
+                    className={`text-xs font-extrabold flex items-center justify-end gap-0.5 ${
+                      revenueGrowthPct >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {revenueGrowthPct >= 0 ? (
+                      <TrendingUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <TrendingDown className="h-3.5 w-3.5" />
+                    )}
+                    {revenueGrowthPct >= 0 ? `+${revenueGrowthPct}%` : `${revenueGrowthPct}%`}
+                  </p>
+                ) : (
+                  <p className="text-xs font-extrabold text-slate-400">—</p>
+                )}
                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">vs previous month</p>
               </div>
             </div>
@@ -1611,10 +1871,33 @@ export const CounselorDashboard: React.FC = () => {
                       <td className="py-3.5 px-3 max-w-[260px]">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {lead.aiOutcome === "INTERESTED" ? (
+                            {lead.attemptsCount === 0 || lead.aiOutcome === "PENDING_CALL" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerCallMutation.mutate(lead.id);
+                                }}
+                                disabled={triggerCallMutation.isPending}
+                                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-[#2563EB] border border-slate-200 hover:border-blue-200 inline-flex items-center gap-1 transition-all cursor-pointer"
+                                title="Queue automated AI voice call"
+                              >
+                                <Bot className="w-2.5 h-2.5 text-slate-400" />
+                                Not Called (Queue Call)
+                              </button>
+                            ) : lead.callStatus === "FAILED" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                                <X className="w-2.5 h-2.5 text-rose-600" />
+                                Call Failed
+                              </span>
+                            ) : lead.callStatus === "IN_PROGRESS" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 text-[#2563EB] animate-spin" />
+                                Call In Progress
+                              </span>
+                            ) : lead.aiOutcome === "INTERESTED" ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
                                 <Check className="w-2.5 h-2.5 text-emerald-600 stroke-[3]" />
-                                High Intent ({lead.aiScore || 90}%)
+                                High Intent {lead.aiScore > 0 ? `(${lead.aiScore}%)` : ""}
                               </span>
                             ) : lead.aiOutcome === "CALLBACK_REQUESTED" ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
@@ -1643,10 +1926,10 @@ export const CounselorDashboard: React.FC = () => {
                               type="button"
                               onClick={() => handleOpenAiDrawer(lead)}
                               className="px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white border border-blue-200 text-[9.5px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                              title="View AI Call Transcript & Audio Waveform"
+                              title="View AI Call Transcript & Audio Details"
                             >
                               <Bot className="w-3 h-3" />
-                              <span>Transcript</span>
+                              <span>{lead.attemptsCount > 0 ? "Transcript" : "Details"}</span>
                             </button>
                           </div>
 
@@ -1663,7 +1946,7 @@ export const CounselorDashboard: React.FC = () => {
                       <td className="py-3.5 px-3 max-w-[180px]">
                         <div className="flex items-center gap-1.5">
                           <span className="bg-blue-50 text-[#2563EB] text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border border-blue-100 shrink-0 shadow-2xs">
-                            {lead.attemptsCount || lead.attempt || 1} {(lead.attemptsCount || lead.attempt || 1) === 1 ? "call" : "calls"}
+                            {lead.attemptsCount === 0 ? "No calls yet" : `${lead.attemptsCount} ${lead.attemptsCount === 1 ? "call" : "calls"}`}
                           </span>
                           <p
                             className="text-[11px] text-slate-600 truncate font-medium"
@@ -1847,7 +2130,7 @@ export const CounselorDashboard: React.FC = () => {
 
           <div className="pt-3 border-t border-slate-100 mt-2 text-center">
             <p className="text-xs font-semibold text-slate-600">
-              Conversion Rate (Lead → Admission): <strong className="text-emerald-600 font-extrabold">18.7%</strong>
+              Conversion Rate (Lead → Admission): <strong className="text-emerald-600 font-extrabold">{funnelConversionRate}</strong>
             </p>
           </div>
         </Card>
@@ -1902,8 +2185,8 @@ export const CounselorDashboard: React.FC = () => {
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>Total Leads: <strong className="text-slate-800">128</strong></span>
-            <span>Conversion Rate: <strong className="text-emerald-600">22.66%</strong></span>
+            <span>Total Leads: <strong className="text-slate-800">{combinedLeadsList.length}</strong></span>
+            <span>Conversion Rate: <strong className="text-emerald-600">{funnelConversionRate}</strong></span>
           </div>
         </Card>
 
@@ -1918,19 +2201,19 @@ export const CounselorDashboard: React.FC = () => {
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Total Students</span>
-                <span className="font-bold text-slate-900 text-sm">156</span>
+                <span className="font-bold text-slate-900 text-sm">{studentMetrics.total}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">New Students (This Month)</span>
-                <span className="font-bold text-slate-900 text-sm">24</span>
+                <span className="font-bold text-slate-900 text-sm">{studentMetrics.newThisMonth}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Active Students</span>
-                <span className="font-bold text-slate-900 text-sm">142</span>
+                <span className="font-bold text-slate-900 text-sm">{studentMetrics.active}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-amber-600 font-semibold">Students with Pending Fees</span>
-                <span className="font-extrabold text-amber-600 text-sm">32</span>
+                <span className="font-extrabold text-amber-600 text-sm">{studentMetrics.pendingFees}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-red-600 font-semibold">Low Attendance Students</span>
@@ -1963,27 +2246,29 @@ export const CounselorDashboard: React.FC = () => {
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Leads Assigned</span>
-                <span className="font-bold text-slate-900 text-sm">128</span>
+                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.leadsAssigned}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Follow-ups Completed</span>
-                <span className="font-bold text-slate-900 text-sm">28</span>
+                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.followUpsCompleted}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Counselling Sessions</span>
-                <span className="font-bold text-slate-900 text-sm">18</span>
+                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.counsellingSessions}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Admissions Converted</span>
-                <span className="font-bold text-slate-900 text-sm">24</span>
+                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.admissionsConverted}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Conversion Rate</span>
-                <span className="font-extrabold text-emerald-600 text-sm">18.7%</span>
+                <span className="font-extrabold text-emerald-600 text-sm">{myPerformanceMetrics.conversionRate}</span>
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-600 font-medium">Revenue Generated</span>
-                <span className="font-extrabold text-emerald-600 text-sm">₹6,80,000</span>
+                <span className="font-extrabold text-emerald-600 text-sm">
+                  {formatINR(myPerformanceMetrics.revenueGenerated)}
+                </span>
               </div>
             </div>
           </div>
@@ -2163,7 +2448,7 @@ export const CounselorDashboard: React.FC = () => {
                     <div>
                       <span className="font-bold text-sky-900 block text-[11px]">AI Calling Qualification Result:</span>
                       <p className="text-sky-800 font-medium text-[11.5px] leading-snug">
-                        {activeLead.aiCallingResult || "🟢 High Intent — AI voice conversation completed successfully; interested in upcoming batch syllabus."}
+                        {activeLead.aiCallingResult || (activeLead.attemptsCount > 0 ? "AI call completed." : "No AI call recorded yet.")}
                       </p>
                     </div>
                   </div>
@@ -2174,7 +2459,7 @@ export const CounselorDashboard: React.FC = () => {
                     <div>
                       <span className="font-bold text-purple-900 block text-[11px]">Counsellor Latest Interaction:</span>
                       <p className="text-purple-800 font-medium text-[11.5px] leading-snug">
-                        {activeLead.latestResponse || "Initial contact made; requested follow-up discussion on batch timings."}
+                        {activeLead.latestResponse || "No interaction logged yet."}
                       </p>
                     </div>
                   </div>
@@ -2853,9 +3138,15 @@ export const CounselorDashboard: React.FC = () => {
                           🔥 Hot Lead
                         </span>
                       )}
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black">
-                        ✓ AI Qualified
-                      </span>
+                      {activeAiLead.attemptsCount > 0 ? (
+                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black">
+                          ✓ AI Qualified
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-bold">
+                          Pending AI Call
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-slate-500 text-[11px] font-medium flex-wrap">
                       <span className="font-mono flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400" /> {activeAiLead.phone}</span>
@@ -2912,219 +3203,208 @@ export const CounselorDashboard: React.FC = () => {
 
           {/* Modal Body */}
           {activeAiLead && (
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
-              {aiDrawerTab === "SUMMARY" ? (
-                <>
-                  {/* Call Outcome & AI Score */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Call Outcome</span>
-                      {activeAiLead.aiOutcome === "INTERESTED" ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Interested
+            activeAiLead.attemptsCount === 0 ? (
+              <div className="flex-1 p-8 text-center space-y-4 my-auto flex flex-col items-center justify-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 text-[#2563EB] flex items-center justify-center shadow-xs">
+                  <Bot className="w-7 h-7" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-800 text-sm">No AI Voice Call Placed Yet</h4>
+                  <p className="text-slate-500 text-xs max-w-sm mx-auto">
+                    This lead has not been contacted via automated telephony yet. You can trigger an AI qualification call now.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    triggerCallMutation.mutate(activeAiLead.id);
+                  }}
+                  disabled={triggerCallMutation.isPending}
+                  className="bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-xl h-10 px-5 gap-2"
+                >
+                  <Phone className="w-4 h-4" />
+                  {triggerCallMutation.isPending ? "Queuing Call..." : "Initiate AI Voice Call"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
+                {aiDrawerTab === "SUMMARY" ? (
+                  <>
+                    {/* Call Outcome & AI Score */}
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-500 block mb-1">Call Outcome</span>
+                        {activeAiLead.aiOutcome === "INTERESTED" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Interested
+                          </span>
+                        ) : activeAiLead.aiOutcome === "CALLBACK_REQUESTED" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Callback Requested
+                          </span>
+                        ) : activeAiLead.aiOutcome === "NEEDS_COUNSELLOR" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-sky-600" /> Needs Counsellor
+                          </span>
+                        ) : activeAiLead.aiOutcome === "NOT_INTERESTED" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1.5">
+                            <X className="w-3.5 h-3.5 text-rose-600" /> Not Interested
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" /> No Response
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[11px] font-bold text-slate-500 block mb-0.5">AI Score</span>
+                        <span className="text-xl font-black text-slate-900">
+                          {activeAiLead.aiScore > 0 ? `${activeAiLead.aiScore}%` : "—"}
                         </span>
-                      ) : activeAiLead.aiOutcome === "CALLBACK_REQUESTED" ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" /> Callback Requested
-                        </span>
-                      ) : activeAiLead.aiOutcome === "NEEDS_COUNSELLOR" ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1.5">
-                          <UserCheck className="w-3.5 h-3.5 text-sky-600" /> Needs Counsellor
-                        </span>
-                      ) : activeAiLead.aiOutcome === "NOT_INTERESTED" ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1.5">
-                          <X className="w-3.5 h-3.5 text-rose-600" /> Not Interested
-                        </span>
+                        {activeAiLead.aiScore > 0 && (
+                          <div className="text-xs text-amber-400 font-bold">
+                            {"★".repeat(activeAiLead.starRating)}{"☆".repeat(Math.max(0, 5 - activeAiLead.starRating))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* AI Detailed Summary */}
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" /> AI Generated Summary
+                      </Label>
+                      <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
+                        {activeAiLead.aiSummaryDetailed || activeAiLead.aiSummaryShort || "No AI call summary recorded yet."}
+                      </div>
+                    </div>
+
+                    {/* Key Discussion Points */}
+                    <div className="space-y-2">
+                      <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Key Discussion Points
+                      </Label>
+                      {(activeAiLead.keyDiscussionPoints && activeAiLead.keyDiscussionPoints.length > 0) ||
+                      (activeAiLead.keyHighlights && activeAiLead.keyHighlights.length > 0) ? (
+                        <div className="space-y-2">
+                          {(activeAiLead.keyDiscussionPoints || activeAiLead.keyHighlights || []).map((point: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-2 text-slate-700"
+                            >
+                              <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 stroke-[3]" />
+                              <span className="font-medium text-[11.5px] leading-snug">{point}</span>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" /> No Response
-                        </span>
+                        <p className="text-slate-400 italic text-[11px] p-2">No key discussion points recorded.</p>
                       )}
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[11px] font-bold text-slate-500 block mb-0.5">AI Score</span>
-                      <span className="text-xl font-black text-slate-900">{activeAiLead.aiScore || 90}%</span>
-                      <div className="text-xs text-amber-400 font-bold">
-                        {"★".repeat(activeAiLead.starRating || 5)}{"☆".repeat(5 - (activeAiLead.starRating || 5))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI Detailed Summary */}
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" /> AI Generated Summary
-                    </Label>
-                    <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
-                      {activeAiLead.aiSummaryDetailed || activeAiLead.aiSummaryShort || "Candidate was contacted via automated AI voice agent."}
-                    </div>
-                  </div>
-
-                  {/* Key Discussion Points */}
-                  <div className="space-y-2">
-                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Key Discussion Points
-                    </Label>
-                    <div className="space-y-2">
-                      {(activeAiLead.keyDiscussionPoints || activeAiLead.keyHighlights || [
-                        `Interested in ${activeAiLead.course}`,
-                        `Enquiry Source: ${activeAiLead.source}`,
-                        `Requested course syllabus and upcoming batch timings`
-                      ]).map((point: string, idx: number) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-2 text-slate-700"
-                        >
-                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 stroke-[3]" />
-                          <span className="font-medium text-[11.5px] leading-snug">{point}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Call Information Metadata */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2.5">
-                    <Label className="text-slate-800 font-bold text-xs block mb-1">Call Telephony Details</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11.5px]">
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px]">Call Time</span>
-                        <span className="font-bold text-slate-800">{activeAiLead.callDate || "24 Aug 2026, 11:00 AM"}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px]">Duration</span>
-                        <span className="font-bold text-slate-800">{activeAiLead.callDuration || "2m 15s"}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px]">Attempt Number</span>
-                        <span className="font-bold text-slate-800">
-                          {activeAiLead.attempt === 1 ? "1st Attempt" : `${activeAiLead.attempt || 1}nd Attempt`}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10.5px]">AI Campaign</span>
-                        <span className="font-bold text-slate-800 truncate block">{activeAiLead.campaign || "August Admission Drive"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Call Recording Audio Player */}
-                  <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-extrabold text-xs text-slate-200">AI Voice Call Audio</span>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400">{activeAiLead.callDuration || "02:15"}</span>
-                    </div>
-
-                    {/* Waveform Visualization */}
-                    <div className="flex items-center gap-1 h-10 px-2 bg-slate-800/80 rounded-xl overflow-hidden">
-                      {[30, 45, 75, 90, 60, 40, 85, 95, 70, 50, 80, 100, 65, 45, 90, 80, 55, 35, 70, 90, 60, 40, 75, 85, 50, 30].map((h, i) => (
-                        <div
-                          key={i}
-                          style={{ height: `${h}%` }}
-                          className={`flex-1 rounded-full transition-all duration-300 ${i < 10 ? "bg-emerald-400" : isPlayingAudio ? "bg-cyan-400 animate-pulse" : "bg-slate-600"
-                            }`}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Player Controls */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                          className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 cursor-pointer"
-                        >
-                          {isPlayingAudio ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
-                        </button>
+                    {/* Call Information Metadata */}
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2.5">
+                      <Label className="text-slate-800 font-bold text-xs block mb-1">Call Telephony Details</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11.5px]">
                         <div>
-                          <p className="text-[11px] font-mono font-bold text-slate-300">01:24 / {activeAiLead.callDuration || "02:15"}</p>
-                          <p className="text-[10px] text-slate-400">1.0x Speed</p>
+                          <span className="text-slate-400 block text-[10.5px]">Call Time</span>
+                          <span className="font-bold text-slate-800">{activeAiLead.callDate || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10.5px]">Duration</span>
+                          <span className="font-bold text-slate-800">{activeAiLead.callDuration || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10.5px]">Attempt Number</span>
+                          <span className="font-bold text-slate-800">
+                            {activeAiLead.attempt > 0 ? `Attempt #${activeAiLead.attempt}` : "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10.5px]">Call Status</span>
+                          <span className="font-bold text-slate-800 truncate block">{activeAiLead.callStatus || "COMPLETED"}</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsAudioMuted(!isAudioMuted)}
-                        className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                      >
-                        {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                      </button>
                     </div>
-                  </div>
-
-                  {/* AI Conversation Transcript */}
-                  <div className="space-y-3">
-                    <Label className="text-slate-800 font-bold text-xs flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Bot className="w-3.5 h-3.5 text-[#2563EB]" /> Voice Agent Dialogue Transcript
-                      </span>
-                      <span className="text-[10.5px] text-slate-400 font-normal">Hindi / English Telephony</span>
-                    </Label>
-
-                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                      {(activeAiLead.transcript && activeAiLead.transcript.length > 0 ? activeAiLead.transcript : [
-                        {
-                          speaker: "AI_AGENT" as const,
-                          name: "Aadya AI Agent",
-                          time: "00:02",
-                          text: `Namaste ${activeAiLead.name}! Main Aadya Institute of Technical Studies se bol rahi hoon. Aapne hamare ${activeAiLead.course} training program ke liye inquiry kiya tha?`
-                        },
-                        {
-                          speaker: "STUDENT" as const,
-                          name: activeAiLead.name,
-                          time: "00:08",
-                          text: `Haan, maine online form fill kiya tha. Mujhe course details aur batch timings janne the.`
-                        },
-                        {
-                          speaker: "AI_AGENT" as const,
-                          name: "Aadya AI Agent",
-                          time: "00:15",
-                          text: `Zaroor! Hamare naye weekday aur weekend batches start ho rahe hain with 100% placement assistance and live capstone projects. Kya aap full-time ya weekend batch prefer karenge?`
-                        },
-                        {
-                          speaker: "STUDENT" as const,
-                          name: activeAiLead.name,
-                          time: "00:24",
-                          text: `Weekend batch suit karega. Kya aap mujhe syllabus aur fee structure WhatsApp par bhej sakte hain?`
-                        },
-                        {
-                          speaker: "AI_AGENT" as const,
-                          name: "Aadya AI Agent",
-                          time: "00:32",
-                          text: `Bilkul! Maine brochure WhatsApp par send kar diya hai. Hamare senior counsellor aapse connect karenge demo session ke liye. Dhanyawaad!`
-                        }
-                      ]).map((msg, i) => (
-                        <div
-                          key={i}
-                          className={`p-3 rounded-2xl text-xs space-y-1 ${msg.speaker === "AI_AGENT" || msg.speaker === "AI"
-                              ? "bg-blue-50/70 border border-blue-100 text-slate-800 mr-4"
-                              : "bg-slate-100/80 border border-slate-200/70 text-slate-900 ml-4"
-                            }`}
-                        >
-                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                            <span className="flex items-center gap-1">
-                              {msg.speaker === "AI_AGENT" || msg.speaker === "AI" ? (
-                                <span className="text-[#2563EB] font-black">🤖 {msg.name || msg.speakerName || "Aadya AI Agent"}</span>
-                              ) : (
-                                <span className="text-slate-800 font-black">👤 {msg.name || msg.speakerName || activeAiLead.name}</span>
-                              )}
-                            </span>
-                            <span className="font-mono text-slate-400">{msg.time}</span>
+                  </>
+                ) : (
+                  <>
+                    {/* Call Recording Audio Player */}
+                    {activeAiLead.recordingUrl || activeAiLead.audioRecordingUrl ? (
+                      <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-3 shadow-xl">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="font-extrabold text-xs text-slate-200">Call Audio Recording</span>
                           </div>
-                          <p className="leading-relaxed font-medium">{msg.text}</p>
+                          <span className="text-[11px] font-mono text-slate-400">{activeAiLead.callDuration || "—"}</span>
                         </div>
-                      ))}
+
+                        <audio
+                          src={activeAiLead.recordingUrl || activeAiLead.audioRecordingUrl}
+                          controls
+                          className="w-full h-10 rounded-lg outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                        <VolumeX className="w-6 h-6 text-slate-400 mx-auto" />
+                        <p className="text-slate-600 font-bold text-xs">No call audio recording available.</p>
+                        <p className="text-slate-400 text-[11px]">Audio recordings are stored once the telephony provider finishes processing.</p>
+                      </div>
+                    )}
+
+                    {/* AI Conversation Transcript */}
+                    <div className="space-y-3">
+                      <Label className="text-slate-800 font-bold text-xs flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Bot className="w-3.5 h-3.5 text-[#2563EB]" /> Voice Agent Dialogue Transcript
+                        </span>
+                        <span className="text-[10.5px] text-slate-400 font-normal">Telephony Transcript</span>
+                      </Label>
+
+                      {activeAiLead.transcript && activeAiLead.transcript.length > 0 ? (
+                        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                          {activeAiLead.transcript.map((msg, i) => (
+                            <div
+                              key={i}
+                              className={`p-3 rounded-2xl text-xs space-y-1 ${
+                                msg.speaker === "AI_AGENT" || msg.speaker === "AI"
+                                  ? "bg-blue-50/70 border border-blue-100 text-slate-800 mr-4"
+                                  : "bg-slate-100/80 border border-slate-200/70 text-slate-900 ml-4"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                <span className="flex items-center gap-1">
+                                  {msg.speaker === "AI_AGENT" || msg.speaker === "AI" ? (
+                                    <span className="text-[#2563EB] font-black">🤖 {msg.name || msg.speakerName || "Aadya AI Agent"}</span>
+                                  ) : (
+                                    <span className="text-slate-800 font-black">👤 {msg.name || msg.speakerName || activeAiLead.name}</span>
+                                  )}
+                                </span>
+                                {msg.time && <span className="font-mono text-slate-400">{msg.time}</span>}
+                              </div>
+                              <p className="leading-relaxed font-medium">{msg.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : activeAiLead.rawTranscript ? (
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-slate-800 text-xs leading-relaxed max-h-[300px] overflow-y-auto whitespace-pre-wrap font-sans">
+                          {activeAiLead.rawTranscript}
+                        </div>
+                      ) : (
+                        <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                          <Bot className="w-6 h-6 text-slate-400 mx-auto" />
+                          <p className="text-slate-600 font-bold text-xs">No audio transcript recorded for this call.</p>
+                          <p className="text-slate-400 text-[11px]">The automated transcription will appear here once available from Sarvam AI.</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            )
           )}
 
           {/* Modal Bottom Actions */}

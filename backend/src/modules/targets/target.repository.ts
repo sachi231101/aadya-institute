@@ -362,14 +362,24 @@ export const TargetRepository = {
     });
   },
 
-  async findMyActiveTargets(instituteId: string, userId: string) {
+  async findMyActiveTargets(instituteId: string, userId: string, branchId?: string | null) {
+    const where: Prisma.TargetWhereInput = {
+      instituteId,
+      status: { in: ["ACTIVE", "PUBLISHED", "COMPLETED"] },
+      ...(branchId
+        ? {
+            OR: [
+              { userId },
+              { targetType: "BRANCH", branchId },
+            ],
+          }
+        : { userId }),
+    };
+
     return prisma.target.findMany({
-      where: {
-        instituteId,
-        userId,
-        status: { in: ["ACTIVE", "PUBLISHED", "COMPLETED"] },
-      },
+      where,
       include: {
+        branch: { select: { id: true, name: true, code: true } },
         targetPlan: { select: { id: true, name: true, periodType: true } },
         incentiveRule: true,
         targetProgress: {
