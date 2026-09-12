@@ -91,6 +91,8 @@ export const findRecordings = async (params: {
   branchId?: string;
   batchId?: string;
   batchIds?: string[];
+  /** Restrict to class sessions taught by this faculty. */
+  facultyId?: string;
   courseId?: string;
   classSessionId?: string;
   status?: string;
@@ -105,6 +107,7 @@ export const findRecordings = async (params: {
     branchId,
     batchId,
     batchIds,
+    facultyId,
     courseId,
     classSessionId,
     status,
@@ -130,6 +133,7 @@ export const findRecordings = async (params: {
   const sessionCondition: Prisma.ClassSessionWhereInput = {
     batch: batchCondition,
     ...(classSessionId ? { id: classSessionId } : {}),
+    ...(facultyId ? { facultyId } : {}),
   };
 
   if (startDate && endDate) {

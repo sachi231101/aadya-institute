@@ -1,10 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { recordingsApi, type RecordingQueryParams } from "../services/recordings.api";
 
-export const useRecordings = (params?: RecordingQueryParams) => {
+export const useRecordings = (
+  params?: RecordingQueryParams & { enabled?: boolean }
+) => {
+  const { enabled = true, ...queryParams } = params || {};
   return useQuery({
-    queryKey: ["recordings", params],
-    queryFn: () => recordingsApi.getRecordings(params),
+    queryKey: ["recordings", queryParams],
+    queryFn: () => recordingsApi.getRecordings(queryParams),
+    enabled,
     // Refresh status when faculty returns to the tab (PENDING → PROCESSING → AVAILABLE)
     refetchOnWindowFocus: true,
   });

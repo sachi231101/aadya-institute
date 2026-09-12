@@ -7,6 +7,7 @@ import { logger } from "../config/logger";
 import { encryptRefreshToken } from "../integrations/google/google.auth.client";
 import {
   createMeetSpaceForSession,
+  resolveRecordingDurationMinutes,
   syncSessionRecordings,
 } from "../modules/google-workspace/google-workspace.service";
 import { classSessionRepository } from "../modules/class-sessions/class-session.repository";
@@ -90,9 +91,24 @@ const session = (recording: any = null) => ({
 
 const installGoogleDiscoveryMock = (
   t: any,
-  options: { driveFileId?: string; googleError?: unknown } = {}
+  options: {
+    driveFileId?: string;
+    googleError?: unknown;
+    durationMillis?: string | null;
+    recordingStartTime?: string;
+    recordingEndTime?: string;
+    omitDriveDuration?: boolean;
+  } = {}
 ) => {
   const driveFileId = options.driveFileId ?? "drive-file-123456";
+  const recordingStartTime = options.recordingStartTime ?? "2026-09-01T09:00:00.000Z";
+  const recordingEndTime = options.recordingEndTime ?? "2026-09-01T10:00:00.000Z";
+  const durationMillis =
+    options.omitDriveDuration
+      ? undefined
+      : options.durationMillis === null
+        ? undefined
+        : (options.durationMillis ?? "3600000");
 
   t.mock.method(google as any, "meet", () => ({
     conferenceRecords: {
@@ -104,8 +120,8 @@ const installGoogleDiscoveryMock = (
               {
                 name: "conferenceRecords/conf-1",
                 space: "spaces/test-space",
-                startTime: "2026-09-01T09:00:00.000Z",
-                endTime: "2026-09-01T10:00:00.000Z",
+                startTime: recordingStartTime,
+                endTime: recordingEndTime,
               },
             ],
           },
@@ -118,8 +134,8 @@ const installGoogleDiscoveryMock = (
               {
                 name: "conferenceRecords/conf-1/recordings/rec-1",
                 state: "FILE_GENERATED",
-                startTime: "2026-09-01T09:00:00.000Z",
-                endTime: "2026-09-01T10:00:00.000Z",
+                startTime: recordingStartTime,
+                endTime: recordingEndTime,
                 driveDestination: { file: `files/${driveFileId}` },
               },
             ],
@@ -137,10 +153,13 @@ const installGoogleDiscoveryMock = (
           name: "Class recording.mp4",
           mimeType: "video/mp4",
           webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
-          createdTime: "2026-09-01T10:00:00.000Z",
-          videoMediaMetadata: { durationMillis: "3600000" },
+          createdTime: recordingEndTime,
+          ...(durationMillis
+            ? { videoMediaMetadata: { durationMillis } }
+            : {}),
         },
       }),
+      list: async () => ({ data: { files: [] } }),
     },
   }));
 };
@@ -324,6 +343,40 @@ describe("Google recording access controls", { concurrency: false }, () => {
 
     assert.strictEqual(expired.playbackUrl.includes("drive.google.com"), true);
     assert.strictEqual(markedExpired, true);
+  });
+
+  test("assigned faculty can load recording when JWT branch differs from batch branch", async (t) => {
+    const facultyUser = {
+      id: "faculty-user",
+      userId: "faculty-user",
+      instituteId: "institute-1",
+      branchId: "branch-other",
+      roles: ["FACULTY"],
+      permissions: ["recording.read"],
+    };
+
+    replaceMethod(t, prisma.recording as any, "findUnique", async () =>
+      recordingFixture({
+        recordingStatus: "PENDING",
+        classSession: {
+          id: "session-1",
+          facultyId: "faculty-1",
+          batch: {
+            id: "batch-1",
+            instituteId: "institute-1",
+            branchId: "branch-1",
+            enrollments: [],
+          },
+        },
+      })
+    );
+    replaceMethod(t, prisma.faculty as any, "findFirst", async () => ({
+      id: "faculty-1",
+    }));
+
+    const recording = await getRecordingById(facultyUser as any, "recording-1");
+    assert.strictEqual(recording.id, "recording-1");
+    assert.strictEqual(recording.classSessionId, "session-1");
   });
 });
 
@@ -652,6 +705,279 @@ describe("Google recording sync queue", { concurrency: false }, () => {
     assert.ok(
       typeof failed.lastSyncError === "string" && failed.lastSyncError.length > 0,
       "FAILED update should include lastSyncError"
+    );
+  });
+
+  test("worker does not treat old scheduledDate alone as past sync window", async (t) => {
+    const moveToDelayedAt: number[] = [];
+    const pendingRecording = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PENDING",
+      status: "ACTIVE",
+    };
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({ data: { recordings: [] } }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({ data: null }),
+        list: async () => ({ data: { files: [] } }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => session(pendingRecording));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "update", async ({ data }: any) => {
+      Object.assign(pendingRecording, data);
+      return pendingRecording;
+    });
+    replaceMethod(t, prisma.recording as any, "updateMany", async ({ data }: any) => {
+      Object.assign(pendingRecording, data);
+      return { count: 1 };
+    });
+    replaceMethod(t, prisma.classSession as any, "findUnique", async (args: any) => {
+      if (args?.select) {
+        return {
+          // Recent end — window must use this, not the old scheduledDate from session().
+          actualEndTime: new Date(),
+        };
+      }
+      return {
+        ...session(pendingRecording),
+        scheduledDate: new Date("2020-01-01T00:00:00.000Z"),
+        actualEndTime: new Date(),
+      };
+    });
+
+    const job = {
+      data: {
+        classSessionId: "session-1",
+        instituteId: adminUser.instituteId,
+        userId: adminUser.id,
+        pollAttempt: 0,
+        enqueuedAtMs: Date.now(),
+      },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+      updateData: async () => {},
+      moveToDelayed: async (timestamp: number) => {
+        moveToDelayedAt.push(timestamp);
+      },
+    };
+
+    await assert.rejects(
+      () => processGoogleRecordingSync(job as any, "test-token"),
+      (error: unknown) => error instanceof DelayedError
+    );
+
+    assert.strictEqual(moveToDelayedAt.length, 1, "should schedule re-poll when actualEndTime is recent");
+    assert.match(String(pendingRecording.lastSyncError || ""), /Waiting for Google Meet recording/i);
+  });
+
+  test("Drive folder fallback links recording when Meet API returns no artifacts", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PENDING",
+      status: "ACTIVE",
+      expiresAt: null,
+    };
+    const driveFileId = "drive-fallback-file-999";
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({ data: { conferenceRecords: [] } }),
+        recordings: {
+          list: async () => ({ data: { recordings: [] } }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({
+          data: {
+            id: driveFileId,
+            name: "Fallback Meet Recording.mp4",
+            mimeType: "video/mp4",
+            webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+            createdTime: new Date().toISOString(),
+            videoMediaMetadata: { durationMillis: "300000" },
+          },
+        }),
+        list: async () => ({
+          data: {
+            files: [
+              {
+                id: driveFileId,
+                name: "Fallback Meet Recording.mp4",
+                mimeType: "video/mp4",
+                webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+                createdTime: new Date().toISOString(),
+                videoMediaMetadata: { durationMillis: "300000" },
+              },
+            ],
+          },
+        }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => ({
+      ...session(storedRecording),
+      actualStartTime: new Date(Date.now() - 10 * 60 * 1000),
+      actualEndTime: new Date(),
+      googleMeetSpace: {
+        id: "meet-space-1",
+        spaceName: "spaces/test-space",
+        meetingCode: "abc-defg-hij",
+        organizerUserId: adminUser.id,
+      },
+    }));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = storedRecording.recordingStatus === "PENDING" && !storedRecording.playbackUrl
+        ? { ...create, ...update }
+        : update || create;
+      storedRecording = { ...storedRecording, ...data };
+      return storedRecording;
+    });
+
+    const result = await syncSessionRecordings(adminUser as any, "session-1");
+    assert.ok(result.syncedCount >= 1);
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(storedRecording.googleDriveFileId, driveFileId);
+    assert.strictEqual(
+      storedRecording.duration,
+      5,
+      "Drive durationMillis 300000 must store 5 minutes, not timetable length"
+    );
+  });
+
+  test("resolveRecordingDurationMinutes prefers Drive millis over Meet/timetable ranges", () => {
+    assert.strictEqual(
+      resolveRecordingDurationMinutes({
+        durationMillis: "300000",
+        meetStart: "2026-09-01T10:00:00.000Z",
+        meetEnd: "2026-09-01T11:00:00.000Z",
+      }),
+      5
+    );
+    assert.strictEqual(
+      resolveRecordingDurationMinutes({
+        durationMillis: null,
+        meetStart: "2026-09-01T10:00:00.000Z",
+        meetEnd: "2026-09-01T10:05:00.000Z",
+      }),
+      5
+    );
+    assert.strictEqual(
+      resolveRecordingDurationMinutes({
+        startedAt: new Date("2026-09-01T10:00:00.000Z"),
+        endedAt: new Date("2026-09-01T10:05:00.000Z"),
+      }),
+      5
+    );
+    assert.strictEqual(
+      resolveRecordingDurationMinutes({
+        durationMillis: "0",
+        meetStart: null,
+        meetEnd: null,
+      }),
+      null
+    );
+  });
+
+  test("sync stores 5-min Drive duration even when Meet conference spans a 60-min slot", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PENDING",
+      status: "ACTIVE",
+      duration: 60,
+      expiresAt: null,
+    };
+
+    installGoogleDiscoveryMock(t, {
+      durationMillis: "300000",
+      // Conference/recording timestamps look like a full hour slot
+      recordingStartTime: "2026-09-01T10:00:00.000Z",
+      recordingEndTime: "2026-09-01T11:00:00.000Z",
+    });
+    installSyncDatabaseMocks(t, () => ({
+      ...session(storedRecording),
+      // Timetable: 60-minute class
+      scheduledDate: new Date("2026-09-01T10:00:00.000Z"),
+      actualStartTime: new Date("2026-09-01T10:00:00.000Z"),
+      actualEndTime: new Date("2026-09-01T10:05:00.000Z"),
+    }));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = storedRecording ? update : create;
+      storedRecording = { ...storedRecording, ...data };
+      return storedRecording;
+    });
+
+    await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(
+      storedRecording.duration,
+      5,
+      "must use Drive videoMediaMetadata (5m), not Meet conference span or stale 60"
+    );
+  });
+
+  test("sync falls back to Meet recording start/end when Drive durationMillis is missing", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PENDING",
+      status: "ACTIVE",
+      duration: 60,
+      expiresAt: null,
+    };
+
+    installGoogleDiscoveryMock(t, {
+      omitDriveDuration: true,
+      recordingStartTime: "2026-09-01T10:00:00.000Z",
+      recordingEndTime: "2026-09-01T10:05:00.000Z",
+    });
+    installSyncDatabaseMocks(t, () => ({
+      ...session(storedRecording),
+      scheduledDate: new Date("2026-09-01T10:00:00.000Z"),
+      actualStartTime: new Date("2026-09-01T10:00:00.000Z"),
+      // actual live session ran full hour — must NOT win over Meet recording bounds
+      actualEndTime: new Date("2026-09-01T11:00:00.000Z"),
+    }));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = storedRecording ? update : create;
+      storedRecording = { ...storedRecording, ...data };
+      return storedRecording;
+    });
+
+    await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(
+      storedRecording.duration,
+      5,
+      "Meet recording end−start must win over stale 60 and actualEndTime hour span"
     );
   });
 });

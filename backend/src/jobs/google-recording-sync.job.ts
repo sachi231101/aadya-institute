@@ -45,17 +45,20 @@ export const googleRecordingSyncJob = async (): Promise<void> => {
     logger.info({ count: candidates.length }, "[google-recording-sync-job] Enqueuing recording sync candidates");
 
     for (const session of candidates) {
-      if (!session.googleMeetSpace) continue;
+      if (!session.googleMeetSpace?.organizerUserId) continue;
 
+      // Unique jobId so cron is not blocked by a completed/failed end-live job id.
       await googleRecordingQueue.add(
         "sync-session-recording",
         {
           classSessionId: session.id,
           instituteId: session.batch.instituteId,
           userId: session.googleMeetSpace.organizerUserId,
+          pollAttempt: 0,
+          enqueuedAtMs: Date.now(),
         },
         {
-          jobId: `sync-recording-${session.id}`,
+          jobId: `sync-recording-${session.id}-${Date.now()}`,
           removeOnComplete: true,
           attempts: 3,
           backoff: {

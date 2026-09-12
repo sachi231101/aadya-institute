@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Video,
   Upload,
@@ -21,10 +20,11 @@ import {
   Film,
   ExternalLink,
   Clock,
-  Sparkles,
+  Info,
 } from "lucide-react";
 import { recordingsApi } from "@/services/recordings.api";
 import { useSessionStore } from "@/store/session.store";
+import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
 
 export interface UploadRecordingModalProps {
   isOpen: boolean;
@@ -44,6 +44,16 @@ export interface UploadRecordingModalProps {
   onSuccess?: () => void;
 }
 
+const isGoogleMeetRoomUrl = (url?: string | null): boolean => {
+  if (!url?.trim()) return false;
+  try {
+    const u = new URL(url.trim());
+    return u.hostname.toLowerCase().includes("meet.google.com");
+  } catch {
+    return /meet\.google\.com/i.test(url);
+  }
+};
+
 export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
   isOpen,
   onClose,
@@ -55,16 +65,82 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
   const [videoTitle, setVideoTitle] = useState(
     `${sessionData.courseName} - ${sessionData.title || "Lecture Recording"}`
   );
-  const [durationMinutes, setDurationMinutes] = useState("60");
+  const [durationMinutes, setDurationMinutes] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setVideoUrl(sessionData.existingRecordingUrl || "");
+    setVideoTitle(`${sessionData.courseName} - ${sessionData.title || "Lecture Recording"}`);
+    setDurationMinutes("");
+    setErrorMessage(null);
+    setInfoMessage(null);
+    setIsPlayingPreview(false);
+    setUploadSuccess(false);
+  }, [isOpen, sessionData]);
+
+  useEffect(() => {
+    const url = videoUrl.trim();
+    setErrorMessage(null);
+    setInfoMessage(null);
+    if (!url) return;
+
+    if (isGoogleMeetRoomUrl(url)) {
+      setInfoMessage(
+        "This is a Google Meet room link, not a recording file. After class, wait for ERP Drive sync — or paste the Google Drive recording link (drive.google.com/file/…)."
+      );
+      setIsPlayingPreview(false);
+      return;
+    }
+    if (isGoogleDriveViewerUrl(url)) {
+      setInfoMessage(
+        "Google Drive links open in Drive (view-only). Preview opens in a new tab — in-page video preview is not available."
+      );
+      return;
+    }
+    if (!isDirectVideoUrl(url) && /^https?:\/\//i.test(url)) {
+      setInfoMessage(
+        "Use a Google Drive recording link or a direct .mp4 / cloud storage URL. Meet room links cannot be saved as recordings."
+      );
+    }
+  }, [videoUrl]);
+
+  const handleTogglePreview = () => {
+    const url = videoUrl.trim();
+    if (!url) return;
+
+    if (isGoogleMeetRoomUrl(url)) {
+      setErrorMessage(
+        "Cannot preview a Meet room link. Paste a Drive recording link or wait for automatic Drive sync."
+      );
+      return;
+    }
+
+    if (isGoogleDriveViewerUrl(url) || !isDirectVideoUrl(url)) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      setIsPlayingPreview(false);
+      return;
+    }
+
+    setIsPlayingPreview((prev) => !prev);
+  };
 
   const handleSaveRecording = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoUrl.trim()) {
-      setErrorMessage("Please enter a valid video or stream URL.");
+    const url = videoUrl.trim();
+    if (!url) {
+      setErrorMessage("Please enter a Google Drive recording link or direct video URL.");
+      return;
+    }
+
+    if (isGoogleMeetRoomUrl(url)) {
+      setErrorMessage(
+        "A Google Meet room link is not a recording. End class so ERP can sync from Drive, or paste the Drive file link (drive.google.com/file/…)."
+      );
       return;
     }
 
@@ -72,7 +148,12 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
     setErrorMessage(null);
 
     try {
-      // 1. Persist to session store for immediate frontend sync
+      const parsedDuration = parseInt(durationMinutes, 10);
+      const durationMins =
+        Number.isFinite(parsedDuration) && parsedDuration > 0
+          ? parsedDuration
+          : undefined;
+
       const newRec = {
         id: `rec-${sessionData.id}-${Date.now()}`,
         course: sessionData.courseName,
@@ -83,20 +164,19 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
         date: sessionData.date || new Date().toISOString().split("T")[0],
         rawDate: sessionData.date || new Date().toISOString().split("T")[0],
         time: `${sessionData.startTime || "10:00 AM"} – ${sessionData.endTime || "12:00 PM"}`,
-        duration: `${durationMinutes} mins`,
+        duration: durationMins != null ? `${durationMins} mins` : "—",
         studentsCount: 30,
         thumbnailBg: "from-blue-600 to-indigo-700",
         topics: [sessionData.title || "Class Topics"],
-        videoUrl: videoUrl.trim(),
+        videoUrl: url,
         viewsCount: 0,
         status: "Available" as const,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         title: videoTitle,
       };
 
       addRecording(newRec);
 
-      // 2. Try recording API if session has a valid UUID
       if (
         sessionData.id &&
         !sessionData.id.startsWith("sess-") &&
@@ -107,12 +187,12 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
         try {
           await recordingsApi.createRecording({
             classSessionId: sessionData.id,
-            storageKey: videoUrl.trim(),
-            duration: parseInt(durationMinutes, 10) * 60,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            storageKey: url,
+            ...(durationMins != null ? { duration: durationMins } : {}),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           });
         } catch {
-          // Soft ignore backend errors if schema/route is handled differently
+          // Soft ignore if recording already exists from Drive sync
         }
       }
 
@@ -140,8 +220,8 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
             Class Recording Management
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
-            Link or upload the recorded video for {sessionData.courseName} (
-            {sessionData.batchCode || "Batch"}).
+            Prefer automatic Drive sync after End Class. Manual link is only for a Google Drive
+            recording file or direct video URL — not a Meet room link.
           </DialogDescription>
         </DialogHeader>
 
@@ -156,9 +236,16 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
         ) : (
           <form onSubmit={handleSaveRecording} className="space-y-4 my-2">
             {errorMessage && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {infoMessage && !errorMessage && (
+              <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-xl text-xs text-sky-800 dark:text-sky-300 flex items-start gap-2">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{infoMessage}</span>
               </div>
             )}
 
@@ -177,17 +264,17 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Video / Cloud Storage URL or Meet Recording
+                Google Drive recording link or direct video URL
               </Label>
               <Input
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://storage.googleapis.com/... or https://meet.google.com/..."
+                placeholder="https://drive.google.com/file/d/…/view"
                 required
                 className="rounded-xl font-mono text-xs"
               />
               <p className="text-[11px] text-slate-400">
-                Enter cloud storage link, Google Drive video link, or stream URL.
+                Do not paste meet.google.com room links. Use Drive file links after Google finishes processing.
               </p>
             </div>
 
@@ -202,8 +289,12 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
                   max="360"
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(e.target.value)}
+                  placeholder="Leave blank if unknown"
                   className="rounded-xl"
                 />
+                <p className="text-[10px] text-slate-400">
+                  Optional. Do not use the timetable slot length — enter the actual recording length only.
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -218,10 +309,10 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
             </div>
 
             {videoUrl.trim() && (
-              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Video className="w-4 h-4 text-[#2563EB]" />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[240px]">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Video className="w-4 h-4 text-[#2563EB] shrink-0" />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
                     {videoUrl}
                   </span>
                 </div>
@@ -229,21 +320,33 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsPlayingPreview(!isPlayingPreview)}
-                  className="text-xs text-[#2563EB] h-7 px-2"
+                  onClick={handleTogglePreview}
+                  className="text-xs text-[#2563EB] h-7 px-2 shrink-0"
                 >
-                  <Play className="w-3 h-3 mr-1" /> {isPlayingPreview ? "Hide" : "Preview"}
+                  {isDirectVideoUrl(videoUrl.trim()) ? (
+                    <>
+                      <Play className="w-3 h-3 mr-1" /> {isPlayingPreview ? "Hide" : "Preview"}
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-3 h-3 mr-1" /> Open link
+                    </>
+                  )}
                 </Button>
               </div>
             )}
 
-            {isPlayingPreview && videoUrl && (
+            {isPlayingPreview && videoUrl && isDirectVideoUrl(videoUrl.trim()) && (
               <div className="rounded-xl overflow-hidden aspect-video bg-black flex items-center justify-center">
                 <video
-                  src={videoUrl}
+                  src={videoUrl.trim()}
                   controls
                   className="w-full h-full object-contain"
-                  onError={() => setErrorMessage("Could not load direct video preview. URL might require authentication or direct media headers.")}
+                  onError={() =>
+                    setErrorMessage(
+                      "Could not preview this file in-browser. Open it in a new tab, or use a Google Drive recording link."
+                    )
+                  }
                 />
               </div>
             )}
@@ -260,7 +363,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isUploading}
+                disabled={isUploading || isGoogleMeetRoomUrl(videoUrl)}
                 className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold"
               >
                 {isUploading ? (

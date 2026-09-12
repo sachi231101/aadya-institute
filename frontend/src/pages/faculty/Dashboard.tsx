@@ -590,7 +590,10 @@ export const FacultyDashboard: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         session={selectedModalClass}
-        onSessionStatusChange={() => {
+        onSessionStatusChange={(sessionId, newStatus) => {
+          setSelectedModalClass((prev) =>
+            prev && prev.id === sessionId ? { ...prev, status: newStatus } : prev
+          );
           refetch();
         }}
       />

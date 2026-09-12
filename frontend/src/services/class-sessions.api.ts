@@ -207,10 +207,26 @@ export const classSessionsApi = {
     return response.data;
   },
 
-  endLive: async (id: string): Promise<SingleResponse<{ session: BackendClassSession; recording: any }>> => {
-    const response = await api.post<SingleResponse<{ session: BackendClassSession; recording: any }>>(
-      `/class-sessions/${id}/end-live`
-    );
+  endLive: async (
+    id: string
+  ): Promise<
+    SingleResponse<{
+      session: BackendClassSession;
+      recording: any;
+      syncQueued?: boolean;
+      recordingStatus?: string | null;
+      message?: string;
+    }>
+  > => {
+    const response = await api.post<
+      SingleResponse<{
+        session: BackendClassSession;
+        recording: any;
+        syncQueued?: boolean;
+        recordingStatus?: string | null;
+        message?: string;
+      }>
+    >(`/class-sessions/${id}/end-live`);
     return response.data;
   },
 

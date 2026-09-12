@@ -1,6 +1,6 @@
 ﻿import React, { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X, RefreshCw, Ban, HardDrive, AlertCircle } from "lucide-react";
+import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X, RefreshCw, Ban, HardDrive, AlertCircle, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,21 @@ import { useBatches } from "@/hooks/useBatches";
 import type { Recording } from "@/services/recordings.api";
 import { ROUTES } from "@/constants/routes";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
 
 const getDaysRemaining = (expiresAt: string) => {
   const now = new Date();
   const expires = new Date(expiresAt);
   return Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+};
+
+const formatRecordingDuration = (minutes?: number | null) => {
+  if (minutes == null || Number.isNaN(Number(minutes))) return "—";
+  const mins = Math.max(0, Math.round(Number(minutes)));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 };
 
 export const Recordings: React.FC = () => {
@@ -81,10 +91,13 @@ export const Recordings: React.FC = () => {
     try {
       const res = await accessMutation.mutateAsync(rec.id);
       const url = res?.data?.playbackUrl;
-      if (url) {
-        setPlaybackUrl(url);
-      } else {
+      if (!url) {
         setPlayError("No playback URL available for this recording.");
+        return;
+      }
+      setPlaybackUrl(url);
+      if (isGoogleDriveViewerUrl(url) || !isDirectVideoUrl(url)) {
+        window.open(url, "_blank", "noopener,noreferrer");
       }
     } catch {
       setPlayError("Unable to load recording playback.");
@@ -243,6 +256,7 @@ export const Recordings: React.FC = () => {
                 <TableHead className="font-semibold">Class</TableHead>
                 <TableHead className="font-semibold">Batch</TableHead>
                 <TableHead className="font-semibold">Faculty</TableHead>
+                <TableHead className="font-semibold">Duration</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="font-semibold">Created</TableHead>
                 <TableHead className="font-semibold">Expiration</TableHead>
@@ -253,14 +267,14 @@ export const Recordings: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-text-secondary">
+                  <TableCell colSpan={9} className="text-center py-12 text-text-secondary">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     Loading recordings...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={9} className="text-center py-12">
                     <AlertCircle className="h-10 w-10 text-rose-400 mx-auto mb-2" />
                     <p className="font-semibold">Unable to load recordings</p>
                     <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
@@ -270,7 +284,7 @@ export const Recordings: React.FC = () => {
                 </TableRow>
               ) : filteredRecordings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={9} className="text-center py-12">
                     <Video className="h-10 w-10 text-slate-300 mx-auto mb-2" />
                     <p className="text-text-secondary font-medium">No recordings found</p>
                     <p className="text-xs text-text-secondary mt-1">
@@ -292,6 +306,9 @@ export const Recordings: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-sm">
                         {rec.classSession?.faculty?.user?.name || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums">
+                        {formatRecordingDuration(rec.duration)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -424,12 +441,12 @@ export const Recordings: React.FC = () => {
               </button>
             </div>
           </DialogHeader>
-          <div className="bg-black aspect-video flex items-center justify-center">
+          <div className="bg-black aspect-video flex items-center justify-center p-6">
             {accessMutation.isPending ? (
               <Loader2 className="h-8 w-8 animate-spin text-white" />
             ) : playError ? (
               <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
-            ) : playbackUrl ? (
+            ) : playbackUrl && isDirectVideoUrl(playbackUrl) ? (
               <video
                 src={playbackUrl}
                 controls
@@ -437,6 +454,21 @@ export const Recordings: React.FC = () => {
                 controlsList="nodownload"
                 className="w-full h-full object-contain"
               />
+            ) : playbackUrl ? (
+              <div className="text-center space-y-3 max-w-sm">
+                <p className="text-sm text-slate-200">
+                  {isGoogleDriveViewerUrl(playbackUrl)
+                    ? "This recording opens in Google Drive (view-only)."
+                    : "Open the recording in a new tab to watch."}
+                </p>
+                <Button
+                  type="button"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                  onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" /> Open recording
+                </Button>
+              </div>
             ) : null}
           </div>
         </DialogContent>

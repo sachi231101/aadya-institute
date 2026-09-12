@@ -388,6 +388,47 @@ export const createMeetSpaceForSession = async (
 };
 
 /**
+ * Recording.duration is stored in whole minutes of the actual Meet/Drive artifact.
+ * Never derive this from the class timetable slot (e.g. 10:00–11:00).
+ *
+ * Priority: Drive videoMediaMetadata.durationMillis → Meet recording end−start →
+ * recording startedAt/endedAt (actual live bounds).
+ */
+export const resolveRecordingDurationMinutes = (opts: {
+  durationMillis?: string | number | null;
+  meetStart?: string | Date | null;
+  meetEnd?: string | Date | null;
+  startedAt?: string | Date | null;
+  endedAt?: string | Date | null;
+}): number | null => {
+  const millis =
+    opts.durationMillis != null && opts.durationMillis !== ""
+      ? Number(opts.durationMillis)
+      : NaN;
+  if (Number.isFinite(millis) && millis > 0) {
+    return Math.max(1, Math.round(millis / 60000));
+  }
+
+  const minutesFromRange = (
+    start?: string | Date | null,
+    end?: string | Date | null
+  ): number | null => {
+    if (!start || !end) return null;
+    const s = start instanceof Date ? start : new Date(start);
+    const e = end instanceof Date ? end : new Date(end);
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) {
+      return null;
+    }
+    return Math.max(1, Math.round((e.getTime() - s.getTime()) / 60000));
+  };
+
+  return (
+    minutesFromRange(opts.meetStart, opts.meetEnd) ??
+    minutesFromRange(opts.startedAt, opts.endedAt)
+  );
+};
+
+/**
  * Synchronizes recording artifacts from Google Meet & Drive for a class session
  */
 export const syncSessionRecordings = async (
@@ -444,13 +485,176 @@ export const syncSessionRecordings = async (
 
   const syncTime = new Date();
   const userId = currentUser.id || currentUser.userId!;
+  const WAITING_MESSAGE =
+    "Waiting for Google Meet recording in Drive. Ensure recording was started in Meet, then end the Meet so Google can finish processing.";
+
+  const upsertFromDriveArtifact = async (params: {
+    googleRecordingId?: string | null;
+    googleConferenceRecordId?: string | null;
+    driveFileId: string | null;
+    driveMeta: Awaited<ReturnType<typeof googleDrive.getDriveFileMetadata>>;
+    recState?: string;
+    startTime?: string;
+    endTime?: string;
+  }) => {
+    const {
+      googleRecordingId,
+      googleConferenceRecordId,
+      driveFileId,
+      driveMeta,
+      recState,
+      startTime,
+      endTime,
+    } = params;
+
+    const conflictingRecording = driveFileId
+      ? await prisma.recording.findFirst({
+          where: {
+            googleDriveFileId: driveFileId,
+            classSessionId: { not: session.id },
+          },
+          select: { id: true },
+        })
+      : null;
+
+    if (conflictingRecording) {
+      logger.warn(
+        {
+          classSessionId: session.id,
+          recordingId: conflictingRecording.id,
+        },
+        "Skipped duplicate Google Drive recording association"
+      );
+      return null;
+    }
+
+    const existing = session.recording;
+    const wasAvailable =
+      existing?.recordingStatus === "AVAILABLE" ||
+      existing?.recordingStatus === "READY";
+    const wasDeleted = existing?.recordingStatus === "DELETED";
+    const recordingOrigin = driveMeta?.createdTime
+      ? new Date(driveMeta.createdTime)
+      : startTime
+        ? new Date(startTime)
+        : session.actualStartTime || session.scheduledDate;
+    const retentionMs = await getRecordingRetentionMs(currentUser.instituteId);
+    const expiresAt =
+      existing?.expiresAt ||
+      new Date(recordingOrigin.getTime() + retentionMs);
+    const isExpired = expiresAt.getTime() <= syncTime.getTime();
+    const driveFileDeleted =
+      Boolean(driveFileId) && !driveMeta && existing?.googleDriveFileId === driveFileId;
+
+    let recordingStatus = "PROCESSING";
+    if (wasDeleted || driveFileDeleted) {
+      recordingStatus = "DELETED";
+    } else if (isExpired && wasAvailable) {
+      recordingStatus = "EXPIRED";
+    } else if (
+      (recState === "FILE_GENERATED" || !recState) &&
+      driveFileId &&
+      driveMeta
+    ) {
+      // Meet FILE_GENERATED, or Drive-folder fallback with a real video file.
+      recordingStatus = "AVAILABLE";
+    } else if (recState === "STARTED") {
+      recordingStatus = "RECORDING";
+    }
+
+    const startedAt = startTime
+      ? new Date(startTime)
+      : session.actualStartTime || session.scheduledDate;
+    const endedAt = endTime
+      ? new Date(endTime)
+      : session.actualEndTime || undefined;
+
+    // Actual Meet/Drive runtime in minutes — never timetable slot length.
+    const duration = resolveRecordingDurationMinutes({
+      durationMillis: driveMeta?.videoMediaMetadata?.durationMillis,
+      meetStart: startTime,
+      meetEnd: endTime,
+      startedAt: startedAt instanceof Date ? startedAt : null,
+      endedAt: endedAt instanceof Date ? endedAt : null,
+    });
+
+    const upserted = await prisma.recording.upsert({
+      where: { classSessionId: session.id },
+      update: {
+        name: driveMeta?.name,
+        googleConferenceRecordId: googleConferenceRecordId || undefined,
+        googleRecordingId: googleRecordingId || undefined,
+        googleDriveFileId: driveFileId || undefined,
+        playbackUrl: driveMeta?.webViewLink || undefined,
+        recordingStatus,
+        storageProvider: "GOOGLE_DRIVE",
+        // Always write (including null) so a stale manual "60" cannot stick after a short Meet sync.
+        duration,
+        startedAt,
+        endedAt,
+        expiresAt,
+        metadata: driveMeta ? (driveMeta as any) : undefined,
+        lastSyncAt: syncTime,
+        lastSyncError: recordingStatus === "AVAILABLE" ? null : WAITING_MESSAGE,
+        deletedAt:
+          recordingStatus === "DELETED"
+            ? existing?.deletedAt || syncTime
+            : undefined,
+        status:
+          recordingStatus === "DELETED" ? "INACTIVE" : existing?.status || "ACTIVE",
+      },
+      create: {
+        classSessionId: session.id,
+        name: driveMeta?.name,
+        googleConferenceRecordId: googleConferenceRecordId || undefined,
+        googleRecordingId: googleRecordingId || undefined,
+        googleDriveFileId: driveFileId || undefined,
+        playbackUrl: driveMeta?.webViewLink || undefined,
+        recordingStatus,
+        storageProvider: "GOOGLE_DRIVE",
+        duration: duration ?? undefined,
+        startedAt,
+        endedAt,
+        expiresAt,
+        metadata: driveMeta ? (driveMeta as any) : undefined,
+        lastSyncAt: syncTime,
+        lastSyncError: recordingStatus === "AVAILABLE" ? null : WAITING_MESSAGE,
+        deletedAt: recordingStatus === "DELETED" ? syncTime : undefined,
+        status: recordingStatus === "DELETED" ? "INACTIVE" : "ACTIVE",
+      },
+    });
+
+    session.recording = upserted;
+
+    if (recordingStatus === "AVAILABLE" && !wasAvailable) {
+      setImmediate(() => {
+        void triggerRecordingAvailableNotification(upserted.id);
+        void triggerFacultyRecordingAvailableNotification(upserted.id);
+      });
+    }
+
+    await createAuditLog({
+      userId,
+      instituteId: currentUser.instituteId,
+      action: "GOOGLE_MEET_RECORDING_SYNCED",
+      entityType: "Recording",
+      entityId: upserted.id,
+      newData: {
+        classSessionId: session.id,
+        googleRecordingId,
+        recordingStatus,
+        source: recState ? "meet_api" : "drive_fallback",
+      },
+    });
+
+    return upserted;
+  };
 
   try {
     const { authClient } = await resolveGoogleAuthClient(
       currentUser,
       session.googleMeetSpace.organizerUserId
     );
-    const retentionMs = await getRecordingRetentionMs(currentUser.instituteId);
     const conferenceRecords = await googleMeet.listConferenceRecords(
       authClient,
       session.googleMeetSpace.spaceName
@@ -466,148 +670,96 @@ export const syncSessionRecordings = async (
       );
 
       for (const rec of recordings) {
-        const googleRecordingId = rec.name;
         const driveFileId = rec.driveDestination?.file
           ? googleDrive.normalizeDriveFileId(rec.driveDestination.file)
           : null;
-        const conflictingRecording = driveFileId
-          ? await prisma.recording.findFirst({
-              where: {
-                googleDriveFileId: driveFileId,
-                classSessionId: { not: session.id },
-              },
-              select: { id: true },
-            })
-          : null;
-
-        if (conflictingRecording) {
-          logger.warn(
-            {
-              classSessionId: session.id,
-              recordingId: conflictingRecording.id,
-            },
-            "Skipped duplicate Google Drive recording association"
-          );
-          continue;
-        }
-
         const driveMeta = driveFileId
           ? await googleDrive.getDriveFileMetadata(authClient, driveFileId)
           : null;
-        const existing = latestRecording;
-        const wasAvailable =
-          existing?.recordingStatus === "AVAILABLE" ||
-          existing?.recordingStatus === "READY";
-        const wasDeleted = existing?.recordingStatus === "DELETED";
-        const recordingOrigin = driveMeta?.createdTime
-          ? new Date(driveMeta.createdTime)
-          : rec.startTime
-            ? new Date(rec.startTime)
-            : session.actualStartTime || session.scheduledDate;
-        const expiresAt =
-          existing?.expiresAt ||
-          new Date(recordingOrigin.getTime() + retentionMs);
-        const isExpired = expiresAt.getTime() <= syncTime.getTime();
-        const driveFileDeleted =
-          Boolean(driveFileId) && !driveMeta && existing?.googleDriveFileId === driveFileId;
 
-        let recordingStatus = "PROCESSING";
-        if (wasDeleted || driveFileDeleted) {
-          recordingStatus = "DELETED";
-        } else if (isExpired && wasAvailable) {
-          recordingStatus = "EXPIRED";
-        } else if (rec.state === "FILE_GENERATED" && driveFileId && driveMeta) {
-          recordingStatus = "AVAILABLE";
-        } else if (rec.state === "STARTED") {
-          recordingStatus = "RECORDING";
-        }
-
-        const startedAt = rec.startTime
-          ? new Date(rec.startTime)
-          : session.actualStartTime || session.scheduledDate;
-        const endedAt = rec.endTime
-          ? new Date(rec.endTime)
-          : session.actualEndTime || undefined;
-        const duration = driveMeta?.videoMediaMetadata?.durationMillis
-          ? Math.round(
-              Number(driveMeta.videoMediaMetadata.durationMillis) / 60000
-            )
-          : undefined;
-
-        const upserted = await prisma.recording.upsert({
-          where: { classSessionId: session.id },
-          update: {
-            name: driveMeta?.name,
-            googleConferenceRecordId: conf.name,
-            googleRecordingId,
-            googleDriveFileId: driveFileId || undefined,
-            playbackUrl: driveMeta?.webViewLink || undefined,
-            recordingStatus,
-            storageProvider: "GOOGLE_DRIVE",
-            duration,
-            startedAt,
-            endedAt,
-            expiresAt,
-            metadata: driveMeta ? (driveMeta as any) : undefined,
-            lastSyncAt: syncTime,
-            lastSyncError: null,
-            deletedAt:
-              recordingStatus === "DELETED"
-                ? existing?.deletedAt || syncTime
-                : undefined,
-            status:
-              recordingStatus === "DELETED" ? "INACTIVE" : existing?.status || "ACTIVE",
-          },
-          create: {
-            classSessionId: session.id,
-            name: driveMeta?.name,
-            googleConferenceRecordId: conf.name,
-            googleRecordingId,
-            googleDriveFileId: driveFileId || undefined,
-            playbackUrl: driveMeta?.webViewLink || undefined,
-            recordingStatus,
-            storageProvider: "GOOGLE_DRIVE",
-            duration,
-            startedAt,
-            endedAt,
-            expiresAt,
-            metadata: driveMeta ? (driveMeta as any) : undefined,
-            lastSyncAt: syncTime,
-            lastSyncError: null,
-            deletedAt: recordingStatus === "DELETED" ? syncTime : undefined,
-            status: recordingStatus === "DELETED" ? "INACTIVE" : "ACTIVE",
-          },
+        const upserted = await upsertFromDriveArtifact({
+          googleRecordingId: rec.name,
+          googleConferenceRecordId: conf.name,
+          driveFileId,
+          driveMeta,
+          recState: rec.state,
+          startTime: rec.startTime,
+          endTime: rec.endTime,
         });
+        if (upserted) {
+          latestRecording = upserted;
+          syncedRecordingsCount++;
+        }
+      }
+    }
 
-        latestRecording = upserted;
-        syncedRecordingsCount++;
+    // Drive folder fallback when Meet API has no recording artifacts yet.
+    if (syncedRecordingsCount === 0) {
+      const startAnchor =
+        session.actualStartTime ||
+        session.scheduledDate ||
+        new Date(syncTime.getTime() - 4 * 60 * 60 * 1000);
+      const endAnchor = session.actualEndTime || syncTime;
+      const createdAfter = new Date(startAnchor.getTime() - 30 * 60 * 1000);
+      const createdBefore = new Date(endAnchor.getTime() + 6 * 60 * 60 * 1000);
+      const meetingCode =
+        session.googleMeetSpace.meetingCode ||
+        session.meetingUrl?.split("/").pop() ||
+        undefined;
 
-        if (recordingStatus === "AVAILABLE" && !wasAvailable) {
-          setImmediate(() => {
-            void triggerRecordingAvailableNotification(upserted.id);
-            void triggerFacultyRecordingAvailableNotification(upserted.id);
+      try {
+        let candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
+          createdAfter,
+          createdBefore,
+          nameContains: meetingCode,
+          pageSize: 10,
+        });
+        if (candidates.length === 0 && meetingCode) {
+          candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
+            createdAfter,
+            createdBefore,
+            pageSize: 10,
           });
         }
 
-        await createAuditLog({
-          userId,
-          instituteId: currentUser.instituteId,
-          action: "GOOGLE_MEET_RECORDING_SYNCED",
-          entityType: "Recording",
-          entityId: upserted.id,
-          newData: {
-            classSessionId: session.id,
-            googleRecordingId,
-            recordingStatus,
-          },
-        });
+        const best = candidates[0];
+        if (best?.id) {
+          // Prefer Drive videoMediaMetadata for duration; do not pass createdTime as Meet
+          // start/end (file create time is not recording runtime and skews fallbacks).
+          const upserted = await upsertFromDriveArtifact({
+            driveFileId: best.id,
+            driveMeta: best,
+          });
+          if (upserted) {
+            latestRecording = upserted;
+            syncedRecordingsCount++;
+            logger.info(
+              { classSessionId: session.id, driveFileId: best.id },
+              "[google-workspace] Linked recording via Drive folder fallback"
+            );
+          }
+        }
+      } catch (fallbackErr) {
+        logger.warn(
+          { err: fallbackErr, classSessionId: session.id },
+          "[google-workspace] Drive folder fallback search failed"
+        );
       }
     }
 
     if (syncedRecordingsCount === 0 && session.recording) {
       latestRecording = await prisma.recording.update({
         where: { id: session.recording.id },
-        data: { lastSyncAt: syncTime, lastSyncError: null },
+        data: {
+          lastSyncAt: syncTime,
+          lastSyncError: WAITING_MESSAGE,
+          recordingStatus:
+            session.recording.recordingStatus === "AVAILABLE" ||
+            session.recording.recordingStatus === "DELETED" ||
+            session.recording.recordingStatus === "EXPIRED"
+              ? session.recording.recordingStatus
+              : "PROCESSING",
+        },
       });
     }
 

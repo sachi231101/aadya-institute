@@ -40,7 +40,9 @@ import { getApiErrorMessage } from "@/utils/api-error";
 import { CompleteClassDialog } from "./CompleteClassDialog";
 import { UploadRecordingModal } from "./UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "./UploadStudyMaterialsModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useRecordings } from "@/hooks/useRecordings";
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
@@ -87,12 +89,17 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 }) => {
   const { user } = useAuthStore();
   const { activeLiveClass, setActiveLiveClass, endActiveLiveClass } = useSessionStore();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Lifecycle states
   const [isLive, setIsLive] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  /** Local override so stale parent `session.status` cannot flip LIVE back after end-live. */
+  const [statusOverride, setStatusOverride] = useState<"LIVE" | "COMPLETED" | null>(null);
   const [startedAtTime, setStartedAtTime] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [finalElapsedSeconds, setFinalElapsedSeconds] = useState<number | null>(null);
 
   // Student Attendance
   const [students, setStudents] = useState<StudentRosterItem[]>([]);
@@ -148,6 +155,55 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     !String(resolvedBatchId).startsWith("demo-") &&
     !String(resolvedBatchId).startsWith("temp-");
 
+  // After End Class: poll this session's recording so Queued/Syncing/Available is visible in-modal
+  const {
+    data: sessionRecordingRes,
+    refetch: refetchSessionRecording,
+  } = useRecordings({
+    classSessionId: sessionId,
+    limit: 5,
+    enabled: Boolean(isRealSessionId && isOpen && isCompleted),
+  });
+
+  const sessionRecording = useMemo(() => {
+    const rows = sessionRecordingRes?.data ?? [];
+    return rows.find((r: any) => r.classSessionId === sessionId) || rows[0] || null;
+  }, [sessionRecordingRes, sessionId]);
+
+  const syncStatusLabel = useMemo(() => {
+    const status = String(sessionRecording?.recordingStatus || "").toUpperCase();
+    switch (status) {
+      case "AVAILABLE":
+        return "Available";
+      case "PROCESSING":
+        return "Syncing from Drive…";
+      case "PENDING":
+        return "Queued for Drive sync";
+      case "RECORDING":
+        return "Meet still recording";
+      case "FAILED":
+        return "Sync failed";
+      default:
+        return null;
+    }
+  }, [sessionRecording?.recordingStatus]);
+
+  useEffect(() => {
+    if (!isOpen || !isCompleted || !isRealSessionId) return;
+    const status = String(sessionRecording?.recordingStatus || "").toUpperCase();
+    if (["AVAILABLE", "FAILED", "DELETED", "EXPIRED"].includes(status)) return;
+    const id = window.setInterval(() => {
+      void refetchSessionRecording();
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [
+    isOpen,
+    isCompleted,
+    isRealSessionId,
+    sessionRecording?.recordingStatus,
+    refetchSessionRecording,
+  ]);
+
   const attendanceStudents = attendanceRes?.data?.students;
   const attendanceEmpty =
     isAttendanceFetched &&
@@ -185,12 +241,31 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
   // Sync state on session prop change or activeLiveClass
   useEffect(() => {
+    if (!isOpen) {
+      setStatusOverride(null);
+      setFinalElapsedSeconds(null);
+      return;
+    }
+    if (!session) return;
+
+    // Fresh open / different session: clear override from a previous class
+    setStatusOverride(null);
+    setFinalElapsedSeconds(null);
+  }, [session?.id, isOpen]);
+
+  useEffect(() => {
     if (!session || !isOpen) return;
 
+    const propStatus = String(session.status || "").toUpperCase();
+    const effectiveStatus = statusOverride || propStatus;
+
+    const sessionIsCompleted = effectiveStatus === "COMPLETED";
     const sessionIsLive =
-      session.status === "LIVE" ||
-      (activeLiveClass?.status === "LIVE" && activeLiveClass?.sessionId === session.id);
-    const sessionIsCompleted = session.status === "COMPLETED";
+      !sessionIsCompleted &&
+      (effectiveStatus === "LIVE" ||
+        (statusOverride !== "COMPLETED" &&
+          activeLiveClass?.status === "LIVE" &&
+          activeLiveClass?.sessionId === session.id));
 
     setIsLive(sessionIsLive);
     setIsCompleted(sessionIsCompleted);
@@ -202,12 +277,15 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
     if (sessionIsLive) {
       setStartedAtTime(activeLiveClass?.startedAt || new Date().toLocaleTimeString());
-      setRecordingSyncNotice(null);
-    } else {
+      if (statusOverride !== "COMPLETED") {
+        setRecordingSyncNotice(null);
+      }
+    } else if (!sessionIsCompleted) {
       setStartedAtTime(null);
       setElapsedSeconds(0);
+      setFinalElapsedSeconds(null);
     }
-  }, [session, isOpen, activeLiveClass]);
+  }, [session, isOpen, activeLiveClass, statusOverride]);
 
   // Load student roster: session attendance → batch enrollments → faculty my-students
   useEffect(() => {
@@ -312,15 +390,18 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     return () => clearInterval(timer);
   }, [isLive]);
 
+  const displayElapsedSeconds =
+    isCompleted && finalElapsedSeconds != null ? finalElapsedSeconds : elapsedSeconds;
+
   const formattedElapsedTime = useMemo(() => {
-    const mins = Math.floor(elapsedSeconds / 60);
-    const secs = elapsedSeconds % 60;
+    const mins = Math.floor(displayElapsedSeconds / 60);
+    const secs = displayElapsedSeconds % 60;
     const hrs = Math.floor(mins / 60);
     if (hrs > 0) {
       return `${hrs}:${String(mins % 60).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
     }
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }, [elapsedSeconds]);
+  }, [displayElapsedSeconds]);
 
   // Attendance metrics
   const totalStudents = students.length;
@@ -398,7 +479,10 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       if (isRealSessionId) {
         await classSessionsApi.startLive(session.id, resolvedMeetUrl || undefined);
       }
+      setStatusOverride("LIVE");
+      setFinalElapsedSeconds(null);
       setIsLive(true);
+      setIsCompleted(false);
       setStartedAtTime(new Date().toLocaleTimeString());
       setElapsedSeconds(0);
       setActiveLiveClass({
@@ -465,6 +549,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
   const handleConfirmCompleteClass = async () => {
     if (!session) return;
     setIsCompleting(true);
+    setAttendanceError(null);
     setRecordingSyncNotice(null);
 
     try {
@@ -476,7 +561,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
             students.map((s) => ({ studentId: s.id, status: s.status }))
           );
         } catch {
-          // Continue
+          // Continue — ending class is more important than a flaky attendance save
         }
       }
 
@@ -484,21 +569,43 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       let syncQueued = false;
       if (isRealSessionId) {
         try {
-          await classSessionsApi.endLive(session.id);
-          syncQueued = true;
-        } catch {
-          await classSessionsApi.update(session.id, { status: "COMPLETED" });
+          const endResult = await classSessionsApi.endLive(session.id);
+          syncQueued = Boolean(
+            (endResult as any)?.data?.syncQueued ??
+              (endResult as any)?.syncQueued ??
+              true
+          );
+          const apiMessage =
+            (endResult as any)?.data?.message || (endResult as any)?.message;
+          if (apiMessage && !syncQueued) {
+            setRecordingSyncNotice(apiMessage);
+          }
+        } catch (err: unknown) {
+          setAttendanceError(
+            getApiErrorMessage(
+              err,
+              "Failed to end class and queue recording sync. Try again — do not leave the class without ending live."
+            )
+          );
+          // Keep confirm open so faculty can retry; do not flip UI to COMPLETED.
+          return;
         }
       }
 
-      endActiveLiveClass();
+      // Freeze timer + mark completed before clearing live store (avoids stale LIVE prop race).
+      setFinalElapsedSeconds(elapsedSeconds);
+      setStatusOverride("COMPLETED");
       setIsLive(false);
       setIsCompleted(true);
       setShowCompleteConfirm(false);
+      endActiveLiveClass();
       onSessionStatusChange?.(session.id, "COMPLETED");
+      await queryClient.invalidateQueries({ queryKey: ["recordings"] });
+      void refetchSessionRecording();
+
       if (syncQueued) {
         setRecordingSyncNotice(
-          "ERP class ended. End the Google Meet (or stop recording there) so Google can process the file — Meet recording is Google-managed. ERP will sync from Drive in the background; check Class Recordings later."
+          "ERP class ended. Start recording in Google Meet during class if you have not already, then end Meet / stop recording so Google can process the file. ERP syncs from Drive in the background — check Class Recordings shortly."
         );
       }
     } catch (err: any) {
@@ -554,12 +661,16 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 </DialogDescription>
               </div>
 
-              {isLive && (
+              {(isLive || isCompleted) && (
                 <div className="bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-center shrink-0 shadow-sm border border-slate-700">
                   <span className="text-[10px] text-slate-400 font-medium block uppercase tracking-wider">
-                    Elapsed Time
+                    {isCompleted ? "Class Duration" : "Elapsed Time"}
                   </span>
-                  <span className="text-sm font-mono font-bold text-emerald-400">
+                  <span
+                    className={`text-sm font-mono font-bold ${
+                      isCompleted ? "text-slate-200" : "text-emerald-400"
+                    }`}
+                  >
                     {formattedElapsedTime}
                   </span>
                 </div>
@@ -823,13 +934,59 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 {recordingSyncNotice && (
                   <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2.5">
                     <Film className="w-4 h-4 mt-0.5 shrink-0 text-[#2563EB]" />
-                    <div>
+                    <div className="min-w-0 flex-1 space-y-2">
                       <p className="font-bold text-sm text-blue-900 dark:text-blue-100">
                         ERP class ended — Drive sync queued
                       </p>
                       <p className="mt-0.5 font-normal text-blue-700 dark:text-blue-300">
                         {recordingSyncNotice}
                       </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-bold ${
+                            String(sessionRecording?.recordingStatus).toUpperCase() === "AVAILABLE"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : String(sessionRecording?.recordingStatus).toUpperCase() === "FAILED"
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {(String(sessionRecording?.recordingStatus).toUpperCase() === "PROCESSING" ||
+                            String(sessionRecording?.recordingStatus).toUpperCase() === "PENDING") && (
+                            <Loader2 className="w-3 h-3 mr-1 inline animate-spin" />
+                          )}
+                          Recording status: {syncStatusLabel || "Waiting for sync row…"}
+                        </Badge>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px] rounded-lg border-blue-300 bg-white text-blue-800"
+                          onClick={() => {
+                            onClose();
+                            navigate("/faculty/recordings");
+                          }}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          Open Class Recordings
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px] text-blue-700"
+                          onClick={() => void refetchSessionRecording()}
+                        >
+                          <Loader2 className="w-3 h-3 mr-1" />
+                          Refresh status
+                        </Button>
+                      </div>
+                      {sessionRecording?.lastSyncError && (
+                        <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                          {sessionRecording.lastSyncError}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -971,6 +1128,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
         onClose={() => setShowCompleteConfirm(false)}
         onConfirm={handleConfirmCompleteClass}
         isSubmitting={isCompleting}
+        errorMessage={attendanceError}
         classDetails={{
           title: session.title || "Class Session",
           courseName: session.courseName,

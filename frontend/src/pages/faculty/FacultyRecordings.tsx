@@ -1,18 +1,31 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Search, Video, Calendar, Clock,
-  BookOpen, Eye, Loader2, AlertCircle, FileVideo,
+  BookOpen, Eye, Loader2, AlertCircle, FileVideo, RefreshCw, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
+import { useRecordings, useRecordingAccess, useSyncRecording } from "@/hooks/useRecordings";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { getApiErrorMessage } from "@/utils/api-error";
+import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
+
+const SYNCING_STATUSES = new Set(["PENDING", "PROCESSING", "RECORDING"]);
+
+const formatRecordingDuration = (minutes?: number | null) => {
+  if (minutes == null || Number.isNaN(Number(minutes))) return null;
+  const mins = Math.max(0, Math.round(Number(minutes)));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
 
 const getRecordingStatus = (rec: { recordingStatus?: string; status?: string }) =>
   rec.recordingStatus || rec.status || "PENDING";
@@ -67,7 +80,28 @@ export const FacultyRecordings: React.FC = () => {
 
   const { data: recordingsRes, isLoading, isError, refetch } = useRecordings({ limit: 50 });
   const accessMutation = useRecordingAccess();
+  const syncMutation = useSyncRecording();
   const recordings = recordingsRes?.data ?? [];
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [syncNoticeError, setSyncNoticeError] = useState<string | null>(null);
+
+  const hasActiveSync = useMemo(
+    () =>
+      recordings.some((rec: any) =>
+        SYNCING_STATUSES.has(String(getRecordingStatus(rec)).toUpperCase())
+      ),
+    [recordings]
+  );
+
+  // Auto-refresh while any recording is still queued/syncing
+  useEffect(() => {
+    if (!hasActiveSync) return;
+    const id = window.setInterval(() => {
+      void refetch();
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [hasActiveSync, refetch]);
 
   const filteredRecordings = useMemo(() => {
     if (!searchTerm.trim()) return recordings;
@@ -96,13 +130,32 @@ export const FacultyRecordings: React.FC = () => {
     try {
       const res = await accessMutation.mutateAsync(rec.id);
       const url = res?.data?.playbackUrl;
-      if (url) {
-        setPlaybackUrl(url);
-      } else {
+      if (!url) {
         setPlayError("No playback URL available for this recording.");
+        return;
+      }
+      setPlaybackUrl(url);
+      // Drive viewer links cannot play inside <video>; open in a new tab (same as student dashboard).
+      if (isGoogleDriveViewerUrl(url) || !isDirectVideoUrl(url)) {
+        window.open(url, "_blank", "noopener,noreferrer");
       }
     } catch {
       setPlayError("Unable to load recording playback.");
+    }
+  };
+
+  const handleRefreshSync = async (rec: { id: string }) => {
+    setSyncingId(rec.id);
+    setSyncNotice(null);
+    setSyncNoticeError(null);
+    try {
+      await syncMutation.mutateAsync(rec.id);
+      setSyncNotice("Recording sync refreshed. Status will update when Drive is ready.");
+      await refetch();
+    } catch (err) {
+      setSyncNoticeError(getApiErrorMessage(err, "Failed to refresh recording sync."));
+    } finally {
+      setSyncingId(null);
     }
   };
 
@@ -129,7 +182,8 @@ export const FacultyRecordings: React.FC = () => {
             Class Recordings
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Recordings from your class sessions. After you end a class, Google Drive sync runs in the background.
+            After End & Complete Class, sync status appears here as Queued → Syncing → Available.
+            Use Refresh sync if Drive is still processing.
           </p>
         </div>
       </div>
@@ -143,6 +197,17 @@ export const FacultyRecordings: React.FC = () => {
           className="pl-10"
         />
       </div>
+
+      {syncNotice && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {syncNotice}
+        </div>
+      )}
+      {syncNoticeError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {syncNoticeError}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-20">
@@ -190,15 +255,19 @@ export const FacultyRecordings: React.FC = () => {
                         )}
                         {recordingStatusLabel(status)}
                       </Badge>
-                      {status === "FAILED" && rec.lastSyncError && (
+                      {rec.lastSyncError &&
+                        (status === "FAILED" ||
+                          status === "PENDING" ||
+                          status === "PROCESSING") && (
                         <p
-                          className="text-[10px] text-rose-600 mt-1 line-clamp-2 text-left"
+                          className="text-[10px] text-rose-600 mt-1 line-clamp-3 text-left"
                           title={rec.lastSyncError}
                         >
                           {rec.lastSyncError}
                         </p>
                       )}
-                      {(status === "PENDING" || status === "PROCESSING") && (
+                      {(status === "PENDING" || status === "PROCESSING") &&
+                        !rec.lastSyncError && (
                         <p className="text-[10px] text-slate-500 mt-1 text-left">
                           Syncing from Google Drive…
                         </p>
@@ -225,6 +294,12 @@ export const FacultyRecordings: React.FC = () => {
                         })}
                       </div>
                     )}
+                    {formatRecordingDuration(rec.duration) && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        {formatRecordingDuration(rec.duration)}
+                      </div>
+                    )}
                     {rec.expiresAt && isAvailable && (
                       <div className="flex items-center gap-1.5 text-amber-600">
                         <Clock className="w-3.5 h-3.5" />
@@ -236,34 +311,62 @@ export const FacultyRecordings: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
-                    onClick={() => handleViewRecording(rec)}
-                    disabled={
-                      !isAvailable ||
-                      Boolean(isExpired) ||
-                      (accessMutation.isPending && activeRecording?.id === rec.id)
-                    }
-                  >
-                    {accessMutation.isPending && activeRecording?.id === rec.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...
-                      </>
-                    ) : status === "FAILED" ? (
-                      <>
-                        <AlertCircle className="w-4 h-4 mr-2" /> Unavailable
-                      </>
-                    ) : status === "PROCESSING" || status === "PENDING" ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Syncing…
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="w-4 h-4 mr-2" /> View
-                      </>
+                  <div className="flex gap-2">
+                    {(status === "PENDING" ||
+                      status === "PROCESSING" ||
+                      status === "FAILED" ||
+                      status === "RECORDING") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleRefreshSync(rec)}
+                        disabled={syncingId === rec.id || syncMutation.isPending}
+                      >
+                        {syncingId === rec.id ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                        )}
+                        Refresh sync
+                      </Button>
                     )}
-                  </Button>
+                    <Button
+                      size="sm"
+                      className={`${
+                        status === "PENDING" ||
+                        status === "PROCESSING" ||
+                        status === "FAILED" ||
+                        status === "RECORDING"
+                          ? "flex-1"
+                          : "w-full"
+                      } bg-[#2563EB] hover:bg-[#1D4ED8] text-white`}
+                      onClick={() => handleViewRecording(rec)}
+                      disabled={
+                        !isAvailable ||
+                        Boolean(isExpired) ||
+                        (accessMutation.isPending && activeRecording?.id === rec.id)
+                      }
+                    >
+                      {accessMutation.isPending && activeRecording?.id === rec.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...
+                        </>
+                      ) : status === "FAILED" ? (
+                        <>
+                          <AlertCircle className="w-4 h-4 mr-2" /> Unavailable
+                        </>
+                      ) : status === "PROCESSING" || status === "PENDING" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Syncing…
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-2" /> View
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -278,12 +381,12 @@ export const FacultyRecordings: React.FC = () => {
               {activeRecording?.title || activeRecording?.classSession?.title || "Recording"}
             </DialogTitle>
           </DialogHeader>
-          <div className="bg-black aspect-video flex items-center justify-center">
+          <div className="bg-black aspect-video flex items-center justify-center p-6">
             {accessMutation.isPending ? (
               <Loader2 className="h-8 w-8 animate-spin text-white" />
             ) : playError ? (
               <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
-            ) : playbackUrl ? (
+            ) : playbackUrl && isDirectVideoUrl(playbackUrl) ? (
               <video
                 src={playbackUrl}
                 controls
@@ -291,6 +394,21 @@ export const FacultyRecordings: React.FC = () => {
                 controlsList="nodownload"
                 className="w-full h-full object-contain"
               />
+            ) : playbackUrl ? (
+              <div className="text-center space-y-3 max-w-sm">
+                <p className="text-sm text-slate-200">
+                  {isGoogleDriveViewerUrl(playbackUrl)
+                    ? "This recording opens in Google Drive (view-only)."
+                    : "Open the recording in a new tab to watch."}
+                </p>
+                <Button
+                  type="button"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                  onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" /> Open recording
+                </Button>
+              </div>
             ) : null}
           </div>
         </DialogContent>
