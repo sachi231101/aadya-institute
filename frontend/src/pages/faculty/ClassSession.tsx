@@ -229,7 +229,7 @@ export const FacultyClassSession: React.FC = () => {
   // Upload Recording Form State
   const [recTitle, setRecTitle] = useState(`${courseName} - Live Class Recording`);
   const [recVideoUrl, setRecVideoUrl] = useState("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-  const [recDurationMins, setRecDurationMins] = useState("60");
+  const [recDurationMins, setRecDurationMins] = useState("");
 
   // Upload Materials Form State
   const [matTitle, setMatTitle] = useState(`${subjectName} - Lecture Notes & PPT`);
@@ -432,18 +432,30 @@ export const FacultyClassSession: React.FC = () => {
   const handleConfirmEndClass = async () => {
     setShowEndConfirmModal(false);
 
-    // LIVE -> COMPLETED
-    setWorkflowStep("COMPLETED");
-    setSessionStatus(sessionId, "COMPLETED");
-
     const endTimeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    setSessionEndTime(endTimeStr);
-
     const recDuration = Math.max(1, Math.round(secondsElapsed / 60));
-    const recId = `rec-${Date.now()}`;
     const meetUrl = isRealGoogleMeetUrl(customMeetUrl) ? customMeetUrl.trim() : "";
     const meetId = meetUrl ? meetUrl.split("/").pop() || "" : "";
 
+    if (hasValidSessionId) {
+      try {
+        await classSessionsApi.endLive(sessionId);
+      } catch (err: any) {
+        triggerToast(
+          err?.response?.data?.message || err?.message || "Failed to end class and queue Drive sync.",
+          "error"
+        );
+        return;
+      }
+    } else {
+      triggerToast("A real scheduled class is required to end live and sync recordings.", "error");
+      return;
+    }
+
+    // LIVE -> COMPLETED (only after backend end-live succeeds)
+    setWorkflowStep("COMPLETED");
+    setSessionStatus(sessionId, "COMPLETED");
+    setSessionEndTime(endTimeStr);
     endActiveLiveClass();
 
     addSessionHistory({
@@ -462,50 +474,17 @@ export const FacultyClassSession: React.FC = () => {
       meetUrl,
       meetId,
       notes: savedNotes,
-      recordingId: recId,
+      recordingId: undefined,
     });
 
-    // Automatically create recording entry
-    const newRecording = {
-      id: recId,
-      course: courseName,
-      batch: batchCode,
-      batchName: `${courseName} (${batchCode})`,
-      module: subjectName,
-      facultyName: facultyName,
-      date: scheduledDate,
-      rawDate: new Date().toISOString().split("T")[0],
-      time: scheduledTime,
-      duration: `${recDuration} min`,
-      studentsCount: attendanceCounts.present,
-      thumbnailBg: "bg-gradient-to-br from-[#0A2540] via-slate-900 to-blue-950",
-      topics: [subjectName, "Google Meet Live Class Recording", "Class Q&A Session"],
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      viewsCount: 0,
-      status: "Available" as const,
-      expiresAt: "2026-09-30",
-      meetUrl,
-      meetId,
-      startTime: sessionStartTime || "09:00 AM",
-      endTime: endTimeStr,
-      source: "Google Meet" as const,
-    };
-
-    addRecording(newRecording);
-
-    if (hasValidSessionId) {
-      try {
-        await classSessionsApi.endLive(sessionId);
-      } catch (err: any) {
-        console.warn("Backend endLive sync skipped:", err?.message);
-      }
-    }
-
     addNotification(
-      `ERP class ended. End Meet / stop recording in Google Meet if still open — ERP syncs the recording from Drive in the background.`,
+      "ERP class ended. Start recording in Google Meet during class if needed, then end Meet / stop recording — ERP syncs from Drive in the background. Check Class Recordings.",
       "info"
     );
-    triggerToast("ERP class ended. Drive recording sync queued in the background.", "success");
+    triggerToast(
+      "ERP class ended. Drive recording sync queued — recording appears for students when Google finishes processing.",
+      "success"
+    );
   };
 
   // ─── ACTION 4: UPLOAD RECORDING ─────────────────────────────────────────────
@@ -521,7 +500,7 @@ export const FacultyClassSession: React.FC = () => {
       date: scheduledDate,
       rawDate: new Date().toISOString().split("T")[0],
       time: scheduledTime,
-      duration: `${recDurationMins} min`,
+      duration: recDurationMins.trim() ? `${recDurationMins} min` : "—",
       studentsCount: attendanceCounts.present || students.length,
       thumbnailBg: "bg-gradient-to-br from-[#0A2540] via-slate-900 to-blue-950",
       topics: [subjectName, recTitle],
@@ -1492,7 +1471,7 @@ export const FacultyClassSession: React.FC = () => {
                 value={recDurationMins}
                 onChange={(e) => setRecDurationMins(e.target.value)}
                 type="number"
-                placeholder="60"
+                placeholder="Actual length (leave blank if unknown)"
                 className="h-10 text-xs rounded-xl bg-slate-50 border-slate-200"
               />
             </div>

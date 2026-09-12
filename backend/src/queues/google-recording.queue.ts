@@ -10,16 +10,18 @@ export interface GoogleRecordingSyncJobData {
   userId: string;
   /** Number of "not ready yet" re-polls already performed (does not count hard-error retries). */
   pollAttempt?: number;
+  /** Optional enqueue timestamp (ms) used when actualEndTime is missing. */
+  enqueuedAtMs?: number;
 }
 
 /** Delay between Drive readiness re-polls (~2 minutes). */
 export const GOOGLE_RECORDING_REPOLL_DELAY_MS = 2 * 60 * 1000;
 
-/** Cap delayed re-polls (~1 hour at 2-minute intervals). Cron remains the backstop. */
-export const GOOGLE_RECORDING_MAX_REPOLL_ATTEMPTS = 30;
+/** Cap delayed re-polls (~6 hours at 2-minute intervals). Cron remains the backstop. */
+export const GOOGLE_RECORDING_MAX_REPOLL_ATTEMPTS = 180;
 
-/** Also stop delayed re-polls after class end + this window. */
-export const GOOGLE_RECORDING_SYNC_WINDOW_MS = 90 * 60 * 1000;
+/** Stop delayed re-polls after class end + this window (6 hours). */
+export const GOOGLE_RECORDING_SYNC_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 const TERMINAL_STATUSES = ["AVAILABLE", "DELETED", "EXPIRED"] as const;
 
@@ -61,7 +63,7 @@ export const processGoogleRecordingSync = async (
       permissions: [],
     };
 
-      const result = await syncSessionRecordings(mockAuthUser, classSessionId);
+    const result = await syncSessionRecordings(mockAuthUser, classSessionId);
     const recordingStatus = result.recording?.recordingStatus;
 
     logger.info(
@@ -73,15 +75,17 @@ export const processGoogleRecordingSync = async (
       return;
     }
 
-    // Google may still be encoding — schedule a delayed re-poll (do not mark FAILED).
+    // Anchor only on actualEndTime (or enqueue time) — never scheduledDate, which
+    // can make afternoon classes look "past window" immediately.
     const session = await prisma.classSession.findUnique({
       where: { id: classSessionId },
-      select: { actualEndTime: true, scheduledDate: true },
+      select: { actualEndTime: true },
     });
-    const endAnchor = session?.actualEndTime || session?.scheduledDate || null;
-    const pastSyncWindow =
-      endAnchor != null &&
-      Date.now() > endAnchor.getTime() + GOOGLE_RECORDING_SYNC_WINDOW_MS;
+    const endAnchorMs =
+      session?.actualEndTime?.getTime() ??
+      (typeof job.data.enqueuedAtMs === "number" ? job.data.enqueuedAtMs : null) ??
+      Date.now();
+    const pastSyncWindow = Date.now() > endAnchorMs + GOOGLE_RECORDING_SYNC_WINDOW_MS;
 
     if (pollAttempt >= GOOGLE_RECORDING_MAX_REPOLL_ATTEMPTS || pastSyncWindow) {
       logger.info(

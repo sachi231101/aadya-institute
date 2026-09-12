@@ -75,6 +75,11 @@ const facultyNavItems: NavItem[] = [
     ],
   },
   {
+    title: "Class Recordings",
+    url: "/faculty/recordings",
+    icon: FileVideo,
+  },
+  {
     title: "Assignment Management",
     url: "/faculty/assignments",
     icon: FileText,

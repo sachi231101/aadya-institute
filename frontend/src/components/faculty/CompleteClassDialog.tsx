@@ -16,6 +16,7 @@ export interface CompleteClassDialogProps {
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
   isSubmitting?: boolean;
+  errorMessage?: string | null;
   classDetails: {
     title: string;
     courseName: string;
@@ -37,6 +38,7 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
   onClose,
   onConfirm,
   isSubmitting = false,
+  errorMessage = null,
   classDetails,
 }) => {
   return (
@@ -50,7 +52,13 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
             Complete this class?
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
-            Review the final class summary below. Completing ends the ERP session and locks attendance — it does not stop Google Meet recording. End the Google Meet (or stop recording there) so Google can process the file; ERP will sync from Drive in the background.
+            Review the summary below. Completing ends the ERP session and locks attendance.
+            {" "}
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              You must start recording inside Google Meet during class
+            </span>
+            {" "}
+            (ERP cannot start Meet recording). End the Meet or stop recording there so Google can process the file; ERP will sync from Drive in the background.
           </DialogDescription>
         </DialogHeader>
 
@@ -100,6 +108,13 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
             </div>
           </div>
         </div>
+
+        {errorMessage && (
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button

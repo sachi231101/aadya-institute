@@ -79,12 +79,26 @@ export const getRecordings = async (currentUser: AuthUser, query: RecordingQuery
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
-  const branchId = currentUser.roles.includes("ADMIN") ? undefined : (currentUser.branchId ?? undefined);
-
   let batchIds: string[] | undefined = undefined;
+  let facultyId: string | undefined = undefined;
+
+  const roles = (currentUser.roles || []).map((r) => String(r).toUpperCase());
+  const isAdmin = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+  const isFaculty =
+    roles.includes("FACULTY") &&
+    !isAdmin &&
+    !roles.includes("CENTER_MANAGER");
+  const isStudent =
+    roles.includes("STUDENT") && !isAdmin && !roles.includes("FACULTY");
+
+  // Faculty list is scoped by assigned session facultyId (not JWT branchId),
+  // so branch mismatch cannot hide PENDING/PROCESSING sync rows.
+  const branchId = isAdmin || isFaculty
+    ? undefined
+    : (currentUser.branchId ?? undefined);
 
   // Student scope: Strictly restrict to batches in which student has ACTIVE enrollment
-  if (currentUser.roles.includes("STUDENT") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("FACULTY")) {
+  if (isStudent) {
     const student = await prisma.student.findFirst({
       where: {
         userId: currentUser.id || currentUser.userId!,
@@ -110,11 +124,24 @@ export const getRecordings = async (currentUser: AuthUser, query: RecordingQuery
     }
   }
 
+  // Faculty scope: only recordings for class sessions assigned to this faculty
+  if (isFaculty) {
+    const faculty = await prisma.faculty.findFirst({
+      where: { userId: currentUser.id || currentUser.userId! },
+      select: { id: true },
+    });
+    if (!faculty) {
+      return { data: [], meta: buildMeta(0, page, limit) };
+    }
+    facultyId = faculty.id;
+  }
+
   const { recordings, total } = await repo.findRecordings({
     instituteId: currentUser.instituteId,
     branchId,
     batchId: query.batchId,
     batchIds,
+    facultyId,
     courseId: query.courseId,
     classSessionId: query.classSessionId,
     status: query.status,
@@ -139,8 +166,27 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
     throw new AppError("Recording not found", 404);
   }
 
-  // Branch isolation for non-ADMIN staff, including multi-branch managers.
-  if (!currentUser.roles.includes("ADMIN")) {
+  const roles = (currentUser.roles || []).map((r) => String(r).toUpperCase());
+  const isAdmin = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+  const isCenterManager = roles.includes("CENTER_MANAGER");
+  const isFaculty = roles.includes("FACULTY") && !isAdmin && !isCenterManager;
+  const isStudent = roles.includes("STUDENT") && !isAdmin && !roles.includes("FACULTY");
+
+  // Assigned faculty may access their session recordings even if JWT branchId
+  // differs from the batch (same rule as list + Meet sync).
+  if (isFaculty) {
+    const faculty = await prisma.faculty.findFirst({
+      where: { userId: currentUser.id || currentUser.userId! },
+      select: { id: true },
+    });
+    if (!faculty || session.facultyId !== faculty.id) {
+      throw new AppError("Recording not found", 404);
+    }
+    return recording;
+  }
+
+  // Branch isolation for non-ADMIN staff (center managers, etc.).
+  if (!isAdmin) {
     const allowedBranchIds = new Set(
       [currentUser.branchId, ...(currentUser.allowedBranchIds || [])].filter(
         (branchId): branchId is string => Boolean(branchId)
@@ -152,16 +198,13 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
     ) {
       throw new AppError("Recording not found", 404);
     }
-    if (
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      allowedBranchIds.size === 0
-    ) {
+    if (isCenterManager && allowedBranchIds.size === 0) {
       throw new AppError("Recording not found", 404);
     }
   }
 
   // Student enrollment check
-  if (currentUser.roles.includes("STUDENT") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("FACULTY")) {
+  if (isStudent) {
     const student = await prisma.student.findFirst({
       where: {
         userId: currentUser.id || currentUser.userId!,
@@ -175,17 +218,6 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
 
     const isEnrolled = batch.enrollments?.some((e) => e.studentId === student.id);
     if (!isEnrolled) {
-      throw new AppError("Recording not found", 404);
-    }
-  }
-
-  // Faculty assignment check
-  if (currentUser.roles.includes("FACULTY") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
-    const faculty = await prisma.faculty.findUnique({
-      where: { userId: currentUser.id || currentUser.userId! },
-    });
-
-    if (!faculty || session.facultyId !== faculty.id) {
       throw new AppError("Recording not found", 404);
     }
   }

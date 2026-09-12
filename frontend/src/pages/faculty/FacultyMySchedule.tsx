@@ -1170,7 +1170,12 @@ export const FacultyMySchedule: React.FC = () => {
         isOpen={isClassModalOpen}
         onClose={() => setIsClassModalOpen(false)}
         session={selectedClassForModal}
-        onSessionStatusChange={() => {
+        onSessionStatusChange={(sessionId, newStatus) => {
+          setSelectedClassForModal((prev) =>
+            prev && prev.id === sessionId
+              ? { ...prev, status: newStatus }
+              : prev
+          );
           refetchSessions();
           refetchDash();
         }}

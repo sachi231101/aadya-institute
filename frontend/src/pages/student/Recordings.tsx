@@ -1,23 +1,24 @@
 ﻿import React, { useMemo, useState } from "react";
-import { Video, Play, Clock, Lock, Calendar, X, Loader2 } from "lucide-react";
+import { Video, Play, Clock, Lock, Calendar, X, Loader2, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
-import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import type { Recording } from "@/services/recordings.api";
 import { useSearchParams } from "react-router-dom";
+import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
 
-const formatDuration = (seconds?: number) => {
-  if (!seconds) return "—";
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return mins > 0 ? `${mins}m ${secs > 0 ? `${secs}s` : ""}` : `${secs}s`;
+const formatDuration = (minutes?: number) => {
+  if (minutes == null || Number.isNaN(Number(minutes))) return "—";
+  const mins = Math.max(0, Math.round(Number(minutes)));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 };
 
 export const StudentRecordings: React.FC = () => {
-  const academic = useStudentAcademicAccess();
   const [searchParams] = useSearchParams();
   const classSessionId = searchParams.get("classSessionId") || undefined;
   const { data: recordingsRes, isLoading, isError } = useRecordings({
@@ -40,10 +41,10 @@ export const StudentRecordings: React.FC = () => {
       .filter((rec) => {
         const session = rec.classSession;
         if (!session) return false;
+        // Backend already scopes students to ACTIVE enrollments; trust API rows.
         return (
           rec.recordingStatus === "AVAILABLE" &&
-          new Date(rec.expiresAt).getTime() > recordingsNow &&
-          academic.isAuthorizedForSession(session)
+          new Date(rec.expiresAt).getTime() > recordingsNow
         );
       })
       .map((rec) => ({
@@ -74,7 +75,7 @@ export const StudentRecordings: React.FC = () => {
       }));
 
     return scoped;
-  }, [recordingsRes, academic, recordingsNow]);
+  }, [recordingsRes, recordingsNow]);
 
   const handleWatchRecording = async (rec: any) => {
     setActiveRecording(rec);
@@ -85,10 +86,13 @@ export const StudentRecordings: React.FC = () => {
     try {
       const res = await accessMutation.mutateAsync(rec.id);
       const url = res?.data?.playbackUrl;
-      if (url) {
-        setPlaybackUrl(url);
-      } else {
+      if (!url) {
         setPlayError("No playback URL available for this recording.");
+        return;
+      }
+      setPlaybackUrl(url);
+      if (isGoogleDriveViewerUrl(url) || !isDirectVideoUrl(url)) {
+        window.open(url, "_blank", "noopener,noreferrer");
       }
     } catch (err: unknown) {
       setPlayError(
@@ -247,12 +251,12 @@ export const StudentRecordings: React.FC = () => {
                 </button>
               </div>
 
-              <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+              <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden p-6">
                 {accessMutation.isPending ? (
                   <Loader2 className="h-10 w-10 animate-spin text-white" />
                 ) : playError ? (
                   <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
-                ) : playbackUrl ? (
+                ) : playbackUrl && isDirectVideoUrl(playbackUrl) ? (
                   <video
                     src={playbackUrl}
                     controls
@@ -260,6 +264,21 @@ export const StudentRecordings: React.FC = () => {
                     controlsList="nodownload"
                     className="w-full h-full object-contain"
                   />
+                ) : playbackUrl ? (
+                  <div className="text-center space-y-3 max-w-sm">
+                    <p className="text-sm text-slate-200">
+                      {isGoogleDriveViewerUrl(playbackUrl)
+                        ? "This recording opens in Google Drive (view-only)."
+                        : "Open the recording in a new tab to watch."}
+                    </p>
+                    <Button
+                      type="button"
+                      className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                      onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" /> Open recording
+                    </Button>
+                  </div>
                 ) : null}
               </div>
 

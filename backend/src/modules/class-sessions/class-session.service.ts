@@ -272,15 +272,29 @@ export const classSessionService = {
     }
 
     // Immediately enqueue Drive sync so recordings appear without waiting for the 10m cron.
-    const organizerUserId = existing.googleMeetSpace?.organizerUserId;
-    const shouldEnqueueSync =
+    let organizerUserId = existing.googleMeetSpace?.organizerUserId ?? null;
+    if (!organizerUserId && existing.googleMeetSpace) {
+      // Meet space row should always have organizer; fall back to institute Google connection owner.
+      try {
+        const { findConnectionByInstituteId } = await import(
+          "../google-workspace/google-workspace.repository"
+        );
+        const instituteConn = await findConnectionByInstituteId(instituteId);
+        organizerUserId = instituteConn?.userId ?? null;
+      } catch (err) {
+        logger.warn({ err, classSessionId: session.id }, "Could not resolve institute Google organizer for sync");
+      }
+    }
+
+    const syncQueued =
       Boolean(organizerUserId) &&
       Boolean(recording) &&
       recording?.recordingStatus !== "AVAILABLE" &&
       recording?.recordingStatus !== "DELETED" &&
       recording?.recordingStatus !== "EXPIRED";
 
-    if (shouldEnqueueSync && organizerUserId) {
+    let enqueueError: string | null = null;
+    if (syncQueued && organizerUserId) {
       try {
         await googleRecordingQueue.add(
           "sync-session-recording",
@@ -288,6 +302,8 @@ export const classSessionService = {
             classSessionId: session.id,
             instituteId,
             userId: organizerUserId,
+            pollAttempt: 0,
+            enqueuedAtMs: Date.now(),
           },
           {
             jobId: `sync-recording-${session.id}`,
@@ -300,21 +316,39 @@ export const classSessionService = {
           }
         );
       } catch (err) {
+        enqueueError =
+          err instanceof Error ? err.message : "Failed to enqueue recording sync";
         logger.error(
           { err, classSessionId: session.id },
           "Failed to enqueue google recording sync after end-live"
         );
       }
+    } else if (!existing.googleMeetSpace) {
+      logger.info(
+        { classSessionId: session.id },
+        "end-live: no Google Meet space linked — recording sync not queued"
+      );
+    } else if (!organizerUserId) {
+      logger.warn(
+        { classSessionId: session.id },
+        "end-live: Meet space has no organizerUserId and no institute Google connection — sync not queued"
+      );
     }
 
     return {
       session,
       recording,
-      message: shouldEnqueueSync
-        ? "Class ended. Recording sync was queued in the background and will appear when Google Drive finishes processing."
-        : recording?.recordingStatus === "AVAILABLE"
-          ? "Class session ended successfully. Recording is already available."
-          : "Class session ended successfully.",
+      syncQueued: syncQueued && !enqueueError,
+      recordingStatus: recording?.recordingStatus ?? null,
+      message: enqueueError
+        ? "Class ended, but recording sync could not be queued. Check Redis/workers and try Refresh sync from Class Recordings."
+        : syncQueued
+          ? "Class ended. Recording sync was queued in the background and will appear when Google Drive finishes processing."
+          : recording?.recordingStatus === "AVAILABLE"
+            ? "Class session ended successfully. Recording is already available."
+            : existing.googleMeetSpace
+              ? "Class session ended successfully. Recording sync was not queued (missing Google organizer)."
+              : "Class session ended successfully.",
     };
   },
 

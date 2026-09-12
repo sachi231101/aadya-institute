@@ -154,6 +154,84 @@ export const setRestrictedViewerPermission = async (
   }
 };
 
+export interface SearchRecentMeetRecordingsOptions {
+  /** Inclusive lower bound for file createdTime (ISO or Date). */
+  createdAfter: Date;
+  /** Inclusive upper bound for file createdTime (ISO or Date). */
+  createdBefore: Date;
+  /** Optional substring match against file name (e.g. Meet meeting code). */
+  nameContains?: string;
+  /** Max files to return (default 10). */
+  pageSize?: number;
+}
+
+/**
+ * Search organizer Drive for recent Google Meet recording videos.
+ * Used when Meet conferenceRecords.recordings is still empty after class end.
+ */
+export const searchRecentMeetRecordings = async (
+  authClient: OAuth2Client,
+  options: SearchRecentMeetRecordingsOptions
+): Promise<GoogleDriveFileMetadata[]> => {
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const pageSize = Math.min(25, Math.max(1, options.pageSize ?? 10));
+  const afterIso = options.createdAfter.toISOString();
+  const beforeIso = options.createdBefore.toISOString();
+
+  const queryParts = [
+    "trashed = false",
+    "(mimeType contains 'video/' or mimeType = 'application/vnd.google-apps.video')",
+    `createdTime >= '${afterIso}'`,
+    `createdTime <= '${beforeIso}'`,
+  ];
+  if (options.nameContains?.trim()) {
+    const safe = options.nameContains.trim().replace(/'/g, "\\'");
+    queryParts.push(`name contains '${safe}'`);
+  }
+
+  try {
+    const response = await drive.files.list({
+      q: queryParts.join(" and "),
+      spaces: "drive",
+      corpora: "user",
+      orderBy: "createdTime desc",
+      pageSize,
+      fields:
+        "files(id, name, mimeType, webViewLink, webContentLink, size, createdTime, modifiedTime, videoMediaMetadata, parents)",
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    const files = response.data.files || [];
+    return files
+      .filter((file) => Boolean(file.id))
+      .map((file) => ({
+        id: file.id!,
+        name: file.name || "Class Recording",
+        mimeType: file.mimeType || "video/mp4",
+        webViewLink: file.webViewLink || undefined,
+        webContentLink: file.webContentLink || undefined,
+        size: file.size ? Number(file.size) : undefined,
+        createdTime: file.createdTime || undefined,
+        modifiedTime: file.modifiedTime || undefined,
+        videoMediaMetadata: file.videoMediaMetadata
+          ? {
+              width: file.videoMediaMetadata.width || undefined,
+              height: file.videoMediaMetadata.height || undefined,
+              durationMillis: file.videoMediaMetadata.durationMillis || undefined,
+            }
+          : undefined,
+      }));
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    logger.warn(
+      { status, afterIso, beforeIso },
+      "Failed to search Google Drive for Meet recordings"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
+  }
+};
+
 /**
  * Deletes a Drive file. A missing file is already in the desired state.
  */
