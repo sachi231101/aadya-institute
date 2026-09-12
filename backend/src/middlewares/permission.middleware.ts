@@ -29,6 +29,14 @@ const userHasPermission = async (
     return true;
   }
 
+  // Counselors have built-in read access to targets and incentives assigned to them
+  if (
+    userRoles.includes("COUNSELLOR") &&
+    ["target.read", "incentive.read"].includes(permission)
+  ) {
+    return true;
+  }
+
   if (userRoles.includes("CENTER_MANAGER") || userRoles.includes("COUNSELLOR")) {
     const userPermission = await prisma.userPermission.findFirst({
       where: {

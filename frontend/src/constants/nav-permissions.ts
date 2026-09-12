@@ -42,6 +42,10 @@ const COUNSELOR_ALWAYS_ALLOWED = [
   "/counselor/home",
   "/counselor/settings",
   "/counselor/notifications",
+  "/counselor/targets",
+  "/counselor/targets/leaderboard",
+  "/counselor/incentives",
+  "/counselor/performance",
 ];
 
 /** Create/edit URLs that require Edit, not just Read. */

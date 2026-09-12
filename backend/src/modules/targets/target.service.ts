@@ -197,10 +197,19 @@ export const TargetService = {
   async getTargets(currentUser: AuthUser, query: QueryTargetsDTO) {
     const allowedBranchId = scopedBranchId(currentUser);
 
+    let userId = query.userId;
+    if (
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER")
+    ) {
+      userId = currentUser.userId || currentUser.id;
+    }
+
     return TargetRepository.findTargets(
       currentUser.instituteId,
       allowedBranchId,
-      query
+      { ...query, userId }
     );
   },
 
@@ -355,7 +364,8 @@ export const TargetService = {
     const userId = currentUser.userId || currentUser.id;
     const rawTargets = await TargetRepository.findMyActiveTargets(
       currentUser.instituteId,
-      userId
+      userId,
+      currentUser.branchId
     );
 
     // Calculate real-time live progress for each active target
@@ -546,10 +556,19 @@ export const TargetService = {
   async getIncentives(currentUser: AuthUser, query: QueryIncentivesDTO) {
     const allowedBranchId = scopedBranchId(currentUser);
 
+    let userId = query.userId;
+    if (
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER")
+    ) {
+      userId = currentUser.userId || currentUser.id;
+    }
+
     return TargetRepository.findIncentives(
       currentUser.instituteId,
       allowedBranchId,
-      query
+      { ...query, userId }
     );
   },
 

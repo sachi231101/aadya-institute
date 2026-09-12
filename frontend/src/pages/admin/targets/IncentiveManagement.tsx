@@ -25,11 +25,17 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const IncentiveManagement: React.FC = () => {
   const { user } = useAuthStore();
+  const isCounselor =
+    user?.roles?.includes("COUNSELLOR") &&
+    !user?.roles?.includes("ADMIN") &&
+    !user?.roles?.includes("CENTER_MANAGER");
+
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
   const { data: incentivesData, isLoading, refetch } = useIncentives({
     status: statusFilter !== "ALL" ? (statusFilter as IncentiveStatus) : undefined,
+    userId: isCounselor ? (user?.id || (user as any)?.userId) : undefined,
   });
 
   const approveMutation = useApproveIncentive();
@@ -150,11 +156,13 @@ export const IncentiveManagement: React.FC = () => {
               <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Incentive Approvals & Payouts
+              {isCounselor ? "My Incentives & Rewards" : "Incentive Approvals & Payouts"}
             </h1>
           </div>
           <p className="text-muted-foreground text-sm">
-            Review automatically calculated counselor rewards, apply administrative adjustments, and authorize payouts.
+            {isCounselor
+              ? "Track your earned performance incentives, approval status from center administration, and payroll payout history."
+              : "Review automatically calculated counselor rewards, apply administrative adjustments, and authorize payouts."}
           </p>
         </div>
 
@@ -249,9 +257,13 @@ export const IncentiveManagement: React.FC = () => {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground">
             <Award className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-foreground mb-1">No Incentives Found</h3>
+            <h3 className="text-base font-bold text-foreground mb-1">
+              {isCounselor ? "No Incentive Records Yet" : "No Incentives Found"}
+            </h3>
             <p className="text-xs text-muted-foreground">
-              No incentive records match the current status filter.
+              {isCounselor
+                ? "Incentives are calculated automatically from your target milestones and achievements."
+                : "No incentive records match the current status filter."}
             </p>
           </div>
         ) : (
@@ -259,7 +271,7 @@ export const IncentiveManagement: React.FC = () => {
             <table className="w-full text-left text-sm text-foreground">
               <thead className="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                 <tr>
-                  <th className="py-4 px-4">Counselor</th>
+                  {!isCounselor && <th className="py-4 px-4">Counselor</th>}
                   <th className="py-4 px-4">Target Goal</th>
                   <th className="py-4 px-4">Target vs Achieved</th>
                   <th className="py-4 px-4">Achievement %</th>
@@ -272,10 +284,12 @@ export const IncentiveManagement: React.FC = () => {
               <tbody className="divide-y divide-border">
                 {filtered.map((inc) => (
                   <tr key={inc.id} className="hover:bg-muted/50 transition">
-                    <td className="py-4 px-4">
-                      <div className="font-semibold text-foreground">{inc.user?.name}</div>
-                      <div className="text-xs text-muted-foreground">{inc.branch?.name || "All Branches"}</div>
-                    </td>
+                    {!isCounselor && (
+                      <td className="py-4 px-4">
+                        <div className="font-semibold text-foreground">{inc.user?.name}</div>
+                        <div className="text-xs text-muted-foreground">{inc.branch?.name || "All Branches"}</div>
+                      </td>
+                    )}
 
                     <td className="py-4 px-4">
                       <div className="font-semibold text-foreground">

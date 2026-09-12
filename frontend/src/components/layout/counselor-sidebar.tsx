@@ -57,6 +57,9 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
     const isAdmin = false;
 
     const canSeeUrl = (url: string): boolean => {
+      if (url.startsWith("/counselor/targets") || url.startsWith("/counselor/incentives") || url === "/counselor/performance") {
+        return true;
+      }
       const itemKey = NAV_KEY_MAP[url];
       if (grantedPermissions?.length && !isBaselineOnlyPermissions(grantedPermissions)) {
         if (itemKey) return canReadCounselorItem(grantedPermissions, itemKey);

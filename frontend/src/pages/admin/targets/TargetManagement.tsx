@@ -51,6 +51,11 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const TargetManagement: React.FC = () => {
   const { user } = useAuthStore();
+  const isCounselor =
+    user?.roles?.includes("COUNSELLOR") &&
+    !user?.roles?.includes("ADMIN") &&
+    !user?.roles?.includes("CENTER_MANAGER");
+
   const [activeTab, setActiveTab] = useState<"targets" | "plans">("targets");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -62,6 +67,7 @@ export const TargetManagement: React.FC = () => {
     search: search || undefined,
     status: statusFilter !== "ALL" ? (statusFilter as any) : undefined,
     metric: metricFilter !== "ALL" ? (metricFilter as any) : undefined,
+    userId: isCounselor ? (user?.id || (user as any)?.userId) : undefined,
   });
   const { data: usersData } = useUsers({ role: "COUNSELLOR", limit: 100, status: "ACTIVE" });
 
@@ -234,7 +240,7 @@ export const TargetManagement: React.FC = () => {
           data: {
             title: targetTitle.trim(),
             userId: targetUserId || undefined,
-            targetType,
+            targetType: targetUserId ? "INDIVIDUAL" : "BRANCH",
             metric: targetMetric,
             targetValue,
             unit: targetUnit,
@@ -249,7 +255,7 @@ export const TargetManagement: React.FC = () => {
           title: targetTitle.trim(),
           targetPlanId: targetPlanId || undefined,
           userId: targetUserId || undefined,
-          targetType,
+          targetType: targetUserId ? "INDIVIDUAL" : "BRANCH",
           metric: targetMetric,
           targetValue,
           unit: targetUnit,
@@ -324,10 +330,14 @@ export const TargetManagement: React.FC = () => {
             <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 rounded-xl">
               <TargetIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Target & Incentive Management</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {isCounselor ? "My Targets & Goals" : "Target & Incentive Management"}
+            </h1>
           </div>
           <p className="text-muted-foreground text-sm">
-            Configure institute performance campaigns, assign measurable targets to counselors, and automate incentive payouts.
+            {isCounselor
+              ? "Track your assigned admission, revenue, and lead conversion targets, live database progress, and potential incentive rewards."
+              : "Configure institute performance campaigns, assign measurable targets to counselors, and automate incentive payouts."}
           </p>
         </div>
 
@@ -354,31 +364,79 @@ export const TargetManagement: React.FC = () => {
         </PermissionGate>
       </div>
 
+      {/* Counselor KPI Summary Cards */}
+      {isCounselor && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+              Active Goals
+            </span>
+            <div className="text-3xl font-bold text-foreground">
+              {targets.filter((t) => t.status === "ACTIVE").length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Assigned for current period</p>
+          </div>
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+              Average Progress
+            </span>
+            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+              {targets.length
+                ? Math.round(
+                    targets.reduce((sum, t) => {
+                      const p = t.targetProgress?.[0];
+                      return sum + Number(p?.achievementPercentage || 0);
+                    }, 0) / targets.length
+                  )
+                : 0}
+              %
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Overall goal achievement</p>
+          </div>
+          <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+              Potential Reward
+            </span>
+            <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+              {formatCurrency(
+                targets.reduce((sum, t) => {
+                  const p = t.targetProgress?.[0];
+                  return sum + Number(p?.potentialIncentive || 0);
+                }, 0)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Live calculated incentive</p>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-3 border-b border-border pb-2">
-        <button
-          onClick={() => setActiveTab("targets")}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
-            activeTab === "targets"
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-        >
-          <TargetIcon className="w-4 h-4" />
-          Assigned Targets ({targets.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("plans")}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
-            activeTab === "plans"
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          Campaign Plans ({plans.length})
-        </button>
-      </div>
+      {!isCounselor && (
+        <div className="flex items-center gap-3 border-b border-border pb-2">
+          <button
+            onClick={() => setActiveTab("targets")}
+            className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
+              activeTab === "targets"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <TargetIcon className="w-4 h-4" />
+            Assigned Targets ({targets.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("plans")}
+            className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
+              activeTab === "plans"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            Campaign Plans ({plans.length})
+          </button>
+        </div>
+      )}
 
       {/* ─── TAB 1: ASSIGNED TARGETS TABLE ─── */}
       {activeTab === "targets" && (
@@ -435,9 +493,13 @@ export const TargetManagement: React.FC = () => {
             ) : targets.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 <TargetIcon className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-foreground mb-1">No Targets Found</h3>
+                <h3 className="text-base font-bold text-foreground mb-1">
+                  {isCounselor ? "No Active Targets Assigned" : "No Targets Found"}
+                </h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  No assigned targets match your search criteria. Click "Assign Target" to create one.
+                  {isCounselor
+                    ? "You do not have any active targets assigned for this period. Contact your branch manager or administrator."
+                    : "No assigned targets match your search criteria. Click \"Assign Target\" to create one."}
                 </p>
               </div>
             ) : (
@@ -446,7 +508,7 @@ export const TargetManagement: React.FC = () => {
                   <thead className="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                     <tr>
                       <th className="py-4 px-4">Target Title & Plan</th>
-                      <th className="py-4 px-4">Assigned Counselor</th>
+                      <th className="py-4 px-4">{isCounselor ? "Target Scope" : "Assigned Counselor"}</th>
                       <th className="py-4 px-4">Metric</th>
                       <th className="py-4 px-4">Target vs Achieved</th>
                       <th className="py-4 px-4">Progress %</th>
@@ -577,15 +639,15 @@ export const TargetManagement: React.FC = () => {
                           </td>
 
                           <td className="py-4 px-4 text-right">
-                            <PermissionGate itemKey="targets.all" mode="write">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  title="Recalculate live progress"
-                                  onClick={() => handleRecalculate(t.id)}
-                                  className="p-1.5 hover:bg-muted text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-300 rounded-lg transition cursor-pointer"
-                                >
-                                  <RefreshCw className="w-4 h-4" />
-                                </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                title="Recalculate live progress from database"
+                                onClick={() => handleRecalculate(t.id)}
+                                className="p-1.5 hover:bg-muted text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-300 rounded-lg transition cursor-pointer"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                              <PermissionGate itemKey="targets.all" mode="write">
                                 {t.status !== "LOCKED" && (
                                   <>
                                     <button
@@ -604,8 +666,8 @@ export const TargetManagement: React.FC = () => {
                                     </button>
                                   </>
                                 )}
-                              </div>
-                            </PermissionGate>
+                              </PermissionGate>
+                            </div>
                           </td>
                         </tr>
                       );
