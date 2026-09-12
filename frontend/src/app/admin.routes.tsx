@@ -68,7 +68,6 @@ import { ExamManualGrading } from "../pages/admin/exams/ExamManualGrading";
 import { ExamResults } from "../pages/admin/exams/ExamResults";
 
 import { FeeReports } from "../pages/admin/fees/FeeReports";
-import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
 import { StudentFeeProfile } from "../pages/admin/fees/StudentFeeProfile";
 import { Receipts } from "../pages/admin/fees/Receipts";
@@ -259,7 +258,6 @@ export const adminChildRoutes = (
 
     {/* Fee Management */}
     <Route path="fees">
-      <Route path="plans" element={<FeePlans />} />
       <Route path="students" element={<StudentFees />} />
       <Route path="students/:studentId" element={<StudentFeeProfile />} />
       <Route path="student-fees" element={<Navigate to="/admin/fees/students" replace />} />

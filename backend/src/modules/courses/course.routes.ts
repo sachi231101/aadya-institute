@@ -2,9 +2,21 @@ import { Router } from "express";
 import * as controller from "./course.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
-import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
+import {
+  requirePermission,
+  requireAnyPermissionUnlessRoles,
+} from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import { createCourseSchema, updateCourseSchema } from "./course.validation";
+
+/** Shared course list/detail access for dropdowns (leads, admissions) without course module. */
+const COURSE_READ_ANY = [
+  "course.read",
+  "lead.read",
+  "lead.create",
+  "admission.read",
+  "admission.create",
+] as const;
 
 const router = Router();
 
@@ -12,13 +24,13 @@ router.use(authMiddleware);
 
 router.get(
   "/",
-  requirePermissionUnlessRoles("course.read", "FACULTY", "STUDENT"),
+  requireAnyPermissionUnlessRoles([...COURSE_READ_ANY], "FACULTY", "STUDENT"),
   controller.getAll
 );
 
 router.get(
   "/:id",
-  requirePermissionUnlessRoles("course.read", "FACULTY", "STUDENT"),
+  requireAnyPermissionUnlessRoles([...COURSE_READ_ANY], "FACULTY", "STUDENT"),
   controller.getById
 );
 

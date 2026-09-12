@@ -127,6 +127,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
       { title: "Student Fees", url: "/counselor/fees/students", itemKey: "fees.students" },
       { title: "Invoices", url: "/counselor/fees/invoices", itemKey: "fees.invoices" },
       { title: "Receipts", url: "/counselor/fees/receipts", itemKey: "fees.receipts" },
+      { title: "Fee Reports", url: "/counselor/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {

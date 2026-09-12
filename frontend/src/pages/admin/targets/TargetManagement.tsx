@@ -63,7 +63,7 @@ export const TargetManagement: React.FC = () => {
     status: statusFilter !== "ALL" ? (statusFilter as any) : undefined,
     metric: metricFilter !== "ALL" ? (metricFilter as any) : undefined,
   });
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useUsers({ role: "COUNSELLOR", limit: 100, status: "ACTIVE" });
 
   // Mutations
   const createPlanMutation = useCreateTargetPlan();
@@ -297,7 +297,9 @@ export const TargetManagement: React.FC = () => {
 
   const targets = targetsData?.data || [];
   const plans = plansData || [];
-  const counselors = (usersData?.data || []).filter((u: any) => u.role === "COUNSELLOR" || !u.role);
+  const counselors = (usersData?.data || []).filter((u) =>
+    Array.isArray(u.roles) ? u.roles.includes("COUNSELLOR") : false
+  );
 
   return (
     <div className="space-y-6 pb-16">
@@ -924,8 +926,8 @@ export const TargetManagement: React.FC = () => {
                     className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="">Entire Branch Team Goal</option>
-                    {counselors.map((c: any) => (
-                      <option key={c.id || c.userId} value={c.id || c.userId}>
+                    {counselors.map((c) => (
+                      <option key={c.id} value={c.id}>
                         {c.name} ({c.email})
                       </option>
                     ))}

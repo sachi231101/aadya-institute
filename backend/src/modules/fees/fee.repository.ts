@@ -162,7 +162,20 @@ export const FeeRepository = {
     ) as Prisma.PaymentWhereInput;
     const rows = await prisma.payment.findMany({
       where,
-      include: { allocations: true },
+      include: {
+        allocations: {
+          include: {
+            pendingFee: {
+              select: {
+                id: true,
+                feeHead: true,
+                feeHeadMasterId: true,
+                installmentNo: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { date: "desc" },
     });
     return rows.map((p) => ({
@@ -203,6 +216,9 @@ export const FeeRepository = {
     const { instituteId, student, amount, allocations, masters, dto, recordedById } =
       params;
     const totalAmount = roundMoney(amount);
+    if (!allocations.length) {
+      throw new AppError("Payment must allocate to at least one charge line", 400);
+    }
     const allocSum = roundMoney(allocations.reduce((s, a) => s + a.amount, 0));
     if (Math.abs(allocSum - totalAmount) > 0.009) {
       throw new AppError(
@@ -493,6 +509,7 @@ export const FeeRepository = {
       status,
       studentId,
       feeHeadMasterId,
+      dueWithinDays,
       page = 1,
       limit = 50,
       branchId,
@@ -506,12 +523,29 @@ export const FeeRepository = {
           : { status: status as OverdueStatus }
         : {};
 
+    const today = startOfDay();
+    let dueDateFilter: Prisma.DateTimeFilter | undefined;
+    if (typeof dueWithinDays === "number" && dueWithinDays >= 0) {
+      const end = new Date(today);
+      end.setDate(end.getDate() + dueWithinDays);
+      // Inclusive of today for dueWithinDays days: [today, today+N)
+      dueDateFilter = { gte: today, lt: end };
+    }
+
     const where: Prisma.PendingFeeWhereInput = applyBranchToWhere(
       {
         instituteId,
         ...(studentId ? { studentId } : {}),
         ...(feeHeadMasterId ? { feeHeadMasterId } : {}),
         ...statusFilter,
+        ...(dueDateFilter ||
+        status === "UNPAID" ||
+        status === "OVERDUE" ||
+        status === "DUE_SOON" ||
+        status === "PARTIAL"
+          ? { dueAmount: { gt: 0 } }
+          : {}),
+        ...(dueDateFilter ? { dueDate: dueDateFilter } : {}),
         ...(search
           ? {
               OR: [
@@ -541,7 +575,6 @@ export const FeeRepository = {
       }),
     ]);
 
-    const today = startOfDay();
     return {
       total,
       data: data.map((row) => {
@@ -767,6 +800,8 @@ export const FeeRepository = {
     ) as Prisma.PendingFeeWhereInput;
 
     const { start: todayStart, end: todayEnd } = getIstDayBounds();
+    const weekEnd = new Date(todayStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
 
     const [
       collectedAgg,
@@ -776,6 +811,7 @@ export const FeeRepository = {
       pendingAgg,
       overdueAgg,
       overdueDaysAgg,
+      dueThisWeekAgg,
       byHeadPending,
       byHeadPaid,
     ] = await Promise.all([
@@ -809,6 +845,15 @@ export const FeeRepository = {
       prisma.pendingFee.aggregate({
         where: { ...pendingWhere, status: "OVERDUE", dueAmount: { gt: 0 } },
         _avg: { overdueDays: true },
+      }),
+      prisma.pendingFee.aggregate({
+        where: {
+          ...pendingWhere,
+          dueAmount: { gt: 0 },
+          dueDate: { gte: todayStart, lt: weekEnd },
+        },
+        _sum: { dueAmount: true },
+        _count: true,
       }),
       prisma.pendingFee.groupBy({
         by: ["feeHeadMasterId", "feeHead"],
@@ -860,6 +905,8 @@ export const FeeRepository = {
       overdueDues: toMoneyNumber(overdueAgg._sum.dueAmount),
       overdueCount: overdueAgg._count || 0,
       avgOverdueDays: Math.round(overdueDaysAgg._avg.overdueDays || 0),
+      dueThisWeek: toMoneyNumber(dueThisWeekAgg._sum.dueAmount),
+      dueThisWeekCount: dueThisWeekAgg._count || 0,
       byFeeHead: Array.from(headMap.values()),
     };
   },
@@ -886,7 +933,7 @@ export const FeeRepository = {
         }),
         prisma.pendingFee.groupBy({
           by: ["status"],
-          where: pendingWhere,
+          where: { ...pendingWhere, dueAmount: { gt: 0 } },
           _count: { _all: true },
           _sum: { dueAmount: true },
         }),
@@ -927,6 +974,11 @@ export const FeeRepository = {
       totalCollected,
       targetRevenue,
       targetAchievedPercent,
+      outstandingDues: openDues,
+      overdueDues: stats.overdueDues,
+      overdueCount: stats.overdueCount,
+      dueThisWeek: stats.dueThisWeek,
+      dueThisWeekCount: stats.dueThisWeekCount,
       monthlyRevenue: Object.entries(monthMap).map(([month, revenue]) => ({ month, revenue })),
       courseRevenue: courseGroups.map((g, idx) => ({
         name: g.courseName,
@@ -945,112 +997,6 @@ export const FeeRepository = {
       })),
       byFeeHead: stats.byFeeHead,
     };
-  },
-
-  async findFeePlans(
-    instituteId: string,
-    params: {
-      branchId?: string;
-      branchIds?: string[];
-      courseId?: string;
-      status?: string;
-      search?: string;
-      page?: number;
-      limit?: number;
-    }
-  ) {
-    const { branchId, branchIds, courseId, status, search, page = 1, limit = 20 } = params;
-    const where: Prisma.FeePlanTemplateWhereInput = applyBranchToWhere(
-      {
-        instituteId,
-        ...(courseId ? { courseId } : {}),
-        ...(status ? { status: status as never } : { status: { not: "DELETED" } }),
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search, mode: "insensitive" } },
-                { code: { contains: search, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
-      { branchId, branchIds }
-    );
-
-    const [total, data] = await Promise.all([
-      prisma.feePlanTemplate.count({ where }),
-      prisma.feePlanTemplate.findMany({
-        where,
-        include: {
-          course: { select: { id: true, name: true, code: true } },
-          branch: { select: { id: true, name: true, code: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
-
-    return {
-      total,
-      data: data.map((d) => ({
-        ...d,
-        totalAmount: toMoneyNumber(d.totalAmount),
-      })),
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  },
-
-  async findFeePlanById(id: string, instituteId: string) {
-    const plan = await prisma.feePlanTemplate.findFirst({
-      where: { id, instituteId },
-      include: {
-        course: { select: { id: true, name: true, code: true } },
-        branch: { select: { id: true, name: true, code: true } },
-      },
-    });
-    if (!plan) return null;
-    return { ...plan, totalAmount: toMoneyNumber(plan.totalAmount) };
-  },
-
-  async createFeePlan(
-    instituteId: string,
-    data: {
-      name: string;
-      code?: string;
-      branchId?: string;
-      courseId?: string;
-      totalAmount: number;
-      planType?: string;
-      installments?: unknown;
-      description?: string;
-    }
-  ) {
-    const plan = await prisma.feePlanTemplate.create({
-      data: {
-        instituteId,
-        branchId: data.branchId || null,
-        courseId: data.courseId || null,
-        name: data.name,
-        code: data.code,
-        totalAmount: data.totalAmount,
-        planType: (data.planType as never) || "FULL_PAYMENT",
-        installments: data.installments as Prisma.InputJsonValue,
-        description: data.description,
-      },
-      include: {
-        course: { select: { id: true, name: true, code: true } },
-        branch: { select: { id: true, name: true, code: true } },
-      },
-    });
-    return { ...plan, totalAmount: toMoneyNumber(plan.totalAmount) };
-  },
-
-  async updateFeePlan(id: string, instituteId: string, data: Prisma.FeePlanTemplateUpdateInput) {
-    await prisma.feePlanTemplate.updateMany({ where: { id, instituteId }, data });
-    return FeeRepository.findFeePlanById(id, instituteId);
   },
 
   async findReceipts(
@@ -1215,7 +1161,7 @@ export const FeeRepository = {
     ]);
 
     const studentIds = students.map((s) => s.id);
-    const [pendingAgg, paymentAgg, overdueCounts] = await Promise.all([
+    const [pendingAgg, paymentAgg, overdueCounts, nextDueRows] = await Promise.all([
       prisma.pendingFee.groupBy({
         by: ["studentId"],
         where: { instituteId, studentId: { in: studentIds } },
@@ -1236,6 +1182,15 @@ export const FeeRepository = {
         },
         _count: { _all: true },
       }),
+      prisma.pendingFee.groupBy({
+        by: ["studentId"],
+        where: {
+          instituteId,
+          studentId: { in: studentIds },
+          dueAmount: { gt: 0 },
+        },
+        _min: { dueDate: true },
+      }),
     ]);
 
     const pendingMap = new Map(
@@ -1252,6 +1207,9 @@ export const FeeRepository = {
     );
     const overdueMap = new Map(
       overdueCounts.map((r) => [r.studentId || "", r._count._all])
+    );
+    const nextDueMap = new Map(
+      nextDueRows.map((r) => [r.studentId || "", r._min.dueDate?.toISOString() || null])
     );
 
     const todayStart = getIstDayBounds().start;
@@ -1302,6 +1260,7 @@ export const FeeRepository = {
         status: feeStatus,
         overdueCount,
         todayCollected: todayMap.get(s.id) || 0,
+        nextDueDate: due > 0 ? nextDueMap.get(s.id) || null : null,
       };
     });
 

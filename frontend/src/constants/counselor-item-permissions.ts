@@ -37,7 +37,7 @@ export const COUNSELOR_CATALOG_ITEM_KEYS = [
   "fees.invoices",
   "fees.other_invoices",
   "fees.receipts",
-  "fees.plans",
+  "fees.reports",
   "reports.students",
   "reports.admissions",
   "reports.attendance",

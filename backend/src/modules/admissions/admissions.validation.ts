@@ -83,7 +83,6 @@ export const createAdmissionSchema = z.object({
       })
     )
     .optional(),
-  feePlanTemplateId: z.string().optional(),
   sourceMasterId: z.string().optional(),
   statusMasterId: z.string().optional(),
   paymentModeMasterId: z.string().optional(),

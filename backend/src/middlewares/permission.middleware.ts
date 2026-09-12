@@ -150,6 +150,17 @@ export const requirePermissionUnlessRoles = (
   permission: string,
   ...bypassRoles: string[]
 ) => {
+  return requireAnyPermissionUnlessRoles([permission], ...bypassRoles);
+};
+
+/**
+ * Allow access if the user has ANY of the listed permissions, or belongs to a
+ * bypass role (e.g. FACULTY/STUDENT for shared read endpoints).
+ */
+export const requireAnyPermissionUnlessRoles = (
+  permissions: string[],
+  ...bypassRoles: string[]
+) => {
   const bypass = bypassRoles.map((r) => r.toUpperCase());
   return async (
     req: AuthenticatedRequest,
@@ -175,7 +186,7 @@ export const requirePermissionUnlessRoles = (
       return;
     }
 
-    return requirePermission(permission)(req, res, next);
+    return requireAnyPermission(...permissions)(req, res, next);
   };
 };
 

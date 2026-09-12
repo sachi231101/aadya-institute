@@ -52,7 +52,7 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
   "fees.invoices": "Invoices",
   "fees.other_invoices": "Other Invoices",
   "fees.receipts": "Receipts",
-  "fees.reports": "Fee Collection Reports",
+  "fees.reports": "Fee Reports",
   "reports.financial": "Revenue & Finance Reports",
 
   // Communication

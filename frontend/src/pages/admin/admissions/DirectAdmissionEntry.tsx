@@ -140,8 +140,9 @@ const addMonthsIso = (base: Date, months: number) => {
   return next.toISOString().slice(0, 10);
 };
 
-const resolveCourseFee = (course: { fee?: number | null }) => {
-  return typeof course.fee === "number" && course.fee >= 0 ? course.fee : 0;
+const resolveCourseFee = (course: { fee?: number | string | null }) => {
+  const n = Number(course.fee);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
 const formatBatchSchedule = (batch: BatchData) => {
@@ -959,19 +960,25 @@ export const DirectAdmissionEntry: React.FC = () => {
     setCustomFinalPayable(null);
   }, [totalBaseCourseFee, registrationFee, additionalCharges, discountValue, discountType, scholarshipAmount]);
 
+  // Schedule installments against the FULL net payable; amount paid today is applied FIFO at provision.
   useEffect(() => {
-    if (paymentMode !== "INSTALLMENT" || balanceToBePaid <= 0) {
-      if (paymentMode === "FULL" || balanceToBePaid <= 0) {
-        setInstallments([]);
-      }
+    if (paymentMode !== "INSTALLMENT" || finalPayableAmount <= 0) {
+      setInstallments([]);
       return;
     }
-    setInstallments((prev) => buildEqualInstallments(balanceToBePaid, prev.length > 0 ? prev.length : 3, prev));
-  }, [paymentMode, balanceToBePaid]);
+    setInstallments((prev) =>
+      buildEqualInstallments(finalPayableAmount, prev.length > 0 ? prev.length : 3, prev)
+    );
+  }, [paymentMode, finalPayableAmount]);
 
   const totalInstallmentAmount = useMemo(() => {
     return installments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   }, [installments]);
+
+  const installmentSumOk = useMemo(() => {
+    if (paymentMode !== "INSTALLMENT" || finalPayableAmount <= 0) return true;
+    return Math.abs(totalInstallmentAmount - finalPayableAmount) <= 1;
+  }, [paymentMode, finalPayableAmount, totalInstallmentAmount]);
 
   const notifyError = (message: string) => {
     setFormSuccess(null);
@@ -987,10 +994,10 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   const handleAutoDistributeInstallments = () => {
     if (installments.length === 0) {
-      setInstallments(buildEqualInstallments(balanceToBePaid, 3));
+      setInstallments(buildEqualInstallments(finalPayableAmount, 3));
       return;
     }
-    setInstallments(buildEqualInstallments(balanceToBePaid, installments.length, installments));
+    setInstallments(buildEqualInstallments(finalPayableAmount, installments.length, installments));
   };
 
   const handleAddInstallment = () => {
@@ -1003,13 +1010,13 @@ export const DirectAdmissionEntry: React.FC = () => {
         status: "Pending" as const,
       },
     ];
-    setInstallments(buildEqualInstallments(balanceToBePaid, next.length, next));
+    setInstallments(buildEqualInstallments(finalPayableAmount, next.length, next));
   };
 
   const handleRemoveInstallment = (index: number) => {
     if (installments.length <= 1) return;
     const remaining = installments.filter((_, idx) => idx !== index);
-    setInstallments(buildEqualInstallments(balanceToBePaid, remaining.length, remaining));
+    setInstallments(buildEqualInstallments(finalPayableAmount, remaining.length, remaining));
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1048,14 +1055,16 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please enter the student's Government ID number (e.g. Aadhaar / PAN Card).");
       return false;
     }
-    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0 && installments.length === 0) {
-      notifyError("Please add at least one installment for the remaining balance.");
+    if (paymentMode === "INSTALLMENT" && finalPayableAmount > 0 && installments.length === 0) {
+      notifyError("Please add at least one installment for the net payable amount.");
       return false;
     }
-    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0) {
+    if (paymentMode === "INSTALLMENT" && finalPayableAmount > 0) {
       const installmentTotal = installments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      if (Math.abs(installmentTotal - balanceToBePaid) > 1) {
-        notifyError(`Installment amounts (₹${installmentTotal.toLocaleString()}) must equal the remaining balance (₹${balanceToBePaid.toLocaleString()}). Use Auto-Balance.`);
+      if (Math.abs(installmentTotal - finalPayableAmount) > 1) {
+        notifyError(
+          `Installment amounts (₹${installmentTotal.toLocaleString()}) must equal the net payable (₹${finalPayableAmount.toLocaleString()}). Amount paid today will reduce these dues automatically. Use Auto-Balance.`
+        );
         return false;
       }
     }
@@ -1203,7 +1212,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           totalFee: isPrimary ? finalPayableAmount : undefined,
           amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
           installments:
-            isPrimary && paymentMode === "INSTALLMENT" && balanceToBePaid > 0
+            isPrimary && paymentMode === "INSTALLMENT" && finalPayableAmount > 0
               ? installments.map((item) => ({
                   installmentNo: item.installmentNo,
                   dueDate: item.dueDate,
@@ -2450,7 +2459,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                     <span>
-                      ℹ️ Remaining balance of <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> can be distributed across future installments.
+                      ℹ️ Amount paid today reduces installment dues automatically (oldest first). Schedule the full net payable below.
                     </span>
                     <button
                       type="button"
@@ -2480,7 +2489,10 @@ export const DirectAdmissionEntry: React.FC = () => {
                         type="radio"
                         name="payMode"
                         checked={paymentMode === "FULL"}
-                        onChange={() => setPaymentMode("FULL")}
+                        onChange={() => {
+                          setPaymentMode("FULL");
+                          setInstallments([]);
+                        }}
                         className="text-primary focus:ring-primary"
                       />
                       Full Payment
@@ -2490,7 +2502,9 @@ export const DirectAdmissionEntry: React.FC = () => {
                         type="radio"
                         name="payMode"
                         checked={paymentMode === "INSTALLMENT"}
-                        onChange={() => setPaymentMode("INSTALLMENT")}
+                        onChange={() => {
+                          setPaymentMode("INSTALLMENT");
+                        }}
                         className="text-primary focus:ring-primary"
                       />
                       Installment Payment
@@ -2504,23 +2518,47 @@ export const DirectAdmissionEntry: React.FC = () => {
                   <div className="p-6 text-center border-2 border-dashed border-border rounded-xl text-xs text-muted-foreground space-y-1.5">
                     <Wallet className="h-6 w-6 text-muted-foreground/60 mx-auto" />
                     <p className="font-bold text-foreground">Select courses to configure the installment plan.</p>
-                    <p>Fees and remaining balance appear here after course selection.</p>
+                    <p>Fees and payable amount appear here after course selection.</p>
                   </div>
-                ) : paymentMode === "FULL" || balanceToBePaid === 0 ? (
+                ) : paymentMode === "FULL" ? (
                   <div className="p-6 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-1.5">
                     <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
                     <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      {paymentMode === "FULL" ? "Full Payment Selected" : "100% Paid at Admission"}
+                      Full Payment Selected
                     </h4>
                     <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
-                      No remaining balance required for installment scheduling.
+                      Net payable ₹{finalPayableAmount.toLocaleString()} will be due as a single charge.
+                      Amount paid today (₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()}) reduces it immediately.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-1.5 sm:max-w-md">
+                      <p className="font-bold text-foreground">Fee settlement preview</p>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Net payable</span>
+                        <span className="font-semibold">₹{finalPayableAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Pay now</span>
+                        <span className="font-semibold text-emerald-600">
+                          ₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2 border-t border-border/60 pt-1.5">
+                        <span className="text-muted-foreground">Remaining after pay now</span>
+                        <span className="font-bold text-amber-600">₹{balanceToBePaid.toLocaleString()}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground pt-1">
+                        Installments must sum to net payable. Pay-now amount is applied oldest-first (FIFO) when the admission is confirmed.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">
-                        Remaining balance of <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> distributed across installments:
+                        Split net payable of{" "}
+                        <strong className="text-foreground">₹{finalPayableAmount.toLocaleString()}</strong> across
+                        installments:
                       </span>
                       <Button
                         type="button"
@@ -2605,7 +2643,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                       </Table>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                       <Button
                         type="button"
                         variant="outline"
@@ -2615,9 +2653,24 @@ export const DirectAdmissionEntry: React.FC = () => {
                       >
                         <Plus className="h-3.5 w-3.5" /> Add Installment
                       </Button>
-                      <span className="text-xs font-bold text-slate-800">
-                        Total Installment Amount: <strong className="text-slate-900 font-extrabold">₹{totalInstallmentAmount.toLocaleString()}</strong>
-                      </span>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-800">
+                          Installment total:{" "}
+                          <strong className="text-slate-900 font-extrabold">
+                            ₹{totalInstallmentAmount.toLocaleString()}
+                          </strong>
+                          <span className="text-muted-foreground font-medium">
+                            {" "}
+                            / ₹{finalPayableAmount.toLocaleString()}
+                          </span>
+                        </span>
+                        {!installmentSumOk && (
+                          <p className="text-[11px] text-red-600 font-semibold mt-0.5">
+                            Must equal net payable. Difference ₹
+                            {Math.abs(totalInstallmentAmount - finalPayableAmount).toLocaleString()}.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2975,12 +3028,35 @@ export const DirectAdmissionEntry: React.FC = () => {
                   <div>
                     <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">Remaining Balance</span>
                     <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">
-                      {balanceToBePaid > 0 ? `${installments.length} installment(s)` : "Fully Settled"}
+                      {balanceToBePaid > 0
+                        ? paymentMode === "INSTALLMENT"
+                          ? `${installments.length} installment(s) · pay-now reduces FIFO`
+                          : "Balance after admission payment"
+                        : "Fully Settled"}
                     </span>
                   </div>
                   <span className="font-black text-amber-600 dark:text-amber-300 text-sm">₹{balanceToBePaid.toLocaleString()}</span>
                 </div>
               </div>
+
+              {paymentMode === "INSTALLMENT" && installments.length > 0 && (
+                <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Installment schedule (net payable)
+                  </p>
+                  {installments.map((inst) => (
+                    <div
+                      key={inst.installmentNo}
+                      className="flex justify-between text-xs text-foreground"
+                    >
+                      <span>
+                        #{inst.installmentNo} · {inst.dueDate || "—"}
+                      </span>
+                      <span className="font-semibold">₹{Number(inst.amount || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Verification Checkbox */}

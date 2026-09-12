@@ -172,6 +172,7 @@ const data = {
         { title: L["fees.students"] ?? "Student Fees", url: A.FEES.STUDENTS },
         { title: L["fees.invoices"] ?? "Invoices", url: A.FEES.INVOICES },
         { title: L["fees.receipts"] ?? "Receipts", url: A.FEES.RECEIPTS },
+        { title: L["fees.reports"] ?? "Fee Reports", url: A.FEES.REPORTS },
       ],
     },
     {

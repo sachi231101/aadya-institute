@@ -51,6 +51,7 @@ import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.t
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 export const Payments: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -61,6 +62,7 @@ export const Payments: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const { hasPermission } = usePermissions();
   const canDeletePayment = hasPermission("fee.delete");
+  const { toast, showToast, clearToast } = useFeeToast();
 
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments({
     search: searchTerm || undefined,
@@ -165,11 +167,12 @@ export const Payments: React.FC = () => {
         sendWhatsAppReceipt,
       });
       resetModal();
+      showToast("Payment recorded", "success");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Failed to record payment";
-      alert(message);
+      showToast(message, "error");
     }
   };
 
@@ -178,11 +181,12 @@ export const Payments: React.FC = () => {
       return;
     try {
       await voidPaymentMutation.mutateAsync(id);
+      showToast("Payment voided and dues restored", "success");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Failed to void payment";
-      alert(message);
+      showToast(message, "error");
     }
   };
 
@@ -676,6 +680,7 @@ export const Payments: React.FC = () => {
           </div>
         </div>
       )}
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

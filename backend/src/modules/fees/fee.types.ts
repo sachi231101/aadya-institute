@@ -44,6 +44,7 @@ export interface QueryPendingFeesDTO {
   branchId?: string;
   studentId?: string;
   feeHeadMasterId?: string;
+  dueWithinDays?: number;
   page?: number;
   limit?: number;
 }
@@ -81,19 +82,6 @@ export interface CreateChargesDTO {
   }>;
 }
 
-export interface FeePlanInstallmentLine {
-  installmentNo: number;
-  amount: number;
-  dueDays: number;
-}
-
-export interface FeePlanLine {
-  feeHeadMasterId: string;
-  feeHeadCode?: string;
-  amount: number;
-  installments?: FeePlanInstallmentLine[];
-}
-
 export interface FeeStatsResponse {
   totalCollected: number;
   todayCollected: number;
@@ -115,31 +103,6 @@ export interface FeeReportsResponse {
   paymentModeDistribution: Array<{ mode: string; count: number; amount: number }>;
   dueStatusSummary: Array<{ status: string; count: number; totalAmount: number }>;
   byFeeHead?: Array<{ feeHead: string; feeHeadMasterId: string; collected: number; pending: number }>;
-}
-
-export interface QueryFeePlansDTO {
-  page?: number;
-  limit?: number;
-  branchId?: string;
-  courseId?: string;
-  status?: string;
-  search?: string;
-}
-
-export interface CreateFeePlanDTO {
-  name: string;
-  code?: string;
-  branchId?: string;
-  courseId?: string;
-  totalAmount: number;
-  planType?: string;
-  /** Legacy flat installments OR multi-head plan lines */
-  installments?: Array<FeePlanInstallmentLine | FeePlanLine>;
-  description?: string;
-}
-
-export interface UpdateFeePlanDTO extends Partial<CreateFeePlanDTO> {
-  status?: string;
 }
 
 export interface QueryReceiptsDTO {

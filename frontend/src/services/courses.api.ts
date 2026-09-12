@@ -34,25 +34,52 @@ export interface UpdateCoursePayload extends Partial<CreateCoursePayload> {
   status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 }
 
+const toCourseFee = (fee: unknown): number | null => {
+  if (fee == null || fee === "") return null;
+  const n = Number(fee);
+  return Number.isFinite(n) ? n : null;
+};
+
+const normalizeCourse = (course: CourseData): CourseData => ({
+  ...course,
+  fee: toCourseFee(course.fee),
+});
+
 export const coursesApi = {
   getAll: async (params?: { search?: string; status?: string; category?: string }) => {
     const response = await api.get<{ success: boolean; data: CourseData[] }>("/courses", { params });
-    return response.data;
+    const payload = response.data;
+    return {
+      ...payload,
+      data: Array.isArray(payload.data) ? payload.data.map(normalizeCourse) : payload.data,
+    };
   },
 
   getById: async (id: string) => {
     const response = await api.get<{ success: boolean; data: CourseData }>(`/courses/${id}`);
-    return response.data;
+    const payload = response.data;
+    return {
+      ...payload,
+      data: payload.data ? normalizeCourse(payload.data) : payload.data,
+    };
   },
 
   create: async (data: CreateCoursePayload) => {
     const response = await api.post<{ success: boolean; data: CourseData }>("/courses", data);
-    return response.data;
+    const payload = response.data;
+    return {
+      ...payload,
+      data: payload.data ? normalizeCourse(payload.data) : payload.data,
+    };
   },
 
   update: async (id: string, data: UpdateCoursePayload) => {
     const response = await api.patch<{ success: boolean; data: CourseData }>(`/courses/${id}`, data);
-    return response.data;
+    const payload = response.data;
+    return {
+      ...payload,
+      data: payload.data ? normalizeCourse(payload.data) : payload.data,
+    };
   },
 
   delete: async (id: string) => {

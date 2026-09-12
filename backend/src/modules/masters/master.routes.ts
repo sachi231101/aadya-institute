@@ -31,10 +31,19 @@ router.get(
   previewNumberingSeries
 );
 
-// Active dropdown data: assignment faculty need academicyear/assignmenttype without full master admin
+// Active dropdown data: lead/admission forms and assignment faculty need lookup lists
+// without full master admin access.
 router.get(
   "/:entityType/active",
-  requireAnyPermission("master.read", "assignment.read", "assignment.create"),
+  requireAnyPermission(
+    "master.read",
+    "assignment.read",
+    "assignment.create",
+    "lead.read",
+    "lead.create",
+    "admission.read",
+    "admission.create"
+  ),
   getActiveMasters
 );
 

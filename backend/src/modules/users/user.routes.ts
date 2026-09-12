@@ -47,9 +47,9 @@ router.get(
 );
 
 // GET /api/v1/users/permission-catalog — Module/submodule permission tree
+// Auth only here; controller allows own-role catalog without user.read.
 router.get(
   "/permission-catalog",
-  requirePermission("user.read"),
   validate(permissionCatalogQuerySchema, "query"),
   getPermissionCatalog
 );

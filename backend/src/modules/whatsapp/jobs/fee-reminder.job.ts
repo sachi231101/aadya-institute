@@ -125,14 +125,23 @@ export const feeReminderJob = async (): Promise<void> => {
       where: { id: fee.studentId },
       include: { user: true },
     });
-    if (!student?.user) continue;
+    if (!student?.user) {
+      logger.info(`[fee-reminder] Skip pendingFee=${fee.id}: student user not found`);
+      continue;
+    }
+    if (!student.user.phone) {
+      logger.info(
+        `[fee-reminder] Skip pendingFee=${fee.id} student=${student.id}: no phone on user`
+      );
+      continue;
+    }
 
     const idempotencyKey =
       event === NotificationEvent.FEE_OVERDUE_REMINDER
         ? buildIdempotencyKey.FEE_OVERDUE_REMINDER(student.id, fee.id, dateKey)
         : buildIdempotencyKey.FEE_DUE_REMINDER(student.id, fee.id, dateKey);
 
-    await triggerNotification({
+    const notification = await triggerNotification({
       instituteId: fee.instituteId,
       studentId: student.id,
       event,
@@ -151,5 +160,11 @@ export const feeReminderJob = async (): Promise<void> => {
         feeHead: fee.feeHead,
       },
     });
+
+    if (notification?.status === "SKIPPED") {
+      logger.info(
+        `[fee-reminder] Skipped pendingFee=${fee.id}: ${notification.skipReason ?? "unknown"}`
+      );
+    }
   }
 };

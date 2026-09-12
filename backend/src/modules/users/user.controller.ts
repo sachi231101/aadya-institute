@@ -1,6 +1,7 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { sendSuccess, sendPaginated } from "../../utils/response";
+import { sendSuccess, sendPaginated, sendError } from "../../utils/response";
+import { userHasPermission } from "../../middlewares/permission.middleware";
 import {
   listUsersService,
   getUserService,
@@ -153,7 +154,32 @@ export const getPermissionCatalog = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const role = (req.query.role as "CENTER_MANAGER" | "COUNSELLOR") || "CENTER_MANAGER";
+    const role =
+      (req.query.role as "CENTER_MANAGER" | "COUNSELLOR") || "CENTER_MANAGER";
+    const userId = req.user?.userId;
+    const userRoles = (req.user?.roles ?? []).map((r: string) =>
+      r.toUpperCase()
+    );
+
+    if (!userId) {
+      sendError(res, "Unauthorized", 401);
+      return;
+    }
+
+    const isAdmin =
+      userRoles.includes("ADMIN") || userRoles.includes("SUPER_ADMIN");
+    const isOwnRoleCatalog = userRoles.includes(role);
+    const canManageUsers = await userHasPermission(
+      userId,
+      userRoles,
+      "user.read"
+    );
+
+    if (!isAdmin && !isOwnRoleCatalog && !canManageUsers) {
+      sendError(res, "Forbidden — insufficient permissions", 403);
+      return;
+    }
+
     const catalog = getPermissionCatalogService(role);
     sendSuccess(res, catalog);
   } catch (err) {

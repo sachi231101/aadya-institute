@@ -102,7 +102,6 @@ import { AssignmentDetail } from "../pages/admin/assignments/AssignmentDetail";
 import { SubmissionsQueue } from "../pages/admin/assignments/SubmissionsQueue";
 import { ReviewsQueue } from "../pages/admin/assignments/ReviewsQueue";
 import { ExamResults } from "../pages/admin/exams/ExamResults";
-import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
 import { StudentFeeProfile } from "../pages/admin/fees/StudentFeeProfile";
 import { Receipts } from "../pages/admin/fees/Receipts";
@@ -259,7 +258,6 @@ export const AppRoutes: React.FC = () => {
 
         {/* Fees */}
         <Route path="fees">
-          <Route path="plans" element={<FeePlans />} />
           <Route path="students" element={<StudentFees />} />
           <Route path="students/:studentId" element={<StudentFeeProfile />} />
           <Route path="student-fees" element={<Navigate to="/center/fees/students" replace />} />
@@ -418,7 +416,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="timetable" element={<Navigate to="/counselor/batches" replace />} />
 
         <Route path="fees">
-          <Route path="plans" element={<FeePlans />} />
           <Route path="students" element={<StudentFees />} />
           <Route path="students/:studentId" element={<StudentFeeProfile />} />
           <Route path="student-fees" element={<Navigate to="/counselor/fees/students" replace />} />

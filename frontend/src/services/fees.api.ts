@@ -97,6 +97,7 @@ export const feesApi = {
     status?: string;
     studentId?: string;
     feeHeadMasterId?: string;
+    dueWithinDays?: number;
     page?: number;
     limit?: number;
   }): Promise<PaginatedApiResponse<PendingFee>> => {
@@ -196,37 +197,6 @@ export const feesApi = {
     return response.data;
   },
 
-  getPlans: async (params?: {
-    page?: number;
-    limit?: number;
-    branchId?: string;
-    courseId?: string;
-    status?: string;
-    search?: string;
-  }) => {
-    const response = await api.get("/fees/plans", { params });
-    return response.data;
-  },
-
-  createPlan: async (payload: {
-    name: string;
-    code?: string;
-    branchId?: string;
-    courseId?: string;
-    totalAmount: number;
-    planType?: string;
-    installments?: unknown;
-    description?: string;
-  }) => {
-    const response = await api.post("/fees/plans", payload);
-    return response.data;
-  },
-
-  updatePlan: async (id: string, payload: Record<string, unknown>) => {
-    const response = await api.patch(`/fees/plans/${id}`, payload);
-    return response.data;
-  },
-
   getReceipts: async (params?: {
     search?: string;
     page?: number;
@@ -249,6 +219,18 @@ export const feesApi = {
     const response = await api.get(`/fees/receipts/${id}/pdf`, {
       responseType: "blob",
     });
+    return response.data;
+  },
+
+  ensureReceiptPdf: async (
+    id: string,
+    force = false
+  ): Promise<ApiResponse<Payment & { pdfReady?: boolean }>> => {
+    const response = await api.post<ApiResponse<Payment & { pdfReady?: boolean }>>(
+      `/fees/receipts/${id}/pdf`,
+      {},
+      { params: force ? { force: true } : undefined }
+    );
     return response.data;
   },
 };

@@ -186,7 +186,6 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "fees.invoices", label: "Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.other_invoices", label: "Other Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
       { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: [] },
-      { key: "fees.plans", label: "Fee Plans", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
     ],
   },
   {
