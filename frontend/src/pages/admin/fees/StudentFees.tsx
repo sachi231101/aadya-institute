@@ -13,7 +13,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { useFeeStudents, useFeeStats } from "@/hooks/useFees";
-import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
+import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { FeeStudentRow } from "@/types/fee.types";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PendingFees } from "./PendingFees";
+import { CollectFeeModal } from "./CollectFeeModal";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 const statusVariant = (status: FeeStudentRow["status"]) => {
   if (status === "Overdue") return "destructive" as const;
@@ -43,11 +46,19 @@ export const StudentFees: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const formatMoney = useFormatCurrency();
+  const { format: formatOrgDate } = useOrganizationDate();
+  const { toast, showToast, clearToast } = useFeeToast();
 
   const tab = searchParams.get("tab") === "pending" ? "pending" : "students";
+  const dueWithinDaysParam = searchParams.get("dueWithinDays");
+  const dueWithinDays =
+    dueWithinDaysParam && Number.isFinite(Number(dueWithinDaysParam))
+      ? Number(dueWithinDaysParam)
+      : undefined;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [collectStudent, setCollectStudent] = useState<FeeStudentRow | null>(null);
 
   const { data: statsData } = useFeeStats();
   const stats = statsData?.data;
@@ -64,10 +75,15 @@ export const StudentFees: React.FC = () => {
   const totalPages = data?.data?.totalPages ?? 1;
   const totalFees = (stats?.totalCollected ?? 0) + (stats?.totalPendingDues ?? 0);
 
-  const setTab = (next: string) => {
+  const setTab = (next: string, extras?: { dueWithinDays?: number }) => {
     const nextParams = new URLSearchParams(searchParams);
     if (next === "pending") nextParams.set("tab", "pending");
     else nextParams.delete("tab");
+    if (extras?.dueWithinDays != null) {
+      nextParams.set("dueWithinDays", String(extras.dueWithinDays));
+    } else {
+      nextParams.delete("dueWithinDays");
+    }
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -85,7 +101,7 @@ export const StudentFees: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4">
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-slate-50 flex items-center justify-center">
@@ -145,10 +161,32 @@ export const StudentFees: React.FC = () => {
             </CardContent>
           </Card>
         </button>
+        <button
+          type="button"
+          className="text-left"
+          onClick={() => setTab("pending", { dueWithinDays: 7 })}
+        >
+          <Card className="border-border/50 h-full hover:border-blue-300 transition-colors">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-sky-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold">{formatMoney(stats?.dueThisWeek ?? 0)}</p>
+                <p className="text-xs text-text-secondary">
+                  Due this week
+                  {(stats?.dueThisWeekCount ?? 0) > 0
+                    ? ` · ${stats?.dueThisWeekCount}`
+                    : ""}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-blue-600" />
+              <TrendingUp className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <p className="text-lg font-bold">{formatMoney(stats?.todayCollected ?? 0)}</p>
@@ -205,7 +243,8 @@ export const StudentFees: React.FC = () => {
                     <TableHead>Batch</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Paid</TableHead>
-                    <TableHead>Balance</TableHead>
+                    <TableHead>Due</TableHead>
+                    <TableHead>Next due</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -213,14 +252,14 @@ export const StudentFees: React.FC = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                         Loading...
                       </TableCell>
                     </TableRow>
                   ) : isError ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-red-600">
+                      <TableCell colSpan={9} className="text-center py-8 text-red-600">
                         <AlertCircle className="w-5 h-5 inline mr-2" />
                         Failed to load.
                         <Button variant="link" onClick={() => refetch()}>
@@ -230,7 +269,7 @@ export const StudentFees: React.FC = () => {
                     </TableRow>
                   ) : rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                      <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
                         <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                         No students found.
                       </TableCell>
@@ -252,17 +291,34 @@ export const StudentFees: React.FC = () => {
                         <TableCell>{row.courseName || "—"}</TableCell>
                         <TableCell>{row.batchName || "—"}</TableCell>
                         <TableCell className="font-medium">{formatMoney(row.totalFee)}</TableCell>
-                        <TableCell>{formatMoney(row.amountPaid)}</TableCell>
-                        <TableCell className="font-bold">{formatMoney(row.balance)}</TableCell>
+                        <TableCell className="text-emerald-700">{formatMoney(row.amountPaid)}</TableCell>
+                        <TableCell className="font-bold text-red-700">
+                          {formatMoney(row.balance)}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-700">
+                          {row.nextDueDate ? formatOrgDate(row.nextDueDate) : "—"}
+                        </TableCell>
                         <TableCell>
                           <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`${basePath}/fees/students/${row.id}?tab=pending`}>
-                              Collect
-                            </Link>
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            {row.balance > 0 && (
+                              <PermissionGate itemKey="fees.pending" mode="write">
+                                <Button
+                                  size="sm"
+                                  onClick={() => setCollectStudent(row)}
+                                >
+                                  Collect
+                                </Button>
+                              </PermissionGate>
+                            )}
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`${basePath}/fees/students/${row.id}`}>
+                                Profile
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -300,9 +356,28 @@ export const StudentFees: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="pending" className="mt-4">
-          <PendingFees embedded />
+          <PendingFees embedded initialDueWithinDays={dueWithinDays} />
         </TabsContent>
       </Tabs>
+
+      {collectStudent && (
+        <CollectFeeModal
+          mode="student"
+          student={{
+            id: collectStudent.id,
+            name: collectStudent.name,
+            admissionNo: collectStudent.admissionNo,
+            outstanding: collectStudent.balance,
+          }}
+          onClose={() => setCollectStudent(null)}
+          onSuccess={(msg) => {
+            showToast(msg, "success");
+            void refetch();
+          }}
+        />
+      )}
+
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

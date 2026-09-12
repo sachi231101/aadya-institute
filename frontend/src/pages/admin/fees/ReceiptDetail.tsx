@@ -7,8 +7,10 @@ import {
   AlertCircle,
   Printer,
   Receipt,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
-import { useFeeReceipt, useDownloadReceiptPdf } from "@/hooks/useFees";
+import { useFeeReceipt, useDownloadReceiptPdf, useEnsureReceiptPdf } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 async function openPdfBlob(blob: Blob, mode: "download" | "print", filename: string) {
   const url = URL.createObjectURL(blob);
@@ -51,7 +54,9 @@ export const ReceiptDetail: React.FC = () => {
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
   const downloadPdf = useDownloadReceiptPdf();
-  const [busy, setBusy] = useState<"download" | "print" | null>(null);
+  const ensurePdf = useEnsureReceiptPdf();
+  const { toast, showToast, clearToast } = useFeeToast();
+  const [busy, setBusy] = useState<"download" | "print" | "regenerate" | null>(null);
 
   const { data, isLoading, isError, refetch } = useFeeReceipt(id);
   const receipt = data?.data;
@@ -62,6 +67,30 @@ export const ReceiptDetail: React.FC = () => {
     try {
       const blob = await downloadPdf.mutateAsync(id);
       await openPdfBlob(blob, mode, `${receipt.receiptNo || id}.pdf`);
+      showToast(mode === "print" ? "PDF opened for print" : "PDF downloaded", "success");
+      void refetch();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to prepare receipt PDF";
+      showToast(message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const regeneratePdf = async () => {
+    if (!id) return;
+    setBusy("regenerate");
+    try {
+      await ensurePdf.mutateAsync({ id, force: true });
+      showToast("Receipt PDF regenerated", "success");
+      void refetch();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to regenerate PDF";
+      showToast(message, "error");
     } finally {
       setBusy(null);
     }
@@ -88,6 +117,8 @@ export const ReceiptDetail: React.FC = () => {
     );
   }
 
+  const pdfReady = !!receipt.pdfReady;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -108,7 +139,24 @@ export const ReceiptDetail: React.FC = () => {
           </div>
         </div>
         {receipt.status === "SUCCESS" && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge variant={pdfReady ? "success" : "warning"} className="gap-1">
+              <FileText className="h-3 w-3" />
+              {pdfReady ? "PDF ready" : "PDF pending"}
+            </Badge>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void regeneratePdf()}
+            >
+              {busy === "regenerate" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {pdfReady ? "Regenerate PDF" : "Generate PDF"}
+            </Button>
             <Button
               variant="outline"
               className="gap-2"
@@ -234,6 +282,8 @@ export const ReceiptDetail: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

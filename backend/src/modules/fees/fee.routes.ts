@@ -15,12 +15,10 @@ import {
   getFeeReports,
   getStudentFeeStatement,
   listFeeStudents,
-  getFeePlans,
-  createFeePlan,
-  updateFeePlan,
   getReceipts,
   getReceipt,
   downloadReceiptPdf,
+  ensureReceiptPdf,
   listStudentInvoices,
   getStudentInvoice,
   cancelStudentInvoice,
@@ -37,15 +35,11 @@ router.use(authMiddleware);
 router.get("/stats", requirePermission("fee.read"), getFeeStats);
 router.get("/reports", requirePermission("fee.read"), getFeeReports);
 
-// Fee Plan Templates
-router.get("/plans", requirePermission("fee.read"), getFeePlans);
-router.post("/plans", requirePermission("fee.create"), createFeePlan);
-router.patch("/plans/:id", requirePermission("fee.update"), updateFeePlan);
-
 // Receipts
 router.get("/receipts", requirePermission("fee.read"), getReceipts);
 router.get("/receipts/:id", requirePermission("fee.read"), getReceipt);
 router.get("/receipts/:id/pdf", requirePermission("fee.read"), downloadReceiptPdf);
+router.post("/receipts/:id/pdf", requirePermission("fee.read"), ensureReceiptPdf);
 
 // Student fee workspace
 router.get("/students", requirePermission("fee.read"), listFeeStudents);

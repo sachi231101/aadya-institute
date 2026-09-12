@@ -10,6 +10,10 @@ import {
 } from "../modules/fees/fee-balance.util";
 import { roundMoney, toMoneyNumber } from "../modules/fees/fee-money.util";
 import { createPaymentSchema, queryPendingFeesSchema, createChargesSchema } from "../modules/fees/fee.validation";
+import {
+  normalizeInstallmentAmounts,
+  buildLegacyTuitionLines,
+} from "../modules/fees/fee-provision.service";
 import { Prisma } from "@prisma/client";
 
 describe("Fee balance helpers", () => {
@@ -179,6 +183,60 @@ describe("Fee validation", () => {
   });
 });
 
+describe("Fee provision installment normalization", () => {
+  test("normalizeInstallmentAmounts scales mismatched installments to line total", () => {
+    const normalized = normalizeInstallmentAmounts(38000, [
+      { installmentNo: 1, amount: 38000 },
+      { installmentNo: 2, amount: 11500 },
+    ]);
+    const sum = roundMoney(normalized.reduce((s, i) => s + i.amount, 0));
+    assert.strictEqual(sum, 38000);
+    assert.strictEqual(normalized.length, 2);
+    assert.ok(normalized[0].amount > 0);
+    assert.ok(normalized[1].amount > 0);
+  });
+
+  test("normalizeInstallmentAmounts keeps amounts when already matching", () => {
+    const normalized = normalizeInstallmentAmounts(38000, [
+      { installmentNo: 1, amount: 19000 },
+      { installmentNo: 2, amount: 19000 },
+    ]);
+    assert.strictEqual(normalized[0].amount, 19000);
+    assert.strictEqual(normalized[1].amount, 19000);
+  });
+
+  test("buildLegacyTuitionLines normalizes custom installments to totalFee", () => {
+    const lines = buildLegacyTuitionLines({
+      tuitionHeadId: "t1",
+      tuitionHeadName: "Tuition Fee",
+      totalFee: 38000,
+      feePlan: "INSTALLMENT",
+      installments: [
+        { installmentNo: 1, amount: 38000 },
+        { installmentNo: 2, amount: 11500 },
+      ],
+    });
+    assert.strictEqual(lines.length, 1);
+    const sum = roundMoney(
+      (lines[0].installments || []).reduce((s, i) => s + Number(i.amount), 0)
+    );
+    assert.strictEqual(sum, 38000);
+    assert.strictEqual(lines[0].amount, 38000);
+  });
+
+  test("buildLegacyTuitionLines splits INSTALLMENT 50/50 when no custom rows", () => {
+    const lines = buildLegacyTuitionLines({
+      tuitionHeadId: "t1",
+      tuitionHeadName: "Tuition Fee",
+      totalFee: 38000,
+      feePlan: "INSTALLMENT",
+    });
+    const parts = lines[0].installments || [];
+    assert.strictEqual(parts.length, 2);
+    assert.strictEqual(roundMoney(parts[0].amount + parts[1].amount), 38000);
+  });
+});
+
 describe("Fee reports target revenue formula", () => {
   test("targetRevenue equals collected + open dues and excludes void conceptually", () => {
     const successCollected = 400000;
@@ -193,5 +251,15 @@ describe("Fee reports target revenue formula", () => {
     assert.strictEqual(targetRevenue, 550000);
     assert.strictEqual(targetAchievedPercent, 73);
     assert.ok(totalCollected !== successCollected + voidAmount);
+  });
+
+  test("due-this-week window is [today, today+7)", () => {
+    const today = new Date("2026-09-12T00:00:00.000Z");
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const dueInWindow = new Date("2026-09-15T00:00:00.000Z");
+    const dueOutside = new Date("2026-09-20T00:00:00.000Z");
+    assert.ok(dueInWindow >= today && dueInWindow < weekEnd);
+    assert.ok(!(dueOutside >= today && dueOutside < weekEnd));
   });
 });

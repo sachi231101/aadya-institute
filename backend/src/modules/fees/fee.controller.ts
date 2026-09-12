@@ -8,9 +8,6 @@ import {
   createPaymentSchema,
   queryPendingFeesSchema,
   collectPendingFeeSchema,
-  queryFeePlansSchema,
-  createFeePlanSchema,
-  updateFeePlanSchema,
   queryReceiptsSchema,
   studentFeeStatementParamsSchema,
   createChargesSchema,
@@ -233,52 +230,6 @@ export const getStudentFeeStatement = async (
   }
 };
 
-export const getFeePlans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user?.instituteId) {
-      sendError(res, "Institute ID required", 400);
-      return;
-    }
-    const validated = queryFeePlansSchema.parse(req.query);
-    const result = await FeeService.getFeePlans(toAuthUser(req), validated);
-    sendSuccess(res, result, 200, "Fee plan templates retrieved successfully");
-  } catch (err: unknown) {
-    handleFeeError(err, res, "Failed to fetch fee plans");
-  }
-};
-
-export const createFeePlan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user?.instituteId) {
-      sendError(res, "Institute ID required", 400);
-      return;
-    }
-    const validated = createFeePlanSchema.parse(req.body);
-    const plan = await FeeService.createFeePlan(toAuthUser(req), validated);
-    sendSuccess(res, plan, 201, "Fee plan template created successfully");
-  } catch (err: unknown) {
-    handleFeeError(err, res, "Failed to create fee plan");
-  }
-};
-
-export const updateFeePlan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user?.instituteId) {
-      sendError(res, "Institute ID required", 400);
-      return;
-    }
-    const validated = updateFeePlanSchema.parse(req.body);
-    const plan = await FeeService.updateFeePlan(
-      toAuthUser(req),
-      req.params.id as string,
-      validated
-    );
-    sendSuccess(res, plan, 200, "Fee plan template updated successfully");
-  } catch (err: unknown) {
-    handleFeeError(err, res, "Failed to update fee plan");
-  }
-};
-
 export const getReceipts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     if (!req.user?.instituteId) {
@@ -445,5 +396,23 @@ export const downloadReceiptPdf = async (
     res.download(absolutePath, filename);
   } catch (err: unknown) {
     handleFeeError(err, res, "Failed to download receipt PDF");
+  }
+};
+
+export const ensureReceiptPdf = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = paymentIdParamsSchema.parse(req.params);
+    const force = req.query.force === "1" || req.query.force === "true";
+    const result = await FeeService.ensureReceiptPdf(toAuthUser(req), id, force);
+    sendSuccess(res, result, 200, "Receipt PDF ready");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to generate receipt PDF");
   }
 };

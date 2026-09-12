@@ -84,7 +84,6 @@ export const ROUTES = {
       RESULTS: "/admin/exams/results",
     },
     FEES: {
-      PLANS: "/admin/fees/plans",
       /** @deprecated use STUDENTS — kept as alias to All Students */
       STUDENT_FEES: "/admin/fees/students",
       STUDENTS: "/admin/fees/students",

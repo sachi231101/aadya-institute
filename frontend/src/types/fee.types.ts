@@ -33,6 +33,7 @@ export interface Payment {
   allocations?: PaymentAllocation[];
   receiptPdfUrl?: string | null;
   receiptGeneratedAt?: string | null;
+  pdfReady?: boolean;
   branchId?: string | null;
 }
 
@@ -70,6 +71,8 @@ export interface FeeStats {
   overdueDues: number;
   overdueCount: number;
   avgOverdueDays: number;
+  dueThisWeek?: number;
+  dueThisWeekCount?: number;
   byFeeHead?: Array<{
     feeHead: string;
     feeHeadMasterId: string;
@@ -82,6 +85,11 @@ export interface FeeReportsData {
   totalCollected: number;
   targetRevenue: number;
   targetAchievedPercent: number;
+  outstandingDues?: number;
+  overdueDues?: number;
+  overdueCount?: number;
+  dueThisWeek?: number;
+  dueThisWeekCount?: number;
   monthlyRevenue: Array<{ month: string; revenue: number }>;
   courseRevenue: Array<{ name: string; value: number; color: string }>;
   paymentModeDistribution: Array<{ mode: string; count: number; amount: number }>;
@@ -178,6 +186,7 @@ export interface FeeStudentRow {
   status: FeeStudentStatus;
   overdueCount: number;
   todayCollected: number;
+  nextDueDate?: string | null;
 }
 
 export type StudentInvoiceStatus =
@@ -346,29 +355,4 @@ export interface StudentFeeStatement {
       dueAmount: number;
     }>;
   };
-}
-
-export interface FeePlanLine {
-  feeHeadMasterId: string;
-  feeHeadCode?: string;
-  amount: number;
-  installments?: Array<{ installmentNo: number; amount: number; dueDays: number }>;
-}
-
-export interface FeePlanTemplate {
-  id: string;
-  name: string;
-  code?: string | null;
-  totalAmount: number;
-  planType?: string;
-  status?: string;
-  description?: string | null;
-  branchId?: string | null;
-  courseId?: string | null;
-  installments?: Array<
-    | { installmentNo: number; amount: number; dueDays: number }
-    | FeePlanLine
-  > | null;
-  course?: { id: string; name: string; code: string } | null;
-  branch?: { id: string; name: string; code: string } | null;
 }

@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   TrendingUp,
   PieChart as PieChartIcon,
@@ -6,8 +7,14 @@ import {
   Download,
   Loader2,
   AlertCircle,
+  Clock,
+  AlertTriangle,
+  CalendarDays,
+  Wallet,
 } from "lucide-react";
 import { useFeeReports } from "../../../hooks/useFees";
+import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +31,9 @@ import {
 } from "recharts";
 
 export const FeeReports: React.FC = () => {
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
+  const formatMoney = useFormatCurrency();
   const { data: reportsData, isLoading, isError, refetch } = useFeeReports();
   const reports = reportsData?.data;
 
@@ -33,13 +43,21 @@ export const FeeReports: React.FC = () => {
       "data:text/csv;charset=utf-8," +
       "Metric,Value\n" +
       `Total Revenue Collected,₹${reports.totalCollected}\n` +
+      `Outstanding Dues,₹${reports.outstandingDues ?? 0}\n` +
+      `Overdue Dues,₹${reports.overdueDues ?? 0}\n` +
+      `Due This Week,₹${reports.dueThisWeek ?? 0}\n` +
       `Expected Book (Collected + Open Dues),₹${reports.targetRevenue}\n` +
       `Collection Progress,${reports.targetAchievedPercent}%\n\n` +
       "Month,Revenue\n" +
       reports.monthlyRevenue.map((m) => `${m.month},${m.revenue}`).join("\n") +
       "\n\n" +
       "Course,Revenue\n" +
-      reports.courseRevenue.map((c) => `${c.name},${c.value}`).join("\n");
+      reports.courseRevenue.map((c) => `${c.name},${c.value}`).join("\n") +
+      "\n\n" +
+      "Payment Mode,Count,Amount\n" +
+      (reports.paymentModeDistribution || [])
+        .map((m) => `${m.mode},${m.count},${m.amount}`)
+        .join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -61,7 +79,7 @@ export const FeeReports: React.FC = () => {
             Fee Financial Reports
           </h2>
           <p className="text-sm text-text-secondary">
-            Revenue trends, course-wise collection analytics, and expected book vs collected.
+            SUCCESS payments only (VOID excluded). Outstanding from open installment dues.
           </p>
         </div>
 
@@ -101,6 +119,78 @@ export const FeeReports: React.FC = () => {
         </Card>
       ) : (
         <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-border/50">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{formatMoney(reports.totalCollected)}</p>
+                  <p className="text-xs text-text-secondary">Collected</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Link
+              to={`${basePath}/fees/students?tab=pending`}
+              className="block hover:opacity-95"
+            >
+              <Card className="border-border/50 h-full">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <Wallet className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">
+                      {formatMoney(reports.outstandingDues ?? 0)}
+                    </p>
+                    <p className="text-xs text-text-secondary">Outstanding · view dues</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link
+              to={`${basePath}/fees/students?tab=pending`}
+              className="block hover:opacity-95"
+            >
+              <Card className="border-border/50 h-full">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatMoney(reports.overdueDues ?? 0)}</p>
+                    <p className="text-xs text-text-secondary">
+                      Overdue
+                      {(reports.overdueCount ?? 0) > 0 ? ` · ${reports.overdueCount}` : ""}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link
+              to={`${basePath}/fees/students?tab=pending&dueWithinDays=7`}
+              className="block hover:opacity-95"
+            >
+              <Card className="border-border/50 h-full">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-sky-600" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatMoney(reports.dueThisWeek ?? 0)}</p>
+                    <p className="text-xs text-text-secondary">
+                      Due this week
+                      {(reports.dueThisWeekCount ?? 0) > 0
+                        ? ` · ${reports.dueThisWeekCount}`
+                        : ""}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
           <Card className="border-border/50 bg-white shadow-sm p-6 space-y-3">
             <div className="flex justify-between items-center text-sm font-semibold">
               <div className="flex items-center gap-2">
@@ -108,8 +198,7 @@ export const FeeReports: React.FC = () => {
                 <span className="text-slate-900">Collected vs Expected Book</span>
               </div>
               <span className="text-[#2563EB] font-bold text-base">
-                ₹{reports.totalCollected.toLocaleString("en-IN")} / ₹
-                {reports.targetRevenue.toLocaleString("en-IN")} (
+                {formatMoney(reports.totalCollected)} / {formatMoney(reports.targetRevenue)} (
                 {reports.targetAchievedPercent}%)
               </span>
             </div>
@@ -120,7 +209,7 @@ export const FeeReports: React.FC = () => {
               />
             </div>
             <p className="text-xs text-text-secondary">
-              Expected book = total collected + open installment dues (not a fixed target).
+              Expected book = SUCCESS collections + open installment dues (VOID payments excluded).
             </p>
           </Card>
 
@@ -222,11 +311,61 @@ export const FeeReports: React.FC = () => {
             </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {(reports.paymentModeDistribution?.length ?? 0) > 0 && (
+              <Card className="border-border/50 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> Payment modes
+                  </CardTitle>
+                  <CardDescription>SUCCESS payments by method</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {reports.paymentModeDistribution.map((m) => (
+                    <div
+                      key={m.mode}
+                      className="flex items-center justify-between text-sm border rounded-md px-3 py-2"
+                    >
+                      <span className="font-medium">
+                        {m.mode} · {m.count}
+                      </span>
+                      <span className="text-text-secondary">{formatMoney(m.amount)}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {(reports.dueStatusSummary?.length ?? 0) > 0 && (
+              <Card className="border-border/50 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-base">Open dues by status</CardTitle>
+                  <CardDescription>Installments with remaining balance</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {reports.dueStatusSummary.map((s) => (
+                    <div
+                      key={s.status}
+                      className="flex items-center justify-between text-sm border rounded-md px-3 py-2"
+                    >
+                      <span className="font-medium">
+                        {s.status} · {s.count}
+                      </span>
+                      <span className="text-text-secondary">{formatMoney(s.totalAmount)}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
           {(reports.byFeeHead?.length ?? 0) > 0 && (
             <Card className="border-border/50 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">By fee head</CardTitle>
-                <CardDescription>Collected vs pending across tuition, book, exam, and other heads</CardDescription>
+                <CardDescription>
+                  Collected vs pending across tuition, book, exam, and other heads
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {reports.byFeeHead!.map((h) => (
@@ -236,8 +375,8 @@ export const FeeReports: React.FC = () => {
                   >
                     <span className="font-medium">{h.feeHead}</span>
                     <span className="text-text-secondary">
-                      Collected ₹{Number(h.collected).toLocaleString("en-IN")} · Pending ₹
-                      {Number(h.pending).toLocaleString("en-IN")}
+                      Collected {formatMoney(Number(h.collected))} · Pending{" "}
+                      {formatMoney(Number(h.pending))}
                     </span>
                   </div>
                 ))}

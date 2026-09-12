@@ -121,7 +121,6 @@ export interface CreateAdmissionDTO {
   installments?: AdmissionInstallmentDTO[];
   /** Multi-head fee lines (tuition/book/exam). When omitted, totalFee becomes Tuition. */
   feeLines?: AdmissionFeeLineDTO[];
-  feePlanTemplateId?: string;
   sourceMasterId?: string;
   statusMasterId?: string;
   paymentModeMasterId?: string;

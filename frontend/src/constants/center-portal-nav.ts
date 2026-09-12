@@ -177,6 +177,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Student Fees", url: "/center/fees/students", itemKey: "fees.students" },
       { title: "Invoices", url: "/center/fees/invoices", itemKey: "fees.invoices" },
       { title: "Receipts", url: "/center/fees/receipts", itemKey: "fees.receipts" },
+      { title: "Fee Reports", url: "/center/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {

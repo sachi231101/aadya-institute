@@ -12,7 +12,6 @@ import {
   resolveTuitionFeeHead,
 } from "../fees/fee-provision.service";
 import type { FeeProvisionLine } from "../fees/fee.types";
-import { toMoneyNumber } from "../fees/fee-money.util";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -390,7 +389,7 @@ export async function provisionAdmissionInTransaction(
     });
   }
 
-  if ((dto.totalFee && dto.totalFee > 0) || (dto.feeLines && dto.feeLines.length > 0) || dto.feePlanTemplateId) {
+  if ((dto.totalFee && dto.totalFee > 0) || (dto.feeLines && dto.feeLines.length > 0)) {
     if (!finalStudentId) {
       // nothing
     } else {
@@ -398,42 +397,8 @@ export async function provisionAdmissionInTransaction(
       const amountPaid = Number(dto.amountPaid || 0);
       let lines: FeeProvisionLine[] = [];
 
-      if (dto.feePlanTemplateId) {
-        const plan = await tx.feePlanTemplate.findFirst({
-          where: { id: dto.feePlanTemplateId, instituteId, status: "ACTIVE" },
-        });
-        if (plan?.installments && Array.isArray(plan.installments)) {
-          for (const raw of plan.installments as Array<Record<string, unknown>>) {
-            if (raw.feeHeadMasterId && raw.amount) {
-              lines.push({
-                feeHeadMasterId: String(raw.feeHeadMasterId),
-                feeHeadCode: raw.feeHeadCode ? String(raw.feeHeadCode) : undefined,
-                amount: Number(raw.amount),
-                installments: Array.isArray(raw.installments)
-                  ? (raw.installments as Array<{ installmentNo: number; amount: number; dueDays?: number }>).map(
-                      (i) => ({
-                        installmentNo: i.installmentNo,
-                        amount: Number(i.amount),
-                        dueDays: i.dueDays,
-                      })
-                    )
-                  : undefined,
-              });
-            }
-          }
-        }
-        if (lines.length === 0 && toMoneyNumber(plan?.totalAmount) > 0) {
-          const tuition = await resolveTuitionFeeHead(tx, instituteId);
-          lines = buildLegacyTuitionLines({
-            tuitionHeadId: tuition.id,
-            tuitionHeadName: tuition.name,
-            totalFee: toMoneyNumber(plan!.totalAmount),
-            feePlan: plan!.planType,
-          });
-        }
-      }
-
-      if (lines.length === 0 && dto.feeLines && dto.feeLines.length > 0) {
+      // Prefer explicit admission snapshot (totalFee / feeLines / installments).
+      if (dto.feeLines && dto.feeLines.length > 0) {
         lines = dto.feeLines.map((l) => ({
           feeHeadMasterId: l.feeHeadMasterId,
           amount: Number(l.amount),

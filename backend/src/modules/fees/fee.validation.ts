@@ -47,6 +47,8 @@ export const queryPendingFeesSchema = z.object({
   branchId: z.string().optional(),
   studentId: z.string().optional(),
   feeHeadMasterId: z.string().optional(),
+  /** Open dues with dueDate within N calendar days from today (IST start-of-day). */
+  dueWithinDays: z.coerce.number().int().min(0).max(90).optional(),
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().optional().default(50),
 });
@@ -88,43 +90,6 @@ export const createChargeSchema = z.object({
   admissionId: z.string().optional(),
   installmentNo: z.number().int().positive().optional(),
   notes: z.string().optional(),
-});
-
-const planInstallmentSchema = z.object({
-  installmentNo: z.number().int().positive(),
-  amount: z.number().positive(),
-  dueDays: z.number().int().nonnegative(),
-});
-
-const planLineSchema = z.object({
-  feeHeadMasterId: z.string().min(1),
-  feeHeadCode: z.string().optional(),
-  amount: z.number().positive(),
-  installments: z.array(planInstallmentSchema).optional(),
-});
-
-export const queryFeePlansSchema = z.object({
-  page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(20),
-  branchId: z.string().optional(),
-  courseId: z.string().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
-  search: z.string().trim().optional(),
-});
-
-export const createFeePlanSchema = z.object({
-  name: z.string().min(1).trim(),
-  code: z.string().optional(),
-  branchId: z.string().optional(),
-  courseId: z.string().optional(),
-  totalAmount: z.number().positive(),
-  planType: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional().default("FULL_PAYMENT"),
-  installments: z.array(z.union([planInstallmentSchema, planLineSchema])).optional(),
-  description: z.string().optional(),
-});
-
-export const updateFeePlanSchema = createFeePlanSchema.partial().extend({
-  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
 });
 
 export const queryReceiptsSchema = z.object({

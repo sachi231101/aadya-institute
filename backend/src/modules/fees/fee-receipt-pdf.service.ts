@@ -1,5 +1,8 @@
+import fs from "fs";
+import path from "path";
 import PDFDocument from "pdfkit";
 import { prisma } from "../../config/database";
+import { logger } from "../../config/logger";
 import { saveFile, getFileUrl } from "../../integrations/storage/storage.client";
 import { toOrganizationContext } from "../organization/organization.mapper";
 import { resolveDisplayOrganizationInfo } from "../../utils/organization-display.util";
@@ -19,7 +22,23 @@ async function bufferFromPdf(
   });
 }
 
-export async function generateAndStoreReceiptPdf(paymentId: string): Promise<{
+/** Resolve local filesystem path for a stored receipt PDF URL/key. */
+export function resolveLocalReceiptPdfPath(receiptPdfUrl: string): string | null {
+  const keyMatch = receiptPdfUrl.match(/\/receipts\/[^/?#]+/);
+  if (!keyMatch) return null;
+  const localRoot = process.env.LOCAL_UPLOADS_DIR || "./uploads";
+  return path.resolve(localRoot, keyMatch[0].replace(/^\//, ""));
+}
+
+function localReceiptPdfExists(receiptPdfUrl: string): boolean {
+  const absolutePath = resolveLocalReceiptPdfPath(receiptPdfUrl);
+  return !!absolutePath && fs.existsSync(absolutePath);
+}
+
+export async function generateAndStoreReceiptPdf(
+  paymentId: string,
+  options?: { force?: boolean }
+): Promise<{
   receiptPdfUrl: string;
   receiptGeneratedAt: Date;
 } | null> {
@@ -38,7 +57,12 @@ export async function generateAndStoreReceiptPdf(paymentId: string): Promise<{
   });
 
   if (!payment || payment.status !== "SUCCESS") return null;
-  if (payment.receiptPdfUrl) {
+
+  if (
+    payment.receiptPdfUrl &&
+    !options?.force &&
+    localReceiptPdfExists(payment.receiptPdfUrl)
+  ) {
     return {
       receiptPdfUrl: payment.receiptPdfUrl,
       receiptGeneratedAt: payment.receiptGeneratedAt || new Date(),
@@ -89,9 +113,7 @@ export async function generateAndStoreReceiptPdf(paymentId: string): Promise<{
       for (const a of payment.allocations) {
         const head = a.pendingFee?.feeHead || payment.feeHead || "Fee";
         const inv = a.studentInvoice?.invoiceNo ? ` (${a.studentInvoice.invoiceNo})` : "";
-        doc.text(
-          `${head}${inv} — ₹${toMoneyNumber(a.amount).toFixed(2)}`
-        );
+        doc.text(`${head}${inv} — ₹${toMoneyNumber(a.amount).toFixed(2)}`);
       }
     } else {
       doc.text(`${payment.feeHead || "Fee payment"} — ₹${amount.toFixed(2)}`);
@@ -121,9 +143,12 @@ export async function generateAndStoreReceiptPdf(paymentId: string): Promise<{
   return { receiptPdfUrl, receiptGeneratedAt };
 }
 
-/** Fire-and-forget after SUCCESS payment; failures are logged by caller. */
+/** Fire-and-forget after SUCCESS payment; failures are logged. */
 export function enqueueReceiptPdfGeneration(paymentId: string): void {
-  void generateAndStoreReceiptPdf(paymentId).catch(() => {
-    // Non-blocking: receipt number already exists; PDF can be regenerated on demand
+  void generateAndStoreReceiptPdf(paymentId).catch((err: unknown) => {
+    logger.error(
+      { err, paymentId },
+      `[receipt-pdf] Failed to generate PDF for payment ${paymentId}`
+    );
   });
 }

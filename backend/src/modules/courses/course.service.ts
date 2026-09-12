@@ -2,8 +2,21 @@ import * as repository from "./course.repository";
 import { CreateCourseDto, UpdateCourseDto, CourseQueryFilters } from "./course.types";
 import { AppError } from "../../middlewares/error.middleware";
 
+/** Prisma Decimal JSON-serializes as a string; expose a real number to API clients. */
+const toFeeNumber = (value: unknown): number | null => {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const serializeCourse = <T extends { fee?: unknown }>(course: T): T & { fee: number | null } => ({
+  ...course,
+  fee: toFeeNumber(course.fee),
+});
+
 export const getCourses = async (instituteId: string, filters: CourseQueryFilters) => {
-  return repository.findAllCourses(instituteId, filters);
+  const courses = await repository.findAllCourses(instituteId, filters);
+  return courses.map(serializeCourse);
 };
 
 export const getCourseById = async (id: string, instituteId: string) => {
@@ -11,7 +24,7 @@ export const getCourseById = async (id: string, instituteId: string) => {
   if (!course || course.status === "DELETED") {
     throw new AppError("Course not found", 404);
   }
-  return course;
+  return serializeCourse(course);
 };
 
 export const createCourse = async (instituteId: string, data: CreateCourseDto) => {
@@ -19,7 +32,7 @@ export const createCourse = async (instituteId: string, data: CreateCourseDto) =
   if (existing) {
     throw new AppError(`Course code "${data.code}" already exists`, 409);
   }
-  return repository.createCourse(instituteId, data);
+  return serializeCourse(await repository.createCourse(instituteId, data));
 };
 
 export const updateCourse = async (id: string, instituteId: string, data: UpdateCourseDto) => {
@@ -32,7 +45,8 @@ export const updateCourse = async (id: string, instituteId: string, data: Update
     }
   }
 
-  return repository.updateCourse(id, instituteId, data);
+  const course = await repository.updateCourse(id, instituteId, data);
+  return course ? serializeCourse(course) : course;
 };
 
 export const deleteCourse = async (id: string, instituteId: string) => {

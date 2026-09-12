@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Receipt, Search, Loader2, AlertCircle, Download, Eye } from "lucide-react";
+import { Receipt, Search, Loader2, AlertCircle, Download, Eye, FileText } from "lucide-react";
 import { useFeeReceipts, useDownloadReceiptPdf } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 async function triggerPdfDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -38,6 +39,7 @@ export const Receipts: React.FC = () => {
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
   const downloadPdf = useDownloadReceiptPdf();
+  const { toast, showToast, clearToast } = useFeeToast();
 
   const { data, isLoading, isError, refetch } = useFeeReceipts({
     search: searchTerm || undefined,
@@ -52,6 +54,12 @@ export const Receipts: React.FC = () => {
     try {
       const blob = await downloadPdf.mutateAsync(id);
       await triggerPdfDownload(blob, `${receiptNo || id}.pdf`);
+      showToast("PDF downloaded", "success");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to download PDF — open the receipt and tap Generate PDF";
+      showToast(message, "error");
     } finally {
       setDownloadingId(null);
     }
@@ -90,20 +98,21 @@ export const Receipts: React.FC = () => {
                 <TableHead>Method</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>PDF</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-red-600">
+                  <TableCell colSpan={8} className="text-center py-8 text-red-600">
                     <AlertCircle className="w-5 h-5 inline mr-2" />
                     Failed to load.
                     <Button variant="link" onClick={() => refetch()}>
@@ -113,7 +122,7 @@ export const Receipts: React.FC = () => {
                 </TableRow>
               ) : !Array.isArray(receipts) || receipts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No receipts found.
                   </TableCell>
@@ -128,6 +137,7 @@ export const Receipts: React.FC = () => {
                     method: string;
                     date: string;
                     status: string;
+                    receiptPdfUrl?: string | null;
                   }) => (
                     <TableRow
                       key={r.id}
@@ -141,6 +151,19 @@ export const Receipts: React.FC = () => {
                       <TableCell>{formatOrgDate(r.date)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{r.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {r.status === "SUCCESS" ? (
+                          <Badge
+                            variant={r.receiptPdfUrl ? "success" : "warning"}
+                            className="gap-1"
+                          >
+                            <FileText className="h-3 w-3" />
+                            {r.receiptPdfUrl ? "Ready" : "Pending"}
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
@@ -201,6 +224,8 @@ export const Receipts: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

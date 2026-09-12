@@ -4,9 +4,6 @@ import type {
   CreatePaymentDTO,
   QueryPendingFeesDTO,
   CollectPendingFeeDTO,
-  QueryFeePlansDTO,
-  CreateFeePlanDTO,
-  UpdateFeePlanDTO,
   QueryReceiptsDTO,
   StudentFeeStatementSummary,
   CreateChargesDTO,
@@ -15,9 +12,9 @@ import type {
   QueryStudentInvoicesDTO,
   CreateOtherInvoiceDTO,
 } from "./fee.types";
-import { generateAndStoreReceiptPdf } from "./fee-receipt-pdf.service";
+import { generateAndStoreReceiptPdf, resolveLocalReceiptPdfPath } from "./fee-receipt-pdf.service";
 import { repairLegacyStudentInvoiceNumbers } from "./fee-invoice.service";
-import path from "path";
+import { repairUnallocatedPayments } from "./fee-payment-repair.service";
 import fs from "fs";
 import { prisma } from "../../config/database";
 import {
@@ -126,10 +123,12 @@ const summarizeStudentFees = (
       amountPaid: 0,
       dueAmount: 0,
     };
-    // totalFee on rows is line total duplicated per installment — take max per head group of installment dues+paid
+    // Each pending row is one installment/charge — sum paid + remaining due for head total
     existing.amountPaid += f.amountPaid || 0;
     existing.dueAmount += Math.max(0, f.dueAmount || 0);
-    existing.totalFee = Math.max(existing.totalFee, (f.amountPaid || 0) + Math.max(0, f.dueAmount || 0));
+    existing.totalFee = roundMoney(
+      existing.totalFee + (f.amountPaid || 0) + Math.max(0, f.dueAmount || 0)
+    );
     byHeadMap.set(key, existing);
   }
   const byFeeHead = Array.from(byHeadMap.values());
@@ -356,6 +355,8 @@ export const FeeService = {
 
   async getPendingFees(currentUser: AuthUser, query: QueryPendingFeesDTO) {
     const scope = scopeParams(currentUser, query.branchId);
+    // One-time legacy heal: SUCCESS receipts without allocations + inflated installment groups
+    await repairUnallocatedPayments(scope.instituteId).catch(() => undefined);
     return FeeRepository.findPendingFees(scope.instituteId, {
       ...query,
       branchId: scope.branchId,
@@ -522,7 +523,9 @@ export const FeeService = {
     return {
       message:
         notification?.status === "SKIPPED"
-          ? `Reminder skipped (${notification.skipReason})`
+          ? notification.skipReason === "INVALID_PHONE"
+            ? `Reminder skipped — student has no valid WhatsApp phone (${pendingItem.phone || "missing"})`
+            : `Reminder skipped (${notification.skipReason})`
           : `WhatsApp reminder queued for ${pendingItem.phone}`,
       notificationId: notification?.id ?? null,
       status: notification?.status ?? "SKIPPED",
@@ -581,6 +584,8 @@ export const FeeService = {
     if (!isStudent) {
       assertBranchRecordAccess(currentUser, student.branchId);
     }
+
+    await repairUnallocatedPayments(currentUser.instituteId).catch(() => undefined);
 
     const scope = scopeParams(currentUser);
     const [payments, pendingFees, invoices] = await Promise.all([
@@ -803,22 +808,29 @@ export const FeeService = {
     const receipt = await FeeRepository.findReceiptById(id, currentUser.instituteId);
     if (!receipt) throw new AppError("Receipt not found", 404);
     assertBranchRecordAccess(currentUser, (receipt as { branchId?: string | null }).branchId);
-    return receipt;
+    const pdfUrl = (receipt as { receiptPdfUrl?: string | null }).receiptPdfUrl;
+    const pdfReady =
+      (receipt as { status?: string }).status === "SUCCESS" &&
+      !!pdfUrl &&
+      !!resolveLocalReceiptPdfPath(pdfUrl) &&
+      fs.existsSync(resolveLocalReceiptPdfPath(pdfUrl)!);
+    return { ...receipt, pdfReady };
   },
 
-  async ensureReceiptPdf(currentUser: AuthUser, id: string) {
+  async ensureReceiptPdf(currentUser: AuthUser, id: string, force = false) {
     const receipt = await FeeRepository.findReceiptById(id, currentUser.instituteId);
     if (!receipt) throw new AppError("Receipt not found", 404);
     assertBranchRecordAccess(currentUser, (receipt as { branchId?: string | null }).branchId);
     if ((receipt as { status?: string }).status !== "SUCCESS") {
       throw new AppError("PDF is only available for successful payments", 400);
     }
-    const generated = await generateAndStoreReceiptPdf(id);
+    const generated = await generateAndStoreReceiptPdf(id, { force });
     if (!generated) throw new AppError("Failed to generate receipt PDF", 500);
     return {
       ...receipt,
       receiptPdfUrl: generated.receiptPdfUrl,
       receiptGeneratedAt: generated.receiptGeneratedAt,
+      pdfReady: true,
     };
   },
 
@@ -826,58 +838,29 @@ export const FeeService = {
     absolutePath: string;
     filename: string;
   }> {
-    const receipt = (await FeeService.ensureReceiptPdf(currentUser, id)) as {
+    let receipt = (await FeeService.ensureReceiptPdf(currentUser, id, false)) as {
       receiptPdfUrl?: string;
       receiptNo?: string;
     };
-    const url = receipt.receiptPdfUrl || "";
-    // Local storage keys look like /receipts/RCP_....pdf or full APP_URL + path
-    const keyMatch = url.match(/\/receipts\/[^/?#]+/);
-    const key = keyMatch ? keyMatch[0] : null;
-    if (!key) throw new AppError("Receipt PDF not available", 404);
-    const localRoot = process.env.LOCAL_UPLOADS_DIR || "./uploads";
-    const absolutePath = path.resolve(localRoot, key.replace(/^\//, ""));
-    if (!fs.existsSync(absolutePath)) {
+    let url = receipt.receiptPdfUrl || "";
+    let absolutePath = resolveLocalReceiptPdfPath(url);
+
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
+      receipt = (await FeeService.ensureReceiptPdf(currentUser, id, true)) as {
+        receiptPdfUrl?: string;
+        receiptNo?: string;
+      };
+      url = receipt.receiptPdfUrl || "";
+      absolutePath = resolveLocalReceiptPdfPath(url);
+    }
+
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
       throw new AppError("Receipt PDF file missing on disk", 404);
     }
     return {
       absolutePath,
       filename: `${(receipt.receiptNo || id).replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`,
     };
-  },
-
-  async getFeePlans(currentUser: AuthUser, query: QueryFeePlansDTO) {
-    const scope = getBranchScopeFilter(currentUser, query.branchId);
-    return FeeRepository.findFeePlans(scope.instituteId, {
-      branchId: scope.branchId,
-      branchIds: scope.branchIds,
-      courseId: query.courseId,
-      status: query.status,
-      search: query.search,
-      page: query.page,
-      limit: query.limit,
-    });
-  },
-
-  async createFeePlan(currentUser: AuthUser, dto: CreateFeePlanDTO) {
-    const scope = getBranchScopeFilter(currentUser, dto.branchId);
-    if (dto.branchId) assertBranchRecordAccess(currentUser, dto.branchId);
-    return FeeRepository.createFeePlan(scope.instituteId, {
-      ...dto,
-      branchId: dto.branchId || scope.branchId,
-    });
-  },
-
-  async updateFeePlan(currentUser: AuthUser, id: string, dto: UpdateFeePlanDTO) {
-    const existing = await FeeRepository.findFeePlanById(id, currentUser.instituteId);
-    if (!existing) throw new AppError("Fee plan template not found", 404);
-    assertBranchRecordAccess(currentUser, existing.branchId);
-    return FeeRepository.updateFeePlan(id, currentUser.instituteId, {
-      ...dto,
-      planType: dto.planType as never,
-      status: dto.status as never,
-      installments: dto.installments as never,
-    });
   },
 
   async getReceipts(currentUser: AuthUser, query: QueryReceiptsDTO) {

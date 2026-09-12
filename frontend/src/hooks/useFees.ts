@@ -14,7 +14,6 @@ export const FEES_KEYS = {
   students: (params?: Record<string, unknown>) => ["fees", "students", params] as const,
   payments: (params?: Record<string, unknown>) => ["fees", "payments", params] as const,
   pendingFees: (params?: Record<string, unknown>) => ["fees", "pending", params] as const,
-  plans: (params?: Record<string, unknown>) => ["fees", "plans", params] as const,
   receipts: (params?: Record<string, unknown>) => ["fees", "receipts", params] as const,
   receipt: (id?: string) => ["fees", "receipt", id] as const,
   invoices: (params?: Record<string, unknown>) => ["fees", "invoices", params] as const,
@@ -100,6 +99,7 @@ export const usePendingFees = (params?: {
   status?: string;
   studentId?: string;
   feeHeadMasterId?: string;
+  dueWithinDays?: number;
   page?: number;
   limit?: number;
 }) =>
@@ -208,40 +208,6 @@ export const useCreateOtherInvoice = () => {
   });
 };
 
-export const useFeePlans = (params?: {
-  page?: number;
-  limit?: number;
-  branchId?: string;
-  courseId?: string;
-  status?: string;
-  search?: string;
-}) =>
-  useQuery({
-    queryKey: FEES_KEYS.plans(params),
-    queryFn: () => feesApi.getPlans(params),
-  });
-
-export const useCreateFeePlan = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: feesApi.createPlan,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fees"] });
-    },
-  });
-};
-
-export const useUpdateFeePlan = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) =>
-      feesApi.updatePlan(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fees"] });
-    },
-  });
-};
-
 export const useFeeReceipts = (params?: {
   search?: string;
   page?: number;
@@ -267,3 +233,15 @@ export const useDownloadReceiptPdf = () =>
   useMutation({
     mutationFn: (id: string) => feesApi.downloadReceiptPdf(id),
   });
+
+export const useEnsureReceiptPdf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      feesApi.ensureReceiptPdf(id, force),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: FEES_KEYS.receipt(vars.id) });
+      queryClient.invalidateQueries({ queryKey: ["fees", "receipts"] });
+    },
+  });
+};

@@ -26,24 +26,42 @@ import {
 import type { PendingFee } from "../../../types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { CollectFeeModal } from "./CollectFeeModal";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 interface PendingFeesProps {
   embedded?: boolean;
+  initialDueWithinDays?: number;
 }
 
-export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) => {
+export const PendingFees: React.FC<PendingFeesProps> = ({
+  embedded = false,
+  initialDueWithinDays,
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dueWithinDays, setDueWithinDays] = useState<number | undefined>(initialDueWithinDays);
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setDueWithinDays(initialDueWithinDays);
+    if (initialDueWithinDays === 7) {
+      setStatusFilter("DUE_THIS_WEEK");
+    } else if (initialDueWithinDays == null) {
+      setStatusFilter((prev) => (prev === "DUE_THIS_WEEK" ? "ALL" : prev));
+    }
+  }, [initialDueWithinDays]);
 
   const { data: pendingData, isLoading: pendingLoading } = usePendingFees({
     search: searchTerm,
-    status: statusFilter,
+    status: statusFilter === "DUE_THIS_WEEK" ? "UNPAID" : statusFilter,
+    dueWithinDays:
+      statusFilter === "DUE_THIS_WEEK" ? 7 : dueWithinDays,
   });
 
   const { data: statsData } = useFeeStats();
   const sendReminderMutation = useSendFeeReminder();
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
+  const { toast, showToast, clearToast } = useFeeToast();
 
   const pendingFees = pendingData?.data?.data || [];
   const stats = statsData?.data || {
@@ -59,9 +77,12 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
       const res = await sendReminderMutation.mutateAsync(item.id);
       const payload = res?.data;
       if (payload?.status === "SKIPPED") {
-        alert(payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`);
-      } else if (payload?.message) {
-        alert(payload.message);
+        showToast(
+          payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`,
+          "info"
+        );
+      } else {
+        showToast(payload?.message || "WhatsApp reminder queued", "success");
       }
       setTimeout(() => {
         setReminderSentId(null);
@@ -71,7 +92,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Failed to send reminder";
-      alert(message);
+      showToast(message, "error");
     }
   };
 
@@ -173,13 +194,27 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
             {/* Status Filter */}
             <div className="flex items-center gap-3">
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={
+                  dueWithinDays === 7 || statusFilter === "DUE_THIS_WEEK"
+                    ? "DUE_THIS_WEEK"
+                    : statusFilter
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "DUE_THIS_WEEK") {
+                    setStatusFilter("DUE_THIS_WEEK");
+                    setDueWithinDays(7);
+                  } else {
+                    setStatusFilter(value);
+                    setDueWithinDays(undefined);
+                  }
+                }}
                 className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               >
                 <option value="ALL">All Due Statuses</option>
                 <option value="OVERDUE">Overdue Only</option>
                 <option value="DUE_SOON">Due Soon</option>
+                <option value="DUE_THIS_WEEK">Due This Week</option>
                 <option value="PARTIAL">Partially Paid</option>
               </select>
             </div>
@@ -194,8 +229,9 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
                   <TableHead className="font-semibold text-text-primary">Admission No</TableHead>
                   <TableHead className="font-semibold text-text-primary">Invoice</TableHead>
                   <TableHead className="font-semibold text-text-primary">Fee Head</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Installment</TableHead>
                   <TableHead className="font-semibold text-text-primary">Course</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Total Fee</TableHead>
+                  <TableHead className="font-semibold text-text-primary">This charge</TableHead>
                   <TableHead className="font-semibold text-text-primary">Paid / Due</TableHead>
                   <TableHead className="font-semibold text-text-primary">Due Date</TableHead>
                   <TableHead className="font-semibold text-text-primary">Status</TableHead>
@@ -206,7 +242,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
               <TableBody>
                 {pendingLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
+                    <TableCell colSpan={11} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
                         Loading pending fee records...
@@ -215,7 +251,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
                   </TableRow>
                 ) : pendingFees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
+                    <TableCell colSpan={11} className="text-center py-8 text-text-secondary">
                       No pending fee dues match your criteria.
                     </TableCell>
                   </TableRow>
@@ -235,11 +271,14 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
                       <TableCell className="text-sm font-medium text-slate-700">
                         {pf.feeHead || "Fee"}
                       </TableCell>
+                      <TableCell className="text-sm font-medium text-slate-700">
+                        #{pf.installmentNo || 1}
+                      </TableCell>
                       <TableCell className="max-w-[180px] truncate text-slate-700 font-medium">
                         {pf.courseName}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-700">
-                        ₹{pf.totalFee.toLocaleString("en-IN")}
+                        ₹{(Number(pf.amountPaid) + Number(pf.dueAmount)).toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell>
                         <div className="text-emerald-700 font-medium text-xs">
@@ -300,8 +339,13 @@ export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) =>
       </Card>
 
       {collectItem && (
-        <CollectFeeModal item={collectItem} onClose={() => setCollectItem(null)} />
+        <CollectFeeModal
+          item={collectItem}
+          onClose={() => setCollectItem(null)}
+          onSuccess={(msg) => showToast(msg, "success")}
+        />
       )}
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

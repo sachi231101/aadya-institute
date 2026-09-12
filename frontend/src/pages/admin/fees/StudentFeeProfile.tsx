@@ -38,6 +38,7 @@ import {
 import type { PendingFee, Payment, StudentInvoice } from "@/types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { CollectFeeModal } from "./CollectFeeModal";
+import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 export const StudentFeeProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -55,7 +56,9 @@ export const StudentFeeProfile: React.FC = () => {
   const [chargeAmount, setChargeAmount] = useState(0);
   const [chargeDueDate, setChargeDueDate] = useState("");
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
+  const [collectOutstanding, setCollectOutstanding] = useState(false);
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
+  const { toast, showToast, clearToast } = useFeeToast();
 
   const { data, isLoading, isError, refetch } = useStudentFeeStatement(studentId);
   const statement = data?.data;
@@ -65,20 +68,29 @@ export const StudentFeeProfile: React.FC = () => {
   const invoices = statement?.invoices || [];
   const receipts = statement?.receipts || payments.filter((p) => p.status === "SUCCESS");
   const openPending = pendingFees.filter((f) => (f.dueAmount || 0) > 0);
+  const outstanding = summary?.dueAmount ?? openPending.reduce((s, f) => s + (f.dueAmount || 0), 0);
 
   const submitCharge = async () => {
     if (!studentId || !chargeHeadId || chargeAmount <= 0) return;
-    await createCharge.mutateAsync({
-      studentId,
-      feeHeadMasterId: chargeHeadId,
-      amount: chargeAmount,
-      dueDate: chargeDueDate || undefined,
-    });
-    setShowCharge(false);
-    setChargeAmount(0);
-    setChargeHeadId("");
-    setChargeDueDate("");
-    void refetch();
+    try {
+      await createCharge.mutateAsync({
+        studentId,
+        feeHeadMasterId: chargeHeadId,
+        amount: chargeAmount,
+        dueDate: chargeDueDate || undefined,
+      });
+      setShowCharge(false);
+      setChargeAmount(0);
+      setChargeHeadId("");
+      setChargeDueDate("");
+      showToast("Charge created", "success");
+      void refetch();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to create charge";
+      showToast(message, "error");
+    }
   };
 
   const handleSendReminder = async (item: PendingFee) => {
@@ -87,9 +99,12 @@ export const StudentFeeProfile: React.FC = () => {
       const res = await sendReminder.mutateAsync(item.id);
       const payload = res?.data;
       if (payload?.status === "SKIPPED") {
-        alert(payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`);
-      } else if (payload?.message) {
-        alert(payload.message);
+        showToast(
+          payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`,
+          "info"
+        );
+      } else {
+        showToast(payload?.message || "WhatsApp reminder queued", "success");
       }
       setTimeout(() => setReminderSentId(null), 3000);
     } catch (err: unknown) {
@@ -97,7 +112,7 @@ export const StudentFeeProfile: React.FC = () => {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Failed to send reminder";
-      alert(message);
+      showToast(message, "error");
     }
   };
 
@@ -150,9 +165,16 @@ export const StudentFeeProfile: React.FC = () => {
           <Button variant="outline" onClick={() => setShowCharge(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Add Charge
           </Button>
-          <Button asChild className="gap-2">
+          {outstanding > 0 && (
+            <PermissionGate itemKey="fees.pending" mode="write">
+              <Button className="gap-2" onClick={() => setCollectOutstanding(true)}>
+                <CreditCard className="h-4 w-4" /> Collect outstanding
+              </Button>
+            </PermissionGate>
+          )}
+          <Button variant="outline" asChild className="gap-2">
             <Link to={`${basePath}/fees/payments?studentId=${statement.student.id}`}>
-              <CreditCard className="h-4 w-4" /> Record Payment
+              <Wallet className="h-4 w-4" /> Record Payment
             </Link>
           </Button>
         </div>
@@ -247,6 +269,59 @@ export const StudentFeeProfile: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          <Card className="border-border/50">
+            <CardContent className="p-4 space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Receipt className="h-4 w-4" /> Recent payment activity
+              </h3>
+              {payments.length === 0 ? (
+                <p className="text-sm text-text-secondary py-4 text-center">No payments yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {payments.slice(0, 8).map((p: Payment) => (
+                    <div
+                      key={p.id}
+                      className="rounded-lg border border-border/60 p-3 space-y-2 bg-white"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-mono text-sm font-semibold">{p.receiptNo}</p>
+                          <p className="text-xs text-text-secondary">
+                            {formatOrgDate(p.date)} · {p.method}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">{formatMoney(p.amount)}</p>
+                          <Badge
+                            variant={p.status === "VOID" ? "destructive" : "outline"}
+                            className="text-[10px]"
+                          >
+                            {p.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      {(p.allocations || []).length > 0 ? (
+                        <ul className="text-xs text-slate-600 space-y-1 border-t border-slate-100 pt-2">
+                          {p.allocations!.map((a) => (
+                            <li key={a.id || `${a.pendingFeeId}-${a.amount}`} className="flex justify-between gap-2">
+                              <span>
+                                {a.pendingFee?.feeHead || "Charge"} · Inst #
+                                {a.pendingFee?.installmentNo ?? "—"}
+                              </span>
+                              <span className="font-medium">{formatMoney(a.amount)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : p.status === "SUCCESS" ? (
+                        <p className="text-xs text-amber-700">No allocation lines linked</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="details" className="mt-4">
@@ -278,7 +353,7 @@ export const StudentFeeProfile: React.FC = () => {
                         <TableCell>{f.installmentNo}</TableCell>
                         <TableCell>{f.feeHead || f.feeHeadMaster?.name || "Fee"}</TableCell>
                         <TableCell>{f.courseName}</TableCell>
-                        <TableCell>{formatMoney(f.totalFee)}</TableCell>
+                        <TableCell>{formatMoney(f.amountPaid + f.dueAmount)}</TableCell>
                         <TableCell>{formatMoney(f.amountPaid)}</TableCell>
                         <TableCell className="font-bold">{formatMoney(f.dueAmount)}</TableCell>
                         <TableCell>{formatOrgDate(f.dueDate)}</TableCell>
@@ -357,6 +432,7 @@ export const StudentFeeProfile: React.FC = () => {
                   <TableRow>
                     <TableHead>Receipt</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Applied to</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -365,7 +441,7 @@ export const StudentFeeProfile: React.FC = () => {
                 <TableBody>
                   {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-text-secondary">
+                      <TableCell colSpan={6} className="text-center py-6 text-text-secondary">
                         No payments recorded.
                       </TableCell>
                     </TableRow>
@@ -374,10 +450,22 @@ export const StudentFeeProfile: React.FC = () => {
                       <TableRow key={p.id}>
                         <TableCell className="font-mono text-sm">{p.receiptNo}</TableCell>
                         <TableCell className="font-bold">{formatMoney(p.amount)}</TableCell>
+                        <TableCell className="text-xs text-slate-600 max-w-[220px]">
+                          {(p.allocations || []).length === 0
+                            ? "—"
+                            : p.allocations!.map((a) => (
+                                <div key={a.id || `${a.pendingFeeId}-${a.amount}`}>
+                                  {a.pendingFee?.feeHead || "Charge"} #{a.pendingFee?.installmentNo ?? "—"}{" "}
+                                  · {formatMoney(a.amount)}
+                                </div>
+                              ))}
+                        </TableCell>
                         <TableCell>{p.method}</TableCell>
                         <TableCell>{formatOrgDate(p.date)}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{p.status}</Badge>
+                          <Badge variant={p.status === "VOID" ? "destructive" : "outline"}>
+                            {p.status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))
@@ -396,6 +484,7 @@ export const StudentFeeProfile: React.FC = () => {
                   <TableRow>
                     <TableHead>Invoice</TableHead>
                     <TableHead>Fee Head</TableHead>
+                    <TableHead>Inst.</TableHead>
                     <TableHead>Due Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Overdue Days</TableHead>
@@ -406,7 +495,7 @@ export const StudentFeeProfile: React.FC = () => {
                 <TableBody>
                   {openPending.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-text-secondary">
+                      <TableCell colSpan={8} className="text-center py-6 text-text-secondary">
                         No pending dues.
                       </TableCell>
                     </TableRow>
@@ -415,6 +504,7 @@ export const StudentFeeProfile: React.FC = () => {
                       <TableRow key={f.id}>
                         <TableCell className="font-mono text-xs">{f.invoiceNo || "—"}</TableCell>
                         <TableCell>{f.feeHead || "Fee"}</TableCell>
+                        <TableCell>#{f.installmentNo || 1}</TableCell>
                         <TableCell className="font-bold">{formatMoney(f.dueAmount)}</TableCell>
                         <TableCell>{formatOrgDate(f.dueDate)}</TableCell>
                         <TableCell>{f.overdueDays}</TableCell>
@@ -561,12 +651,32 @@ export const StudentFeeProfile: React.FC = () => {
       {collectItem && (
         <CollectFeeModal
           item={collectItem}
-          onClose={() => {
-            setCollectItem(null);
+          onClose={() => setCollectItem(null)}
+          onSuccess={(msg) => {
+            showToast(msg, "success");
             void refetch();
           }}
         />
       )}
+
+      {collectOutstanding && statement && (
+        <CollectFeeModal
+          mode="student"
+          student={{
+            id: statement.student.id,
+            name: statement.student.name,
+            admissionNo: statement.student.studentCode,
+            outstanding,
+          }}
+          onClose={() => setCollectOutstanding(false)}
+          onSuccess={(msg) => {
+            showToast(msg, "success");
+            void refetch();
+          }}
+        />
+      )}
+
+      <FeeToastBanner toast={toast} onClose={clearToast} />
     </div>
   );
 };

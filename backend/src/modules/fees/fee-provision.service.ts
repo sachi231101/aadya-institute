@@ -75,45 +75,63 @@ async function resolveFeeHeadLabel(
   return { id: row.id, name: fallback || row.name, code: row.code };
 }
 
+/**
+ * Scale installment amounts so they sum exactly to `lineAmount`.
+ * Used whenever custom installments are provided at admission/provision.
+ */
+export function normalizeInstallmentAmounts(
+  lineAmount: number,
+  installments: Array<{ installmentNo: number; amount: number; dueDate?: string; dueDays?: number }>
+): Array<{ installmentNo: number; amount: number; dueDate?: string; dueDays?: number }> {
+  const target = roundMoney(lineAmount);
+  const positive = installments.filter((i) => Number(i.amount) > 0);
+  if (positive.length === 0) return [];
+  const partsSum = roundMoney(positive.reduce((s, i) => s + Number(i.amount), 0));
+  if (partsSum <= 0) return [];
+  if (Math.abs(partsSum - target) <= 0.009) {
+    return positive.map((i) => ({
+      ...i,
+      installmentNo: i.installmentNo || 1,
+      amount: roundMoney(Number(i.amount)),
+    }));
+  }
+  const ratio = target / partsSum;
+  let allocated = 0;
+  return positive.map((inst, idx) => {
+    if (idx === positive.length - 1) {
+      return {
+        ...inst,
+        installmentNo: inst.installmentNo || 1,
+        amount: roundMoney(target - allocated),
+      };
+    }
+    const scaled = roundMoney(Number(inst.amount) * ratio);
+    allocated = roundMoney(allocated + scaled);
+    return { ...inst, installmentNo: inst.installmentNo || 1, amount: scaled };
+  });
+}
+
 function expandLineInstallments(
   line: FeeProvisionLine,
   baseDate: Date
 ): Array<{ installmentNo: number; amount: number; dueDate: Date }> {
   const amount = roundMoney(line.amount);
   if (line.installments && line.installments.length > 0) {
-    let parts = line.installments
-      .filter((i) => Number(i.amount) > 0)
-      .map((i) => {
-        let dueDate: Date;
-        if (i.dueDate) {
-          dueDate = new Date(i.dueDate);
-          if (Number.isNaN(dueDate.getTime())) dueDate = addDays(baseDate, i.dueDays ?? 0);
-        } else {
-          dueDate = addDays(baseDate, i.dueDays ?? 0);
-        }
-        return {
-          installmentNo: i.installmentNo || 1,
-          amount: roundMoney(Number(i.amount)),
-          dueDate,
-        };
-      });
-
-    // Keep installment dues aligned to the fee-head line total
-    const partsSum = roundMoney(parts.reduce((s, p) => s + p.amount, 0));
-    if (parts.length > 0 && partsSum > 0 && Math.abs(partsSum - amount) > 0.009) {
-      const ratio = amount / partsSum;
-      let allocated = 0;
-      parts = parts.map((p, idx) => {
-        if (idx === parts.length - 1) {
-          return { ...p, amount: roundMoney(amount - allocated) };
-        }
-        const scaled = roundMoney(p.amount * ratio);
-        allocated = roundMoney(allocated + scaled);
-        return { ...p, amount: scaled };
-      });
-    }
-
-    return parts;
+    const normalized = normalizeInstallmentAmounts(amount, line.installments);
+    return normalized.map((i) => {
+      let dueDate: Date;
+      if (i.dueDate) {
+        dueDate = new Date(i.dueDate);
+        if (Number.isNaN(dueDate.getTime())) dueDate = addDays(baseDate, i.dueDays ?? 0);
+      } else {
+        dueDate = addDays(baseDate, i.dueDays ?? 0);
+      }
+      return {
+        installmentNo: i.installmentNo || 1,
+        amount: roundMoney(Number(i.amount)),
+        dueDate,
+      };
+    });
   }
   return [{ installmentNo: 1, amount, dueDate: addDays(baseDate, 30) }];
 }
@@ -239,23 +257,35 @@ export async function provisionStudentFeesInTransaction(
     feeHeadMasterId: p.feeHeadMasterId,
   }));
 
-  // Tuition-first for down payment
-  const { allocations, remainingUnapplied } = applyFifoSameHeadOnly(
+  // Tuition-first for down payment; fall back to any open head so we never
+  // record a SUCCESS receipt without reducing dues.
+  let { allocations, remainingUnapplied } = applyFifoSameHeadOnly(
     balanceRows,
     downPay,
     tuition.id
   );
+  if (allocations.length === 0) {
+    ({ allocations, remainingUnapplied } = applyFifoSameHeadOnly(balanceRows, downPay, null));
+  }
 
   if (allocations.length === 0) {
-    return { pendingFees, payment: null, concessionAmount: concession };
+    throw new Error(
+      `Cannot apply down payment of ₹${downPay}: no open fee dues to allocate`
+    );
   }
 
   const appliedTotal = roundMoney(allocations.reduce((s, a) => s + a.applied, 0));
-  if (remainingUnapplied > 0.009) {
-    // Overpay beyond open dues — still record only applied portion
+  if (appliedTotal <= 0) {
+    throw new Error(
+      `Cannot apply down payment of ₹${downPay}: allocation produced zero applied amount`
+    );
   }
 
   const receiptNo = await SequenceService.getNextNumber(input.instituteId, "RECEIPT");
+  const overpayNote =
+    remainingUnapplied > 0.009
+      ? ` | Applied ₹${appliedTotal} of ₹${downPay} (open dues capped)`
+      : "";
 
   const payment = await tx.payment.create({
     data: {
@@ -272,7 +302,7 @@ export async function provisionStudentFeesInTransaction(
       paymentModeMasterId: input.paymentModeMasterId || null,
       transactionRef: input.transactionRef || null,
       status: "SUCCESS",
-      notes: "Initial / down payment",
+      notes: `Initial / down payment${overpayNote}`,
       feeHeadMasterId: allocations[0]?.row.feeHeadMasterId || tuition.id,
       feeHead:
         pendingFees.find((p) => p.id === allocations[0]?.row.id)?.feeHead || tuition.name,
@@ -281,6 +311,7 @@ export async function provisionStudentFeesInTransaction(
     },
   });
 
+  let allocationCount = 0;
   for (const alloc of allocations) {
     if (!alloc.row.id || alloc.applied <= 0) continue;
     await tx.paymentAllocation.create({
@@ -300,6 +331,13 @@ export async function provisionStudentFeesInTransaction(
       },
     });
     await linkAllocationToInvoice(tx, payment.id, alloc.row.id);
+    allocationCount += 1;
+  }
+
+  if (allocationCount === 0) {
+    throw new Error(
+      `Down payment receipt ${receiptNo} could not be linked to charge lines — aborting`
+    );
   }
 
   await syncInvoicesForPendingFeeIds(
@@ -329,15 +367,17 @@ export function buildLegacyTuitionLines(params: {
   if (total <= 0) return [];
 
   if (params.installments && params.installments.length > 0) {
+    const normalized = normalizeInstallmentAmounts(total, params.installments);
     return [
       {
         feeHeadMasterId: params.tuitionHeadId,
         feeHead: params.tuitionHeadName,
         amount: total,
-        installments: params.installments.map((i) => ({
+        installments: normalized.map((i) => ({
           installmentNo: i.installmentNo,
-          amount: roundMoney(Number(i.amount)),
+          amount: i.amount,
           dueDate: i.dueDate,
+          dueDays: i.dueDays,
         })),
       },
     ];
