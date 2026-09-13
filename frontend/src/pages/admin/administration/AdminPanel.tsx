@@ -27,6 +27,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 type TabKey = "all" | "active" | "inactive" | "invitations" | "access";
 type RoleFilter = "all" | "CENTER_MANAGER" | "COUNSELLOR" | "FACULTY" | "ADMIN";
@@ -102,16 +103,16 @@ const ManagerCard = ({
   const counsellorCount = 0;
 
   return (
-    <Card className="border border-border bg-card shadow-xs hover:shadow-md hover:border-primary/40 transition-all rounded-2xl overflow-hidden flex flex-col h-full group">
+    <Card className="border border-border bg-card shadow-xs hover:shadow-md hover:border-primary/40 transition-all rounded-xl overflow-hidden flex flex-col h-full group">
       <CardContent className="p-0 flex flex-col h-full">
         <div className="p-5 pb-3.5">
           <div className="flex justify-between items-start gap-2">
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="h-11 w-11 rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/50 flex items-center justify-center text-primary dark:text-sky-400 overflow-hidden shrink-0">
+              <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/50 flex items-center justify-center text-primary dark:text-sky-400 overflow-hidden shrink-0">
                 <UserCheck className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-extrabold text-foreground leading-tight truncate tracking-tight">{manager.name}</h3>
+                <h3 className="text-base font-semibold text-foreground leading-tight truncate tracking-tight">{manager.name}</h3>
                 <p className="text-xs font-semibold text-primary/80 dark:text-sky-400/90 mb-1">
                   {getPrimaryRoleLabel(manager.roles)}
                 </p>
@@ -194,19 +195,19 @@ const ManagerCard = ({
           <div className="grid grid-cols-4 gap-1.5 mb-3.5 text-center">
             <div className="flex flex-col items-center p-2 rounded-xl bg-muted/30 border border-border/60">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Students</span>
-              <span className="text-xs sm:text-sm font-black text-foreground mt-0.5">{studentCount}</span>
+              <span className="text-xs sm:text-sm font-bold text-foreground mt-0.5">{studentCount}</span>
             </div>
             <div className="flex flex-col items-center p-2 rounded-xl bg-muted/30 border border-border/60">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Faculty</span>
-              <span className="text-xs sm:text-sm font-black text-foreground mt-0.5">{facultyCount}</span>
+              <span className="text-xs sm:text-sm font-bold text-foreground mt-0.5">{facultyCount}</span>
             </div>
             <div className="flex flex-col items-center p-2 rounded-xl bg-muted/30 border border-border/60">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Counsels</span>
-              <span className="text-xs sm:text-sm font-black text-foreground mt-0.5">{counsellorCount}</span>
+              <span className="text-xs sm:text-sm font-bold text-foreground mt-0.5">{counsellorCount}</span>
             </div>
             <div className="flex flex-col items-center p-2 rounded-xl bg-muted/30 border border-border/60">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Batches</span>
-              <span className="text-xs sm:text-sm font-black text-foreground mt-0.5">{batchCount}</span>
+              <span className="text-xs sm:text-sm font-bold text-foreground mt-0.5">{batchCount}</span>
             </div>
           </div>
 
@@ -410,84 +411,86 @@ export const AdminPanel: React.FC = () => {
 
   if (usersLoading || branchesLoading) {
     return (
-      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <h3 className="text-lg font-bold text-foreground">Loading User Data...</h3>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+          <h3 className="text-lg font-bold text-foreground">Loading User Data...</h3>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-6 sm:p-8 max-w-screen-2xl mx-auto bg-background min-h-screen relative overflow-x-hidden space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
+    <PageContainer className="relative overflow-x-hidden">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2.5">
             <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
             User Management
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-            Manage staff users, invitations, and branch access.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setInviteOpen(true)}
-            className="font-bold h-10 px-5 rounded-xl cursor-pointer"
-          >
-            <UserPlus className="h-4 w-4 mr-2" /> Invite User
-          </Button>
-          <Button
-            onClick={() => navigate("/admin/administration/admins/new")}
-            className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer"
-          >
-            <Plus className="h-4 w-4 mr-2" /> Add User
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+        description="Manage staff users, invitations, and branch access."
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setInviteOpen(true)}
+              className="font-bold h-10 px-5 rounded-xl cursor-pointer"
+            >
+              <UserPlus className="h-4 w-4 mr-2" /> Invite User
+            </Button>
+            <Button
+              onClick={() => navigate("/admin/administration/admins/new")}
+              className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer"
+            >
+              <Plus className="h-4 w-4 mr-2" /> Add User
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
+        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 rounded-xl">
               <Users className="h-6 w-6" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Staff</p>
-              <h3 className="text-2xl font-black text-foreground">{staffUsers.length}</h3>
+              <h3 className="text-2xl font-bold text-foreground">{staffUsers.length}</h3>
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
+        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 rounded-xl">
               <UserCheck className="h-6 w-6" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Active Staff</p>
-              <h3 className="text-2xl font-black text-foreground">{activeStaffCount}</h3>
+              <h3 className="text-2xl font-bold text-foreground">{activeStaffCount}</h3>
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
+        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 rounded-xl">
               <Building2 className="h-6 w-6" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Branches Assigned</p>
-              <h3 className="text-2xl font-black text-foreground">{assignedBranchesCount}</h3>
+              <h3 className="text-2xl font-bold text-foreground">{assignedBranchesCount}</h3>
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
+        <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40 rounded-xl">
               <Mail className="h-6 w-6" />
             </div>
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Pending Invites</p>
-              <h3 className="text-2xl font-black text-foreground">{invitations.length}</h3>
+              <h3 className="text-2xl font-bold text-foreground">{invitations.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -542,9 +545,9 @@ export const AdminPanel: React.FC = () => {
 
       {(tab === "all" || tab === "active" || tab === "inactive") && (
         filteredStaff.length === 0 ? (
-          <Card className="border border-border bg-card rounded-2xl shadow-xs py-16 text-center">
+          <Card className="border border-border bg-card rounded-xl shadow-xs py-16 text-center">
             <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
-              <div className="h-16 w-16 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
+              <div className="h-16 w-16 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
                 <Users className="h-8 w-8" />
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">No Users Found</h3>
@@ -574,7 +577,7 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {tab === "invitations" && (
-        <Card className="border border-border rounded-2xl shadow-xs overflow-hidden">
+        <Card className="border border-border rounded-xl shadow-xs overflow-hidden">
           <CardContent className="p-0">
             {invitationsLoading ? (
               <div className="flex justify-center py-16">
@@ -658,7 +661,7 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {tab === "access" && (
-        <Card className="border border-border rounded-2xl shadow-xs overflow-hidden">
+        <Card className="border border-border rounded-xl shadow-xs overflow-hidden">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -719,7 +722,7 @@ export const AdminPanel: React.FC = () => {
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" /> Invite User
@@ -807,7 +810,7 @@ export const AdminPanel: React.FC = () => {
 
       {/* Branch access editor */}
       <Dialog open={!!accessUserId} onOpenChange={(open) => !open && setAccessUserId(null)}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle>Edit Branch Access</DialogTitle>
             <DialogDescription>
@@ -858,7 +861,7 @@ export const AdminPanel: React.FC = () => {
       </Dialog>
 
       <Dialog open={activeModal === "delete"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
               <Trash2 className="h-5 w-5" /> Delete User?
@@ -895,7 +898,7 @@ export const AdminPanel: React.FC = () => {
       </Dialog>
 
       <Dialog open={activeModal === "resetPassword"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Reset Password</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -937,7 +940,7 @@ export const AdminPanel: React.FC = () => {
       </Dialog>
 
       <Dialog open={activeModal === "changeBranch"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Assign/Change Branch</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -974,6 +977,6 @@ export const AdminPanel: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

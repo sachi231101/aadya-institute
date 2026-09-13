@@ -15,6 +15,7 @@ import { useExam, useUpdateExam } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useBranches } from "@/hooks/useBranches";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -158,34 +159,36 @@ export const EditExam: React.FC = () => {
 
   if (examLoading) {
     return (
-      <div className="p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center gap-3 text-muted-foreground py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm">Loading exam details...</p>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(`${basePath}/${id}`)}
-          className="h-9 w-9 rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`${basePath}/${id}`)}
+              className="h-9 w-9 rounded-full -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <FileText className="h-6 w-6 text-primary" />
             Edit Examination
-          </h1>
-          <p className="text-sm text-muted-foreground">
+          </span>
+        }
+        description={
+          <>
             Update rules, scoring, and configuration for <strong>{exam?.name}</strong>.
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -564,7 +567,7 @@ export const EditExam: React.FC = () => {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 };
 

@@ -2,12 +2,21 @@
 export default {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
-  theme: {
+	theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['var(--font-primary)'],
+  			heading: ['var(--font-heading)'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			xl: 'var(--radius-xl)',
+  			card: 'var(--card-radius)',
+  		},
+  		maxWidth: {
+  			page: 'var(--page-max-width)',
   		},
   		colors: {
   			background: 'hsl(var(--background))',

@@ -49,10 +49,11 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 
 const PAGE_SIZE = 10;
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]";
+  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-primary";
 
 const AttentionCard = ({
   title,
@@ -185,51 +186,49 @@ export const FacultyReports: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
-        <Loader2 className="h-9 w-9 animate-spin text-[#2563EB]" />
-        <p className="text-sm font-medium">Aggregating instructor workloads & feedback analytics...</p>
-      </div>
+      <PageContainer>
+        <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
+          <Loader2 className="h-9 w-9 animate-spin text-primary" />
+          <p className="text-sm font-medium">Aggregating instructor workloads & feedback analytics...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center space-y-3">
-        <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-        <h3 className="text-lg font-bold text-red-800">Failed to load faculty reports</h3>
-        <p className="text-xs text-red-600">Unable to retrieve real-time faculty metrics from backend service.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Retry Loading
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="p-8 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+          <h3 className="text-lg font-bold text-red-800">Failed to load faculty reports</h3>
+          <p className="text-xs text-red-600">Unable to retrieve real-time faculty metrics from backend service.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry Loading
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4 pb-10">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Faculty Analytics & Reports</h2>
-          <p className="text-sm text-text-secondary">
-            Evaluate instructor workload, student feedback, attendance, and session compliance.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
-          onClick={handleExport}
-        >
-          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
-          Export Faculty CSV
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Faculty Analytics & Reports"
+        description="Evaluate instructor workload, student feedback, attendance, and session compliance."
+        actions={
+          <Button
+            variant="outline"
+            className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+            onClick={handleExport}
+          >
+            <Download className="mr-2 h-4 w-4 text-primary" />
+            Export Faculty CSV
+          </Button>
+        }
+      />
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <FilterToolbar className="flex-col items-stretch gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {isAdmin && (
               <select
                 className={SELECT_CLASS}
@@ -265,13 +264,12 @@ export const FacultyReports: React.FC = () => {
               Reset
             </Button>
           </div>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
+        <Card size="compact" className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-blue-50 text-primary">
               <UserCheck className="h-6 w-6" />
             </div>
             <div>
@@ -280,8 +278,8 @@ export const FacultyReports: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+        <Card size="compact" className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
               <Star className="h-6 w-6" />
             </div>
@@ -291,8 +289,8 @@ export const FacultyReports: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+        <Card size="compact" className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
               <Clock className="h-6 w-6" />
             </div>
@@ -302,8 +300,8 @@ export const FacultyReports: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+        <Card size="compact" className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="h-6 w-6" />
             </div>
@@ -313,13 +311,13 @@ export const FacultyReports: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50 bg-white shadow-sm">
           <CardHeader className="p-5 pb-2 border-b border-slate-100">
             <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#2563EB]" />
+              <BarChart3 className="h-5 w-5 text-primary" />
               Faculty Workload (Hours)
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
@@ -427,7 +425,7 @@ export const FacultyReports: React.FC = () => {
       <Card className="border-border/50 bg-white shadow-sm overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-slate-100 flex flex-col sm:flex-row gap-3 justify-between">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Award className="h-5 w-5 text-[#2563EB]" />
+            <Award className="h-5 w-5 text-primary" />
             Faculty Performance Directory
           </CardTitle>
           <div className="relative w-full sm:max-w-xs">
@@ -474,7 +472,7 @@ export const FacultyReports: React.FC = () => {
                     <TableRow key={faculty.id} className="hover:bg-slate-50">
                       <TableCell>
                         <div>
-                          <span className="font-mono text-xs font-bold text-[#2563EB] block">
+                          <span className="font-mono text-xs font-bold text-primary block">
                             {faculty.facultyCode}
                           </span>
                           <span className="font-medium text-slate-900 text-xs">{faculty.name}</span>
@@ -553,6 +551,6 @@ export const FacultyReports: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

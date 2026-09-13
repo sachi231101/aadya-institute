@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { GraduationCap, Search, Loader2, AlertCircle, Download } from "lucide-react";
 import { useEligibleStudents } from "@/hooks/usePlacement";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -65,23 +66,23 @@ export const EligibleStudents: React.FC = () => {
   const students = data?.data?.data || data?.data || [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Eligible Students</h2>
-          <p className="text-sm text-text-secondary">Students eligible for placement drives.</p>
-        </div>
-        <Button
-          variant="outline"
-          className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
-          disabled={!Array.isArray(students) || students.length === 0}
-          onClick={() => exportEligibleToCSV(students)}
-        >
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Eligible Students"
+        description="Students eligible for placement drives."
+        actions={
+          <Button
+            variant="outline"
+            className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+            disabled={!Array.isArray(students) || students.length === 0}
+            onClick={() => exportEligibleToCSV(students)}
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        }
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
@@ -158,6 +159,6 @@ export const EligibleStudents: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

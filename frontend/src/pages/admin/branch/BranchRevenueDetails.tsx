@@ -22,6 +22,7 @@ import {
   Layers,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBranches, useBranch, useBranchStats } from "@/hooks/useBranches";
@@ -165,53 +166,49 @@ export const BranchRevenueDetails: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12 animate-in fade-in">
-      {/* 1. TOP NAVIGATION & HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate("/admin/dashboard")}
-            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground border-border mt-1"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/10 border-primary/20 font-bold">
-                {branchCode}
-              </Badge>
-              <Badge className={status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
-                {status}
-              </Badge>
-              <span className="text-xs text-muted-foreground font-medium">Branch Financial Analysis</span>
+    <PageContainer className="animate-in fade-in">
+      <PageHeader
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2.5">
+            <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/10 border-primary/20 font-bold">
+              {branchCode}
+            </Badge>
+            <Badge className={status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
+              {status}
+            </Badge>
+            {branchName}
+          </span>
+        }
+        description={
+          <span className="flex flex-wrap items-center gap-4 text-xs">
+            <span className="text-muted-foreground font-medium">Branch Financial Analysis</span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> {address}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5" /> {phone}
+            </span>
+          </span>
+        }
+        actions={
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate("/admin/dashboard")}
+              className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground border-border"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3 bg-muted/40 border border-border px-3.5 py-2 rounded-xl">
+              <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                {managerName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Center Manager</p>
+                <p className="text-xs font-bold text-foreground mt-0.5">{managerName}</p>
+              </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{branchName}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-0.5">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground" /> {address}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {phone}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* MANAGER CHIP & TIME FILTER */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center gap-3 bg-muted/40 border border-border px-3.5 py-2 rounded-xl">
-            <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-black text-xs shadow-xs">
-              {managerName.charAt(0)}
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Center Manager</p>
-              <p className="text-xs font-bold text-foreground mt-0.5">{managerName}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
             <select
               value={selectedTimeRange}
               onChange={(e) => setSelectedTimeRange(e.target.value)}
@@ -223,8 +220,8 @@ export const BranchRevenueDetails: React.FC = () => {
               <option>All Time</option>
             </select>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {isLoading && (
         <div className="flex items-center justify-center py-6 text-muted-foreground gap-2 bg-muted/30 rounded-xl border border-border">
@@ -242,7 +239,7 @@ export const BranchRevenueDetails: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Projected Revenue</p>
-                <h3 className="text-2xl font-black text-foreground mt-1.5">{formatINR(dbProjected)}</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1.5">{formatINR(dbProjected)}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40">
                 <DollarSign className="h-5 w-5" />
@@ -261,7 +258,7 @@ export const BranchRevenueDetails: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Paid / Collected Fees</p>
-                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">{formatINR(dbCollected)}</h3>
+                <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1.5">{formatINR(dbCollected)}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
                 <CheckCircle2 className="h-5 w-5" />
@@ -284,7 +281,7 @@ export const BranchRevenueDetails: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Pending / Overdue Fees</p>
-                <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1.5">{formatINR(dbPending)}</h3>
+                <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1.5">{formatINR(dbPending)}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
                 <Clock className="h-5 w-5" />
@@ -303,7 +300,7 @@ export const BranchRevenueDetails: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Enrolled Cohort</p>
-                <h3 className="text-2xl font-black text-foreground mt-1.5">{studentCount} Students</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1.5">{studentCount} Students</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
                 <GraduationCap className="h-5 w-5" />
@@ -435,7 +432,7 @@ export const BranchRevenueDetails: React.FC = () => {
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                   {activeTab === "collection" && (
                     <>
-                      <span className="text-2xl font-black text-foreground">{dbCollectionRate}%</span>
+                      <span className="text-2xl font-bold text-foreground">{dbCollectionRate}%</span>
                       <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Collected</span>
                     </>
                   )}
@@ -467,7 +464,7 @@ export const BranchRevenueDetails: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatINR(dbCollected)}</p>
+                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatINR(dbCollected)}</p>
                         <p className="text-[10px] font-bold text-muted-foreground">{dbCollectionRate}% share</p>
                       </div>
                     </div>
@@ -481,7 +478,7 @@ export const BranchRevenueDetails: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-amber-600 dark:text-amber-400">{formatINR(dbPending)}</p>
+                        <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatINR(dbPending)}</p>
                         <p className="text-[10px] font-bold text-muted-foreground">{dbProjected > 0 ? 100 - dbCollectionRate : 0}% share</p>
                       </div>
                     </div>
@@ -645,7 +642,7 @@ export const BranchRevenueDetails: React.FC = () => {
                           {tx.method.replace(/_/g, " ")}
                         </Badge>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
                         {formatINR(tx.amount)}
                       </td>
                       <td className="py-3.5 px-4 pr-6 text-center">
@@ -667,6 +664,6 @@ export const BranchRevenueDetails: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

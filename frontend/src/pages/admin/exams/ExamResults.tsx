@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader, PageSection } from "@/components/layout";
 import {
   ResponsiveContainer,
   BarChart,
@@ -87,7 +88,7 @@ export const ExamResults: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -105,31 +106,29 @@ export const ExamResults: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Exam Results</h2>
-        <p className="text-sm text-text-secondary">
-          Examination performance overview and individual student results.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Exam Results"
+        description="Examination performance overview and individual student results."
+      />
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {[
           { label: "Total Exams", value: summary.totalExams },
-          { label: "Published", value: summary.publishedExams },
           { label: "Attempts", value: summary.totalAttempts },
           { label: "Avg Score", value: `${summary.avgScore}%` },
           { label: "Pass Rate", value: `${summary.passRate}%` },
         ].map((m) => (
-          <Card key={m.label} className="border-border/50">
-            <CardContent className="p-4">
+          <Card key={m.label} size="compact" className="border-border/50">
+            <CardContent size="compact">
               <p className="text-xs text-text-secondary">{m.label}</p>
               <h3 className="text-2xl font-bold">{m.value}</h3>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </MetricGrid>
 
+      <PageSection title="Performance">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50">
           <CardContent className="p-4">
@@ -184,12 +183,13 @@ export const ExamResults: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      </PageSection>
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <FilterToolbar className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
             <h3 className="font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#2563EB]" />
+              <Users className="w-4 h-4 text-primary" />
               Student Results
             </h3>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -225,7 +225,7 @@ export const ExamResults: React.FC = () => {
                 <option value="TERMINATED">Terminated</option>
               </select>
             </div>
-          </div>
+          </FilterToolbar>
 
           <div className="rounded-md border border-border/60 overflow-hidden">
             <Table>
@@ -301,6 +301,6 @@ export const ExamResults: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

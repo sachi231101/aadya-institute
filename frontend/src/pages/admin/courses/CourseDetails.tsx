@@ -1,10 +1,11 @@
 ﻿import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { coursesApi } from "@/services/courses.api";
 import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -19,18 +20,16 @@ export const CourseDetails: React.FC = () => {
 
   const course = data?.data;
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
-  if (isError || !course) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load course.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
+  if (isLoading) return <PageContainer className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></PageContainer>;
+  if (isError || !course) return <PageContainer maxWidth="narrow" className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load course.<Button variant="link" onClick={() => refetch()}>Retry</Button></PageContainer>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">{course.name}</h2>
-          <p className="text-sm text-text-secondary font-mono">{course.code}</p>
-        </div>
-        <Badge variant="outline">{course.status}</Badge>
-      </div>
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={course.name}
+        description={<span className="font-mono">{course.code}</span>}
+        actions={<Badge variant="outline">{course.status}</Badge>}
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -47,24 +46,25 @@ export const CourseDetails: React.FC = () => {
       </Card>
 
       {course.modules && course.modules.length > 0 && (
-        <Card className="border-border/50">
-          <CardContent className="p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4" /> Modules ({course.modules.length})</h3>
-            <ul className="space-y-2">
-              {course.modules.map((m: { id: string; name: string; sequence: number; duration?: number }) => (
-                <li key={m.id} className="flex justify-between text-sm border-b pb-2">
-                  <span>{m.sequence}. {m.name}</span>
-                  <span className="text-text-secondary">{m.duration ? `${m.duration}h` : ""}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <PageSection title={`Modules (${course.modules.length})`}>
+          <Card className="border-border/50">
+            <CardContent className="p-6">
+              <ul className="space-y-2">
+                {course.modules.map((m: { id: string; name: string; sequence: number; duration?: number }) => (
+                  <li key={m.id} className="flex justify-between text-sm border-b pb-2">
+                    <span>{m.sequence}. {m.name}</span>
+                    <span className="text-text-secondary">{m.duration ? `${m.duration}h` : ""}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </PageSection>
       )}
 
       <Link to={ROUTES.ADMIN.COURSES.ALL}>
         <Button variant="outline">Back to Courses</Button>
       </Link>
-    </div>
+    </PageContainer>
   );
 };

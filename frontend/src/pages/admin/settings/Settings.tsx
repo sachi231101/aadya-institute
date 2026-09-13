@@ -37,6 +37,7 @@ import {
   type SystemSettingCategory,
 } from "../../../hooks/useSettings";
 import { Card } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -244,23 +245,16 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-24 animate-in fade-in duration-200">
-      {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            System Settings
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Manage your personal profile, institute system configuration, security, and portal preferences.
-          </p>
-        </div>
-      </div>
+    <PageContainer className="text-slate-800 font-sans animate-in fade-in duration-200">
+      <PageHeader
+        title="System Settings"
+        description="Manage your personal profile, institute system configuration, security, and portal preferences."
+      />
 
       {/* Notification Toast */}
       {toastMessage && (
         <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-[#2563EB] shrink-0" />
+          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -271,7 +265,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("personal")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "personal"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -283,7 +277,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "security"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -295,7 +289,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("notifications")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "notifications"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -307,7 +301,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("system")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "system"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -319,7 +313,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("system-config")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "system-config"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -331,7 +325,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("sessions")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "sessions"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -343,7 +337,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("permissions")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "permissions"
-              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
+              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -353,22 +347,22 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* ─── 3. REDESIGNED PROFILE HEADER CARD ──────────────────────────── */}
-      <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden p-0">
+      <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl overflow-hidden p-0">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between p-4 sm:p-5 gap-4">
           <div className="flex items-center gap-4">
             {/* Dark Patterned Avatar Box */}
             <div className="relative shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] flex items-center justify-center text-white shadow-md relative overflow-hidden border border-slate-700">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] flex items-center justify-center text-white shadow-md relative overflow-hidden border border-slate-700">
                 {/* Subtle Geometric Pattern Overlay */}
                 <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:8px_8px]" />
-                <span className="text-2xl sm:text-3xl font-black tracking-wider text-white relative z-10">
+                <span className="text-2xl sm:text-3xl font-bold tracking-wider text-white relative z-10">
                   AA
                 </span>
               </div>
               {/* Camera / Edit Icon Badge */}
               <button
                 type="button"
-                className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white border border-slate-200 rounded-full text-slate-700 hover:text-[#2563EB] hover:bg-slate-50 shadow-md transition-all cursor-pointer"
+                className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white border border-slate-200 rounded-full text-slate-700 hover:text-primary hover:bg-slate-50 shadow-md transition-all cursor-pointer"
                 title="Change Avatar"
               >
                 <Camera className="h-3.5 w-3.5" />
@@ -378,10 +372,10 @@ export const Settings: React.FC = () => {
             {/* Profile Info */}
             <div className="space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   {fullName}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100/80 text-[#2563EB] border border-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100/80 text-primary border border-blue-200">
                   ADMIN
                 </span>
               </div>
@@ -402,7 +396,7 @@ export const Settings: React.FC = () => {
 
           {/* Far Right Account Status */}
           <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-            <div className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+            <div className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
               <Check className="h-3.5 w-3.5 stroke-[3]" />
               <span>Account Verified</span>
             </div>
@@ -417,13 +411,13 @@ export const Settings: React.FC = () => {
       {activeTab === "personal" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Left Column (2/3 width): Personal Information Form Card */}
-          <Card className="lg:col-span-2 border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 sm:p-6 space-y-6">
+          <Card className="lg:col-span-2 border-slate-200/80 shadow-xs bg-white rounded-xl p-5 sm:p-6 space-y-6">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-50 text-[#2563EB] shrink-0">
+              <div className="p-2.5 rounded-xl bg-blue-50 text-primary shrink-0">
                 <UserIcon className="h-5 w-5 stroke-[2.2]" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                <h3 className="text-base font-semibold text-slate-900 tracking-tight">
                   Personal Information
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -523,7 +517,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Administration">Administration</option>
                     <option value="Academic Operations">Academic Operations</option>
@@ -546,7 +540,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Aadya Central Branch">Aadya Central Branch</option>
                     <option value="Aadya Mysore Branch">Aadya Mysore Branch</option>
@@ -566,7 +560,7 @@ export const Settings: React.FC = () => {
                 </Label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 pointer-events-none">
-                    <span className="text-[10px] font-black tracking-widest uppercase border border-slate-300 rounded px-1 py-0.2">ID</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase border border-slate-300 rounded px-1 py-0.2">ID</span>
                   </div>
                   <Input
                     value={employeeId}
@@ -601,7 +595,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -625,7 +619,7 @@ export const Settings: React.FC = () => {
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full p-2.5 pl-9 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none"
+                  className="w-full p-2.5 pl-9 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none"
                 />
               </div>
             </div>
@@ -634,10 +628,10 @@ export const Settings: React.FC = () => {
           {/* Right Column (1/3 width): Profile Summary & Quick Actions */}
           <div className="space-y-5">
             {/* 1. Profile Summary Card */}
-            <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 space-y-4">
+            <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4 text-[#2563EB]" />
-                <h3 className="text-sm font-extrabold text-slate-900">
+                <UserIcon className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-slate-900">
                   Profile Summary
                 </h3>
               </div>
@@ -675,10 +669,10 @@ export const Settings: React.FC = () => {
             </Card>
 
             {/* 2. Quick Actions Card */}
-            <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 space-y-3">
+            <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-[#2563EB]" />
-                <h3 className="text-sm font-extrabold text-slate-900">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-slate-900">
                   Quick Actions
                 </h3>
               </div>
@@ -687,13 +681,13 @@ export const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsPasswordModalOpen(true)}
-                  className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
+                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
                       <Lock className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
                       Change Password
                     </span>
                   </div>
@@ -703,13 +697,13 @@ export const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab("sessions")}
-                  className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
+                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
                       <Monitor className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
                       Manage Sessions
                     </span>
                   </div>
@@ -719,13 +713,13 @@ export const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleDownloadMyData}
-                  className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
+                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
                       <Download className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
                       Download My Data
                     </span>
                   </div>
@@ -739,13 +733,13 @@ export const Settings: React.FC = () => {
 
       {/* ─── TAB 2: SECURITY & PASSWORD ─────────────────────────────────── */}
       {activeTab === "security" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-6 max-w-3xl">
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-xl bg-purple-50 text-purple-700 shrink-0">
               <Lock className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight">
                 Security & Authentication
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -791,7 +785,7 @@ export const Settings: React.FC = () => {
             <Button
               onClick={handleChangePasswordSubmit}
               disabled={changePasswordMutation.isPending}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-10 px-5 rounded-xl mt-2"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold h-10 px-5 rounded-xl mt-2"
             >
               {changePasswordMutation.isPending ? "Updating Password..." : "Update Password"}
             </Button>
@@ -801,13 +795,13 @@ export const Settings: React.FC = () => {
 
       {/* ─── TAB 3: NOTIFICATION PREFERENCES ────────────────────────────── */}
       {activeTab === "notifications" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-6 max-w-3xl">
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 shrink-0">
               <Bell className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight">
                 Notification Preferences
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -887,7 +881,7 @@ export const Settings: React.FC = () => {
                   }
                 );
               }}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 px-4 rounded-xl"
             >
               Save Notification Preferences
             </Button>
@@ -897,13 +891,13 @@ export const Settings: React.FC = () => {
 
       {/* ─── TAB 4: SYSTEM PREFERENCES ─────────────────────────────────── */}
       {activeTab === "system" && (
-        <Card className="border-slate-200/80 dark:border-border shadow-xs bg-white dark:bg-card rounded-3xl p-6 space-y-6 max-w-3xl">
+        <Card className="border-slate-200/80 dark:border-border shadow-xs bg-white dark:bg-card rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] dark:text-sky-400 shrink-0">
+            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-primary dark:text-sky-400 shrink-0">
               <Sliders className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-foreground tracking-tight">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-foreground tracking-tight">
                 System & Regional Preferences
               </h3>
               <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium mt-0.5">
@@ -913,7 +907,7 @@ export const Settings: React.FC = () => {
           </div>
 
           {/* Theme Mode Selector */}
-          <div className="space-y-2 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/60 dark:border-border/60">
+          <div className="space-y-2 p-4 rounded-xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/60 dark:border-border/60">
             <div>
               <Label className="text-xs font-bold text-slate-800 dark:text-foreground">Portal Appearance (Dark / Light Mode)</Label>
               <p className="text-[11px] text-slate-500 dark:text-muted-foreground mt-0.5">Choose your preferred visual theme across all Aadya portals.</p>
@@ -963,7 +957,7 @@ export const Settings: React.FC = () => {
                   }
                 );
               }}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 px-4 rounded-xl"
             >
               Save System Preferences
             </Button>
@@ -982,13 +976,13 @@ export const Settings: React.FC = () => {
 
       {/* ─── TAB 5: ACTIVE SESSIONS ─────────────────────────────────────── */}
       {activeTab === "sessions" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-6 max-w-3xl">
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 shrink-0">
               <Monitor className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight">
                 Active Devices & Sessions
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1006,7 +1000,7 @@ export const Settings: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900">Chrome on Windows 11</span>
-                    <span className="px-2 py-0.2 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800">
+                    <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
                       CURRENT SESSION
                     </span>
                   </div>
@@ -1051,10 +1045,10 @@ export const Settings: React.FC = () => {
 
       {/* ─── 4F. TAB 6: ROLES & PERMISSIONS (EXAMINATION SYSTEM) ─────────── */}
       {activeTab === "permissions" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 sm:p-7 space-y-6">
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 sm:p-7 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-purple-600" />
                 Examination Roles & Granular RBAC Permissions
               </h2>
@@ -1078,8 +1072,8 @@ export const Settings: React.FC = () => {
 
           {/* Role Hierarchy Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1">
-              <span className="text-[10px] font-extrabold uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+            <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-100 space-y-1">
+              <span className="text-[10px] font-semibold uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
                 ADMIN
               </span>
               <p className="text-xs font-bold text-slate-900 pt-1">Full Institute Scope</p>
@@ -1088,8 +1082,8 @@ export const Settings: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-1">
-              <span className="text-[10px] font-extrabold uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-1">
+              <span className="text-[10px] font-semibold uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
                 CENTER MANAGER
               </span>
               <p className="text-xs font-bold text-slate-900 pt-1">Branch Isolated Scope</p>
@@ -1098,8 +1092,8 @@ export const Settings: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-1">
-              <span className="text-[10px] font-extrabold uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1">
+              <span className="text-[10px] font-semibold uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
                 COUNSELLOR / FACULTY
               </span>
               <p className="text-xs font-bold text-slate-900 pt-1">Configurable Access</p>
@@ -1111,7 +1105,7 @@ export const Settings: React.FC = () => {
 
           {/* Granular Permissions Breakdown */}
           <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider">
+            <h3 className="text-xs font-bold uppercase text-slate-700 tracking-wider">
               Examination Permission Dictionary
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1152,7 +1146,7 @@ export const Settings: React.FC = () => {
       )}
 
       {/* ─── 5. BOTTOM STICKY ACTION BAR ─────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+      <div className="flex items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
         <Button
           type="button"
           variant="outline"
@@ -1177,7 +1171,7 @@ export const Settings: React.FC = () => {
             type="button"
             onClick={handleSavePersonal}
             disabled={updatePersonalMutation.isPending}
-            className="text-xs font-bold h-10 px-5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
+            className="text-xs font-bold h-10 px-5 bg-primary hover:bg-primary text-white rounded-xl gap-2 shadow-xs cursor-pointer"
           >
             <Save className="h-4 w-4" />
             <span>Save Changes</span>
@@ -1187,9 +1181,9 @@ export const Settings: React.FC = () => {
 
       {/* ─── MODAL: CHANGE PASSWORD MODAL ───────────────────────────────── */}
       <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black text-slate-900">
+            <DialogTitle className="text-xl font-bold text-slate-900">
               Change Administrator Password
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1243,14 +1237,14 @@ export const Settings: React.FC = () => {
             <Button
               onClick={handleChangePasswordSubmit}
               disabled={changePasswordMutation.isPending}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl"
             >
               Update Password
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 
@@ -1298,9 +1292,9 @@ function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
   };
 
   return (
-    <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-5 max-w-3xl">
+    <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-5 max-w-3xl">
       <div>
-        <h3 className="text-base font-extrabold text-slate-900">Institute System Config</h3>
+        <h3 className="text-base font-semibold text-slate-900">Institute System Config</h3>
         <p className="text-xs text-slate-500 mt-0.5">
           Configure institute-wide settings by category. Values are stored as JSON.
         </p>
@@ -1313,7 +1307,7 @@ function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
             onClick={() => setCategory(c)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
               category === c
-                ? "bg-[#2563EB] text-white border-[#2563EB]"
+                ? "bg-primary text-white border-primary"
                 : "bg-white text-slate-600 border-slate-200"
             }`}
           >
@@ -1347,7 +1341,7 @@ function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
       <Button
         onClick={handleSave}
         disabled={updateMutation.isPending}
-        className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
+        className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 px-4 rounded-xl"
       >
         {updateMutation.isPending ? "Saving..." : "Save System Config"}
       </Button>

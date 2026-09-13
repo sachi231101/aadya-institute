@@ -13,6 +13,7 @@ import { useAttemptDetails } from '@/hooks/useExamAttempts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageContainer, MetricGrid } from '@/components/layout';
 
 type ReviewOption = {
   id: string;
@@ -52,43 +53,43 @@ export const ExamResultScreen: React.FC = () => {
 
   if (isLoading && !attempt) {
     return (
-      <div className="max-w-3xl mx-auto py-16 text-center space-y-4 animate-pulse">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4 animate-pulse">
         <div className="h-16 w-16 bg-slate-200 rounded-full mx-auto" />
         <div className="h-6 bg-slate-200 rounded w-1/3 mx-auto" />
-        <div className="h-48 bg-slate-100 rounded-xl" />
-      </div>
+        <div className="h-48 bg-slate-100 rounded-xl w-full" />
+      </PageContainer>
     );
   }
 
   if (error || !attempt) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
         <h2 className="text-xl font-bold text-slate-900">Unable to load examination result</h2>
         <p className="text-sm text-slate-500">The attempt was not found or you do not have access.</p>
         <Button variant="outline" onClick={() => navigate('/student/exams')}>
           Back to My Exams
         </Button>
-      </div>
+      </PageContainer>
     );
   }
 
   if (['EVALUATING', 'SUBMITTED', 'AUTO_SUBMITTED'].includes(attempt.status)) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <div className="h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
         <h2 className="text-xl font-bold text-slate-900">Evaluation in progress…</h2>
         <p className="text-sm text-slate-500">
           Objective questions are scored automatically. If this exam includes fill-in, short, or long
           answers, an instructor will review them before your final result is ready.
         </p>
-      </div>
+      </PageContainer>
     );
   }
 
   if (attempt.status === 'TERMINATED') {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <XCircle className="h-12 w-12 text-red-500 mx-auto" />
         <h2 className="text-xl font-bold text-slate-900">Examination Terminated</h2>
         <p className="text-sm text-slate-500">
@@ -98,13 +99,13 @@ export const ExamResultScreen: React.FC = () => {
         <Button variant="outline" onClick={() => navigate('/student/exams')}>
           Back to My Exams
         </Button>
-      </div>
+      </PageContainer>
     );
   }
 
   if (exam?.showResults === false) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+      <PageContainer maxWidth="narrow" className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <ShieldCheck className="h-12 w-12 text-indigo-500 mx-auto" />
         <h2 className="text-xl font-bold text-slate-900">Results Hidden</h2>
         <p className="text-sm text-slate-500">
@@ -114,7 +115,7 @@ export const ExamResultScreen: React.FC = () => {
         <Button variant="outline" onClick={() => navigate('/student/exams')}>
           Back to My Exams
         </Button>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -146,7 +147,7 @@ export const ExamResultScreen: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-6 space-y-6">
+    <PageContainer maxWidth="narrow">
       <Button
         variant="ghost"
         size="sm"
@@ -174,7 +175,7 @@ export const ExamResultScreen: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-widest text-white/80">
               Examination Result
             </span>
-            <h1 className="text-3xl font-black tracking-tight text-white mt-1">
+            <h1 className="text-3xl font-semibold tracking-tight text-white mt-1">
               {isPassed ? 'Assessment Passed!' : 'Assessment Not Cleared'}
             </h1>
             <p className="text-xs text-white/80 mt-1 max-w-md mx-auto">
@@ -184,34 +185,42 @@ export const ExamResultScreen: React.FC = () => {
         </div>
 
         <CardContent className="p-6 sm:p-8 space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Total Score</p>
-              <p className="text-xl font-extrabold text-slate-900 mt-1">
-                {score} / {totalMarks}
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Percentage</p>
-              <p className="text-xl font-extrabold text-slate-900 mt-1">{percentage}%</p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Passing Score</p>
-              <p className="text-xl font-extrabold text-slate-900 mt-1">{exam?.passingMarks}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Result Status</p>
-              <Badge
-                className={`mt-1 text-xs font-bold ${
-                  isPassed
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                    : 'bg-red-100 text-red-800 border-red-200'
-                }`}
-              >
-                {isPassed ? 'PASSED' : 'FAILED'}
-              </Badge>
-            </div>
-          </div>
+          <MetricGrid density="compact">
+            <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs text-center">
+              <CardContent size="compact">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Score</p>
+                <p className="text-xl font-semibold text-foreground mt-1">
+                  {score} / {totalMarks}
+                </p>
+              </CardContent>
+            </Card>
+            <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs text-center">
+              <CardContent size="compact">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Percentage</p>
+                <p className="text-xl font-semibold text-foreground mt-1">{percentage}%</p>
+              </CardContent>
+            </Card>
+            <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs text-center">
+              <CardContent size="compact">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Passing Score</p>
+                <p className="text-xl font-semibold text-foreground mt-1">{exam?.passingMarks}</p>
+              </CardContent>
+            </Card>
+            <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs text-center">
+              <CardContent size="compact">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Result Status</p>
+                <Badge
+                  className={`mt-1 text-xs font-bold ${
+                    isPassed
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                      : 'bg-red-100 text-red-800 border-red-200'
+                  }`}
+                >
+                  {isPassed ? 'PASSED' : 'FAILED'}
+                </Badge>
+              </CardContent>
+            </Card>
+          </MetricGrid>
 
           <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 text-xs space-y-2.5">
             <h3 className="font-bold text-slate-800 flex items-center gap-1.5">
@@ -402,7 +411,7 @@ export const ExamResultScreen: React.FC = () => {
           Go to Dashboard
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

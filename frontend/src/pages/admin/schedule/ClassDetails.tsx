@@ -33,6 +33,7 @@ import {
   User,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -214,41 +215,41 @@ export const ClassDetails: React.FC = () => {
     const lower = name.toLowerCase();
     if (lower.includes("java")) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
           <Laptop className="w-6 h-6 stroke-[2.2]" />
         </div>
       );
     }
     if (lower.includes("python")) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
           <Code2 className="w-6 h-6 stroke-[2.2]" />
         </div>
       );
     }
     if (lower.includes("marketing")) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-400 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-pink-500/15 border border-pink-500/30 text-pink-400 flex items-center justify-center shrink-0">
           <Megaphone className="w-6 h-6 stroke-[2.2]" />
         </div>
       );
     }
     if (lower.includes("excel")) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
           <TableIcon className="w-6 h-6 stroke-[2.2]" />
         </div>
       );
     }
     if (lower.includes("power")) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
           <BarChart3 className="w-6 h-6 stroke-[2.2]" />
         </div>
       );
     }
     return (
-      <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+      <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
         <Globe className="w-6 h-6 stroke-[2.2]" />
       </div>
     );
@@ -259,7 +260,7 @@ export const ClassDetails: React.FC = () => {
     switch (status) {
       case "LIVE":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-2 shadow-sm">
+          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-2 shadow-sm">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             LIVE CLASS NOW
           </span>
@@ -451,23 +452,23 @@ export const ClassDetails: React.FC = () => {
   // Loading State
   if (isLoading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-[1500px] mx-auto animate-pulse">
+      <PageContainer className="animate-pulse">
         <div className="h-6 w-48 bg-muted rounded-lg" />
-        <div className="h-28 bg-card border border-border rounded-3xl p-6" />
+        <div className="h-28 bg-card border border-border rounded-xl p-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div className="h-56 bg-card border border-border rounded-2xl" />
-          <div className="h-56 bg-card border border-border rounded-2xl" />
-          <div className="h-56 bg-card border border-border rounded-2xl" />
+          <div className="h-56 bg-card border border-border rounded-xl" />
+          <div className="h-56 bg-card border border-border rounded-xl" />
+          <div className="h-56 bg-card border border-border rounded-xl" />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   // Not Found State
   if (error || !session) {
     return (
-      <div className="p-4 sm:p-6 lg:p-7 max-w-[800px] mx-auto text-center py-20 space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto">
+      <PageContainer maxWidth="narrow" className="text-center py-20 space-y-4">
+        <div className="w-16 h-16 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto">
           <AlertTriangle className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-bold text-foreground">Class Session Not Found</h2>
@@ -480,12 +481,12 @@ export const ClassDetails: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Back to Classes & Sessions
         </Button>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-7 text-foreground font-sans w-full max-w-[1500px] mx-auto pb-20 animate-in fade-in duration-200">
+    <PageContainer className="text-foreground font-sans animate-in fade-in duration-200">
       {/* ─── 1. TOP NAVIGATION & BREADCRUMB ─────────────────────────────── */}
       <div className="flex items-center justify-between gap-4">
         <Link
@@ -501,7 +502,7 @@ export const ClassDetails: React.FC = () => {
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Batch:
           </span>
-          <span className="px-3 py-1 rounded-xl text-xs font-black bg-muted/80 text-foreground border border-border">
+          <span className="px-3 py-1 rounded-xl text-xs font-bold bg-muted/80 text-foreground border border-border">
             {session.batch?.code || "BATCH"}
           </span>
         </div>
@@ -526,15 +527,14 @@ export const ClassDetails: React.FC = () => {
       )}
 
       {/* ─── 2. PAGE HEADER HERO CARD ────────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-3xl p-6 sm:p-7 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 relative overflow-hidden">
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4 sm:gap-5">
             {renderTopicIcon(topicName)}
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
                   {topicName}
                 </h1>
                 {renderStatusBadge(currentStatus)}
@@ -561,11 +561,11 @@ export const ClassDetails: React.FC = () => {
 
           {/* Quick Info Summary Tags */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="px-4 py-2 bg-muted/40 border border-border rounded-2xl flex flex-col justify-center">
+            <div className="px-4 py-2 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                 Mode
               </span>
-              <span className="text-xs font-extrabold text-foreground flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 {session.mode === "ONLINE" ? (
                   <Video className="w-3.5 h-3.5 text-blue-400" />
                 ) : (
@@ -575,11 +575,11 @@ export const ClassDetails: React.FC = () => {
               </span>
             </div>
 
-            <div className="px-4 py-2 bg-muted/40 border border-border rounded-2xl flex flex-col justify-center">
+            <div className="px-4 py-2 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                 Enrolled Students
               </span>
-              <span className="text-xs font-extrabold text-foreground flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-purple-400" />
                 {batchStudents.length > 0 ? batchStudents.length : (session.enrolledStudentsCount ?? 0)} Students
               </span>
@@ -591,13 +591,13 @@ export const ClassDetails: React.FC = () => {
       {/* ─── 3. MAIN INFORMATION GRID ───────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Card 1: Schedule & Timing */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-5 space-y-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Calendar className="w-4 h-4 text-blue-500" />
               Schedule & Timing
             </h3>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
               {session.sessionType || "THEORY"}
             </span>
           </div>
@@ -607,7 +607,7 @@ export const ClassDetails: React.FC = () => {
               <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
                 Scheduled Date
               </span>
-              <p className="font-extrabold text-foreground text-sm flex items-center gap-1.5">
+              <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 {formatDateLabel(dateStr)}
               </p>
@@ -618,7 +618,7 @@ export const ClassDetails: React.FC = () => {
                 <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
                   Start Time
                 </span>
-                <p className="font-extrabold text-foreground text-xs flex items-center gap-1.5">
+                <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-emerald-400" />
                   {session.startTime || "09:00 AM"}
                 </p>
@@ -627,7 +627,7 @@ export const ClassDetails: React.FC = () => {
                 <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
                   End Time
                 </span>
-                <p className="font-extrabold text-foreground text-xs flex items-center gap-1.5">
+                <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-rose-400" />
                   {session.endTime || "10:00 AM"}
                 </p>
@@ -658,7 +658,7 @@ export const ClassDetails: React.FC = () => {
                         size="sm"
                         onClick={handleCreateGoogleMeet}
                         disabled={isActionLoading}
-                        className="h-8 rounded-xl bg-[#2563EB] text-white text-xs font-bold"
+                        className="h-8 rounded-xl bg-primary text-white text-xs font-bold"
                       >
                         {isActionLoading ? "Creating…" : "Create Google Meet"}
                       </Button>
@@ -676,13 +676,13 @@ export const ClassDetails: React.FC = () => {
         </Card>
 
         {/* Card 2: Batch & Curriculum Info */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-5 space-y-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-purple-500" />
               Batch & Curriculum
             </h3>
-            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-muted text-foreground border border-border">
+            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-muted text-foreground border border-border">
               {session.batch?.code || "BATCH"}
             </span>
           </div>
@@ -692,7 +692,7 @@ export const ClassDetails: React.FC = () => {
               <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
                 Batch Name
               </span>
-              <p className="font-extrabold text-foreground text-sm">
+              <p className="font-semibold text-foreground text-sm">
                 {session.batch?.name || "Batch Name"}
               </p>
             </div>
@@ -720,7 +720,7 @@ export const ClassDetails: React.FC = () => {
         </Card>
 
         {/* Card 3: Assigned Faculty */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-5 space-y-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -736,14 +736,14 @@ export const ClassDetails: React.FC = () => {
           {isFacultyAssigned ? (
             <div className="space-y-3.5 text-xs">
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 rounded-2xl border border-border shadow-xs shrink-0">
+                <Avatar className="h-12 w-12 rounded-xl border border-border shadow-xs shrink-0">
                   <AvatarImage src="" />
-                  <AvatarFallback className="bg-[#1769AA] text-white font-black text-sm">
+                  <AvatarFallback className="bg-[#1769AA] text-white font-bold text-sm">
                     {facultyName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <h4 className="font-extrabold text-foreground text-sm truncate">{facultyName}</h4>
+                  <h4 className="font-semibold text-foreground text-sm truncate">{facultyName}</h4>
                   <p className="text-[11px] text-muted-foreground font-medium">
                     Code: {session.faculty?.employeeCode || "FAC"}
                   </p>
@@ -789,15 +789,15 @@ export const ClassDetails: React.FC = () => {
       </div>
 
       {/* ─── 4. ENROLLED STUDENTS DIRECT DISPLAY ────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-3xl p-6 sm:p-7 space-y-5">
+      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <h2 className="text-lg font-black text-foreground flex items-center gap-2">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-400" />
                 Enrolled Students
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-500/15 text-purple-400 border border-purple-500/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
                 {batchStudents.length} {batchStudents.length === 1 ? "Student" : "Students"}
               </span>
             </div>
@@ -828,7 +828,7 @@ export const ClassDetails: React.FC = () => {
           </div>
         ) : batchStudents.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mx-auto text-muted-foreground">
+            <div className="w-12 h-12 rounded-xl bg-muted/60 border border-border flex items-center justify-center mx-auto text-muted-foreground">
               <Users className="w-6 h-6" />
             </div>
             <p className="font-bold text-foreground text-sm">No Enrolled Students</p>
@@ -868,7 +868,7 @@ export const ClassDetails: React.FC = () => {
                       <td className="py-3 px-4 pl-5 align-middle">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 rounded-full border border-border shadow-2xs shrink-0">
-                            <AvatarFallback className="bg-purple-600/90 text-white font-black text-[11px]">
+                            <AvatarFallback className="bg-purple-600/90 text-white font-bold text-[11px]">
                               {sName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -886,8 +886,8 @@ export const ClassDetails: React.FC = () => {
                       </td>
 
                       {/* Code */}
-                      <td className="py-3 px-4 align-middle font-black text-foreground">
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-muted/80 text-foreground border border-border inline-block">
+                      <td className="py-3 px-4 align-middle font-bold text-foreground">
+                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-muted/80 text-foreground border border-border inline-block">
                           {sCode}
                         </span>
                       </td>
@@ -933,10 +933,10 @@ export const ClassDetails: React.FC = () => {
       </Card>
 
       {/* ─── 5. ACTIONS SECTION ─────────────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-3xl p-6 sm:p-7 space-y-4">
+      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-black text-foreground flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-blue-400" />
               Class Management Actions
             </h2>
@@ -952,7 +952,7 @@ export const ClassDetails: React.FC = () => {
             <Button
               onClick={handleOpenEdit}
               disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-blue-500/50 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-blue-500/50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
             >
               <Edit3 className="w-4 h-4 text-blue-400" />
               <span>Edit Class</span>
@@ -964,7 +964,7 @@ export const ClassDetails: React.FC = () => {
             <Button
               onClick={handleOpenChangeFaculty}
               disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-emerald-500/50 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-emerald-500/50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
             >
               <UserPlus className="w-4 h-4 text-emerald-400" />
               <span>{isFacultyAssigned ? "Change Faculty" : "Assign Faculty"}</span>
@@ -976,7 +976,7 @@ export const ClassDetails: React.FC = () => {
             <Button
               onClick={() => setIsCancelConfirmOpen(true)}
               disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
             >
               <XCircle className="w-4 h-4 text-rose-500" />
               <span>Cancel Class</span>
@@ -987,7 +987,7 @@ export const ClassDetails: React.FC = () => {
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className="h-12 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+              className="h-12 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
             >
               <Trash2 className="w-4 h-4 text-rose-400" />
               <span>Delete Class</span>
@@ -998,9 +998,9 @@ export const ClassDetails: React.FC = () => {
 
       {/* ─── MODAL 1: EDIT CLASS MODAL ─────────────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-black text-foreground">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Edit Scheduled Class
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium">
@@ -1182,9 +1182,9 @@ export const ClassDetails: React.FC = () => {
 
       {/* ─── MODAL 2: CHANGE FACULTY MODAL ─────────────────────────────── */}
       <Dialog open={isChangeFacultyModalOpen} onOpenChange={setIsChangeFacultyModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-black text-foreground">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Assign / Change Faculty
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium">
@@ -1203,7 +1203,7 @@ export const ClassDetails: React.FC = () => {
                   <div
                     key={fac.id}
                     onClick={() => setTargetFacultyId(fac.id)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                       isSelected
                         ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/20"
                         : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
@@ -1255,12 +1255,12 @@ export const ClassDetails: React.FC = () => {
 
       {/* ─── MODAL 3: CANCEL CLASS CONFIRMATION ─────────────────────────── */}
       <Dialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
               <XCircle className="w-6 h-6" />
             </div>
-            <DialogTitle className="text-lg font-black text-foreground">
+            <DialogTitle className="text-lg font-bold text-foreground">
               Cancel Class Session?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
@@ -1290,12 +1290,12 @@ export const ClassDetails: React.FC = () => {
 
       {/* ─── MODAL 4: DELETE CLASS CONFIRMATION ─────────────────────────── */}
       <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
               <Trash2 className="w-6 h-6" />
             </div>
-            <DialogTitle className="text-lg font-black text-foreground">
+            <DialogTitle className="text-lg font-bold text-foreground">
               Permanently Delete Class?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
@@ -1321,6 +1321,6 @@ export const ClassDetails: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

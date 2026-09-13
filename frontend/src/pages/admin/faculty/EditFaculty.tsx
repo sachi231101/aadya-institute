@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { ArrowLeft, Save, Loader2, Pencil } from "lucide-react";
 
 const editFacultySchema = z.object({
@@ -130,23 +131,22 @@ export const EditFaculty: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate(`${basePath}/faculty/${id}`)}>
+    <PageContainer maxWidth="narrow">
+      <div className="flex items-start gap-4">
+        <Button variant="outline" size="icon" onClick={() => navigate(`${basePath}/faculty/${id}`)} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Edit Faculty</h2>
-          <p className="text-sm text-muted-foreground">
-            Update profile for {faculty.user?.name} ({faculty.employeeCode})
-          </p>
-        </div>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title="Edit Faculty"
+          description={`Update profile for ${faculty.user?.name} (${faculty.employeeCode})`}
+        />
       </div>
 
       <Card className="border-border/50 shadow-sm">
         <CardHeader className="border-b border-border/50 pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Pencil className="h-5 w-5 text-[#2563EB]" />
+            <Pencil className="h-5 w-5 text-primary" />
             Faculty Details
           </CardTitle>
           <CardDescription>Employee code and branch cannot be changed here.</CardDescription>
@@ -295,7 +295,7 @@ export const EditFaculty: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
+                  className="bg-primary hover:bg-[#F39A16] text-white"
                 >
                   {updateMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -309,6 +309,6 @@ export const EditFaculty: React.FC = () => {
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

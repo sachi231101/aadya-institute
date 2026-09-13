@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useFeedbackByStudent } from "@/hooks/useFeedback";
 import { useAuthStore } from "@/store/auth.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 
 export const StudentFeedback: React.FC = () => {
   const { user } = useAuthStore();
@@ -21,7 +22,7 @@ export const StudentFeedback: React.FC = () => {
 
   if (!resolvedStudentId) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500">
+      <PageContainer maxWidth="narrow" className="animate-in fade-in duration-500">
         <Card className="border-border/50">
           <CardContent className="py-16 text-center">
             <MessageSquare className="h-12 w-12 text-slate-300 mx-auto mb-3" />
@@ -29,20 +30,18 @@ export const StudentFeedback: React.FC = () => {
             <p className="text-xs text-text-secondary mt-1">Please log out and log in again so your student account can be loaded.</p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <Star className="h-6 w-6 text-amber-500" />
-          Class Feedback
-        </h1>
-        <p className="text-sm text-text-secondary mt-1">Rate your classes and share feedback with faculty</p>
-      </div>
+    <PageContainer maxWidth="narrow" className="animate-in fade-in duration-500">
+      <PageHeader
+        title="Class Feedback"
+        description="Rate your classes and share feedback with faculty."
+      />
 
+      <PageSection title="Submitted feedback">
       {isLoading ? (
         <div className="text-center py-12 text-text-secondary">Loading...</div>
       ) : feedbacks.length === 0 ? (
@@ -86,6 +85,7 @@ export const StudentFeedback: React.FC = () => {
           ))}
         </div>
       )}
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };

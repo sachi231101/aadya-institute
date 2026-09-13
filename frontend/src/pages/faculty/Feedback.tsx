@@ -2,24 +2,21 @@ import React, { useMemo, useState } from "react";
 import {
   Star,
   MessageSquare,
-  BookOpen,
-  Calendar,
-  Clock,
-  Sparkles,
-  TrendingUp,
-  Award,
-  Filter,
-  CheckCircle2,
-  ThumbsUp,
-  BarChart3,
-  Users,
+  Search,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore, type ClassFeedbackItem } from "@/store/feedback.store";
 import { useFeedbackByFaculty, useFacultyRatings } from "@/hooks/useFeedback";
+import {
+  PageContainer,
+  PageHeader,
+  MetricGrid,
+  FilterToolbar,
+  PageSection,
+} from "@/components/layout";
 
 export const FacultyFeedback: React.FC = () => {
   const { user } = useAuthStore();
@@ -147,137 +144,103 @@ export const FacultyFeedback: React.FC = () => {
   }, [allFacultyFeedbacks, ratingFilter, searchQuery]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1550px] mx-auto space-y-6 animate-in fade-in duration-300">
-      {/* ─── 1. TOP HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <span className="p-2 rounded-2xl bg-indigo-50 text-[#5B50EC] border border-indigo-100 shadow-2xs">
-              <MessageSquare className="w-5 h-5 stroke-[2.2]" />
-            </span>
-            Student Class Feedback
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Ratings, criteria evaluations, and reviews submitted by students after completing your classes.
-          </p>
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Student Class Feedback"
+        description="Ratings and reviews from students after your classes."
+        actions={
+          <Badge variant="outline" className="font-semibold text-xs px-3 py-1.5 rounded-xl">
+            {metrics.totalCount} reviews
+          </Badge>
+        }
+      />
+
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Overall Rating</p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <h3 className="text-xl font-bold text-amber-500">{metrics.averageOverall}</h3>
+              <span className="text-xs text-muted-foreground font-semibold">/ 5.0</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{metrics.totalCount} responses</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teaching Clarity</p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <h3 className="text-xl font-bold text-foreground">{metrics.averageTeaching}</h3>
+              <span className="text-xs text-muted-foreground font-semibold">/ 5.0</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pacing &amp; Engagement</p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <h3 className="text-xl font-bold text-foreground">{metrics.averageUnderstanding}</h3>
+              <span className="text-xs text-muted-foreground font-semibold">/ 5.0</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Lab / Practicals</p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <h3 className="text-xl font-bold text-foreground">{metrics.averageLab}</h3>
+              <span className="text-xs text-muted-foreground font-semibold">/ 5.0</span>
+            </div>
+          </CardContent>
+        </Card>
+      </MetricGrid>
+
+      <FilterToolbar>
+        <div className="relative flex-1 min-w-[180px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by student, course, or batch..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 text-xs font-medium bg-muted/30 border border-border rounded-lg focus:outline-none focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
         </div>
+        <select
+          value={ratingFilter}
+          onChange={(e) => setRatingFilter(e.target.value as typeof ratingFilter)}
+          className="h-9 px-3 text-xs font-semibold border border-border rounded-lg bg-muted/30 focus:outline-none focus:border-primary cursor-pointer"
+        >
+          <option value="ALL">All ratings</option>
+          <option value="5">5 stars</option>
+          <option value="4">4 stars</option>
+          <option value="3">3 stars</option>
+          <option value="2">2 stars</option>
+          <option value="1">1 star</option>
+        </select>
+      </FilterToolbar>
 
-        <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200/80 font-bold text-xs px-3 py-1.5 rounded-xl self-start sm:self-auto flex items-center gap-1.5 shadow-2xs">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          <span>{metrics.totalCount} Student Reviews Received</span>
-        </Badge>
-      </div>
-
-      {/* ─── 2. 3-CRITERIA RATING METRICS DASHBOARD ────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Overall Average */}
-        <Card className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white border-0 shadow-md rounded-2xl p-5 relative overflow-hidden">
-          <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-blue-100 uppercase tracking-wider">Overall Rating</span>
-              <Award className="w-5 h-5 text-amber-300" />
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight">{metrics.averageOverall}</span>
-                <span className="text-sm font-bold text-blue-200">/ 5.0</span>
-              </div>
-              <div className="flex items-center gap-1 mt-1 text-amber-300">
-                {[1, 2, 3, 4, 5].map((st) => (
-                  <Star
-                    key={st}
-                    className={`w-3.5 h-3.5 ${
-                      st <= Math.round(metrics.averageOverall) ? "fill-amber-300 text-amber-300" : "text-white/30"
-                    }`}
-                  />
-                ))}
-                <span className="text-[11px] font-semibold text-blue-100 ml-1.5">
-                  ({metrics.totalCount} responses)
-                </span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* 1. Teaching Clarity */}
-        <Card className="bg-white border-slate-200/80 shadow-xs rounded-2xl p-5">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Teaching Clarity</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-slate-900">{metrics.averageTeaching}</span>
-              <span className="text-xs font-semibold text-slate-400">/ 5.0 ★</span>
-            </div>
-            <p className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
-              <ThumbsUp className="w-3 h-3" /> Concept &amp; syllabus explanation
-            </p>
-          </div>
-        </Card>
-
-        {/* 2. Pacing & Engagement */}
-        <Card className="bg-white border-slate-200/80 shadow-xs rounded-2xl p-5">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pacing &amp; Engagement</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#5B50EC] flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-slate-900">{metrics.averageUnderstanding}</span>
-              <span className="text-xs font-semibold text-slate-400">/ 5.0 ★</span>
-            </div>
-            <p className="text-[11px] font-medium text-indigo-600 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Class speed &amp; interactive delivery
-            </p>
-          </div>
-        </Card>
-
-        {/* 3. Lab / Practical Understanding */}
-        <Card className="bg-white border-slate-200/80 shadow-xs rounded-2xl p-5">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lab / Practicals</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <BookOpen className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-slate-900">{metrics.averageLab}</span>
-              <span className="text-xs font-semibold text-slate-400">/ 5.0 ★</span>
-            </div>
-            <p className="text-[11px] font-medium text-teal-600 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Hands-on exercises &amp; code demos
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      {/* ─── 3. FEEDBACK CARDS LIST ────────────────────────────────────────── */}
-      <div className="space-y-4">
+      <PageSection title="Student reviews">
         {filteredFeedbacks.length === 0 ? (
-          <Card className="rounded-2xl border-slate-200/80 p-12 text-center bg-white shadow-2xs">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-[#5B50EC] flex items-center justify-center mx-auto mb-3">
+          <Card className="rounded-xl border-border/80 p-12 text-center bg-card shadow-2xs">
+            <div className="w-14 h-14 rounded-xl bg-muted text-primary flex items-center justify-center mx-auto mb-3">
               <MessageSquare className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">No Student Feedback Found</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+            <h3 className="text-base font-semibold text-foreground">No Student Feedback Found</h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
               {searchQuery || ratingFilter !== "ALL"
                 ? "No reviews match your selected filter criteria. Try adjusting your search or rating filters."
                 : "Students submit ratings and comments after joining and completing your class sessions."}
             </p>
           </Card>
         ) : (
-          filteredFeedbacks.map((fb) => (
+          <div className="space-y-4">
+          {filteredFeedbacks.map((fb) => (
             <Card
               key={fb.id}
-              className="bg-white border-slate-200/80 shadow-xs rounded-2xl overflow-hidden hover:shadow-md transition-all"
+              className="bg-card border-border/80 shadow-xs rounded-xl overflow-hidden hover:shadow-md transition-all"
             >
-              <CardContent className="p-5 sm:p-6 space-y-4">
+              <CardContent className="p-5 space-y-4">
                 {/* Card Top: Student Info & Star Rating Badge */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3">
@@ -290,7 +253,7 @@ export const FacultyFeedback: React.FC = () => {
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black text-slate-900">{fb.studentName}</h4>
+                        <h4 className="text-sm font-semibold text-slate-900">{fb.studentName}</h4>
                         <Badge variant="outline" className="text-[10px] font-bold border-slate-200 bg-slate-50 text-slate-600 px-1.5 py-0">
                           {fb.studentId}
                         </Badge>
@@ -304,7 +267,7 @@ export const FacultyFeedback: React.FC = () => {
                   {/* Rating Badge & Submitted Time */}
                   <div className="flex items-center gap-3 self-end sm:self-auto">
                     <div className="text-right">
-                      <div className="flex items-center gap-1 justify-end font-black text-sm text-amber-600">
+                      <div className="flex items-center gap-1 justify-end font-semibold text-sm text-amber-600">
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                         <span>{fb.rating.toFixed(1)} / 5.0</span>
                         <span className="text-xs font-bold text-slate-700 ml-1">({fb.ratingLabel})</span>
@@ -320,7 +283,7 @@ export const FacultyFeedback: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/60 flex items-center justify-between text-xs">
                     <span className="font-bold text-amber-900">Teaching Clarity:</span>
-                    <span className="font-black text-amber-700 flex items-center gap-1">
+                    <span className="font-semibold text-amber-700 flex items-center gap-1">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                       {fb.teachingRating || 5} / 5 Stars
                     </span>
@@ -328,7 +291,7 @@ export const FacultyFeedback: React.FC = () => {
 
                   <div className="p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-200/60 flex items-center justify-between text-xs">
                     <span className="font-bold text-indigo-900">Pacing &amp; Engagement:</span>
-                    <span className="font-black text-indigo-700 flex items-center gap-1">
+                    <span className="font-semibold text-indigo-700 flex items-center gap-1">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                       {fb.understandingRating || 5} / 5 Stars
                     </span>
@@ -336,7 +299,7 @@ export const FacultyFeedback: React.FC = () => {
 
                   <div className="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-200/60 flex items-center justify-between text-xs">
                     <span className="font-bold text-emerald-900">Lab / Practicals:</span>
-                    <span className="font-black text-emerald-700 flex items-center gap-1">
+                    <span className="font-semibold text-emerald-700 flex items-center gap-1">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                       {fb.overallExperienceRating || 5} / 5 Stars
                     </span>
@@ -354,10 +317,11 @@ export const FacultyFeedback: React.FC = () => {
                 )}
               </CardContent>
             </Card>
-          ))
+          ))}
+          </div>
         )}
-      </div>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };
 

@@ -24,6 +24,7 @@ import {
   assignmentStatusLabel,
   formatAssignmentDueDate,
 } from "@/utils/assignment.utils";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,22 +105,20 @@ export const AssignmentList: React.FC = () => {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Assignments</h2>
-          <p className="text-sm text-text-secondary">
-            Create, target, and manage coursework across courses and batches.
-          </p>
-        </div>
-        <PermissionGate itemKey="assignments.all" mode="write">
-        <Button className="bg-[#2563EB] hover:bg-[#125387] text-white shadow-sm" onClick={() => navigate(`${assignmentsBase}/create`)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New
-        </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Assignments"
+        description="Create, target, and manage coursework across courses and batches."
+        actions={
+          <PermissionGate itemKey="assignments.all" mode="write">
+            <Button className="bg-primary hover:bg-[#125387] text-white shadow-sm" onClick={() => navigate(`${assignmentsBase}/create`)}>
+              <Plus className="mr-2 h-4 w-4" /> Add New
+            </Button>
+          </PermissionGate>
+        }
+      />
 
-      <Card className="border-border/50 shadow-sm">
+      <Card className="rounded-xl border-border/50 shadow-sm">
         <CardContent className="p-3.5 space-y-4">
           <div className="rounded-lg border border-border shadow-xs bg-card w-full overflow-hidden">
             <Table className="w-full table-fixed border-collapse">
@@ -175,7 +174,7 @@ export const AssignmentList: React.FC = () => {
                       <p className="text-sm mb-4">Create your first assignment for a batch or course.</p>
                       <PermissionGate itemKey="assignments.all" mode="write">
                       <Button
-                        className="bg-[#2563EB] text-white"
+                        className="bg-primary text-white"
                         onClick={() => navigate(`${assignmentsBase}/create`)}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Create Assignment
@@ -312,6 +311,6 @@ export const AssignmentList: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

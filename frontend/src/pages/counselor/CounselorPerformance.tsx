@@ -22,6 +22,9 @@ import {
   useRecalculateTarget,
 } from "../../hooks/useTargets";
 import type { Target, Incentive } from "../../types/target.types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar, PageSection } from "@/components/layout";
 
 export const CounselorPerformance: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
@@ -88,7 +91,7 @@ export const CounselorPerformance: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <PageContainer>
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed top-20 right-8 z-50 bg-card text-foreground border border-border shadow-2xl px-5 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
@@ -103,124 +106,90 @@ export const CounselorPerformance: React.FC = () => {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card border border-border p-6 rounded-2xl shadow-xs">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/20 dark:border-indigo-500/30 rounded-xl">
-              <Award className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Targets & Incentive Rewards</h1>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Track your assigned monthly goals, real-time CRM achievements, and potential reward earnings.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            refetchCurrent();
-            showToast("✓ Refreshed live target data.");
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm rounded-xl transition shadow-xs cursor-pointer"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh Live Data
-        </button>
-      </div>
+      <PageHeader
+        title="My Targets & Incentives"
+        description="Monthly goals and achievement progress."
+        actions={
+          <Button
+            type="button"
+            onClick={() => {
+              refetchCurrent();
+              showToast("✓ Refreshed live target data.");
+            }}
+            className="h-9 px-4 text-xs font-semibold gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
+        }
+      />
 
-      {/* KPI Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs hover:border-primary/40 transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Active Goals
-            </span>
-            <div className="p-2 bg-indigo-500/10 rounded-lg">
-              <TargetIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-foreground mb-1">{targets.length}</div>
-          <p className="text-xs text-muted-foreground">Assigned for current cycle</p>
-        </div>
-
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs hover:border-primary/40 transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Avg Achievement
-            </span>
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span
-              className={`text-3xl font-bold ${
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Active Goals</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{targets.length}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Assigned for current cycle</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Avg Achievement</p>
+            <h3
+              className={`text-xl font-bold mt-0.5 ${
                 avgAchievement >= 100
                   ? "text-emerald-600 dark:text-emerald-400"
                   : avgAchievement >= 70
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-rose-600 dark:text-rose-400"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-rose-600 dark:text-rose-400"
               }`}
             >
               {avgAchievement}%
-            </span>
-          </div>
-          <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mt-2">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                avgAchievement >= 100
-                  ? "bg-emerald-500"
-                  : avgAchievement >= 70
-                  ? "bg-amber-500"
-                  : "bg-rose-500"
-              }`}
-              style={{ width: `${Math.min(avgAchievement, 100)}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs hover:border-primary/40 transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Potential Reward
-            </span>
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Award className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+            </h3>
+            <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mt-2">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  avgAchievement >= 100
+                    ? "bg-emerald-500"
+                    : avgAchievement >= 70
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                }`}
+                style={{ width: `${Math.min(avgAchievement, 100)}%` }}
+              />
             </div>
-          </div>
-          <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">
-            {formatCurrency(totalPotentialIncentive)}
-          </div>
-          <p className="text-xs text-muted-foreground">Current estimated payout</p>
-        </div>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Potential Reward</p>
+            <h3 className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+              {formatCurrency(totalPotentialIncentive)}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Current estimated payout</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cycle Status</p>
+            <h3 className="text-base font-bold text-foreground mt-0.5">
+              {targets[0]?.targetPlan?.name || "Active Monthly Cycle"}
+            </h3>
+            <p className="text-[11px] text-sky-600 dark:text-sky-400 font-medium mt-0.5">
+              {targets[0]?.daysRemaining !== undefined
+                ? `${targets[0].daysRemaining} days remaining in cycle`
+                : "Ongoing cycle"}
+            </p>
+          </CardContent>
+        </Card>
+      </MetricGrid>
 
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs hover:border-primary/40 transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Cycle Status
-            </span>
-            <div className="p-2 bg-sky-500/10 rounded-lg">
-              <Calendar className="w-5 h-5 text-sky-500 dark:text-sky-400" />
-            </div>
-          </div>
-          <div className="text-lg font-bold text-foreground mb-1">
-            {targets[0]?.targetPlan?.name || "Active Monthly Cycle"}
-          </div>
-          <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
-            {targets[0]?.daysRemaining !== undefined
-              ? `${targets[0].daysRemaining} days remaining in cycle`
-              : "Ongoing cycle"}
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
+      <FilterToolbar>
         <button
           onClick={() => setActiveTab("active")}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
+          className={`h-9 px-5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
             activeTab === "active"
-              ? "bg-indigo-600 text-white shadow-xs shadow-indigo-600/30"
+              ? "bg-primary text-white shadow-xs"
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           }`}
         >
@@ -229,35 +198,35 @@ export const CounselorPerformance: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
+          className={`h-9 px-5 text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-2 ${
             activeTab === "history"
-              ? "bg-indigo-600 text-white shadow-xs shadow-indigo-600/30"
+              ? "bg-primary text-white shadow-xs"
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           }`}
         >
           <Clock className="w-4 h-4" />
           Achievement & Incentive History
         </button>
-      </div>
+      </FilterToolbar>
 
-      {/* Tab Content: Active Targets */}
+      <PageSection title={activeTab === "active" ? "Active targets" : "Incentive history"}>
       {activeTab === "active" && (
         <div className="space-y-4">
           {currentLoading ? (
-            <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-2xl shadow-xs">
+            <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-xl shadow-xs">
               <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-500 dark:text-indigo-400 mb-3" />
               <p className="font-medium">Loading live performance metrics...</p>
             </div>
           ) : targets.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-2xl shadow-xs">
+            <div className="p-12 text-center text-muted-foreground bg-card border border-border rounded-xl shadow-xs">
               <TargetIcon className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-foreground mb-1">No Active Targets Assigned</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-1">No Active Targets Assigned</h3>
               <p className="text-sm text-muted-foreground">
                 You do not have any active targets assigned for this cycle. Check back later or contact your Center Manager.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {targets.map((target) => {
                 const p = target.currentProgress;
                 const percentage = p?.achievementPercentage || 0;
@@ -272,7 +241,7 @@ export const CounselorPerformance: React.FC = () => {
                 return (
                   <div
                     key={target.id}
-                    className="bg-card border border-border hover:border-primary/40 transition rounded-2xl p-6 shadow-xs flex flex-col justify-between"
+                    className="bg-card border border-border hover:border-primary/40 transition rounded-xl p-6 shadow-xs flex flex-col justify-between"
                   >
                     <div>
                       {/* Card Header */}
@@ -488,7 +457,7 @@ export const CounselorPerformance: React.FC = () => {
 
       {/* Tab Content: History */}
       {activeTab === "history" && (
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-6">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-foreground">Settled Incentives & Past Targets</h3>
@@ -576,6 +545,7 @@ export const CounselorPerformance: React.FC = () => {
           )}
         </div>
       )}
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };

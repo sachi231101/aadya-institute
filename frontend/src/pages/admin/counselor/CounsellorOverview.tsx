@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
@@ -214,21 +215,25 @@ export const CounsellorOverview: React.FC = () => {
   }, [allLeads, searchTerm]);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
+    <PageContainer density="compact">
+      <PageHeader
+        title="Counsellor Overview"
+        description="Performance metrics, lead activity, and counsellor operations at a glance."
+      />
       {/* ─── TOP ROW: COUNSELLOR PERFORMANCE & RECENT ACTIVITIES ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: Counsellor Performance Table */}
-        <Card className="lg:col-span-8 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
+        <Card className="lg:col-span-8 border border-slate-200/70 shadow-xs bg-white rounded-xl flex flex-col justify-between overflow-hidden">
           <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-[#2563EB]" />
+            <CardTitle className="text-sm md:text-base font-bold text-foreground flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-primary" />
               Counsellor Performance
             </CardTitle>
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate(`${basePath}/counselor/all`)}
-              className="text-xs h-7 text-[#2563EB] border-blue-200 hover:bg-blue-50"
+              className="text-xs h-7 text-primary border-blue-200 hover:bg-blue-50"
             >
               Manage Counsellors
             </Button>
@@ -280,7 +285,7 @@ export const CounsellorOverview: React.FC = () => {
                       <td className="py-3 px-2 text-center text-slate-600">{c.followUps}</td>
                       <td className="py-3 px-2 text-center text-slate-600">{c.converted}</td>
                       <td className="py-3 px-2 text-center text-slate-600">{c.lost}</td>
-                      <td className="py-3 px-3 text-center font-extrabold text-emerald-600 text-xs">
+                      <td className="py-3 px-3 text-center font-semibold text-emerald-600 text-xs">
                         {c.rate}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -288,7 +293,7 @@ export const CounsellorOverview: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedCounsellor(c)}
-                          className="h-7 text-[11px] font-semibold border-slate-200 text-[#2563EB] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
+                          className="h-7 text-[11px] font-semibold border-slate-200 text-primary hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
                         >
                           View Details
                         </Button>
@@ -305,15 +310,15 @@ export const CounsellorOverview: React.FC = () => {
         </Card>
 
         {/* Right: Recent Lead Activities Card */}
-        <Card className="lg:col-span-4 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
+        <Card className="lg:col-span-4 border border-slate-200/70 shadow-xs bg-white rounded-xl flex flex-col justify-between overflow-hidden">
           <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm md:text-base font-bold text-[#0A2540]">
+            <CardTitle className="text-sm md:text-base font-bold text-foreground">
               Recent Lead Activities
             </CardTitle>
             <button
               type="button"
               onClick={() => navigate(`${basePath}/leads`)}
-              className="text-xs font-bold text-[#2563EB] hover:underline"
+              className="text-xs font-bold text-primary hover:underline"
             >
               View All
             </button>
@@ -357,10 +362,10 @@ export const CounsellorOverview: React.FC = () => {
       </div>
 
       {/* ─── BOTTOM SECTION: LEAD TRACKING (ALL LEADS) TABLE ─── */}
-      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
+      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-xl overflow-hidden">
         <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[#2563EB]" />
+          <CardTitle className="text-sm md:text-base font-bold text-foreground flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
             Lead Tracking (All Leads)
           </CardTitle>
           <div className="relative w-full sm:w-64">
@@ -492,10 +497,10 @@ export const CounsellorOverview: React.FC = () => {
 
       {/* ─── MODAL: COUNSELLOR DETAILS ─── */}
       <Dialog open={!!selectedCounsellor} onOpenChange={() => setSelectedCounsellor(null)}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
+        <DialogContent className="max-w-md bg-white rounded-xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-[#2563EB]" />
+              <UserCheck className="h-5 w-5 text-primary" />
               {selectedCounsellor?.name} — Performance Profile
             </DialogTitle>
           </DialogHeader>
@@ -512,7 +517,7 @@ export const CounsellorOverview: React.FC = () => {
                   <p className="text-slate-500">Counsellor • {selectedCounsellor.branchName}</p>
                 </div>
                 <div className="ml-auto text-right">
-                  <span className="text-emerald-700 font-extrabold text-sm bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                  <span className="text-emerald-700 font-semibold text-sm bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
                     {selectedCounsellor.rate}
                   </span>
                 </div>
@@ -521,25 +526,25 @@ export const CounsellorOverview: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-semibold text-[10px] uppercase">Assigned Leads</p>
-                  <p className="text-lg font-black text-slate-800 mt-0.5">{selectedCounsellor.assigned}</p>
+                  <p className="text-lg font-bold text-slate-800 mt-0.5">{selectedCounsellor.assigned}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-semibold text-[10px] uppercase">Contacted</p>
-                  <p className="text-lg font-black text-slate-800 mt-0.5">{selectedCounsellor.contacted}</p>
+                  <p className="text-lg font-bold text-slate-800 mt-0.5">{selectedCounsellor.contacted}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-semibold text-[10px] uppercase">Interested</p>
-                  <p className="text-lg font-black text-emerald-600 mt-0.5">{selectedCounsellor.interested}</p>
+                  <p className="text-lg font-bold text-emerald-600 mt-0.5">{selectedCounsellor.interested}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-semibold text-[10px] uppercase">Converted</p>
-                  <p className="text-lg font-black text-blue-600 mt-0.5">{selectedCounsellor.converted}</p>
+                  <p className="text-lg font-bold text-blue-600 mt-0.5">{selectedCounsellor.converted}</p>
                 </div>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -201,7 +201,7 @@ export function LeadAdvancedFilters({
           </Button>
           <Button
             type="button"
-            className="bg-[#2563EB] text-white"
+            className="bg-primary text-white"
             onClick={() => {
               onApply();
               onOpenChange(false);

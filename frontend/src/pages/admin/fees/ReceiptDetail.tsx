@@ -16,6 +16,7 @@ import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Table,
   TableBody,
@@ -120,71 +121,69 @@ export const ReceiptDetail: React.FC = () => {
   const pdfReady = !!receipt.pdfReady;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link to={`${basePath}/fees/receipts`}>
-              <ArrowLeft className="h-4 w-4" /> Receipts
-            </Link>
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary font-mono flex items-center gap-2">
-              <Receipt className="h-6 w-6" />
-              {receipt.receiptNo}
-            </h2>
-            <p className="text-sm text-text-secondary">
-              {receipt.studentName} · {receipt.admissionNo}
-            </p>
-          </div>
-        </div>
-        {receipt.status === "SUCCESS" && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <Badge variant={pdfReady ? "success" : "warning"} className="gap-1">
-              <FileText className="h-3 w-3" />
-              {pdfReady ? "PDF ready" : "PDF pending"}
-            </Badge>
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={busy !== null}
-              onClick={() => void regeneratePdf()}
-            >
-              {busy === "regenerate" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {pdfReady ? "Regenerate PDF" : "Generate PDF"}
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={busy !== null}
-              onClick={() => void runPdf("download")}
-            >
-              {busy === "download" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Download PDF
-            </Button>
-            <Button
-              className="gap-2"
-              disabled={busy !== null}
-              onClick={() => void runPdf("print")}
-            >
-              {busy === "print" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Printer className="h-4 w-4" />
-              )}
-              Print PDF
-            </Button>
-          </div>
-        )}
-      </div>
+    <PageContainer>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
+        <Link to={`${basePath}/fees/receipts`}>
+          <ArrowLeft className="h-4 w-4" /> Receipts
+        </Link>
+      </Button>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2 font-mono">
+            <Receipt className="h-6 w-6" />
+            {receipt.receiptNo}
+          </span>
+        }
+        description={`${receipt.studentName} · ${receipt.admissionNo}`}
+        actions={
+          receipt.status === "SUCCESS" ? (
+            <div className="flex flex-wrap gap-2 items-center">
+              <Badge variant={pdfReady ? "success" : "warning"} className="gap-1">
+                <FileText className="h-3 w-3" />
+                {pdfReady ? "PDF ready" : "PDF pending"}
+              </Badge>
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={busy !== null}
+                onClick={() => void regeneratePdf()}
+              >
+                {busy === "regenerate" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {pdfReady ? "Regenerate PDF" : "Generate PDF"}
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={busy !== null}
+                onClick={() => void runPdf("download")}
+              >
+                {busy === "download" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Download PDF
+              </Button>
+              <Button
+                className="gap-2"
+                disabled={busy !== null}
+                onClick={() => void runPdf("print")}
+              >
+                {busy === "print" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
+                Print PDF
+              </Button>
+            </div>
+          ) : null
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">
@@ -284,6 +283,6 @@ export const ReceiptDetail: React.FC = () => {
       </Card>
 
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

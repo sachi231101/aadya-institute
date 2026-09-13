@@ -18,6 +18,7 @@ import { useAuthStore } from "../../../store/auth.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
@@ -166,39 +167,32 @@ export const CourseAssignment: React.FC = () => {
   }, [newBatchId, assignSubjectOptions, newCourseId]);
 
   return (
-    <div className="p-6 md:p-8 max-w-[1680px] mx-auto space-y-6 min-h-screen relative overflow-x-hidden animate-in fade-in duration-300">
-      {/* ─── HEADER ─── */}
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
-              {isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
-            </h1>
-            <p className="text-xs md:text-sm text-muted-foreground font-medium mt-0.5">
-              {isFacultyOnly
-                ? "View and manage the courses and batches assigned to you."
-                : "Assign faculty instructors to courses and batches across the institute."}
-            </p>
-          </div>
-
-          {!isFacultyOnly && (
+    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
+      <PageHeader
+        title={isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
+        description={
+          isFacultyOnly
+            ? "View and manage the courses and batches assigned to you."
+            : "Assign faculty instructors to courses and batches across the institute."
+        }
+        actions={
+          !isFacultyOnly ? (
             <PermissionGate itemKey="courses.course_assignment" mode="write">
-            <Button
-              onClick={() => setShowAssignModal(true)}
-              className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-4 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              Assign Batch to Faculty
-            </Button>
+              <Button
+                onClick={() => setShowAssignModal(true)}
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-4 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Assign Batch to Faculty
+              </Button>
             </PermissionGate>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
-      {/* ─── SUMMARY KPI METRICS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
+      <MetricGrid columns="grid-cols-1 sm:grid-cols-3">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 text-primary dark:text-sky-400 shrink-0">
               <BookOpen className="h-5 w-5" />
             </div>
@@ -206,41 +200,40 @@ export const CourseAssignment: React.FC = () => {
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 {isFacultyOnly ? "My Assigned Courses" : "Assigned Courses"}
               </p>
-              <h3 className="text-xl font-black text-foreground mt-0.5">{totalCoursesCount}</h3>
+              <h3 className="text-xl font-bold text-foreground mt-0.5">{totalCoursesCount}</h3>
               <p className="text-[10px] text-muted-foreground font-medium">Distinct curricula</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 shrink-0">
               <Layers className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Batches</p>
-              <h3 className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{activeBatchesCount}</h3>
+              <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{activeBatchesCount}</h3>
               <p className="text-[10px] text-muted-foreground font-medium">Currently running cohorts</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 shrink-0">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Students Impacted</p>
-              <h3 className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{totalStudentsTaught}</h3>
+              <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{totalStudentsTaught}</h3>
               <p className="text-[10px] text-muted-foreground font-medium">Enrolled in your batches</p>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* ─── FILTER TOOLBAR ─── */}
-      <div className="bg-card p-4 rounded-2xl border border-border shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+      <FilterToolbar className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         {/* Status Tabs */}
         <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border overflow-x-auto">
           {["ALL", "ACTIVE", "UPCOMING", "COMPLETED"].map((status) => (
@@ -294,27 +287,26 @@ export const CourseAssignment: React.FC = () => {
             </select>
           </div>
         </div>
-      </div>
+      </FilterToolbar>
 
-      {/* ─── ASSIGNED COURSES & BATCHES GRID ─── */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-card rounded-2xl border border-border">
+        <div className="flex flex-col items-center justify-center py-20 bg-card rounded-xl border border-border">
           <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
           <p className="text-xs font-bold text-muted-foreground">Loading assigned batches and courses...</p>
         </div>
       ) : isError ? (
-        <Card className="border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 text-center py-12 rounded-2xl">
+        <Card className="border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 text-center py-12 rounded-xl">
           <AlertCircle className="mx-auto h-10 w-10 text-rose-500 mb-3" />
           <h3 className="text-sm font-bold text-rose-900 dark:text-rose-300 mb-1">Failed to load course assignments</h3>
           <p className="text-xs text-rose-600 dark:text-rose-400 max-w-sm mx-auto">Please check your network connection or try again.</p>
         </Card>
       ) : assignments.length === 0 ? (
         /* ─── EXACT EMPTY STATE ─── */
-        <div className="bg-card rounded-2xl border border-border p-12 text-center max-w-xl mx-auto space-y-3 shadow-xs">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 text-primary dark:text-sky-400 flex items-center justify-center text-2xl shadow-2xs">
+        <div className="bg-card rounded-xl border border-border p-12 text-center max-w-xl mx-auto space-y-3 shadow-xs">
+          <div className="w-14 h-14 mx-auto rounded-xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 text-primary dark:text-sky-400 flex items-center justify-center text-2xl shadow-2xs">
             📚
           </div>
-          <h3 className="text-lg font-black text-foreground">No Courses Assigned Yet</h3>
+          <h3 className="text-lg font-bold text-foreground">No Courses Assigned Yet</h3>
           <p className="text-xs text-muted-foreground font-medium">
             You currently do not have any course or batch assignments.
           </p>
@@ -343,7 +335,7 @@ export const CourseAssignment: React.FC = () => {
             return (
               <Card 
                 key={item.id} 
-                className="border border-border shadow-xs bg-card rounded-2xl hover:border-primary/50 transition-all flex flex-col justify-between overflow-hidden"
+                className="border border-border shadow-xs bg-card rounded-xl hover:border-primary/50 transition-all flex flex-col justify-between overflow-hidden"
               >
                 <div className="p-5 space-y-4">
                   {/* Card Header */}
@@ -351,7 +343,7 @@ export const CourseAssignment: React.FC = () => {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                        <h3 className="text-sm font-black text-foreground truncate" title={courseName}>
+                        <h3 className="text-sm font-bold text-foreground truncate" title={courseName}>
                           {courseName}
                         </h3>
                       </div>
@@ -363,7 +355,7 @@ export const CourseAssignment: React.FC = () => {
                       </p>
                     </div>
 
-                    <Badge className={`text-[10px] font-black shrink-0 ${statusVariant}`}>
+                    <Badge className={`text-[10px] font-bold shrink-0 ${statusVariant}`}>
                       ● {item.status || "ACTIVE"}
                     </Badge>
                   </div>
@@ -390,7 +382,7 @@ export const CourseAssignment: React.FC = () => {
                       <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" /> Enrolled:
                       </span>
-                      <span className="font-black text-emerald-600 dark:text-emerald-400">{studentCount} Students</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{studentCount} Students</span>
                     </div>
 
                     <div className="flex items-center justify-between text-foreground">
@@ -432,7 +424,7 @@ export const CourseAssignment: React.FC = () => {
       {/* ─── ASSIGN BATCH TO FACULTY MODAL (Admin / Center Manager / Counsellor only) ─── */}
       {!isFacultyOnly && (
         <div className={showAssignModal ? "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" : "hidden"}>
-          <div className="bg-card rounded-2xl border border-border max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
+          <div className="bg-card rounded-xl border border-border max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <h3 className="text-base font-bold text-foreground">Assign Batch to Faculty</h3>
               <button onClick={() => setShowAssignModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
@@ -525,6 +517,6 @@ export const CourseAssignment: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

@@ -44,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
@@ -174,15 +175,13 @@ export const RolesPermissions: React.FC = () => {
   const hasDraft = (userId: string) => userId in draftAccess;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Roles & Permissions</h2>
-        <p className="text-sm text-text-secondary">
-          RBAC configuration for institute staff roles and granular submodule access. New users start with baseline access only (Dashboard, ASK ME, Settings).
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Roles & Permissions"
+        description="RBAC configuration for institute staff roles and granular submodule access. New users start with baseline access only (Dashboard, ASK ME, Settings)."
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <Input
             placeholder="Search users by name or email..."
@@ -269,7 +268,7 @@ export const RolesPermissions: React.FC = () => {
                             {hasDraft(user.id) && (
                               <Button
                                 size="sm"
-                                className="bg-[#2563EB] text-white"
+                                className="bg-primary text-white"
                                 onClick={() => savePermissions(user)}
                                 disabled={updatePermissions.isPending}
                               >
@@ -343,6 +342,6 @@ export const RolesPermissions: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

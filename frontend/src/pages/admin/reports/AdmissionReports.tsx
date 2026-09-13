@@ -42,6 +42,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import {
   Table,
   TableBody,
@@ -79,7 +80,7 @@ const STATUS_BADGE_MAP: Record<string, { label: string; variant: "default" | "se
 const PIE_COLORS = ["#2563EB", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#ef4444", "#14b8a6"];
 
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]";
+  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-primary";
 
 const formatReportDate = (value?: string | null): string => {
   if (!value) return "—";
@@ -360,64 +361,64 @@ export const AdmissionReports: React.FC = () => {
   // ─── LOADING ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="py-20 flex flex-col justify-center items-center text-muted-foreground space-y-3">
-        <Loader2 className="h-9 w-9 animate-spin text-[#2563EB]" />
-        <p className="text-sm font-medium">Aggregating admission analytics across branches...</p>
-      </div>
+      <PageContainer>
+        <div className="py-20 flex flex-col justify-center items-center text-muted-foreground space-y-3">
+          <Loader2 className="h-9 w-9 animate-spin text-primary" />
+          <p className="text-sm font-medium">Aggregating admission analytics across branches...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   // ─── ERROR ────────────────────────────────────────────────────────────
   if (isError) {
     return (
-      <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-2xl text-center space-y-3">
-        <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
-        <h3 className="text-lg font-bold text-foreground">Failed to load admission reports</h3>
-        <p className="text-xs text-muted-foreground">Unable to retrieve real-time admission analytics from backend.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="border-border">
-          Retry Loading
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-xl text-center space-y-3">
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+          <h3 className="text-lg font-bold text-foreground">Failed to load admission reports</h3>
+          <p className="text-xs text-muted-foreground">Unable to retrieve real-time admission analytics from backend.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="border-border">
+            Retry Loading
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in">
-      {/* ─── 1. HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-[#2563EB]" />
+    <PageContainer className="animate-in fade-in">
+      <PageHeader
+        className="print:hidden"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-primary" />
             Admission Reports
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Admissions trends, course breakdown, branch distribution, and recent entries.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={handleCsvExport}>
-            <Download className="mr-2 h-4 w-4 text-emerald-600" /> CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExcelExport}>
-            <FileSpreadsheet className="mr-2 h-4 w-4 text-blue-600" /> Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4 text-purple-600" /> PDF / Print
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+        description="Admissions trends, course breakdown, branch distribution, and recent entries."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleCsvExport}>
+              <Download className="mr-2 h-4 w-4 text-emerald-600" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExcelExport}>
+              <FileSpreadsheet className="mr-2 h-4 w-4 text-blue-600" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4 text-purple-600" /> PDF / Print
+            </Button>
+          </div>
+        }
+      />
 
-      <Card className="border-border/60 shadow-sm print:hidden">
-        <CardContent className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Filter className="h-4 w-4 text-[#2563EB]" /> Report Filters
-            </h3>
+      <FilterToolbar className="flex-col items-stretch gap-3 print:hidden">
+          <div className="flex items-center justify-end">
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
             </Button>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {isAdmin && (
               <label className="space-y-1 text-[11px] font-semibold text-slate-500">
                 Branch
@@ -484,17 +485,17 @@ export const AdmissionReports: React.FC = () => {
               </select>
             </label>
           </div>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
       {/* ─── 2. SUMMARY KPIs ──────────────────────────────────────────── */}
-      <div ref={printableRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div ref={printableRef}>
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {[
           {
             label: "Total Admissions",
             value: summary.totalAdmissions,
             icon: FileText,
-            color: "text-[#2563EB]",
+            color: "text-primary",
             bg: "bg-blue-50",
           },
           {
@@ -512,13 +513,6 @@ export const AdmissionReports: React.FC = () => {
             bg: "bg-amber-50",
           },
           {
-            label: "Cancelled",
-            value: summary.cancelledAdmissions,
-            icon: XCircle,
-            color: "text-red-600",
-            bg: "bg-red-50",
-          },
-          {
             label: "Conversion Rate",
             value: `${summary.conversionRate}%`,
             icon: TrendingUp,
@@ -526,8 +520,8 @@ export const AdmissionReports: React.FC = () => {
             bg: "bg-purple-50",
           },
         ].map((kpi) => (
-          <Card key={kpi.label} className="border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-start gap-3">
+          <Card key={kpi.label} size="compact" className="border-border/50 shadow-sm">
+            <CardContent size="compact" className="flex items-start gap-3">
               <div className={`p-2 rounded-lg ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
@@ -538,6 +532,7 @@ export const AdmissionReports: React.FC = () => {
             </CardContent>
           </Card>
         ))}
+      </MetricGrid>
       </div>
 
       {/* ─── 3. CHARTS ────────────────────────────────────────────────── */}
@@ -547,7 +542,7 @@ export const AdmissionReports: React.FC = () => {
           <CardContent className="p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="font-semibold flex items-center gap-2 text-foreground">
-                <TrendingUp className="w-4 h-4 text-[#2563EB]" />
+                <TrendingUp className="w-4 h-4 text-primary" />
                 Admission Trend
               </h3>
               <div className="flex rounded-md border bg-slate-50 p-0.5 print:hidden">
@@ -556,7 +551,7 @@ export const AdmissionReports: React.FC = () => {
                     key={mode}
                     type="button"
                     onClick={() => setTrendMode(mode)}
-                    className={`rounded px-2.5 py-1 text-[11px] font-semibold capitalize ${trendMode === mode ? "bg-white text-[#2563EB] shadow-sm" : "text-slate-500"}`}
+                    className={`rounded px-2.5 py-1 text-[11px] font-semibold capitalize ${trendMode === mode ? "bg-white text-primary shadow-sm" : "text-slate-500"}`}
                   >
                     {mode}
                   </button>
@@ -586,7 +581,7 @@ export const AdmissionReports: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-5">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <BarChart3 className="w-4 h-4 text-[#2563EB]" />
+              <BarChart3 className="w-4 h-4 text-primary" />
               Admissions by Course
             </h3>
             {courseBreakdown.length === 0 ? (
@@ -614,7 +609,7 @@ export const AdmissionReports: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-5">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <PieChartIcon className="w-4 h-4 text-[#2563EB]" />
+              <PieChartIcon className="w-4 h-4 text-primary" />
               Admissions Distribution by Branch
             </h3>
             <div className="flex flex-col lg:flex-row items-center gap-6">
@@ -671,7 +666,7 @@ export const AdmissionReports: React.FC = () => {
           <Card key={breakdown.title} className="border-border/50 shadow-sm">
             <CardContent className="p-5">
               <h3 className="mb-4 flex items-center gap-2 font-semibold">
-                <BarChart3 className="h-4 w-4 text-[#2563EB]" /> {breakdown.title}
+                <BarChart3 className="h-4 w-4 text-primary" /> {breakdown.title}
               </h3>
               {breakdown.data.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">No breakdown data available.</p>
@@ -695,7 +690,7 @@ export const AdmissionReports: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-5">
             <h3 className="mb-4 flex items-center gap-2 font-semibold">
-              <UsersRound className="h-4 w-4 text-[#2563EB]" /> Admission Funnel
+              <UsersRound className="h-4 w-4 text-primary" /> Admission Funnel
             </h3>
             {funnel.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">No funnel data available.</p>
@@ -731,7 +726,7 @@ export const AdmissionReports: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-5">
             <h3 className="mb-4 flex items-center gap-2 font-semibold">
-              <GraduationCap className="h-4 w-4 text-[#2563EB]" /> Batch Capacity
+              <GraduationCap className="h-4 w-4 text-primary" /> Batch Capacity
             </h3>
             <div className="max-h-[300px] overflow-auto">
               <Table>
@@ -783,7 +778,7 @@ export const AdmissionReports: React.FC = () => {
         <CardContent className="p-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <h3 className="font-semibold flex items-center gap-2 text-foreground">
-              <GraduationCap className="w-4 h-4 text-[#2563EB]" />
+              <GraduationCap className="w-4 h-4 text-primary" />
               Recent Admissions
               <Badge variant="secondary" className="text-xs ml-1">{filteredAdmissions.length}</Badge>
             </h3>
@@ -796,7 +791,7 @@ export const AdmissionReports: React.FC = () => {
                   setSearchTerm(event.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-[#2563EB]"
+                className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary"
               />
               {searchTerm && (
                 <button
@@ -884,7 +879,7 @@ export const AdmissionReports: React.FC = () => {
                       variant={item === safeCurrentPage ? "default" : "outline"}
                       size="sm"
                       onClick={() => setCurrentPage(item as number)}
-                      className={`h-8 w-8 p-0 text-xs ${item === safeCurrentPage ? "bg-[#2563EB] text-white" : ""}`}
+                      className={`h-8 w-8 p-0 text-xs ${item === safeCurrentPage ? "bg-primary text-white" : ""}`}
                     >
                       {item}
                     </Button>
@@ -904,6 +899,6 @@ export const AdmissionReports: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

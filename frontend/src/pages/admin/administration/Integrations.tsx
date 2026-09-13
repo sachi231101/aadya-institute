@@ -16,6 +16,7 @@ import type { IntegrationStatus } from "@/services/integrations.api";
 import { ROUTES } from "@/constants/routes";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 const STATUS_STYLES: Record<
   IntegrationStatus,
@@ -64,34 +65,36 @@ export const Integrations: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
-      </div>
+      <PageContainer>
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="text-center py-20 text-red-600">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-        Failed to load integrations.
-        <Button variant="link" onClick={() => refetch()}>
-          Retry
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="text-center py-20 text-red-600">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+          Failed to load integrations.
+          <Button variant="link" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   const cards = data ?? [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Integrations</h2>
-        <p className="text-sm text-text-secondary">
-          Configure external services for your institute. API keys and secrets are never displayed.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Integrations"
+        description="Configure external services for your institute. API keys and secrets are never displayed."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {cards.map((item) => {
@@ -110,7 +113,7 @@ export const Integrations: React.FC = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-50 border border-border/60 flex items-center justify-center shrink-0">
-                      <Plug className="w-5 h-5 text-[#2563EB]" />
+                      <Plug className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <p className="font-medium">{item.name}</p>
@@ -145,6 +148,6 @@ export const Integrations: React.FC = () => {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 };

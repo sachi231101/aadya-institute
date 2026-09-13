@@ -17,6 +17,7 @@ import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   ResponsiveContainer,
   BarChart,
@@ -72,32 +73,27 @@ export const FeeReports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">
-            Fee Financial Reports
-          </h2>
-          <p className="text-sm text-text-secondary">
-            SUCCESS payments only (VOID excluded). Outstanding from open installment dues.
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
-          onClick={handleExportReport}
-          disabled={!reports}
-        >
-          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
-          Export Financial Report (CSV)
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Fee Financial Reports"
+        description="SUCCESS payments only (VOID excluded). Outstanding from open installment dues."
+        actions={
+          <Button
+            variant="outline"
+            className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+            onClick={handleExportReport}
+            disabled={!reports}
+          >
+            <Download className="mr-2 h-4 w-4 text-primary" />
+            Export Financial Report (CSV)
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Card className="border-border/50 bg-white p-12 text-center">
           <div className="flex items-center justify-center gap-2 text-slate-600">
-            <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
             Loading financial reports & analytics...
           </div>
         </Card>
@@ -194,17 +190,17 @@ export const FeeReports: React.FC = () => {
           <Card className="border-border/50 bg-white shadow-sm p-6 space-y-3">
             <div className="flex justify-between items-center text-sm font-semibold">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-[#2563EB]" />
+                <TrendingUp className="h-5 w-5 text-primary" />
                 <span className="text-slate-900">Collected vs Expected Book</span>
               </div>
-              <span className="text-[#2563EB] font-bold text-base">
+              <span className="text-primary font-bold text-base">
                 {formatMoney(reports.totalCollected)} / {formatMoney(reports.targetRevenue)} (
                 {reports.targetAchievedPercent}%)
               </span>
             </div>
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div
-                className="bg-[#2563EB] h-full rounded-full transition-all duration-500"
+                className="bg-primary h-full rounded-full transition-all duration-500"
                 style={{ width: `${reports.targetAchievedPercent}%` }}
               />
             </div>
@@ -217,7 +213,7 @@ export const FeeReports: React.FC = () => {
             <Card className="border-border/50 bg-white shadow-sm">
               <CardHeader className="p-5 pb-2 border-b border-slate-100">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-[#2563EB]" />
+                  <BarChart3 className="h-5 w-5 text-primary" />
                   Monthly Revenue Collection Trend
                 </CardTitle>
                 <CardDescription className="text-xs">
@@ -385,6 +381,6 @@ export const FeeReports: React.FC = () => {
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 };

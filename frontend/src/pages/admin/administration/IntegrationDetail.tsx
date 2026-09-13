@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   useConnectGoogle,
   useDisconnectGoogle,
@@ -232,7 +233,7 @@ export const IntegrationDetail: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -409,19 +410,11 @@ export const IntegrationDetail: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div className="flex items-start gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(integrationsBase)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl font-bold text-text-primary">{data.name}</h2>
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2 flex-wrap">
+            {data.name}
             <Badge
               variant={
                 data.status === "CONNECTED"
@@ -438,10 +431,21 @@ export const IntegrationDetail: React.FC = () => {
             ) : data.provider ? (
               <Badge variant="outline">{data.provider}</Badge>
             ) : null}
-          </div>
-          <p className="text-sm text-text-secondary">{data.description}</p>
-        </div>
-      </div>
+          </span>
+        }
+        description={data.description}
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(integrationsBase)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+        }
+      />
 
       {message ? (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">
@@ -545,7 +549,7 @@ export const IntegrationDetail: React.FC = () => {
                     {data.status === "REAUTH_REQUIRED" && (
                       <Button
                         type="button"
-                        className="bg-[#2563EB] text-white"
+                        className="bg-primary text-white"
                         disabled={connectGoogle.isPending}
                         onClick={() => connectGoogle.mutate()}
                       >
@@ -571,7 +575,7 @@ export const IntegrationDetail: React.FC = () => {
                   <PermissionGate itemKey="admin.integrations" mode="write">
                     <Button
                       type="button"
-                      className="bg-[#2563EB] text-white"
+                      className="bg-primary text-white"
                       disabled={connectGoogle.isPending}
                       onClick={() => connectGoogle.mutate()}
                     >
@@ -761,7 +765,7 @@ export const IntegrationDetail: React.FC = () => {
                               onClick={() => toggleCallingDay(d.value)}
                               className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
                                 on
-                                  ? "bg-[#2563EB] text-white border-[#2563EB]"
+                                  ? "bg-primary text-white border-primary"
                                   : "bg-background text-foreground border-border"
                               }`}
                             >
@@ -930,7 +934,7 @@ export const IntegrationDetail: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={upsert.isPending || updateAiConfig.isPending}
-                  className="bg-[#2563EB] text-white"
+                  className="bg-primary text-white"
                 >
                   {upsert.isPending || updateAiConfig.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -964,6 +968,6 @@ export const IntegrationDetail: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

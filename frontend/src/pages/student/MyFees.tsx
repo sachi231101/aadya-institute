@@ -5,6 +5,7 @@ import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { useStudentFeeStatement } from "@/hooks/useFees";
 import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -29,75 +30,75 @@ export const MyFees: React.FC = () => {
 
   if (!studentId) {
     return (
-      <div className="p-6 text-sm text-text-secondary">
-        Student profile is not linked to this account.
-      </div>
+      <PageContainer>
+        <p className="text-sm text-text-secondary">Student profile is not linked to this account.</p>
+      </PageContainer>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-text-secondary">
-        <Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading your fees...
-      </div>
+      <PageContainer className="flex items-center justify-center min-h-[200px]">
+        <p className="text-center text-text-secondary">
+          <Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading your fees...
+        </p>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-8 text-center text-red-600">
-        <AlertCircle className="w-5 h-5 inline mr-2" /> Failed to load fees.
-        <button className="underline ml-2" onClick={() => refetch()}>
-          Retry
-        </button>
-      </div>
+      <PageContainer className="flex items-center justify-center min-h-[200px]">
+        <p className="text-center text-red-600">
+          <AlertCircle className="w-5 h-5 inline mr-2" /> Failed to load fees.
+          <button className="underline ml-2" onClick={() => refetch()}>
+            Retry
+          </button>
+        </p>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">My Fees</h1>
-        <p className="text-sm text-text-secondary">
-          View tuition, book, exam and other dues, plus your payment receipts.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="My Fees"
+        description="View tuition, book, exam and other dues, plus your payment receipts."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-text-secondary">Net payable</p>
-            <p className="text-xl font-bold">
+      <MetricGrid density="compact" columns={METRIC_GRID_COLUMNS[3]}>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Net payable</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">
               {formatMoney(summary?.netPayable ?? summary?.totalFee ?? 0)}
-            </p>
+            </h3>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-text-secondary">Paid</p>
-            <p className="text-xl font-bold text-emerald-700">
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Paid</p>
+            <h3 className="text-xl font-bold text-emerald-700 mt-0.5">
               {formatMoney(summary?.amountPaid ?? 0)}
-            </p>
+            </h3>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-text-secondary">Due</p>
-            <p className="text-xl font-bold text-amber-700">
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Due</p>
+            <h3 className="text-xl font-bold text-amber-700 mt-0.5">
               {formatMoney(summary?.dueAmount ?? 0)}
-            </p>
+            </h3>
             <Badge className="mt-1" variant="outline">
               {summary?.status || "Pending"}
             </Badge>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
+      <PageSection title="Open charges">
       <Card>
-        <CardContent className="p-4 space-y-3">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Wallet className="h-4 w-4" /> Open charges
-          </h2>
+        <CardContent className="p-5 space-y-3">
           <Table>
             <TableHeader>
               <TableRow>
@@ -134,12 +135,11 @@ export const MyFees: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+      </PageSection>
 
+      <PageSection title="Receipts">
       <Card>
-        <CardContent className="p-4 space-y-3">
-          <h2 className="font-semibold flex items-center gap-2">
-            <CreditCard className="h-4 w-4" /> Receipts
-          </h2>
+        <CardContent className="p-5 space-y-3">
           <Table>
             <TableHeader>
               <TableRow>
@@ -170,7 +170,8 @@ export const MyFees: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };
 

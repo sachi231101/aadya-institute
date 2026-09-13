@@ -19,7 +19,8 @@ import {
 import { useStaffAttemptProctoring } from '@/hooks/useExamAttempts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageContainer, PageHeader } from '@/components/layout';
 
 export const AttemptProctoringDetails: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -78,7 +79,7 @@ export const AttemptProctoringDetails: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <PageContainer maxWidth="narrow">
       {/* Back Button */}
       <Button
         variant="ghost"
@@ -89,41 +90,30 @@ export const AttemptProctoringDetails: React.FC = () => {
         <ArrowLeft className="h-4 w-4" /> Back to Exam Attempts
       </Button>
 
-      {/* Header Info Card */}
+      <PageHeader
+        title={`${student?.user?.name} (${student?.studentCode})`}
+        description={`Proctoring Audit Record · Exam: ${exam?.name} • Attempt #${attempt.attemptNumber}`}
+        actions={
+          <>
+            <Badge
+              className={`text-xs px-3 py-1 font-bold ${
+                attempt.status === 'TERMINATED'
+                  ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                  : attempt.status === 'IN_PROGRESS'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              }`}
+            >
+              {attempt.status}
+            </Badge>
+            <Badge className="bg-slate-800 text-slate-200 border-slate-700 text-xs px-3 py-1 font-semibold">
+              {attempt.violationCount} / {attempt.maxViolations} Violations
+            </Badge>
+          </>
+        }
+      />
+
       <Card className="border-slate-200 shadow-sm overflow-hidden">
-        <CardHeader className="bg-slate-900 text-white p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                Proctoring Audit Record
-              </span>
-              <CardTitle className="text-xl sm:text-2xl font-bold text-white mt-0.5">
-                {student?.user?.name} ({student?.studentCode})
-              </CardTitle>
-              <CardDescription className="text-slate-300 text-xs mt-1">
-                Exam: {exam?.name} • Attempt #{attempt.attemptNumber}
-              </CardDescription>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Badge
-                className={`text-xs px-3 py-1 font-bold ${
-                  attempt.status === 'TERMINATED'
-                    ? 'bg-red-500/20 text-red-300 border-red-500/30'
-                    : attempt.status === 'IN_PROGRESS'
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                }`}
-              >
-                {attempt.status}
-              </Badge>
-              <Badge className="bg-slate-800 text-slate-200 border-slate-700 text-xs px-3 py-1 font-semibold">
-                {attempt.violationCount} / {attempt.maxViolations} Violations
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-
         <CardContent className="p-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -231,7 +221,7 @@ export const AttemptProctoringDetails: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };
 

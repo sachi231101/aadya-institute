@@ -65,7 +65,7 @@ export const WhatsAppTemplates: React.FC = () => {
         <div className="flex gap-2">
           <PermissionGate itemKey="communication.whatsapp" mode="write">
             <Button
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               disabled={syncMutation.isPending}
               onClick={() => syncMutation.mutate()}
             >

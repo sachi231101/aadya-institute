@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useBranchStore } from "@/store/branch.store";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const DiscontinuationRisk: React.FC = () => {
   const { selectedBranchId } = useBranchStore();
@@ -26,26 +27,25 @@ export const DiscontinuationRisk: React.FC = () => {
   const riskStudents = riskResponse?.data || [];
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
-          <AlertTriangle className="h-6 w-6 text-rose-500" />
-          Discontinuation Risk
-        </h1>
-        <p className="text-xs text-muted-foreground font-medium mt-0.5">
-          Students with 2+ consecutive theory-class absences (approved leave excluded)
-        </p>
-      </div>
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-rose-500" />
+            Discontinuation Risk
+          </span>
+        }
+        description="Students with 2+ consecutive theory-class absences (approved leave excluded)"
+      />
 
-      {/* Alert Banner */}
-      <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-3.5 shadow-2xs">
+      <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3.5 shadow-2xs">
         <div className="p-2 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5">
           <AlertTriangle className="h-5 w-5" />
         </div>
         <div>
           <p className="text-sm font-bold text-rose-700 dark:text-rose-300">Auto-Discontinuation Rule</p>
           <p className="text-xs text-rose-700/90 dark:text-rose-300/90 mt-1 leading-relaxed">
-            If a student misses <strong className="text-rose-900 dark:text-rose-200 font-black">3 consecutive theory classes</strong>, the discontinuation workflow is triggered.
+            If a student misses <strong className="text-rose-900 dark:text-rose-200 font-bold">3 consecutive theory classes</strong>, the discontinuation workflow is triggered.
             Approved leave does NOT count as absent.
           </p>
         </div>
@@ -53,44 +53,44 @@ export const DiscontinuationRisk: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Critical Risk</p>
-              <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
+              <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
                 {riskStudents.filter((s: any) => (s.consecutiveAbsences || 0) >= 3).length}
               </h3>
               <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5">3+ consecutive absences</p>
             </div>
-            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 rounded-2xl text-rose-600 dark:text-rose-400">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400">
               <UserX className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Warning Risk</p>
-              <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+              <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                 {riskStudents.filter((s: any) => (s.consecutiveAbsences || 0) === 2).length}
               </h3>
               <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">2 consecutive absences</p>
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 rounded-2xl text-amber-600 dark:text-amber-400">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 rounded-xl text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total At Risk</p>
-              <h3 className="text-2xl font-black text-foreground mt-1">{riskStudents.length}</h3>
+              <h3 className="text-2xl font-bold text-foreground mt-1">{riskStudents.length}</h3>
               <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Students requiring review</p>
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-2xl text-primary dark:text-sky-400">
+            <div className="p-3 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-xl text-primary dark:text-sky-400">
               <ShieldAlert className="h-6 w-6" />
             </div>
           </CardContent>
@@ -98,7 +98,7 @@ export const DiscontinuationRisk: React.FC = () => {
       </div>
 
       {/* Risk Table */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -121,10 +121,10 @@ export const DiscontinuationRisk: React.FC = () => {
               ) : riskStudents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-16 px-4">
-                    <div className="h-14 w-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center mx-auto mb-3 text-emerald-600 dark:text-emerald-400 shadow-2xs">
+                    <div className="h-14 w-14 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center mx-auto mb-3 text-emerald-600 dark:text-emerald-400 shadow-2xs">
                       <CheckCircle2 className="h-7 w-7" />
                     </div>
-                    <h4 className="text-base font-black text-foreground">No students at discontinuation risk</h4>
+                    <h4 className="text-base font-bold text-foreground">No students at discontinuation risk</h4>
                     <p className="text-xs text-muted-foreground font-medium mt-1">
                       All enrolled students currently maintain regular attendance standards.
                     </p>
@@ -149,7 +149,7 @@ export const DiscontinuationRisk: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-xs text-foreground font-medium">{student.batchName || "—"}</TableCell>
                       <TableCell>
-                        <span className={`text-base font-black ${isCritical ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
+                        <span className={`text-base font-bold ${isCritical ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
                           {absences}
                         </span>
                       </TableCell>
@@ -192,6 +192,6 @@ export const DiscontinuationRisk: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

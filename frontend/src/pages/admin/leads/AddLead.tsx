@@ -15,6 +15,7 @@ import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
 import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 const addLeadSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
@@ -127,20 +128,22 @@ export const AddLead: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <PageContainer maxWidth="narrow">
       <Button variant="ghost" onClick={() => navigate(`${basePath}/leads`)} className="gap-2 -ml-2">
         <ArrowLeft size={16} /> Back to Leads
       </Button>
 
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-[#2563EB]/10 flex items-center justify-center">
-          <Target className="h-5 w-5 text-[#2563EB]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">Add New Lead</h1>
-          <p className="text-sm text-text-secondary">Capture a new lead for AI voice qualification</p>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <span className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Target className="h-5 w-5 text-primary" />
+            </span>
+            Add New Lead
+          </span>
+        }
+        description="Capture a new lead for AI voice qualification"
+      />
 
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-6">
@@ -277,7 +280,7 @@ export const AddLead: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white font-semibold"
+                  className="bg-primary hover:bg-[#F39A16] text-white font-semibold"
                   disabled={createLeadMutation.isPending}
                 >
                   {createLeadMutation.isPending ? "Creating..." : "Create Lead"}
@@ -287,6 +290,6 @@ export const AddLead: React.FC = () => {
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

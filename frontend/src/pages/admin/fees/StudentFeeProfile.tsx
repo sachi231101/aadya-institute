@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import type { PendingFee, Payment, StudentInvoice } from "@/types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { CollectFeeModal } from "./CollectFeeModal";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
@@ -145,40 +146,40 @@ export const StudentFeeProfile: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link to={`${basePath}/fees/students`}>
-              <ArrowLeft className="h-4 w-4" /> Student Fees
-            </Link>
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary">{statement.student.name}</h2>
-            <p className="text-sm text-text-secondary font-mono">
-              {statement.student.studentCode}
-              {statement.student.phone ? ` · ${statement.student.phone}` : ""}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setShowCharge(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Charge
-          </Button>
-          {outstanding > 0 && (
-            <PermissionGate itemKey="fees.pending" mode="write">
-              <Button className="gap-2" onClick={() => setCollectOutstanding(true)}>
-                <CreditCard className="h-4 w-4" /> Collect outstanding
-              </Button>
-            </PermissionGate>
-          )}
-          <Button variant="outline" asChild className="gap-2">
-            <Link to={`${basePath}/fees/payments?studentId=${statement.student.id}`}>
-              <Wallet className="h-4 w-4" /> Record Payment
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
+        <Link to={`${basePath}/fees/students`}>
+          <ArrowLeft className="h-4 w-4" /> Student Fees
+        </Link>
+      </Button>
+      <PageHeader
+        title={statement.student.name}
+        description={
+          <span className="font-mono">
+            {statement.student.studentCode}
+            {statement.student.phone ? ` · ${statement.student.phone}` : ""}
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setShowCharge(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Add Charge
+            </Button>
+            {outstanding > 0 && (
+              <PermissionGate itemKey="fees.pending" mode="write">
+                <Button className="gap-2" onClick={() => setCollectOutstanding(true)}>
+                  <CreditCard className="h-4 w-4" /> Collect outstanding
+                </Button>
+              </PermissionGate>
+            )}
+            <Button variant="outline" asChild className="gap-2">
+              <Link to={`${basePath}/fees/payments?studentId=${statement.student.id}`}>
+                <Wallet className="h-4 w-4" /> Record Payment
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">
@@ -677,6 +678,6 @@ export const StudentFeeProfile: React.FC = () => {
       )}
 
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

@@ -1,7 +1,8 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -22,23 +23,15 @@ export const FacultyBatchClasses: React.FC = () => {
   const todaySessions = sessions.filter((s: any) => new Date(s.scheduledDate).toDateString() === today);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-amber-600" />
-          My Batches & Classes
-        </h1>
-        <p className="text-sm text-text-secondary mt-1">Manage class sessions, mark attendance, and create assignments</p>
-      </div>
+    <PageContainer className="animate-in fade-in duration-500">
+      <PageHeader
+        title="My Batches & Classes"
+        description="Manage class sessions, mark attendance, and create assignments."
+      />
 
-      {/* Today's Sessions */}
+      <PageSection title={`Today's Classes (${todaySessions.length})`}>
       <Card className="border-amber-200/50 shadow-sm bg-amber-50/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2 text-amber-700">
-            <Clock size={16} /> Today's Classes ({todaySessions.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           {todaySessions.length === 0 ? (
             <p className="text-sm text-text-secondary text-center py-4">No classes scheduled for today</p>
           ) : (
@@ -55,11 +48,11 @@ export const FacultyBatchClasses: React.FC = () => {
                     <Button
                       size="sm"
                       onClick={() => navigate(`/faculty/class-session?course=${encodeURIComponent(session.title || "Java Programming")}&batch=${encodeURIComponent(session.batch?.name || "Batch C")}`)}
-                      className="h-8 text-xs gap-1 bg-[#2563EB] text-white hover:bg-[#1D4ED8] font-bold cursor-pointer"
+                      className="h-9 text-xs gap-1 bg-primary text-white hover:bg-primary font-bold cursor-pointer"
                     >
                       <Users size={12} /> Mark Attendance & Open Classroom
                     </Button>
-                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-amber-600 border-amber-300">
+                    <Button size="sm" variant="outline" className="h-9 text-xs gap-1 text-amber-600 border-amber-300">
                       Create Assignment
                     </Button>
                   </div>
@@ -69,13 +62,11 @@ export const FacultyBatchClasses: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      </PageSection>
 
-      {/* All Sessions */}
+      <PageSection title="All Class Sessions">
       <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">All Class Sessions</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           {isLoading ? (
             <p className="text-sm text-text-secondary text-center py-8">Loading...</p>
           ) : sessions.length === 0 ? (
@@ -116,6 +107,7 @@ export const FacultyBatchClasses: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };

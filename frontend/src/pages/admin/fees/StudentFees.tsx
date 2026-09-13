@@ -10,7 +10,6 @@ import {
   Clock,
   Wallet,
   AlertTriangle,
-  CalendarDays,
 } from "lucide-react";
 import { useFeeStudents, useFeeStats } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import type { FeeStudentRow } from "@/types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { PendingFees } from "./PendingFees";
 import { CollectFeeModal } from "./CollectFeeModal";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
@@ -88,33 +88,20 @@ export const StudentFees: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Student Fees</h2>
-          <p className="text-sm text-text-secondary">
-            Find a student, collect dues, and send reminders from one workspace.
-          </p>
-        </div>
-        <Button className="gap-2" onClick={() => setTab("pending")}>
-          <CreditCard className="h-4 w-4" /> Collect dues
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Student Fees"
+        description="Find a student, collect dues, and send reminders from one workspace."
+        actions={
+          <Button className="gap-2" onClick={() => setTab("pending")}>
+            <CreditCard className="h-4 w-4" /> Collect dues
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4">
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-slate-50 flex items-center justify-center">
-              <Users className="h-5 w-5 text-slate-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{totalStudents}</p>
-              <p className="text-xs text-text-secondary">Total Students</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
+      <MetricGrid density="compact">
+        <Card size="compact" className="border-border/50">
+          <CardContent size="compact" className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center">
               <Wallet className="h-5 w-5 text-indigo-600" />
             </div>
@@ -124,8 +111,8 @@ export const StudentFees: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card size="compact" className="border-border/50">
+          <CardContent size="compact" className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
             </div>
@@ -136,8 +123,8 @@ export const StudentFees: React.FC = () => {
           </CardContent>
         </Card>
         <button type="button" className="text-left" onClick={() => setTab("pending")}>
-          <Card className="border-border/50 h-full hover:border-amber-300 transition-colors">
-            <CardContent className="p-4 flex items-center gap-3">
+          <Card size="compact" className="border-border/50 h-full hover:border-amber-300 transition-colors">
+            <CardContent size="compact" className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
@@ -149,8 +136,8 @@ export const StudentFees: React.FC = () => {
           </Card>
         </button>
         <button type="button" className="text-left" onClick={() => setTab("pending")}>
-          <Card className="border-border/50 h-full hover:border-red-300 transition-colors">
-            <CardContent className="p-4 flex items-center gap-3">
+          <Card size="compact" className="border-border/50 h-full hover:border-red-300 transition-colors">
+            <CardContent size="compact" className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
@@ -161,40 +148,7 @@ export const StudentFees: React.FC = () => {
             </CardContent>
           </Card>
         </button>
-        <button
-          type="button"
-          className="text-left"
-          onClick={() => setTab("pending", { dueWithinDays: 7 })}
-        >
-          <Card className="border-border/50 h-full hover:border-blue-300 transition-colors">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
-                <CalendarDays className="h-5 w-5 text-sky-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold">{formatMoney(stats?.dueThisWeek ?? 0)}</p>
-                <p className="text-xs text-text-secondary">
-                  Due this week
-                  {(stats?.dueThisWeekCount ?? 0) > 0
-                    ? ` · ${stats?.dueThisWeekCount}`
-                    : ""}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </button>
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatMoney(stats?.todayCollected ?? 0)}</p>
-              <p className="text-xs text-text-secondary">Today</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -378,6 +332,6 @@ export const StudentFees: React.FC = () => {
       )}
 
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

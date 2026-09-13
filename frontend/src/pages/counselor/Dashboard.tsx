@@ -41,7 +41,6 @@ import {
   Clock,
   ListChecks,
   Activity,
-  Award,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -61,6 +60,7 @@ import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PageContainer, PageHeader, PageSection, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
 import { getMasterLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
   useLeads,
@@ -722,7 +722,6 @@ export const CounselorDashboard: React.FC = () => {
     );
   }, [liveAdmissions]);
 
-  const registeredStudentsCount = liveStudents.length;
 
   // Revenue overview metrics (Live from Financial Reports & PostgreSQL)
   const pendingFeeAmount = financialReport?.summary?.totalPending ?? 0;
@@ -1174,55 +1173,47 @@ export const CounselorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
-      {/* ─── 1. TOP HEADER & ACTIONS ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 shrink-0 mt-0.5">
-            <UserCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
-              Counsellor Dashboard
-            </h1>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
-              Lead Pipeline, Student Admissions & Counselling Operations — <span className="text-slate-800 font-semibold">Aadya Institute</span>
-            </p>
-          </div>
-        </div>
-
-        {hasAnyModuleAccess && (
-        <div className="flex items-center gap-3 flex-wrap">
-          {canCreateBatch && (
-          <Button
-            onClick={() => setShowCreateBatchModal(true)}
-            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-2 h-10 transition-all"
-          >
-            <Layers className="h-4 w-4" /> Create Batch & Schedule
-          </Button>
-          )}
-
-          {canCreateLead && (
-          <Button
-            onClick={() => setShowAddModal(true)}
-            variant="outline"
-            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-4 py-2 rounded-xl shadow-xs gap-2 h-10 transition-all"
-          >
-            <Plus className="h-4 w-4 text-[#2563EB]" /> New Lead Enquiry
-          </Button>
-          )}
-
-          {canRegisterAdmission && (
-          <Button
-            onClick={() => navigate("/counselor/admissions/direct-entry")}
-            className="bg-[#059669] hover:bg-[#047857] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 transition-all"
-          >
-            <Plus className="h-4 w-4" /> Register Students
-          </Button>
-          )}
-        </div>
-        )}
-      </div>
+    <PageContainer density="compact" className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Counsellor Dashboard"
+        description={
+          <>
+            Lead Pipeline, Student Admissions & Counselling Operations —{" "}
+            <span className="text-foreground font-semibold">Aadya Institute</span>
+          </>
+        }
+        actions={
+          hasAnyModuleAccess ? (
+            <div className="flex items-center gap-3 flex-wrap">
+              {canCreateBatch && (
+                <Button
+                  onClick={() => setShowCreateBatchModal(true)}
+                  className="bg-primary hover:bg-primary/90 text-white font-semibold px-4 rounded-xl shadow-xs gap-2 h-9 transition-all"
+                >
+                  <Layers className="h-4 w-4" /> Create Batch & Schedule
+                </Button>
+              )}
+              {canCreateLead && (
+                <Button
+                  onClick={() => setShowAddModal(true)}
+                  variant="outline"
+                  className="border-border text-foreground hover:bg-muted font-semibold px-4 rounded-xl shadow-xs gap-2 h-9 transition-all"
+                >
+                  <Plus className="h-4 w-4 text-primary" /> New Lead Enquiry
+                </Button>
+              )}
+              {canRegisterAdmission && (
+                <Button
+                  onClick={() => navigate("/counselor/admissions/direct-entry")}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 rounded-xl shadow-sm gap-2 h-9 transition-all"
+                >
+                  <Plus className="h-4 w-4" /> Register Students
+                </Button>
+              )}
+            </div>
+          ) : undefined
+        }
+      />
 
       <InstallDashboardBanner />
 
@@ -1232,7 +1223,7 @@ export const CounselorDashboard: React.FC = () => {
         <>
       {/* ─── FOLLOW-UP / ACTION SUCCESS NOTIFICATION ─── */}
       {followUpSuccessMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
             <span>{followUpSuccessMsg}</span>
@@ -1247,102 +1238,54 @@ export const CounselorDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. TOP 5 KPI CARDS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4.5 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
-              <Target className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">New Leads</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">{newLeadsToday}</h3>
-              <p className="text-[11px] font-bold text-emerald-600 mt-0.5">Today</p>
-            </div>
-          </div>
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">New Leads</p>
+            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{newLeadsToday}</p>
+            <p className="text-[11px] font-medium text-emerald-600 mt-0.5">Today</p>
+          </CardContent>
         </Card>
 
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4.5 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/60">
-              <Phone className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Follow-ups Due</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">{followupsDueCount}</h3>
-              <p className="text-[11px] font-bold text-amber-600 mt-0.5">Require attention</p>
-            </div>
-          </div>
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Follow-ups Due</p>
+            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{followupsDueCount}</p>
+            <p className="text-[11px] font-medium text-amber-600 mt-0.5">Require attention</p>
+          </CardContent>
         </Card>
 
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4.5 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/60">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Counselling Sessions</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">{counsellingSessionsCount}</h3>
-              <p className="text-[11px] font-bold text-blue-600 mt-0.5">Scheduled today</p>
-            </div>
-          </div>
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Counselling Sessions</p>
+            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{counsellingSessionsCount}</p>
+            <p className="text-[11px] font-medium text-blue-600 mt-0.5">Scheduled today</p>
+          </CardContent>
         </Card>
 
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4.5 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/60">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Confirmed Admissions</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">{confirmedAdmissionsCount}</h3>
-              <p className="text-[11px] font-bold text-purple-600 mt-0.5">This month</p>
-            </div>
-          </div>
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Confirmed Admissions</p>
+            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{confirmedAdmissionsCount}</p>
+            <p className="text-[11px] font-medium text-purple-600 mt-0.5">This month</p>
+          </CardContent>
         </Card>
+      </MetricGrid>
 
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4.5 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Registered Students</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">{registeredStudentsCount}</h3>
-              <p className="text-[11px] font-bold text-emerald-600 mt-0.5">Currently enrolled</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* ─── TARGETS & LIVE INCENTIVE TRACKER ─── */}
-      <div className="bg-card border border-border rounded-2xl p-5 shadow-xs text-foreground">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 rounded-xl">
-              <Award className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                My Active Targets & Potential Incentives
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
-                  Live Calculation
-                </Badge>
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                System calculated performance from admissions, payments, and lead calls.
-              </p>
-            </div>
-          </div>
-
+      <PageSection
+        title="My Active Targets & Potential Incentives"
+        description="System calculated performance from admissions, payments, and lead calls."
+        density="compact"
+        actions={
           <Button
             onClick={() => navigate("/counselor/performance")}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs gap-1.5 h-9"
           >
             View Performance & Rewards <ArrowRight className="w-3.5 h-3.5" />
           </Button>
-        </div>
-
+        }
+      >
+      <div className="bg-card border border-border rounded-xl p-5 shadow-xs text-foreground">
         {myTargetsData?.targets && myTargetsData.targets.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
             {myTargetsData.targets.map((t) => {
@@ -1396,24 +1339,22 @@ export const CounselorDashboard: React.FC = () => {
           </div>
         )}
       </div>
+      </PageSection>
 
-      {/* ─── 3. REVENUE & FEE OVERVIEW (3 CARDS) ─── */}
-      <div className="space-y-3">
-        <h2 className="text-base font-bold text-[#0A2540]">Revenue & Fee Overview</h2>
-
+      <PageSection title="Revenue & Fee Overview" density="compact">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-5 hover:shadow-md transition-all">
+          <Card className="border border-border shadow-xs bg-card rounded-xl p-5 hover:shadow-md transition-all">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3.5">
                 <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
                   <Wallet className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-500">Pending Fee</p>
-                  <h3 className="text-2xl font-black text-amber-600 mt-0.5 tracking-tight">
+                  <p className="text-xs font-semibold text-muted-foreground">Pending Fee</p>
+                  <h3 className="text-2xl font-semibold text-amber-600 mt-0.5 tracking-tight">
                     {formatINR(pendingFeeAmount)}
                   </h3>
-                  <p className="text-xs font-medium text-slate-400 mt-0.5">Outstanding balance</p>
+                  <p className="text-xs font-medium text-muted-foreground mt-0.5">Outstanding balance</p>
                 </div>
               </div>
               <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px] px-2 py-0.5">
@@ -1478,7 +1419,7 @@ export const CounselorDashboard: React.FC = () => {
             </div>
           </Card>
         </div>
-      </div>
+      </PageSection>
 
       {/* ─── 4. COUNSELLOR LEADS & PIPELINE PROGRESS SECTION ─── */}
       <Card className="border border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden">
@@ -3452,6 +3393,6 @@ export const CounselorDashboard: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

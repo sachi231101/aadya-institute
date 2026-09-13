@@ -9,6 +9,7 @@ import {
   submissionStatusLabel,
   submissionStatusVariant,
 } from "@/utils/assignment.utils";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -110,17 +111,15 @@ export const SubmissionsQueue: React.FC = () => {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Submissions Queue</h2>
-        <p className="text-sm text-text-secondary">
-          All student submissions — filter by review status and grade when ready.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Submissions Queue"
+        description="All student submissions — filter by review status and grade when ready."
+      />
 
-      <Card className="border-border/50 shadow-sm">
+      <Card className="rounded-xl border-border/50 shadow-sm">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row gap-3">
+          <FilterToolbar className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Input
                 placeholder="Search student or assignment..."
@@ -144,7 +143,7 @@ export const SubmissionsQueue: React.FC = () => {
               <option value="LATE">Late</option>
               <option value="GRADED">Graded</option>
             </select>
-          </div>
+          </FilterToolbar>
 
           <div className="rounded-lg border border-border shadow-xs overflow-hidden overflow-x-auto bg-card">
             <Table className="w-full border-collapse">
@@ -331,6 +330,6 @@ export const SubmissionsQueue: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

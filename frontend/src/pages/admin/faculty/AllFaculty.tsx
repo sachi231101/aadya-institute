@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Plus, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer } from "@/components/layout/PageContainer";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
@@ -115,16 +115,10 @@ export const AllFaculty: React.FC = () => {
   return (
     <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
       {/* ─── FACULTY DIRECTORY CONTENT ─── */}
-      <div className="w-full space-y-6">
-
-        {/* PAGE HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Faculty Directory
-            </h1>
-          </div>
-          <div className="flex items-center gap-2.5">
+      <PageHeader
+        title="Faculty Directory"
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -134,36 +128,34 @@ export const AllFaculty: React.FC = () => {
               Faculty Timetable
             </Button>
             <PermissionGate itemKey="faculty.all" mode="write">
-            <Button 
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs rounded-xl cursor-pointer h-9 px-3.5 text-xs" 
-              onClick={() => navigate(`${basePath}/faculty/add`)}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Faculty
-            </Button>
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs rounded-xl cursor-pointer h-9 px-3.5 text-xs"
+                onClick={() => navigate(`${basePath}/faculty/add`)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Faculty
+              </Button>
             </PermissionGate>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {/* STAT CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <MetricGrid columns="grid-cols-1 sm:grid-cols-3" density="compact">
           {[
             { label: "On Leave", value: kpis.onLeave },
             { label: "Inactive", value: kpis.inactive },
             { label: "Active Batches", value: kpis.activeBatches },
           ].map((kpi, idx) => (
-            <Card key={idx} className="border border-border/80 shadow-2xs bg-card rounded-xl">
-              <CardContent className="p-3.5">
+            <Card key={idx} size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+              <CardContent size="compact">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{kpi.label}</p>
                 <h3 className="text-xl font-bold text-foreground mt-0.5 leading-tight">{kpi.value}</h3>
               </CardContent>
             </Card>
           ))}
-        </div>
+      </MetricGrid>
 
-        {/* SEARCH & FILTERS BAR */}
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
-          <div className="p-3 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -200,10 +192,8 @@ export const AllFaculty: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-        </Card>
+          </FilterToolbar>
 
-        {/* FACULTY DIRECTORY TABLE */}
         <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] whitespace-nowrap border-collapse">
@@ -295,7 +285,6 @@ export const AllFaculty: React.FC = () => {
             <span className="text-xs text-muted-foreground font-medium">Showing {filteredFaculty.length} of {rawFacultyList.length} faculty</span>
           </div>
         </Card>
-      </div>
     </PageContainer>
   );
 };

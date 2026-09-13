@@ -1,9 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Megaphone,
-  CheckCircle,
-  Edit,
-  Users,
   Search,
   Plus,
   Send,
@@ -21,7 +18,6 @@ import {
   Clock,
   BookOpen,
   Layers,
-  FileText,
   X,
   Upload,
   AlertCircle,
@@ -30,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -274,7 +271,7 @@ export const FacultyAnnouncements: React.FC = () => {
       attachmentName: attachedFile?.name,
       attachmentSize: attachedFile?.size,
       iconBg: "bg-blue-50",
-      iconColor: "text-[#1D4ED8]",
+      iconColor: "text-primary",
     });
 
     setTitle("");
@@ -333,10 +330,10 @@ export const FacultyAnnouncements: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-300">
+    <PageContainer className="animate-in fade-in duration-300">
       {/* Toast Notification Alert */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 flex items-start gap-3 px-4 py-3.5 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 animate-in slide-in-from-top-4">
+        <div className="fixed top-5 right-5 z-50 flex items-start gap-3 px-4 py-3.5 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 animate-in slide-in-from-top-4">
           <div className="h-6 w-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
             <CheckCheck className="h-3.5 w-3.5" />
           </div>
@@ -351,131 +348,77 @@ export const FacultyAnnouncements: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 1. PAGE HEADER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Announcements</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Create and manage announcements for your students.
-          </p>
-        </div>
+      <PageHeader
+        title="Announcements"
+        description="Create and manage announcements for your students."
+        actions={
+          <Button
+            onClick={handleScrollToCreate}
+            className="h-9 px-5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Announcement</span>
+          </Button>
+        }
+      />
 
-        <Button
-          onClick={handleScrollToCreate}
-          className="h-10 px-5 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-bold rounded-xl gap-2 shadow-xs cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Create Announcement</span>
-        </Button>
-      </div>
-
-      {/* ─── 2. SUMMARY CARDS ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Announcements */}
-        <Card className="border border-slate-200/80 bg-white rounded-2xl shadow-2xs hover:shadow-xs transition-shadow">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="h-11 w-11 rounded-xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center shrink-0">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-slate-500 block">Total Announcements</span>
-              <span className="text-2xl font-black text-slate-900 tracking-tight block mt-0.5">
-                {metrics.total}
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold">All time</span>
-            </div>
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{metrics.total}</h3>
           </CardContent>
         </Card>
-
-        {/* Card 2: Published */}
-        <Card className="border border-slate-200/80 bg-white rounded-2xl shadow-2xs hover:shadow-xs transition-shadow">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="h-11 w-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <CheckCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-slate-500 block">Published</span>
-              <span className="text-2xl font-black text-slate-900 tracking-tight block mt-0.5">
-                {metrics.published}
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
-            </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Published</p>
+            <h3 className="text-xl font-bold text-emerald-600 mt-0.5">{metrics.published}</h3>
           </CardContent>
         </Card>
-
-        {/* Card 3: Drafts */}
-        <Card className="border border-slate-200/80 bg-white rounded-2xl shadow-2xs hover:shadow-xs transition-shadow">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Edit className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-slate-500 block">Drafts</span>
-              <span className="text-2xl font-black text-slate-900 tracking-tight block mt-0.5">
-                {metrics.drafts}
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Not published</span>
-            </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Drafts</p>
+            <h3 className="text-xl font-bold text-amber-600 mt-0.5">{metrics.drafts}</h3>
           </CardContent>
         </Card>
-
-        {/* Card 4: Total Students Reached */}
-        <Card className="border border-slate-200/80 bg-white rounded-2xl shadow-2xs hover:shadow-xs transition-shadow">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="h-11 w-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-slate-500 block">Total Students Reached</span>
-              <span className="text-2xl font-black text-slate-900 tracking-tight block mt-0.5">
-                {metrics.reached}
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Across all announcements</span>
-            </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Students Reached</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{metrics.reached}</h3>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
       {/* ─── 3. MAIN TWO-COLUMN WORKSPACE ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* ─── LEFT COLUMN: ANNOUNCEMENT LIST (7 cols) ─── */}
-        <div className="lg:col-span-7 space-y-4">
-          <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs overflow-hidden">
+        <PageSection title="Your Announcements" className="lg:col-span-7">
+          <Card className="border border-border/80 bg-card rounded-xl shadow-xs overflow-hidden">
             <CardContent className="p-5 space-y-4">
-              {/* List Header & Filters */}
-              <div className="space-y-3">
-                <h2 className="text-sm font-black text-slate-900">Your Announcements</h2>
-
-                <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                  {/* Search Input */}
-                  <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <FilterToolbar>
+                  <div className="relative flex-1 min-w-[160px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <input
                       type="text"
                       placeholder="Search announcements..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200/80 rounded-xl outline-none placeholder:text-slate-400 focus:bg-white focus:border-[#1D4ED8] transition-all font-medium"
+                      className="w-full h-9 pl-9 pr-3 text-xs bg-muted/30 border border-border rounded-lg outline-none placeholder:text-muted-foreground focus:bg-background focus:border-primary transition-all font-medium"
                     />
                   </div>
-
-                  {/* Status Dropdown */}
-                  <div className="w-full sm:w-36">
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
-                      className="w-full h-9 px-3 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/80 rounded-xl outline-none cursor-pointer"
-                    >
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="h-9 min-w-[140px] px-3 text-xs font-semibold text-foreground bg-muted/30 border border-border rounded-lg outline-none cursor-pointer"
+                  >
                       <option value="All">All Status</option>
                       <option value="Published">Published</option>
                       <option value="Draft">Draft</option>
                     </select>
-                  </div>
-                </div>
-              </div>
+              </FilterToolbar>
 
               {/* Announcement List Items */}
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border/80">
                 {filteredAnnouncements.length === 0 ? (
                   <div className="text-center py-12">
                     <Megaphone className="h-10 w-10 text-slate-300 mx-auto mb-2" />
@@ -493,7 +436,7 @@ export const FacultyAnnouncements: React.FC = () => {
                           setSelectedAnnouncement(item);
                           setIsDetailsModalOpen(true);
                         }}
-                        className="py-4 flex items-start gap-3.5 group cursor-pointer hover:bg-slate-50/60 rounded-2xl px-2 -mx-2 transition-colors"
+                        className="py-4 flex items-start gap-3.5 group cursor-pointer hover:bg-slate-50/60 rounded-xl px-2 -mx-2 transition-colors"
                       >
                         {/* Icon */}
                         <div
@@ -505,7 +448,7 @@ export const FacultyAnnouncements: React.FC = () => {
                         {/* Middle Content */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-xs font-bold text-slate-900 group-hover:text-[#1D4ED8] transition-colors truncate">
+                            <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary transition-colors truncate">
                               {item.title}
                             </h3>
                             <Badge
@@ -524,7 +467,7 @@ export const FacultyAnnouncements: React.FC = () => {
 
                           {/* Metadata Row */}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[10px] text-slate-400 font-semibold">
-                            <span className="text-[#1D4ED8] font-bold bg-blue-50 px-2 py-0.5 rounded-md">
+                            <span className="text-primary font-bold bg-blue-50 px-2 py-0.5 rounded-md">
                               {item.batchName}
                             </span>
                             <span>•</span>
@@ -573,7 +516,7 @@ export const FacultyAnnouncements: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-[#1D4ED8] text-white font-bold text-xs"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-xs"
                   >
                     1
                   </button>
@@ -599,17 +542,13 @@ export const FacultyAnnouncements: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </PageSection>
 
         {/* ─── RIGHT COLUMN: CREATE ANNOUNCEMENT FORM (5 cols) ─── */}
-        <div ref={createPanelRef} className="lg:col-span-5 space-y-4">
-          <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs overflow-hidden">
+        <div ref={createPanelRef} className="lg:col-span-5">
+        <PageSection title="Create Announcement">
+          <Card className="border border-border/80 bg-card rounded-xl shadow-xs overflow-hidden">
             <CardContent className="p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="h-4 w-1 bg-[#1D4ED8] rounded-full" />
-                <h2 className="text-sm font-black text-slate-900">Create Announcement</h2>
-              </div>
-
               <form onSubmit={handlePublish} className="space-y-4 text-xs">
                 {batchesLoading ? (
                   <p className="text-xs text-slate-500">Loading assigned courses...</p>
@@ -634,7 +573,7 @@ export const FacultyAnnouncements: React.FC = () => {
                           }
                         }}
                         disabled={loadingFacultyCourses || facultyCourseGroups.length === 0}
-                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
+                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-primary disabled:opacity-60"
                       >
                         {facultyCourseGroups.length === 0 ? (
                           <option value="">
@@ -659,7 +598,7 @@ export const FacultyAnnouncements: React.FC = () => {
                         value={selectedBatchId}
                         onChange={(e) => setSelectedBatchId(e.target.value)}
                         disabled={currentCourseObj.batches.length === 0}
-                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
+                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-primary disabled:opacity-60"
                       >
                         {currentCourseObj.batches.length === 0 ? (
                           <option value="">No batches for this subject</option>
@@ -700,7 +639,7 @@ export const FacultyAnnouncements: React.FC = () => {
                   <label className="text-[11px] font-bold text-slate-700 block mb-1">
                     Message *
                   </label>
-                  <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50 focus-within:bg-white focus-within:border-[#1D4ED8] transition-all">
+                  <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-slate-50 focus-within:bg-white focus-within:border-primary transition-all">
                     {/* Formatting Bar */}
                     <div className="p-1.5 px-2 bg-slate-100/70 border-b border-slate-200/60 flex items-center gap-1 text-slate-600">
                       <button
@@ -787,7 +726,7 @@ export const FacultyAnnouncements: React.FC = () => {
 
                   {attachedFile ? (
                     <div className="p-2 px-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-[#1D4ED8] truncate">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-primary truncate">
                         <Paperclip className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{attachedFile.name}</span>
                         <span className="text-[10px] text-slate-400 font-normal">
@@ -821,8 +760,8 @@ export const FacultyAnnouncements: React.FC = () => {
                 </div>
 
                 {/* 6. Student Visibility Rule Info Box */}
-                <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-start gap-2.5 text-[11px] text-blue-900">
-                  <Info className="h-4 w-4 text-[#1D4ED8] shrink-0 mt-0.5" />
+                <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-[11px] text-blue-900">
+                  <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <p className="font-semibold leading-relaxed">
                     This announcement will be visible only to students enrolled in the selected batch.
                   </p>
@@ -834,14 +773,14 @@ export const FacultyAnnouncements: React.FC = () => {
                     type="button"
                     variant="outline"
                     onClick={handleSaveDraft}
-                    className="flex-1 h-10 text-xs font-bold text-slate-700 rounded-xl border-slate-200 hover:bg-slate-50 cursor-pointer"
+                    className="flex-1 h-9 text-xs font-bold text-slate-700 rounded-xl border-slate-200 hover:bg-slate-50 cursor-pointer"
                   >
                     Save as Draft
                   </Button>
 
                   <Button
                     type="submit"
-                    className="flex-1 h-10 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white text-xs font-bold rounded-xl gap-1.5 shadow-2xs cursor-pointer"
+                    className="flex-1 h-9 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1.5 shadow-2xs cursor-pointer"
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>Publish Announcement</span>
@@ -850,17 +789,18 @@ export const FacultyAnnouncements: React.FC = () => {
               </form>
             </CardContent>
           </Card>
+        </PageSection>
         </div>
       </div>
 
       {/* ─── MODAL: ANNOUNCEMENT FULL DETAILS VIEW ────────────────────────── */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-5 sm:p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white rounded-xl p-5 sm:p-6 border-slate-200 shadow-2xl">
           {selectedAnnouncement && (
             <>
               <DialogHeader className="space-y-1.5 text-left">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1D4ED8] border border-blue-200 uppercase">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-primary border border-blue-200 uppercase">
                     {selectedAnnouncement.type}
                   </span>
                   <Badge
@@ -873,7 +813,7 @@ export const FacultyAnnouncements: React.FC = () => {
                   </Badge>
                 </div>
 
-                <DialogTitle className="text-base sm:text-lg font-black text-slate-900 pt-1 leading-snug">
+                <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900 pt-1 leading-snug">
                   {selectedAnnouncement.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -882,21 +822,21 @@ export const FacultyAnnouncements: React.FC = () => {
               </DialogHeader>
 
               {/* Message Body */}
-              <div className="my-2 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line max-h-56 overflow-y-auto">
+              <div className="my-2 p-4 bg-slate-50 rounded-xl border border-slate-200/60 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line max-h-56 overflow-y-auto">
                 {selectedAnnouncement.message}
               </div>
 
               {/* Attachment if present */}
               {selectedAnnouncement.attachmentName && (
                 <div className="p-2.5 px-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs flex-wrap gap-2">
-                  <div className="flex items-center gap-2 font-semibold text-[#1D4ED8] truncate">
+                  <div className="flex items-center gap-2 font-semibold text-primary truncate">
                     <Paperclip className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{selectedAnnouncement.attachmentName}</span>
                     <span className="text-[10px] text-slate-400 shrink-0">
                       ({selectedAnnouncement.attachmentSize})
                     </span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-[#1D4ED8] font-bold shrink-0">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-primary font-bold shrink-0">
                     Download
                   </Button>
                 </div>
@@ -906,7 +846,7 @@ export const FacultyAnnouncements: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Notification Sent</span>
-                  <p className="text-sm font-black text-slate-800 mt-0.5">
+                  <p className="text-sm font-semibold text-slate-800 mt-0.5">
                     {selectedAnnouncement.status === "Published"
                       ? `${selectedAnnouncement.sentCount} Students`
                       : "Not sent (Draft)"}
@@ -914,7 +854,7 @@ export const FacultyAnnouncements: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Read by Students</span>
-                  <p className="text-sm font-black text-emerald-600 mt-0.5">
+                  <p className="text-sm font-semibold text-emerald-600 mt-0.5">
                     {selectedAnnouncement.status === "Published"
                       ? `${selectedAnnouncement.readCount} Students (${selectedAnnouncement.sentCount > 0
                         ? Math.round(
@@ -958,6 +898,6 @@ export const FacultyAnnouncements: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

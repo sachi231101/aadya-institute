@@ -78,6 +78,11 @@
     --radius-md: 0.5rem;
     --radius-lg: 0.75rem;
     --radius-xl: 1rem;
+
+    /* Layout design system */
+    --page-max-width: 1720px;
+    --page-padding-x: 1rem; /* p-4; sm/lg via utilities */
+    --card-radius: 0.75rem; /* rounded-xl */
   }
 
   .dark {
@@ -167,16 +172,40 @@
 }
 
 @layer components {
-  /* Global Page Container */
+  /*
+   * Design system — layout scale (single source of truth)
+   * Page padding: p-4 sm:p-6 lg:p-8 | compact: p-3.5 sm:p-5 lg:p-6
+   * Page stack: space-y-6 | compact: space-y-4
+   * Max width: 1720px | narrow: max-w-5xl
+   * Card padding: p-5 sm:p-6 | compact: p-3.5 sm:p-4
+   * Card radius: rounded-xl
+   * Page title: text-2xl sm:text-3xl font-bold tracking-tight
+   * Page subtitle: text-sm text-muted-foreground
+   * Section title: text-base sm:text-lg font-semibold
+   */
+
   .page-container {
-    @apply w-full max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-16;
+    @apply w-full max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-16 text-foreground;
   }
 
   .page-container-dense {
-    @apply w-full max-w-[1720px] mx-auto p-3.5 sm:p-5 lg:p-6 space-y-5 pb-12;
+    @apply w-full max-w-[1720px] mx-auto p-3.5 sm:p-5 lg:p-6 space-y-4 pb-12 text-foreground;
   }
 
-  /* Standard Section & Stack Spacing */
+  .page-title {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-foreground;
+    font-family: var(--font-heading);
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .section-title {
+    @apply text-base sm:text-lg font-semibold text-foreground;
+    font-family: var(--font-heading);
+  }
+
   .section-stack {
     @apply space-y-6;
   }
@@ -189,7 +218,6 @@
     @apply mb-3 sm:mb-4;
   }
 
-  /* Standard Responsive Grid Gaps */
   .grid-cards {
     @apply grid gap-4 sm:gap-5 lg:gap-6;
   }
@@ -198,7 +226,6 @@
     @apply grid gap-3 sm:gap-4;
   }
 
-  /* Standard Card Paddings */
   .card-padding {
     @apply p-5 sm:p-6;
   }
@@ -207,7 +234,6 @@
     @apply p-3.5 sm:p-4;
   }
 
-  /* Standard Filter Toolbar */
   .toolbar-container {
     @apply flex flex-wrap items-center gap-3 py-2;
   }

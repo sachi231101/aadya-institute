@@ -4,6 +4,7 @@ import { Video, Search, Loader2, AlertCircle, ExternalLink } from "lucide-react"
 import { useQuery } from "@tanstack/react-query";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -58,31 +59,31 @@ export const LiveClasses: React.FC = () => {
   }, [data, searchTerm]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Live Classes</h2>
-          <p className="text-sm text-text-secondary">
-            Currently active class sessions across batches.
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm" className="text-xs">
-          <Link to={classesPath}>View all classes</Link>
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Live Classes"
+        description="Currently active class sessions across batches."
+        actions={
+          <Button asChild variant="outline" size="sm" className="text-xs">
+            <Link to={classesPath}>View all classes</Link>
+          </Button>
+        }
+      />
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
-          <div className="relative">
+      <FilterToolbar>
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
               placeholder="Search live sessions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-9"
             />
           </div>
+      </FilterToolbar>
 
+      <Card className="border-border/50">
+        <CardContent className="p-0">
           <div className="rounded-md border overflow-hidden">
             <Table>
               <TableHeader>
@@ -163,6 +164,6 @@ export const LiveClasses: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

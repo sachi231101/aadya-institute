@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "../../../hooks/useFaculty";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
@@ -187,29 +188,30 @@ export const FacultyDetails: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-[1500px] mx-auto pb-12 animate-in fade-in duration-300">
-      {/* ─── 1. TOP HEADER ───────────────────────────────── */}
+    <PageContainer className="animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate("/admin/faculty/all")}
-            className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
+            className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">{faculty.name}</h1>
-              <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                {faculty.employeeCode}
+          <PageHeader
+            className="flex-1 min-w-0"
+            title={
+              <span className="flex flex-wrap items-center gap-2">
+                {faculty.name}
+                <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                  {faculty.employeeCode}
+                </span>
               </span>
-            </div>
-          </div>
+            }
+          />
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <PermissionGate itemKey="faculty.all" mode="write">
           <Button
@@ -461,14 +463,14 @@ export const FacultyDetails: React.FC = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {faculty.batches.map((b: any) => (
-                <Card key={b.id} className="border border-border shadow-xs bg-card rounded-2xl hover:border-primary/40 transition-all overflow-hidden">
+                <Card key={b.id} className="border border-border shadow-xs bg-card rounded-xl hover:border-primary/40 transition-all overflow-hidden">
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
                         <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                           {b.id}
                         </span>
-                        <h4 className="text-sm font-black text-foreground mt-1.5">{b.name}</h4>
+                        <h4 className="text-sm font-bold text-foreground mt-1.5">{b.name}</h4>
                       </div>
                       <span
                         className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
@@ -510,7 +512,7 @@ export const FacultyDetails: React.FC = () => {
         {activeTab === "performance" && (
           <div className="space-y-6">
             {/* Grade Distribution */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                   <MonitorPlay className="h-4 w-4 text-primary" /> Student Grade & Attendance Distribution
@@ -520,22 +522,22 @@ export const FacultyDetails: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                   <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 text-center">
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Excellent (&gt;85%)</span>
-                    <h4 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{faculty.studentPerf.excellent}</h4>
+                    <h4 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{faculty.studentPerf.excellent}</h4>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Top scorers</p>
                   </div>
                   <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-center">
                     <span className="text-[10px] font-bold text-primary dark:text-sky-400 uppercase tracking-wider">Good (70-85%)</span>
-                    <h4 className="text-3xl font-black text-primary dark:text-sky-400 mt-1">{faculty.studentPerf.good}</h4>
+                    <h4 className="text-3xl font-bold text-primary dark:text-sky-400 mt-1">{faculty.studentPerf.good}</h4>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Regular on-track</p>
                   </div>
                   <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 text-center">
                     <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Needs Imp. (50-70%)</span>
-                    <h4 className="text-3xl font-black text-amber-600 dark:text-amber-400 mt-1">{faculty.studentPerf.needsImp}</h4>
+                    <h4 className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{faculty.studentPerf.needsImp}</h4>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Extra clinic needed</p>
                   </div>
                   <div className="bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center">
                     <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">At Risk (&lt;50%)</span>
-                    <h4 className="text-3xl font-black text-rose-600 dark:text-rose-400 mt-1">{faculty.studentPerf.atRisk}</h4>
+                    <h4 className="text-3xl font-bold text-rose-600 dark:text-rose-400 mt-1">{faculty.studentPerf.atRisk}</h4>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Discontinuation risk</p>
                   </div>
                 </div>
@@ -547,7 +549,7 @@ export const FacultyDetails: React.FC = () => {
             </Card>
 
             {/* Attendance Trend Chart */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-emerald-500" /> Monthly Faculty Attendance Trend (Last 6 Months)
@@ -591,19 +593,19 @@ export const FacultyDetails: React.FC = () => {
 
         {/* ─── TAB 4: WEEKLY SCHEDULE ─────────────────────────────────── */}
         {activeTab === "schedule" && (
-          <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+          <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
             <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
               <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" /> Weekly Class Timetable
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {["MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => {
                   const slots = faculty.schedule[day] || [];
                   return (
                     <div key={day} className="bg-muted/30 p-3.5 rounded-xl border border-border space-y-2">
-                      <span className="text-xs font-black text-primary tracking-wider block">{day}</span>
+                      <span className="text-xs font-bold text-primary tracking-wider block">{day}</span>
                       {slots.length > 0 ? (
                         slots.map((s: any, idx: number) => (
                           <div key={idx} className="p-2 rounded-lg bg-card border border-border text-xs shadow-2xs">
@@ -629,7 +631,7 @@ export const FacultyDetails: React.FC = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {faculty.feedback.map((item: any, i: number) => (
-                <Card key={i} className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+                <Card key={i} className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
@@ -653,7 +655,7 @@ export const FacultyDetails: React.FC = () => {
 
         {/* ─── TAB 6: ATTENDANCE LOG ─────────────────────────────────── */}
         {activeTab === "attendance" && (
-          <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+          <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
             <CardContent className="p-0">
               {facultyDailyAttendance.length > 0 ? (
                 <div className="divide-y divide-border">
@@ -684,6 +686,6 @@ export const FacultyDetails: React.FC = () => {
           </Card>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 };

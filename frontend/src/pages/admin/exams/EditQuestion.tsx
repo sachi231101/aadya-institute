@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 interface OptionItem {
   id: string;
@@ -259,27 +260,24 @@ export const EditQuestion: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(`${basePath}/question-bank`, { state: questionBankId ? { bankId: questionBankId } : null })}
-          className="h-9 w-9 rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`${basePath}/question-bank`, { state: questionBankId ? { bankId: questionBankId } : null })}
+              className="h-9 w-9 rounded-full -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <HelpCircle className="h-6 w-6 text-purple-600" />
             Edit Assessment Question
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Update question statement, difficulty, answers, choices, and scoring weights.
-          </p>
-        </div>
-      </div>
+          </span>
+        }
+        description="Update question statement, difficulty, answers, choices, and scoring weights."
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {validationError && (
@@ -584,7 +582,7 @@ export const EditQuestion: React.FC = () => {
           </Button>
         </div>
       </form>
-    </div>
+    </PageContainer>
   );
 };
 

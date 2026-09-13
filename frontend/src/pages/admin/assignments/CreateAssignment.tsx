@@ -27,6 +27,7 @@ import {
 import { getPortalBasePath } from "@/utils/portal-path";
 import { useAuthStore } from "@/store/auth.store";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -214,31 +215,29 @@ export const CreateAssignment: React.FC = () => {
   }
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Create Assignment</h2>
-          <p className="text-sm text-text-secondary">
-            Set details, attach materials, and target courses and batches.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate(assignmentsBase)}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="create-assignment-form"
-            className="bg-[#2563EB] hover:bg-[#125387] text-white shadow-sm"
-            disabled={createMutation.isPending || uploadAttachment.isPending}
-          >
-            {(createMutation.isPending || uploadAttachment.isPending) && (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            )}
-            Save
-          </Button>
-        </div>
-      </div>
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title="Create Assignment"
+        description="Set details, attach materials, and target courses and batches."
+        actions={
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="outline" onClick={() => navigate(assignmentsBase)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-assignment-form"
+              className="bg-primary hover:bg-[#125387] text-white shadow-sm"
+              disabled={createMutation.isPending || uploadAttachment.isPending}
+            >
+              {(createMutation.isPending || uploadAttachment.isPending) && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              Save
+            </Button>
+          </div>
+        }
+      />
 
       <form id="create-assignment-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {error && (
@@ -363,7 +362,7 @@ export const CreateAssignment: React.FC = () => {
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/30">
-                  <Upload className="h-6 w-6 text-[#2563EB]" />
+                  <Upload className="h-6 w-6 text-primary" />
                   <span className="text-sm font-medium">Select file to upload</span>
                   <span className="text-xs text-text-muted">
                     Allowed: {ALLOWED_ATTACHMENT_LABEL} (max 10MB)
@@ -487,6 +486,6 @@ export const CreateAssignment: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -16,6 +16,7 @@ import {
 } from "@/hooks/useDocuments";
 import type { DocumentEntityType } from "@/services/documents.api";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -116,21 +117,22 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
-          <p className="text-sm text-text-secondary">{description}</p>
-        </div>
-        <PermissionGate itemKey={writeItemKey} mode="write">
-        <Button className="bg-[#2563EB] text-white" onClick={() => setShowUpload(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Upload Document
-        </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={title}
+        description={description}
+        actions={
+          <PermissionGate itemKey={writeItemKey} mode="write">
+            <Button className="bg-primary text-white" onClick={() => setShowUpload(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Upload Document
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
+          <FilterToolbar>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
@@ -140,6 +142,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
               className="pl-9"
             />
           </div>
+          </FilterToolbar>
           <Table>
             <TableHeader>
               <TableRow>
@@ -196,7 +199,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
                             href={d.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#2563EB] hover:underline text-sm"
+                            className="text-primary hover:underline text-sm"
                           >
                             {d.fileName}
                           </a>
@@ -290,7 +293,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -331,7 +334,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

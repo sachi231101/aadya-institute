@@ -14,6 +14,7 @@ import {
 import { batchesApi } from "@/services/batches.api";
 import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,11 +255,12 @@ export const BatchDetails: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-300">
-      {/* Zenox-style header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-border pb-3">
-        <h2 className="text-xl font-black tracking-tight text-foreground">Batch Schedule</h2>
-        <div className="flex flex-wrap items-center gap-1.5">
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Batch Schedule"
+        className="border-b border-border pb-3"
+        actions={
+          <>
           <PermissionGate itemKey="batches.all" mode="write">
           <Button
             size="sm"
@@ -324,8 +326,9 @@ export const BatchDetails: React.FC = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Summary bar */}
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm font-medium text-foreground">
@@ -609,6 +612,6 @@ export const BatchDetails: React.FC = () => {
             </CardContent>
           </Card>
       )}
-    </div>
+    </PageContainer>
   );
 };

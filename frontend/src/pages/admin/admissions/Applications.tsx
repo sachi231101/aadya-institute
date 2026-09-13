@@ -32,6 +32,7 @@ import {
   X,
   User,
 } from "lucide-react";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -332,7 +333,7 @@ export const Applications: React.FC = () => {
 
   return (
     <PermissionGate itemKey="admissions.applications" mode="read">
-    <div className="p-4 lg:p-6 max-w-[1400px] w-full mx-auto space-y-4 bg-background min-h-screen text-foreground font-sans">
+    <PageContainer className="space-y-4 text-foreground font-sans">
       <ReadOnlyBanner itemKey="admissions.applications" label="Applications" />
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
@@ -342,21 +343,18 @@ export const Applications: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Applications</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {totalAppsCount} total · {feePendingCount} fee pending · {convertedToAdmissionCount} admitted
-          </p>
-        </div>
-        <PermissionGate itemKey="admissions.applications" mode="write">
-          <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="h-9 gap-1.5 shrink-0">
-            <Plus className="h-3.5 w-3.5" />
-            New application
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        title="Applications"
+        description={`${totalAppsCount} total · ${feePendingCount} fee pending · ${convertedToAdmissionCount} admitted`}
+        actions={
+          <PermissionGate itemKey="admissions.applications" mode="write">
+            <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="h-9 gap-1.5 shrink-0">
+              <Plus className="h-3.5 w-3.5" />
+              New application
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       {/* Toolbar */}
       <div className="rounded-xl border border-border bg-card p-3 shadow-xs space-y-3">
@@ -732,14 +730,14 @@ export const Applications: React.FC = () => {
       {/* ─── 7. CREATE NEW APPLICATION MODAL ─── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center">
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">
+                  <h3 className="text-base font-semibold text-foreground">
                     New Admission Application
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -880,7 +878,7 @@ export const Applications: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
     </PermissionGate>
   );
 };

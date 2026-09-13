@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { EnrichedLead } from "./Enquiries";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/layout";
 
 interface ViewEnquiryInfoProps {
   lead: EnrichedLead;
@@ -115,95 +116,95 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
     (lead.timeline && lead.timeline.some((t) => t.mode?.includes("AI") || t.text?.includes("AI")));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200 font-sans antialiased text-foreground">
-      {/* ─── 1. TOP BREADCRUMB & HEADER ACTION BAR ─────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onBack}
-            className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
+    <div className="space-y-6 pb-16 animate-in fade-in duration-200 font-sans antialiased text-foreground">
+      <div className="flex items-start gap-3">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onBack}
+          className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <PageHeader
+          className="flex-1"
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              Enquiry Details
+              <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
+                {lead.enquiryNo}
+              </span>
+            </span>
+          }
+          description={
+            <>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onBack}
-                className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent cursor-pointer"
+                className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent cursor-pointer -ml-0 mb-1"
               >
                 ← Back to Enquiries
               </Button>
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
-                Enquiry Details
-              </h1>
-              <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                {lead.enquiryNo}
+              <span className="block text-xs text-muted-foreground">
+                Complete CRM enquiry information, counselling history & qualification workflow.
               </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Complete CRM enquiry information, counselling history & qualification workflow.
-            </p>
-          </div>
-        </div>
+            </>
+          }
+          actions={
+            <>
+              {canEditEnquiries && (
+                <Button
+                  onClick={() => onCreateApplication(lead)}
+                  className="h-9 px-3.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>+ Create Application</span>
+                </Button>
+              )}
 
-        {/* Header Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {canEditEnquiries && (
-          <Button
-            onClick={() => onCreateApplication(lead)}
-            className="h-9 px-3.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            <span>+ Create Application</span>
-          </Button>
-          )}
+              {canEditEnquiries && (
+                <Button
+                  onClick={() => onDirectAdmission(lead)}
+                  variant="outline"
+                  className="h-9 px-3.5 text-xs font-bold border-border bg-card text-foreground hover:bg-muted/50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <GraduationCap className="h-3.5 w-3.5 text-primary" />
+                  <span>Direct Admission</span>
+                </Button>
+              )}
 
-          {canEditEnquiries && (
-          <Button
-            onClick={() => onDirectAdmission(lead)}
-            variant="outline"
-            className="h-9 px-3.5 text-xs font-bold border-border bg-card text-foreground hover:bg-muted/50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-          >
-            <GraduationCap className="h-3.5 w-3.5 text-primary" />
-            <span>Direct Admission</span>
-          </Button>
-          )}
+              {canEditAiCalling && (
+                <Button
+                  onClick={handleAiCallClick}
+                  disabled={isCalling}
+                  className="h-9 px-3 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  {isCalling ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Ringing AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-3.5 w-3.5" />
+                      <span>Trigger AI Call</span>
+                    </>
+                  )}
+                </Button>
+              )}
 
-          {canEditAiCalling && (
-          <Button
-            onClick={handleAiCallClick}
-            disabled={isCalling}
-            className="h-9 px-3 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            {isCalling ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Ringing AI...</span>
-              </>
-            ) : (
-              <>
-                <Bot className="h-3.5 w-3.5" />
-                <span>Trigger AI Call</span>
-              </>
-            )}
-          </Button>
-          )}
-
-          <Button
-            onClick={() => window.open(`https://wa.me/91${lead.phone}`, "_blank")}
-            variant="outline"
-            className="h-9 px-3 text-xs font-semibold border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 cursor-pointer"
-          >
-            <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
-            <span>WhatsApp</span>
-          </Button>
-        </div>
+              <Button
+                onClick={() => window.open(`https://wa.me/91${lead.phone}`, "_blank")}
+                variant="outline"
+                className="h-9 px-3 text-xs font-semibold border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 cursor-pointer"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
+                <span>WhatsApp</span>
+              </Button>
+            </>
+          }
+        />
       </div>
 
       {/* ─── 2. COMPACT SUMMARY HEADER ──────────────────────────────────── */}
@@ -213,14 +214,14 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             {/* Left: Avatar, Name, Phone, Email */}
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14 border border-border shrink-0 bg-primary/10 text-primary font-bold text-lg">
-                <AvatarFallback className="bg-primary/10 text-primary font-extrabold">
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                   {getInitials(lead.name)}
                 </AvatarFallback>
               </Avatar>
 
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <h2 className="text-lg sm:text-xl font-extrabold text-foreground">
+                  <h2 className="text-lg sm:text-xl font-semibold text-foreground">
                     {lead.name}
                   </h2>
                   <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
@@ -259,7 +260,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lead Score</p>
-                <p className="text-xs font-extrabold text-amber-500 mt-1">
+                <p className="text-xs font-semibold text-amber-500 mt-1">
                   {lead.leadScore}/100 🔥
                 </p>
               </div>
@@ -685,7 +686,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                     <Bot className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-foreground">AI Voice Qualification Agent (Sarvam AI)</h3>
+                    <h3 className="text-sm font-semibold text-foreground">AI Voice Qualification Agent (Sarvam AI)</h3>
                     <p className="text-xs text-muted-foreground">
                       Autonomous conversational qualification call (OPTIONAL — Manual Trigger Only)
                     </p>
@@ -720,19 +721,19 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="p-4 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">AI Qualification Score</span>
-                      <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                      <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
                         {lead.leadScore}/100 🔥
                       </span>
                     </div>
                     <div className="p-4 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">Interest Level</span>
-                      <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
+                      <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">
                         {lead.priority === "Hot" ? "🔥 Hot Lead" : lead.priority === "Warm" ? "⚡ Warm Lead" : "❄️ Cold Lead"}
                       </span>
                     </div>
                     <div className="p-4 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">Call Status</span>
-                      <span className="text-xl font-black text-primary mt-1 block">
+                      <span className="text-xl font-bold text-primary mt-1 block">
                         Completed (02m 15s)
                       </span>
                     </div>
@@ -889,7 +890,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
       </div>
 
       {/* ─── 5. BOTTOM STICKY ACTION BAR ──────────────────────────────── */}
-      <div className="p-4 rounded-2xl border border-border bg-card shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 rounded-xl border border-border bg-card shadow-sm flex flex-wrap items-center justify-between gap-3">
         {/* Left Actions */}
         <div className="flex items-center gap-2">
           <Button

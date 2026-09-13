@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -307,30 +308,30 @@ export const AdminAssignments: React.FC = () => {
   const isEditMode = !!editTarget;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <FileText className="h-6 w-6 text-[#2563EB]" />
+    <PageContainer className="animate-in fade-in duration-500">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <FileText className="h-6 w-6 text-primary" />
             All Assignments
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Create, edit, grade, and manage assignments across all batches
-          </p>
-        </div>
-        <PermissionGate itemKey="assignments.all" mode="write">
-          <Button
-            onClick={() => {
-              handleResetForm();
-              setShowCreateDialog(true);
-            }}
-            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Create Assignment
-          </Button>
-        </PermissionGate>
-      </div>
+          </span>
+        }
+        description="Create, edit, grade, and manage assignments across all batches"
+        actions={
+          <PermissionGate itemKey="assignments.all" mode="write">
+            <Button
+              onClick={() => {
+                handleResetForm();
+                setShowCreateDialog(true);
+              }}
+              className="bg-primary hover:bg-primary text-white gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Create Assignment
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       {successToast && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-bold">
@@ -339,11 +340,11 @@ export const AdminAssignments: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <MetricGrid columns="grid-cols-1 sm:grid-cols-3">
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-[#2563EB]" />
+              <FileText className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">{meta.total}</p>
@@ -377,10 +378,9 @@ export const AdminAssignments: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
             <Input
@@ -420,8 +420,7 @@ export const AdminAssignments: React.FC = () => {
               </option>
             ))}
           </select>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-0">
@@ -561,10 +560,10 @@ export const AdminAssignments: React.FC = () => {
 
       {/* Create Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={(open) => !open && handleResetForm()}>
-        <DialogContent className="max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileCheck className="h-5 w-5 text-[#2563EB]" />
+              <FileCheck className="h-5 w-5 text-primary" />
               Create New Assignment
             </DialogTitle>
           </DialogHeader>
@@ -655,7 +654,7 @@ export const AdminAssignments: React.FC = () => {
               <Button
                 type="submit"
                 disabled={!isFormValid || createMutation.isPending}
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
               >
                 {createMutation.isPending ? "Creating..." : "Create Assignment"}
               </Button>
@@ -666,7 +665,7 @@ export const AdminAssignments: React.FC = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditMode} onOpenChange={(open) => !open && handleResetForm()}>
-        <DialogContent className="max-w-lg rounded-2xl">
+        <DialogContent className="max-w-lg rounded-xl">
           <DialogHeader>
             <DialogTitle>Edit Assignment</DialogTitle>
           </DialogHeader>
@@ -713,7 +712,7 @@ export const AdminAssignments: React.FC = () => {
               <Button
                 type="submit"
                 disabled={!isFormValid || updateMutation.isPending}
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
@@ -758,7 +757,7 @@ export const AdminAssignments: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#2563EB] text-white"
+                  className="bg-primary text-white"
                   disabled={!gradeMarks || gradeMutation.isPending}
                   onClick={() => {
                     gradeMutation.mutate(
@@ -786,6 +785,6 @@ export const AdminAssignments: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

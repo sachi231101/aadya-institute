@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBranches } from "@/hooks/useBranches";
@@ -317,7 +318,7 @@ export const FacultyAttendance: React.FC = () => {
   }, [filteredFaculty, currentDayAttendance]);
 
   return (
-    <div className="p-5 max-w-[1600px] mx-auto space-y-4 animate-in fade-in duration-300 text-slate-800 dark:text-slate-100">
+    <PageContainer density="compact" className="animate-in fade-in duration-300 text-slate-800 dark:text-slate-100">
       {/* Toast Alert */}
       {toastMessage && (
         <div
@@ -341,12 +342,7 @@ export const FacultyAttendance: React.FC = () => {
         </div>
       )}
 
-      {/* PAGE HEADER */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
-          Faculty Attendance
-        </h1>
-      </div>
+      <PageHeader title="Faculty Attendance" />
 
       {/* Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -758,7 +754,7 @@ export const FacultyAttendance: React.FC = () => {
           </Card>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

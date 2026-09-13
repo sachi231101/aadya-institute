@@ -24,7 +24,7 @@ import {
   Video,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { PageContainer } from "@/components/layout/PageContainer";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -568,30 +568,24 @@ export const Classes: React.FC = () => {
 
   return (
     <PageContainer className="font-sans animate-in fade-in duration-200">
-      {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-            Classes Management
-          </h1>
-          <p className="text-sm text-muted-foreground font-medium mt-0.5">
-            View and manage all scheduled classes and faculty assignments. Click on any class to view details.
-          </p>
-        </div>
-
-        <PermissionGate itemKey="schedule.classes" mode="write">
-          <Button
-            onClick={() => {
-              resetScheduleForm();
-              setIsScheduleModalOpen(true);
-            }}
-            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Schedule Class</span>
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        title="Classes Management"
+        description="View and manage all scheduled classes and faculty assignments. Click on any class to view details."
+        actions={
+          <PermissionGate itemKey="schedule.classes" mode="write">
+            <Button
+              onClick={() => {
+                resetScheduleForm();
+                setIsScheduleModalOpen(true);
+              }}
+              className="bg-primary hover:bg-primary text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Schedule Class</span>
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       {/* Notification Toast */}
       {notificationMsg && (
@@ -616,7 +610,7 @@ export const Classes: React.FC = () => {
         <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
           Select Branch
         </label>
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-3.5">
+        <Card className="border border-border shadow-xs bg-card rounded-xl p-3.5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3 flex-1">
               {/* Branch Selector Dropdown */}
@@ -646,7 +640,7 @@ export const Classes: React.FC = () => {
               {/* Branch Code Card */}
               <div className="h-11 px-4 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
                 <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Branch Code</span>
-                <span className="text-xs font-black text-foreground">{currentBranchInfo.code}</span>
+                <span className="text-xs font-bold text-foreground">{currentBranchInfo.code}</span>
               </div>
 
               {/* Branch Location Card */}
@@ -667,7 +661,7 @@ export const Classes: React.FC = () => {
                 setCurrentPage(1);
               }}
               className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${isViewAllBranches
-                  ? "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
+                  ? "bg-primary hover:bg-primary text-white shadow-xs"
                   : "border-border bg-card text-foreground hover:bg-muted"
                 }`}
             >
@@ -678,16 +672,14 @@ export const Classes: React.FC = () => {
         </Card>
       </div>
 
-      {/* ─── 3. OVERVIEW METRIC CARDS ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Classes */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 shrink-0">
+      <MetricGrid>
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 shrink-0">
             <Calendar className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">
+              <span className="text-2xl font-bold text-foreground">
                 {sessionsLoading ? "—" : stats.total}
               </span>
               <span className="text-xs font-semibold text-muted-foreground">Scheduled</span>
@@ -697,13 +689,13 @@ export const Classes: React.FC = () => {
         </Card>
 
         {/* Card 2: Faculty Assigned */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
             <Users className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">
+              <span className="text-2xl font-bold text-foreground">
                 {sessionsLoading ? "—" : stats.facultyAssigned}
               </span>
               <span className="text-xs font-semibold text-muted-foreground">Faculty</span>
@@ -713,13 +705,13 @@ export const Classes: React.FC = () => {
         </Card>
 
         {/* Card 3: Today's Classes */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-500 shrink-0">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-500 shrink-0">
             <Clock className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">
+              <span className="text-2xl font-bold text-foreground">
                 {sessionsLoading ? "—" : stats.today}
               </span>
               <span className="text-xs font-semibold text-muted-foreground">Scheduled Today</span>
@@ -729,13 +721,13 @@ export const Classes: React.FC = () => {
         </Card>
 
         {/* Card 4: Unassigned Classes */}
-        <Card className="border border-amber-500/30 shadow-xs bg-amber-500/10 dark:bg-amber-950/20 rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
+        <Card size="compact" className="border border-amber-500/30 shadow-xs bg-amber-500/10 dark:bg-amber-950/20 rounded-xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
             <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-amber-600 dark:text-amber-300">
+              <span className="text-2xl font-bold text-amber-600 dark:text-amber-300">
                 {sessionsLoading ? "—" : stats.unassigned}
               </span>
               <span className="text-xs font-semibold text-amber-600/80 dark:text-amber-400">Need Faculty</span>
@@ -743,11 +735,9 @@ export const Classes: React.FC = () => {
             <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mt-0.5">Unassigned Classes</span>
           </div>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* ─── 4. FILTER TOOLBAR ──────────────────────────────────────────── */}
-      <div className="bg-card p-3.5 rounded-2xl border border-border shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <FilterToolbar className="flex flex-wrap items-center gap-2.5">
           {/* Search Field */}
           <div className="relative flex-1 min-w-[220px] max-w-[360px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -820,11 +810,9 @@ export const Classes: React.FC = () => {
             <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Reset Filters</span>
           </Button>
-        </div>
-      </div>
+      </FilterToolbar>
 
-      {/* ─── 5. CLASSES TABLE (STRICTLY 7 COLUMNS, NO ACTION COLUMN) ───── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[1000px] border-collapse text-left">
             <thead>
@@ -871,7 +859,7 @@ export const Classes: React.FC = () => {
 
                     {/* Column 2: Batch Code */}
                     <td className="py-3 px-3 align-middle">
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-muted text-foreground border border-border inline-block tracking-wide">
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-muted text-foreground border border-border inline-block tracking-wide">
                         {item.batchCode}
                       </span>
                     </td>
@@ -954,7 +942,7 @@ export const Classes: React.FC = () => {
                     {/* Column 7: Status */}
                     <td className="py-3 px-3 text-center align-middle">
                       {item.status === "LIVE" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 shadow-2xs">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 shadow-2xs">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
                         </span>
                       )}
@@ -985,10 +973,10 @@ export const Classes: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="py-16 text-center">
                     <div className="max-w-md mx-auto space-y-3">
-                      <div className="w-16 h-16 rounded-3xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mx-auto">
+                      <div className="w-16 h-16 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mx-auto">
                         <Calendar className="w-8 h-8 stroke-[1.8]" />
                       </div>
-                      <h3 className="text-base font-extrabold text-foreground">
+                      <h3 className="text-base font-semibold text-foreground">
                         No classes scheduled for this branch
                       </h3>
                       <p className="text-xs text-muted-foreground font-medium leading-relaxed">
@@ -997,7 +985,7 @@ export const Classes: React.FC = () => {
                       <PermissionGate itemKey="schedule.classes" mode="write">
                         <Button
                           onClick={() => setIsScheduleModalOpen(true)}
-                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
+                          className="bg-primary hover:bg-primary text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" /> Schedule Class
                         </Button>
@@ -1089,9 +1077,9 @@ export const Classes: React.FC = () => {
 
       {/* ─── SCHEDULE CLASS MODAL ────────────────────────────────────────── */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-black text-foreground">
+            <DialogTitle className="text-xl font-bold text-foreground">
               {editingSessionId ? "Edit Class Session" : "Schedule New Class Session"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium">
@@ -1227,7 +1215,7 @@ export const Classes: React.FC = () => {
                     setFormFacultyId(e.target.value);
                     setFormErrors((prev) => ({ ...prev, faculty: "" }));
                   }}
-                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-bold text-[#2563EB] outline-none ${
+                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-bold text-primary outline-none ${
                     formErrors.faculty ? "border-rose-400" : "border-border"
                   }`}
                 >
@@ -1348,7 +1336,7 @@ export const Classes: React.FC = () => {
             </Button>
             <Button
               onClick={handleSaveClass}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 rounded-xl gap-1.5"
             >
               <Check className="h-3.5 w-3.5" /> Schedule Class
             </Button>

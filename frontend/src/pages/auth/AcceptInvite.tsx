@@ -67,14 +67,14 @@ export const AcceptInvite: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border border-border shadow-lg rounded-2xl bg-card">
-        <CardContent className="p-6 sm:p-8 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4 sm:p-6">
+      <Card className="w-full max-w-md border border-border shadow-lg rounded-xl bg-card">
+        <CardContent className="p-6 space-y-5">
           <div className="text-center space-y-2">
-            <div className="mx-auto h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+            <div className="mx-auto h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <Shield className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">
+            <h1 className="text-xl font-semibold text-foreground tracking-tight">
               Accept Invitation
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -156,7 +156,7 @@ export const AcceptInvite: React.FC = () => {
 
               <Button
                 type="submit"
-                className="w-full rounded-xl font-bold"
+                className="w-full h-10 rounded-xl font-bold"
                 disabled={acceptMutation.isPending}
               >
                 {acceptMutation.isPending ? (

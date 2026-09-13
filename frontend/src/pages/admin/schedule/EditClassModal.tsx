@@ -92,10 +92,10 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 text-slate-900">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 text-slate-900">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[#2563EB]" />
+            <Calendar className="w-5 h-5 text-primary" />
             Edit Class Timetable Entry
           </h3>
           <button
@@ -128,7 +128,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
               <select
                 value={batchId}
                 onChange={(e) => setBatchId(e.target.value)}
-                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
                 required
               >
                 <option value="">Select Batch</option>
@@ -147,7 +147,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
               <select
                 value={facultyId}
                 onChange={(e) => setFacultyId(e.target.value)}
-                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
                 required
               >
                 <option value="">Select Faculty</option>
@@ -217,7 +217,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value as ClassMode)}
-                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="OFFLINE">Campus (OFFLINE)</option>
                 <option value="ONLINE">Online (ONLINE)</option>
@@ -233,7 +233,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as ClassStatus)}
-              className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+              className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="UPCOMING">Upcoming</option>
               <option value="ONGOING">Ongoing</option>
@@ -253,7 +253,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
             </Button>
             <Button
               type="submit"
-              className="bg-[#2563EB] hover:bg-[#145a92] text-white rounded-xl text-xs font-semibold px-4"
+              className="bg-primary hover:bg-[#145a92] text-white rounded-xl text-xs font-semibold px-4"
             >
               Save Changes
             </Button>

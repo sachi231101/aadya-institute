@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useCourseStore } from "@/store/course.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { METRIC_GRID_COLUMNS, PageContainer, PageHeader, MetricGrid } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -267,28 +268,17 @@ export const StudentAttendance: React.FC = () => {
     });
   }, [students, searchTerm, statusFilter]);
 
-  // Radial chart stroke calculation (Circumference = 2 * PI * 40 ≈ 251.3)
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (parseFloat(presentPercentage) / 100) * circumference;
-
   return (
-    <div className="space-y-6 max-w-[1680px] mx-auto pb-20 animate-in fade-in duration-200">
-      {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-foreground">
-              Student Attendance
-            </h1>
+    <PageContainer className="animate-in fade-in duration-200">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            Student Attendance
             <ShieldCheck className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-xs text-muted-foreground font-medium mt-0.5">
-            Quickly mark and manage daily student attendance.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+          </span>
+        }
+        description="Quickly mark and manage daily student attendance."
+        actions={
           <Button
             variant="outline"
             onClick={handleExportCSV}
@@ -296,8 +286,8 @@ export const StudentAttendance: React.FC = () => {
           >
             <Download className="h-3.5 w-3.5 text-muted-foreground" /> Export Attendance
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ─── TOAST NOTIFICATION ────────────────────────────────────────── */}
       {toastMessage && (
@@ -308,7 +298,7 @@ export const StudentAttendance: React.FC = () => {
       )}
 
       {/* ─── 2. CLASS SELECTION BAR ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-card p-3.5 rounded-2xl border border-border shadow-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-card p-3.5 rounded-xl border border-border shadow-xs">
         {/* Branch */}
         <div className="space-y-1">
           <label className="text-[11px] font-bold text-muted-foreground block">Branch</label>
@@ -387,124 +377,80 @@ export const StudentAttendance: React.FC = () => {
       </div>
 
       {/* ─── 3. SMART ATTENDANCE SUMMARY & PERCENTAGE RING ─────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {/* Total Students */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center justify-between">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Total Students
               </p>
-              <h3 className="text-2xl font-black text-foreground mt-1">{totalStudents}</h3>
+              <h3 className="text-2xl font-bold text-foreground mt-1">{totalStudents}</h3>
               <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Students in this batch</p>
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-2xl text-primary dark:text-sky-400">
+            <div className="p-3 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-xl text-primary dark:text-sky-400">
               <Users className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
         {/* Present */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Present
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h3 className="text-2xl font-black text-foreground">{presentCount}</h3>
-                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{presentPercentage}%</span>
+                <h3 className="text-2xl font-bold text-foreground">{presentCount}</h3>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{presentPercentage}%</span>
               </div>
               <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">Active in class</p>
             </div>
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-emerald-600 dark:text-emerald-400">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 rounded-xl text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
         {/* Absent */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Absent
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h3 className="text-2xl font-black text-foreground">{absentCount}</h3>
-                <span className="text-xs font-black text-rose-600 dark:text-rose-400">{absentPercentage}%</span>
+                <h3 className="text-2xl font-bold text-foreground">{absentCount}</h3>
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">{absentPercentage}%</span>
               </div>
               <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5">Unexcused</p>
             </div>
-            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 rounded-2xl text-rose-600 dark:text-rose-400">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400">
               <XCircle className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
         {/* Excused */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Excused
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h3 className="text-2xl font-black text-foreground">{excusedCount}</h3>
-                <span className="text-xs font-black text-amber-600 dark:text-amber-400">{excusedPercentage}%</span>
+                <h3 className="text-2xl font-bold text-foreground">{excusedCount}</h3>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{excusedPercentage}%</span>
               </div>
               <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Approved leave</p>
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 rounded-2xl text-amber-600 dark:text-amber-400">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 rounded-xl text-amber-600 dark:text-amber-400">
               <Clock className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Attendance Percentage Ring */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl col-span-2 md:col-span-1">
-          <CardContent className="p-3.5 flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Attendance Percentage
-              </p>
-              <h3 className="text-xl font-black text-foreground mt-1">{presentPercentage}%</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Today's Attendance</p>
-            </div>
-            <div className="relative w-16 h-16 shrink-0">
-              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 100 100">
-                {/* Background Ring */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  className="stroke-muted"
-                  strokeWidth="10"
-                  fill="transparent"
-                />
-                {/* Active Progress Ring */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  stroke="currentColor"
-                  strokeWidth="10"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  className="text-emerald-500 transition-all duration-500 ease-out"
-                  fill="transparent"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-black text-foreground">
-                  {Math.round(parseFloat(presentPercentage))}%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </MetricGrid>
 
       {/* ─── 4. TABS & FILTER PILLS ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
@@ -616,7 +562,7 @@ export const StudentAttendance: React.FC = () => {
 
       {/* ─── 6. TAB CONTENT: STUDENT LIST ──────────────────────────────── */}
       {activeTab === "list" && (
-        <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -845,7 +791,7 @@ export const StudentAttendance: React.FC = () => {
           {canEditAttendance && selectedIds.size > 0 && (
             <div className="p-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 animate-in slide-in-from-bottom-2">
               <div className="flex items-center gap-3">
-                <span className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-black shadow-2xs">
+                <span className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold shadow-2xs">
                   {selectedIds.size} Students Selected
                 </span>
 
@@ -916,7 +862,7 @@ export const StudentAttendance: React.FC = () => {
       {activeTab === "summary" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Breakdown Cards */}
-          <Card className="border border-border shadow-xs bg-card rounded-2xl p-5">
+          <Card className="border border-border shadow-xs bg-card rounded-xl p-5">
             <CardHeader className="p-0 pb-4 border-b border-border">
               <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -947,7 +893,7 @@ export const StudentAttendance: React.FC = () => {
           </Card>
 
           {/* Absent Students */}
-          <Card className="border border-border shadow-xs bg-card rounded-2xl p-5">
+          <Card className="border border-border shadow-xs bg-card rounded-xl p-5">
             <CardHeader className="p-0 pb-4 border-b border-border">
               <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                 <XCircle className="h-4 w-4 text-rose-600" />
@@ -989,7 +935,7 @@ export const StudentAttendance: React.FC = () => {
           </Card>
 
           {/* Excused Students */}
-          <Card className="border border-border shadow-xs bg-card rounded-2xl p-5">
+          <Card className="border border-border shadow-xs bg-card rounded-xl p-5">
             <CardHeader className="p-0 pb-4 border-b border-border">
               <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-600" />
@@ -1034,7 +980,7 @@ export const StudentAttendance: React.FC = () => {
 
       {/* ─── 8. TAB CONTENT: ATTENDANCE HISTORY ────────────────────────── */}
       {activeTab === "history" && (
-        <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
           <CardHeader className="p-5 border-b border-border flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-sm font-bold text-foreground">
@@ -1085,7 +1031,7 @@ export const StudentAttendance: React.FC = () => {
                       {h.excused}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-center font-black text-xs text-foreground">
+                  <TableCell className="text-center font-bold text-xs text-foreground">
                     {h.percentage}
                   </TableCell>
                   <TableCell className="text-right">
@@ -1108,7 +1054,7 @@ export const StudentAttendance: React.FC = () => {
       {/* ─── 9. QR SCAN CARD & MODAL ───────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <PermissionGate itemKey="students.attendance" mode="write">
-        <div className="md:col-span-1 p-5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-md flex flex-col justify-between">
+        <div className="md:col-span-1 p-5 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-md flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold tracking-wider uppercase text-indigo-200">
@@ -1116,7 +1062,7 @@ export const StudentAttendance: React.FC = () => {
               </span>
               <QrCode className="h-6 w-6 text-white" />
             </div>
-            <h4 className="text-base font-black mt-2">Scan QR for Instant Attendance</h4>
+            <h4 className="text-base font-bold mt-2">Scan QR for Instant Attendance</h4>
             <p className="text-xs text-indigo-100 mt-1 leading-relaxed">
               Let students scan your classroom QR or scan student ID badges.
             </p>
@@ -1131,13 +1077,13 @@ export const StudentAttendance: React.FC = () => {
         </PermissionGate>
 
         {/* ─── 10. STICKY SAVE ATTENDANCE BANNER ─────────────────────────── */}
-        <div className={`${canEditAttendance ? "md:col-span-3" : "md:col-span-4"} p-5 bg-card border border-border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden`}>
+        <div className={`${canEditAttendance ? "md:col-span-3" : "md:col-span-4"} p-5 bg-card border border-border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden`}>
           <div className="flex items-start gap-3.5">
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
               <Lightbulb className="h-5 w-5" />
             </div>
             <div>
-              <h5 className="text-sm font-extrabold text-foreground tracking-tight">
+              <h5 className="text-sm font-semibold text-foreground tracking-tight">
                 {canEditAttendance ? "Don't forget to save your attendance!" : "Attendance overview"}
               </h5>
               <p className="text-xs text-muted-foreground font-medium mt-0.5 leading-relaxed">
@@ -1151,7 +1097,7 @@ export const StudentAttendance: React.FC = () => {
           <PermissionGate itemKey="students.attendance" mode="write">
           <Button
             onClick={handleSaveAttendance}
-            className="bg-primary hover:bg-primary/90 text-white text-xs font-black h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
           >
             <Lock className="h-4 w-4" /> Save Attendance
           </Button>
@@ -1175,7 +1121,7 @@ export const StudentAttendance: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="p-8 rounded-2xl bg-muted/40 text-foreground flex flex-col items-center justify-center text-center border border-border">
+            <div className="p-8 rounded-xl bg-muted/40 text-foreground flex flex-col items-center justify-center text-center border border-border">
               <Camera className="h-10 w-10 text-primary animate-pulse mb-3" />
               <p className="text-xs font-bold text-foreground">Point Camera at Student ID Card</p>
               <span className="text-[10px] text-muted-foreground mt-1">
@@ -1215,6 +1161,6 @@ export const StudentAttendance: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

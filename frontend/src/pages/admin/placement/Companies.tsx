@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Companies: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,17 +38,17 @@ export const Companies: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Companies</h2>
-          <p className="text-sm text-text-secondary">Partner companies for placement drives.</p>
-        </div>
-        <PermissionGate itemKey="placement.companies" mode="write">
-          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
-        </PermissionGate>
-      </div>
-      <Card className="border-border/50">
+    <PageContainer>
+      <PageHeader
+        title="Companies"
+        description="Partner companies for placement drives."
+        actions={
+          <PermissionGate itemKey="placement.companies" mode="write">
+            <Button className="bg-primary text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
+          </PermissionGate>
+        }
+      />
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
@@ -91,12 +92,12 @@ export const Companies: React.FC = () => {
               <div><Label>Name *</Label><Input required value={name} onChange={(e) => setName(e.target.value)} /></div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#2563EB] text-white">Create</Button>
+                <Button type="submit" className="bg-primary text-white">Create</Button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

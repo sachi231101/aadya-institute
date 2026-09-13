@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 function UsageMeter({
   label,
@@ -35,10 +36,10 @@ function UsageMeter({
   return (
     <div className="border rounded-xl p-4 space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <Icon className="h-4 w-4 text-[#2563EB]" />
+        <Icon className="h-4 w-4 text-primary" />
         {label}
       </div>
-      <p className="text-2xl font-extrabold">
+      <p className="text-2xl font-semibold">
         {used.toLocaleString("en-IN")}
         {limit != null && (
           <span className="text-sm font-normal text-text-secondary"> / {limit.toLocaleString("en-IN")}</span>
@@ -46,7 +47,7 @@ function UsageMeter({
       </p>
       {pct != null && (
         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       )}
       {limit == null && <p className="text-xs text-text-secondary">No plan limit configured</p>}
@@ -93,13 +94,13 @@ export const Billing: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">My Subscription</h2>
-        <p className="text-sm text-text-secondary">View your institute plan, usage, and invoices.</p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="My Subscription"
+        description="View your institute plan, usage, and invoices."
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-6">
           <h3 className="font-bold mb-4 flex items-center gap-2">
             <CreditCard className="w-5 h-5" /> Current Subscription
@@ -171,7 +172,7 @@ export const Billing: React.FC = () => {
                 (plan: { id: string; name: string; price: number; billingCycle: string; code: string }) => (
                   <div key={plan.id} className="border rounded-xl p-4 space-y-2">
                     <p className="font-bold">{plan.name}</p>
-                    <p className="text-2xl font-extrabold text-[#2563EB]">
+                    <p className="text-2xl font-semibold text-primary">
                       ₹{plan.price.toLocaleString("en-IN")}
                       <span className="text-xs font-normal text-text-secondary">
                         /{plan.billingCycle?.toLowerCase()}
@@ -179,7 +180,7 @@ export const Billing: React.FC = () => {
                     </p>
                     <Button
                       size="sm"
-                      className="w-full bg-[#2563EB] text-white"
+                      className="w-full bg-primary text-white"
                       onClick={() => handleSubscribe(plan.id)}
                       disabled={createSubMutation.isPending}
                     >
@@ -249,6 +250,6 @@ export const Billing: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

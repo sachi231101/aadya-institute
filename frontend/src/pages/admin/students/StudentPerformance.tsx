@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from "recharts";
+import { METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import {
   BookOpen,
   User,
@@ -265,8 +266,7 @@ export const StudentPerformance: React.FC = () => {
   }, [currentStudent, reportData]);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
-
+    <PageContainer>
       {reportLoading && (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading performance report data...
@@ -278,32 +278,30 @@ export const StudentPerformance: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-start gap-3.5 min-w-0 flex-1">
           <Button
             variant="outline"
             size="sm"
-            className="h-10 px-3.5 text-slate-700 hover:text-[#2563EB] hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors"
+            className="h-10 px-3.5 text-slate-700 hover:text-primary hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors shrink-0"
             onClick={() => navigate("/admin/students/all")}
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Academic Performance</h2>
-            <p className="text-sm text-slate-500">
-              View detailed academic analytics and progress for individual students.
-            </p>
-          </div>
+          <PageHeader
+            className="flex-1 min-w-0"
+            title="Academic Performance"
+            description="View detailed academic analytics and progress for individual students."
+          />
         </div>
 
-        <div className="w-full sm:w-80">
+        <div className="w-full sm:w-80 shrink-0">
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <select
               value={currentStudent.id}
               onChange={(e) => handleStudentSelect(e.target.value)}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] font-medium cursor-pointer shadow-sm"
+              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium cursor-pointer shadow-sm"
             >
               {allAvailableStudents.map(s => (
                 <option key={s.id} value={s.id}>
@@ -350,7 +348,7 @@ export const StudentPerformance: React.FC = () => {
             <div className="hidden lg:block w-px h-12 bg-slate-100"></div>
 
             {/* Right: 5 Detail Columns */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 flex-1 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 flex-1 w-full">
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
                   <FileText className="h-3.5 w-3.5 text-slate-400" /> Admission No.
@@ -379,38 +377,32 @@ export const StudentPerformance: React.FC = () => {
                 </p>
                 <p className="text-[13px] font-bold text-slate-800">{currentStudent.center}</p>
               </div>
-              <div>
-                <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" /> Date of Joining
-                </p>
-                <p className="text-[13px] font-bold text-slate-800">{currentStudent.dateOfJoining}</p>
-              </div>
             </div>
 
           </div>
         </CardContent>
       </Card>
 
-      {/* 3. 5 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* 3. KPI Cards */}
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
 
         {/* KPI 1 */}
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="p-4 flex items-start gap-3.5">
+        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
+          <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600 shrink-0">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">Courses Enrolled</p>
-              <h3 className="text-2xl font-black text-slate-900 my-0.5">{currentStudent.coursesCount}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.coursesCount}</h3>
               <p className="text-xs text-slate-400 font-medium">Active Courses</p>
             </div>
           </CardContent>
         </Card>
 
         {/* KPI 2 */}
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="p-4 flex items-start gap-3.5">
+        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
+          <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
               <LayoutGrid className="h-5 w-5" />
             </div>
@@ -425,7 +417,7 @@ export const StudentPerformance: React.FC = () => {
                   )}
                 </span>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 my-0.5">{currentStudent.attendance}%</h3>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.attendance}%</h3>
               <p className="text-xs text-slate-400 font-medium truncate">
                 Present in {Math.round((currentStudent.attendance / 100) * 100)} of 100 classes
               </p>
@@ -434,8 +426,8 @@ export const StudentPerformance: React.FC = () => {
         </Card>
 
         {/* KPI 3 */}
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="p-4 flex items-start gap-3.5">
+        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
+          <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600 shrink-0">
               <FileEdit className="h-5 w-5" />
             </div>
@@ -446,43 +438,27 @@ export const StudentPerformance: React.FC = () => {
                   <TrendingUp className="h-3 w-3 mr-0.5" /> 6%
                 </span>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 my-0.5">{avgTestScore}%</h3>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{avgTestScore}%</h3>
               <p className="text-xs text-slate-400 font-medium truncate">Across {currentStudent.assessments.length} assessments</p>
             </div>
           </CardContent>
         </Card>
 
         {/* KPI 4 */}
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="p-4 flex items-start gap-3.5">
+        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
+          <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-orange-50 rounded-xl text-orange-500 shrink-0">
               <ClipboardList className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">Assignments Completed</p>
-              <h3 className="text-2xl font-black text-slate-900 my-0.5">{currentStudent.assignmentsCompleted}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.assignmentsCompleted}</h3>
               <p className="text-xs text-slate-400 font-medium">Completion Rate</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPI 5 */}
-        <Card className="border-slate-200 shadow-sm bg-white col-span-2 md:col-span-1">
-          <CardContent className="p-4 flex items-start gap-3.5">
-            <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-              <Star className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Overall Performance</p>
-              <h3 className="text-2xl font-black text-slate-900 my-0.5">{currentStudent.performanceGrade}</h3>
-              <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                {currentStudent.performanceMessage} <Info className="h-3 w-3 text-slate-400" />
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
+      </MetricGrid>
 
       {/* 4. Filter Bar */}
       <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
@@ -492,19 +468,19 @@ export const StudentPerformance: React.FC = () => {
             01 May 2026 - 14 May 2026
           </Button>
 
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563EB]">
+          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-primary">
             <option>All Courses</option>
             <option>{currentStudent.course}</option>
           </select>
 
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563EB]">
+          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-primary">
             <option>All Assessments</option>
             <option>Tests Only</option>
             <option>Assignments Only</option>
           </select>
         </div>
 
-        <Button variant="outline" className="h-9 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50/60 shadow-sm flex items-center gap-2">
+        <Button variant="outline" className="h-9 text-xs font-bold text-primary border-blue-200 hover:bg-blue-50/60 shadow-sm flex items-center gap-2">
           <Download className="h-3.5 w-3.5" /> Export Report
         </Button>
       </div>
@@ -667,7 +643,7 @@ export const StudentPerformance: React.FC = () => {
                     <td className="px-4 py-3.5 text-slate-500">{test.date}</td>
                     <td className="px-4 py-3.5 text-slate-600 text-center">{test.maxMarks}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-800 text-center">{test.obtained}</td>
-                    <td className="px-4 py-3.5 font-bold text-[#2563EB] text-center">{test.score}</td>
+                    <td className="px-4 py-3.5 font-bold text-primary text-center">{test.score}</td>
                     <td className="px-5 py-3.5 text-center">
                       <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold text-[11px] ${test.gradeColor}`}>
                         {test.grade}
@@ -679,7 +655,7 @@ export const StudentPerformance: React.FC = () => {
             </table>
           </div>
           <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center">
-            <button className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1.5">
+            <button className="text-xs font-bold text-primary hover:text-primary flex items-center gap-1.5">
               View All Assessments <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -723,7 +699,7 @@ export const StudentPerformance: React.FC = () => {
             ))}
           </CardContent>
           <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center mt-auto">
-            <button className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1.5">
+            <button className="text-xs font-bold text-primary hover:text-primary flex items-center gap-1.5">
               View All Courses <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -737,6 +713,6 @@ export const StudentPerformance: React.FC = () => {
           Note: All data is based on recorded attendance and assessments.
         </p>
       </div>
-    </div>
+    </PageContainer>
   );
 };

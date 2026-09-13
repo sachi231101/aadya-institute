@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 function formatJsonPreview(value: unknown): string {
   if (value == null) return "—";
@@ -36,12 +37,12 @@ export const AuditLogs: React.FC = () => {
   const meta = data?.data || data?.meta || { totalPages: 1, page: 1 };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Audit Logs</h2>
-        <p className="text-sm text-text-secondary">System activity and change history.</p>
-      </div>
-      <Card className="border-border/50">
+    <PageContainer>
+      <PageHeader
+        title="Audit Logs"
+        description="System activity and change history."
+      />
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
@@ -140,6 +141,6 @@ export const AuditLogs: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

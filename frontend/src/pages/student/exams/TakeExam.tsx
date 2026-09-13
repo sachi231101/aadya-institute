@@ -437,7 +437,7 @@ export const TakeExam: React.FC = () => {
         <Card className="max-w-lg w-full border-red-900 bg-slate-900 text-white shadow-2xl overflow-hidden">
           <div className="bg-red-600 p-6 text-center space-y-2">
             <XCircle className="h-14 w-14 text-white mx-auto animate-bounce" />
-            <h2 className="text-2xl font-black tracking-tight text-white uppercase">
+            <h2 className="text-2xl font-semibold tracking-tight text-white uppercase">
               Examination Terminated
             </h2>
             <p className="text-xs text-red-100 font-medium">
@@ -489,7 +489,7 @@ export const TakeExam: React.FC = () => {
       {/* ─── TOP EXAM HEADER ───────────────────────────────────────────────── */}
       <header className="bg-slate-900 text-white px-4 py-2.5 shadow-md flex items-center justify-between gap-4 sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-xs text-white">
+          <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-semibold text-xs text-white">
             AI
           </div>
           <div>
@@ -539,7 +539,7 @@ export const TakeExam: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
             <Clock className={`h-4 w-4 ${timerColorClass}`} />
-            <span className={`text-sm font-extrabold tracking-wider ${timerColorClass}`}>
+            <span className={`text-sm font-semibold tracking-wider ${timerColorClass}`}>
               {formattedTime}
             </span>
           </div>
@@ -555,9 +555,9 @@ export const TakeExam: React.FC = () => {
       </header>
 
       {/* ─── MAIN EXAM BODY ────────────────────────────────────────────────── */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left / Center: Active Question Card (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col space-y-4">
+        <div className="lg:col-span-8 flex flex-col gap-4">
           {currentQuestion ? (
             <Card className="flex-1 flex flex-col justify-between border-slate-200 shadow-sm bg-white overflow-hidden">
               <div>
@@ -904,7 +904,7 @@ export const TakeExam: React.FC = () => {
             <div className="h-12 w-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
               <AlertTriangle className="h-7 w-7" />
             </div>
-            <DialogTitle className="text-lg font-black text-center text-slate-900">
+            <DialogTitle className="text-lg font-semibold text-center text-slate-900">
               {proctoring.warningTitle || 'Proctoring Warning'}
             </DialogTitle>
             <DialogDescription className="text-center text-xs text-slate-600">
@@ -944,15 +944,15 @@ export const TakeExam: React.FC = () => {
 
           <div className="grid grid-cols-3 gap-2 py-3">
             <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
-              <span className="text-lg font-extrabold text-emerald-700">{answeredCount}</span>
+              <span className="text-lg font-semibold text-emerald-700">{answeredCount}</span>
               <p className="text-[10px] text-emerald-600 font-semibold uppercase">Answered</p>
             </div>
             <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-center">
-              <span className="text-lg font-extrabold text-slate-700">{unansweredCount}</span>
+              <span className="text-lg font-semibold text-slate-700">{unansweredCount}</span>
               <p className="text-[10px] text-slate-500 font-semibold uppercase">Unanswered</p>
             </div>
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
-              <span className="text-lg font-extrabold text-amber-700">{flaggedCount}</span>
+              <span className="text-lg font-semibold text-amber-700">{flaggedCount}</span>
               <p className="text-[10px] text-amber-600 font-semibold uppercase">Flagged</p>
             </div>
           </div>

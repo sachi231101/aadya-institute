@@ -30,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   ArrowLeft,
   Save,
@@ -284,34 +285,29 @@ export const AddStudent: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(`${basePath}/students/all`)}
-            className="h-9 w-9 rounded-lg"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Register New Student
-              </h1>
-              <span className="bg-[#2563EB]/10 text-[#2563EB] text-xs font-semibold px-2.5 py-0.5 rounded-full">
+    <PageContainer maxWidth="narrow">
+      <div className="flex items-start gap-3">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate(`${basePath}/students/all`)}
+          className="h-9 w-9 rounded-lg shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              Register New Student
+              <span className="bg-primary/10 text-primary text-xs font-semibold px-2.5 py-0.5 rounded-full">
                 Admission Portal
               </span>
-            </div>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Enter complete student personal, academic, guardian, and enrollment details.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
+            </span>
+          }
+          description="Enter complete student personal, academic, guardian, and enrollment details."
+          actions={
+            <>
           <Button
             type="button"
             variant="outline"
@@ -324,7 +320,7 @@ export const AddStudent: React.FC = () => {
             type="button"
             onClick={form.handleSubmit(onSubmit)}
             disabled={createMutation.isPending}
-            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-5 shadow-sm"
+            className="bg-primary hover:bg-primary text-white font-semibold px-5 shadow-sm"
           >
             {createMutation.isPending ? (
               <>
@@ -338,7 +334,9 @@ export const AddStudent: React.FC = () => {
               </>
             )}
           </Button>
-        </div>
+            </>
+          }
+        />
       </div>
 
       <Form {...form}>
@@ -355,7 +353,7 @@ export const AddStudent: React.FC = () => {
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <User className="h-4 w-4 text-[#2563EB]" />
+                  <User className="h-4 w-4 text-primary" />
                   Personal Information & Credentials
                 </CardTitle>
                 <span className="text-xs text-slate-500 font-medium">* Required fields</span>
@@ -377,7 +375,7 @@ export const AddStudent: React.FC = () => {
                           type="button"
                           onClick={generateNewCode}
                           disabled={isStudentPreviewLoading}
-                          className="text-[11px] text-[#2563EB] hover:underline flex items-center gap-1 font-medium disabled:opacity-50"
+                          className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium disabled:opacity-50"
                         >
                           <Sparkles className="h-3 w-3" /> {isStudentPreviewLoading ? "Loading..." : "Auto-generate"}
                         </button>
@@ -400,7 +398,7 @@ export const AddStudent: React.FC = () => {
                       {studentSeriesData?.data?.preview && (
                         <p className="text-[10px] text-slate-500 font-medium">
                           Next from Master:{" "}
-                          <span className="font-mono text-[#2563EB]">{studentSeriesData.data.preview}</span>
+                          <span className="font-mono text-primary">{studentSeriesData.data.preview}</span>
                           {" "}(counter #{studentSeriesData.data.currentSequence} → #{studentSeriesData.data.nextSequence})
                         </p>
                       )}
@@ -444,7 +442,7 @@ export const AddStudent: React.FC = () => {
                           />
                         ) : branches.length > 0 ? (
                           <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             {...field}
                           >
                             <option value="">Select branch...</option>
@@ -616,7 +614,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="Male">Male</option>
@@ -640,7 +638,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="">Select (Optional)</option>
@@ -666,7 +664,7 @@ export const AddStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-[#2563EB]" />
+                <GraduationCap className="h-4 w-4 text-primary" />
                 Academic Background & Program Enrollment
               </CardTitle>
             </CardHeader>
@@ -749,7 +747,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="">Select Course...</option>
@@ -776,7 +774,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="">Assign Batch Later / None</option>
@@ -799,7 +797,7 @@ export const AddStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <HeartHandshake className="h-4 w-4 text-[#2563EB]" />
+                <HeartHandshake className="h-4 w-4 text-primary" />
                 Parent / Guardian & Residential Information
               </CardTitle>
             </CardHeader>
@@ -907,7 +905,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="">Select...</option>
@@ -1042,7 +1040,7 @@ export const AddStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-[#2563EB]" />
+                <CreditCard className="h-4 w-4 text-primary" />
                 Fee Plan & Automation Preferences
               </CardTitle>
             </CardHeader>
@@ -1074,7 +1072,7 @@ export const AddStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="INSTALLMENT">Installment Plan (2-3 parts)</option>
@@ -1198,7 +1196,7 @@ export const AddStudent: React.FC = () => {
                   type="checkbox"
                   checked={form.watch("whatsappEnabled")}
                   onChange={(e) => form.setValue("whatsappEnabled", e.target.checked)}
-                  className="h-5 w-5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                  className="h-5 w-5 rounded border-slate-300 text-primary focus:ring-primary"
                 />
               </div>
             </CardContent>
@@ -1217,7 +1215,7 @@ export const AddStudent: React.FC = () => {
             <Button
               type="submit"
               disabled={createMutation.isPending}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-8 py-2.5 shadow-sm"
+              className="bg-primary hover:bg-primary text-white font-semibold px-8 py-2.5 shadow-sm"
             >
               {createMutation.isPending ? (
                 <>
@@ -1234,6 +1232,6 @@ export const AddStudent: React.FC = () => {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 };

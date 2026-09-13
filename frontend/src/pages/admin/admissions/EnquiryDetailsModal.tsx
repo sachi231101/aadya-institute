@@ -119,21 +119,21 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-3 sm:p-6 animate-in fade-in duration-200">
       {/* ─── MODAL CONTAINER ─── */}
       <div
-        className="bg-card border border-border rounded-2xl shadow-2xl w-[92vw] max-w-[1400px] h-[85vh] max-h-[85vh] flex flex-col overflow-hidden text-foreground animate-in zoom-in-95 duration-150"
+        className="bg-card border border-border rounded-xl shadow-2xl w-[92vw] max-w-[1400px] h-[85vh] max-h-[85vh] flex flex-col overflow-hidden text-foreground animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ─── 1. FIXED MODAL HEADER ─── */}
         <div className="p-4 sm:p-5 border-b border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3.5">
             <Avatar className="h-12 w-12 border border-border bg-primary/10 text-primary font-bold text-base shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary font-extrabold">
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                 {getInitials(lead.name)}
               </AvatarFallback>
             </Avatar>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h2 className="text-lg sm:text-xl font-extrabold text-foreground leading-none">
+                <h2 className="text-lg sm:text-xl font-semibold text-foreground leading-none">
                   {lead.name}
                 </h2>
                 <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
@@ -556,7 +556,7 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
                     <Bot className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-foreground">AI Voice Qualification Agent (Sarvam AI)</h3>
+                    <h3 className="text-sm font-semibold text-foreground">AI Voice Qualification Agent (Sarvam AI)</h3>
                     <p className="text-xs text-muted-foreground">
                       Autonomous conversational qualification call (OPTIONAL — Manual Trigger Only)
                     </p>
@@ -588,19 +588,19 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="p-3.5 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">AI Qualification Score</span>
-                      <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                      <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
                         {lead.leadScore}/100 🔥
                       </span>
                     </div>
                     <div className="p-3.5 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">Interest Level</span>
-                      <span className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
+                      <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-1 block">
                         {lead.priority === "Hot" ? "🔥 Hot Lead" : lead.priority === "Warm" ? "⚡ Warm Lead" : "❄️ Cold Lead"}
                       </span>
                     </div>
                     <div className="p-3.5 bg-muted/30 rounded-xl border border-border">
                       <span className="text-muted-foreground text-[10px] uppercase font-bold block">Call Status</span>
-                      <span className="text-lg font-black text-primary mt-1 block">
+                      <span className="text-lg font-bold text-primary mt-1 block">
                         Completed (02m 15s)
                       </span>
                     </div>

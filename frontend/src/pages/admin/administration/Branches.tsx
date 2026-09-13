@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { MapPin, Plus, Loader2, AlertCircle, Pencil, Trash2, Power } from "lucide-react";
 import {
   useBranches,
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Dialog,
   DialogContent,
@@ -175,20 +176,20 @@ export const Branches: React.FC = () => {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Branches</h2>
-          <p className="text-sm text-text-secondary">Manage Aadya Institute branch locations.</p>
-        </div>
-        <PermissionGate itemKey="admin.branches" mode="write">
-        <Button className="bg-[#2563EB] text-white" onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Add Branch
-        </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Branches"
+        description="Manage Aadya Institute branch locations."
+        actions={
+          <PermissionGate itemKey="admin.branches" mode="write">
+            <Button className="bg-primary text-white" onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Add Branch
+            </Button>
+          </PermissionGate>
+        }
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <Input
             placeholder="Search branches..."
@@ -427,7 +428,7 @@ export const Branches: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#2563EB] text-white" disabled={isSaving}>
+              <Button type="submit" className="bg-primary text-white" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingBranch ? "Save Changes" : "Create Branch"}
               </Button>
@@ -435,6 +436,6 @@ export const Branches: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

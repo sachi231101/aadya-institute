@@ -5,6 +5,7 @@ import { useAssignmentSubmissions, useGradeSubmission } from "@/hooks/useAssignm
 import { assignmentsApi, type AssignmentSubmission } from "@/services/assignments.api";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { formatMarks, submissionStatusLabel, submissionStatusVariant } from "@/utils/assignment.utils";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,24 +97,24 @@ export const ReviewsQueue: React.FC = () => {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Grading Queue</h2>
-        <p className="text-sm text-text-secondary">
-          Submissions that are waiting to be graded (submitted or late).
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Grading Queue"
+        description="Submissions that are waiting to be graded (submitted or late)."
+      />
 
-      <Card className="border-border/50 shadow-sm">
+      <Card className="rounded-xl border-border/50 shadow-sm">
         <CardContent className="p-4 space-y-4">
-          <Input
-            placeholder="Search student or assignment..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+          <FilterToolbar>
+            <Input
+              placeholder="Search student or assignment..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </FilterToolbar>
 
           <div className="rounded-lg border border-border shadow-xs overflow-hidden overflow-x-auto bg-card">
             <Table className="w-full border-collapse">
@@ -291,6 +292,6 @@ export const ReviewsQueue: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

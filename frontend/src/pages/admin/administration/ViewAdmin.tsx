@@ -10,6 +10,7 @@ import {
 } from "@/utils/permission-utils";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import { useNotificationStore } from "@/store/notification.store";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   ArrowLeft,
   User,
@@ -132,18 +133,18 @@ export const ViewAdmin: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <PageContainer>
         <div className="flex flex-col items-center justify-center py-24 min-h-[50vh]">
-          <Loader2 className="h-10 w-10 animate-spin text-[#2563EB] mb-4" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
           <span className="text-slate-600 font-medium">Loading user details...</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (isError || !admin) {
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <PageContainer>
         <Button variant="ghost" onClick={() => navigate(USERS_PATH)} className="mb-4">
           <ArrowLeft size={16} className="mr-2" /> Back to User Management
         </Button>
@@ -151,11 +152,11 @@ export const ViewAdmin: React.FC = () => {
           <AlertTriangle className="h-12 w-12 text-amber-500 mb-3" />
           <h2 className="text-2xl font-bold text-slate-900">User Not Found</h2>
           <p className="text-slate-500 mt-2">The staff account you are looking for does not exist or has been removed.</p>
-          <Button onClick={() => navigate(USERS_PATH)} className="mt-6 bg-[#2563EB] text-white">
+          <Button onClick={() => navigate(USERS_PATH)} className="mt-6 bg-primary text-white">
             Return to User Management
           </Button>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -217,10 +218,25 @@ export const ViewAdmin: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 bg-[#f8fafc] min-h-screen">
-      {/* ─── PAGE HEADER & ACTIONS BAR ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3 flex-wrap">
+            {admin.name}
+            <span
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
+                isActive
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}
+            >
+              ● {admin.status}
+            </span>
+          </span>
+        }
+        description={`${primaryRoleLabel} Profile & Branch Operations`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
             onClick={() => navigate(USERS_PATH)}
@@ -229,29 +245,6 @@ export const ViewAdmin: React.FC = () => {
           >
             <ArrowLeft size={18} className="text-slate-600" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
-                {admin.name}
-              </h1>
-              <span
-                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
-                  isActive
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-slate-100 text-slate-600 border-slate-200"
-                }`}
-              >
-                ● {admin.status}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
-              {primaryRoleLabel} Profile & Branch Operations
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls Consolidated */}
-        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
             onClick={() => {
@@ -297,27 +290,28 @@ export const ViewAdmin: React.FC = () => {
           )}
 
           <Link to={`/admin/administration/admins/${admin.id}/edit`}>
-            <Button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 shadow-sm">
+            <Button className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 shadow-sm">
               <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit User
             </Button>
           </Link>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* ─── GRID LAYOUT ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* LEFT COLUMN: Profile & Contact Summary */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-white overflow-hidden">
-            <div className="h-20 bg-gradient-to-r from-[#2563EB] to-[#2582cb]" />
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white overflow-hidden">
+            <div className="h-20 bg-gradient-to-r from-primary to-[#2582cb]" />
             <CardContent className="p-6 pt-0 relative flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full bg-white border-4 border-white shadow-md flex items-center justify-center -mt-10 mb-3 text-[#2563EB]">
+              <div className="w-20 h-20 rounded-full bg-white border-4 border-white shadow-md flex items-center justify-center -mt-10 mb-3 text-primary">
                 <UserCheck className="h-10 w-10" />
               </div>
               
               <h2 className="text-xl font-bold text-slate-900">{admin.name}</h2>
-              <p className="text-xs font-bold text-[#2563EB] uppercase tracking-wider mt-0.5 mb-2">
+              <p className="text-xs font-bold text-primary uppercase tracking-wider mt-0.5 mb-2">
                 {primaryRoleLabel}
               </p>
               
@@ -371,7 +365,7 @@ export const ViewAdmin: React.FC = () => {
           </Card>
 
           {/* Quick Account Status Card */}
-          <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-white p-5">
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white p-5">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Security & Access</h4>
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50">
@@ -396,15 +390,15 @@ export const ViewAdmin: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           
           {/* ASSIGNED BRANCH HIGHLIGHT CARD */}
-          <Card className="border border-blue-100 shadow-sm rounded-2xl bg-white overflow-hidden">
+          <Card className="border border-blue-100 shadow-sm rounded-xl bg-white overflow-hidden">
             <CardHeader className="bg-blue-50/60 pb-4 border-b border-blue-100/60">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] font-bold text-[#2563EB] uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
                     Assigned Center & Branch
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mt-0.5">
-                    <Building2 className="h-5 w-5 text-[#2563EB]" />
+                    <Building2 className="h-5 w-5 text-primary" />
                     {assignedBranch ? assignedBranch.name : "No Branch Assigned (Institute-Wide)"}
                   </h3>
                   {assignedBranch && (
@@ -420,7 +414,7 @@ export const ViewAdmin: React.FC = () => {
                   <Button
                     variant="outline"
                     onClick={() => navigate(`/admin/branch/${assignedBranch.id}/performance`)}
-                    className="text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50 text-xs font-bold h-8"
+                    className="text-primary border-primary/30 hover:bg-blue-50 text-xs font-bold h-8"
                   >
                     View Branch <ExternalLink className="h-3.5 w-3.5 ml-1" />
                   </Button>
@@ -446,7 +440,7 @@ export const ViewAdmin: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase mb-1">
                     <Users className="h-3.5 w-3.5 text-blue-600" /> Active Students
                   </div>
-                  <span className="text-2xl font-black text-slate-800">
+                  <span className="text-2xl font-bold text-slate-800">
                     {branchStats?.totalStudents ?? 0}
                   </span>
                 </div>
@@ -455,7 +449,7 @@ export const ViewAdmin: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase mb-1">
                     <GraduationCap className="h-3.5 w-3.5 text-emerald-600" /> Faculty Members
                   </div>
-                  <span className="text-2xl font-black text-slate-800">
+                  <span className="text-2xl font-bold text-slate-800">
                     {branchStats?.totalFaculty ?? 0}
                   </span>
                 </div>
@@ -464,7 +458,7 @@ export const ViewAdmin: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase mb-1">
                     <BookOpen className="h-3.5 w-3.5 text-purple-600" /> Active Batches
                   </div>
-                  <span className="text-2xl font-black text-slate-800">
+                  <span className="text-2xl font-bold text-slate-800">
                     {branchStats?.totalBatches ?? 0}
                   </span>
                 </div>
@@ -473,14 +467,14 @@ export const ViewAdmin: React.FC = () => {
           </Card>
 
           {/* ─── DETAILS TABS ─── */}
-          <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-white overflow-hidden">
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white overflow-hidden">
             {/* Custom Tab Header */}
             <div className="flex border-b border-slate-200 bg-slate-50/50 px-6">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`py-3.5 px-4 font-bold text-xs uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === "overview"
-                    ? "border-[#2563EB] text-[#2563EB]"
+                    ? "border-primary text-primary"
                     : "border-transparent text-slate-400 hover:text-slate-700"
                 }`}
               >
@@ -490,7 +484,7 @@ export const ViewAdmin: React.FC = () => {
                 onClick={() => setActiveTab("permissions")}
                 className={`py-3.5 px-4 font-bold text-xs uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === "permissions"
-                    ? "border-[#2563EB] text-[#2563EB]"
+                    ? "border-primary text-primary"
                     : "border-transparent text-slate-400 hover:text-slate-700"
                 }`}
               >
@@ -500,7 +494,7 @@ export const ViewAdmin: React.FC = () => {
                 onClick={() => setActiveTab("activity")}
                 className={`py-3.5 px-4 font-bold text-xs uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === "activity"
-                    ? "border-[#2563EB] text-[#2563EB]"
+                    ? "border-primary text-primary"
                     : "border-transparent text-slate-400 hover:text-slate-700"
                 }`}
               >
@@ -514,7 +508,7 @@ export const ViewAdmin: React.FC = () => {
                 <div className="space-y-6">
                   <div>
                     <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                      <User className="h-4 w-4 text-[#2563EB]" /> Contact & Personal Details
+                      <User className="h-4 w-4 text-primary" /> Contact & Personal Details
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -540,7 +534,7 @@ export const ViewAdmin: React.FC = () => {
 
                   <div>
                     <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-[#2563EB]" /> Operational Authority
+                      <Shield className="h-4 w-4 text-primary" /> Operational Authority
                     </h4>
                     <p className="text-xs text-slate-500 mb-4 leading-relaxed">
                       {isFaculty
@@ -558,7 +552,7 @@ export const ViewAdmin: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate("/admin/faculty/all")}
-                        className="text-xs text-[#2563EB] border-blue-200 hover:bg-blue-50"
+                        className="text-xs text-primary border-blue-200 hover:bg-blue-50"
                       >
                         <GraduationCap className="h-3.5 w-3.5 mr-1" /> Open Faculty Module
                       </Button>
@@ -575,7 +569,7 @@ export const ViewAdmin: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-[#2563EB]" /> ERP Module Access
+                        <Shield className="h-4 w-4 text-primary" /> ERP Module Access
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Submodule Read/Edit settings for this {primaryRoleLabel} account
@@ -585,7 +579,7 @@ export const ViewAdmin: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => navigate(`/admin/administration/admins/${id}/edit`)}
-                      className="text-xs text-[#2563EB] border-blue-200 hover:bg-blue-50"
+                      className="text-xs text-primary border-blue-200 hover:bg-blue-50"
                     >
                       <Edit className="h-3.5 w-3.5 mr-1" /> Edit Permissions
                     </Button>
@@ -657,7 +651,7 @@ export const ViewAdmin: React.FC = () => {
               {activeTab === "activity" && (
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-[#2563EB]" /> Recent Activity & Audit Trail
+                    <Activity className="h-4 w-4 text-primary" /> Recent Activity & Audit Trail
                   </h4>
                   <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl">
                     <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -712,7 +706,7 @@ export const ViewAdmin: React.FC = () => {
             <select
               value={newBranchId}
               onChange={(e) => setNewBranchId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">No branch (Institute-wide)</option>
               {branches.map((b) => (
@@ -725,7 +719,7 @@ export const ViewAdmin: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalType(null)}>Cancel</Button>
             <Button
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+              className="bg-primary hover:bg-primary text-white"
               onClick={handleChangeBranchSubmit}
               disabled={updateUserMutation.isPending}
             >
@@ -767,7 +761,7 @@ export const ViewAdmin: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalType(null)}>Cancel</Button>
             <Button
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+              className="bg-primary hover:bg-primary text-white"
               onClick={handleResetPasswordSubmit}
               disabled={!newPassword || newPassword !== confirmPassword || updateUserMutation.isPending}
             >
@@ -776,6 +770,6 @@ export const ViewAdmin: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

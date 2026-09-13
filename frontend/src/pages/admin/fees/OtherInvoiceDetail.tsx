@@ -7,6 +7,7 @@ import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Table,
   TableBody,
@@ -48,31 +49,25 @@ export const OtherInvoiceDetail: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link to={`${basePath}/fees/invoices?tab=other`}>
-              <ArrowLeft className="h-4 w-4" /> Invoices
-            </Link>
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary font-mono">
-              {invoice.invoiceNo}
-            </h2>
-            <p className="text-sm text-text-secondary">
-              {invoice.studentName} · {invoice.admissionNo}
-            </p>
-          </div>
-        </div>
-        {invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" && (
-          <Button asChild className="gap-2">
-            <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
-              <CreditCard className="h-4 w-4" /> Record Payment
-            </Link>
-          </Button>
-        )}
-      </div>
+    <PageContainer>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
+        <Link to={`${basePath}/fees/invoices?tab=other`}>
+          <ArrowLeft className="h-4 w-4" /> Invoices
+        </Link>
+      </Button>
+      <PageHeader
+        title={<span className="font-mono">{invoice.invoiceNo}</span>}
+        description={`${invoice.studentName} · ${invoice.admissionNo}`}
+        actions={
+          invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" ? (
+            <Button asChild className="gap-2">
+              <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
+                <CreditCard className="h-4 w-4" /> Record Payment
+              </Link>
+            </Button>
+          ) : null
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">
@@ -228,6 +223,6 @@ export const OtherInvoiceDetail: React.FC = () => {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 };

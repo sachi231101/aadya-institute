@@ -25,6 +25,7 @@ import { useSessionStore } from "../../store/session.store";
 import { useStudentDashboard } from "../../hooks/useStudentDashboard";
 import { useStudentAcademicAccess } from "../../hooks/useStudentAcademicAccess";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { PageContainer, PageHeader, MetricGrid } from "@/components/layout";
 import { useRecordingAccess, useRecordings } from "@/hooks/useRecordings";
 import { classSessionsApi } from "@/services/class-sessions.api";
 
@@ -350,31 +351,31 @@ export const StudentDashboard: React.FC = () => {
 
   if (isLoading && !dashboard) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-      </div>
+      <PageContainer className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </PageContainer>
     );
   }
 
   // Empty State: No Active Courses
   if (coursesList.length === 0 && !dashboard?.course && !academic.primaryCourse) {
     return (
-      <div className="space-y-6 max-w-[1600px] mx-auto pb-6 animate-in fade-in duration-300">
-        <div className="p-8 rounded-2xl bg-white dark:bg-[#131D31] border border-slate-200/80 dark:border-slate-800 text-center space-y-3 shadow-2xs">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-400 flex items-center justify-center mx-auto">
+      <PageContainer className="animate-in fade-in duration-300">
+        <div className="p-8 rounded-xl bg-card border border-border text-center space-y-3 shadow-2xs">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-primary dark:text-blue-400 flex items-center justify-center mx-auto">
             <BookOpen className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white">No Active Course</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+          <h3 className="section-title">No Active Course</h3>
+          <p className="page-subtitle max-w-sm mx-auto">
             Your course has not been assigned yet. Please contact your center administrator or counsellor.
           </p>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5 max-w-[1600px] mx-auto pb-6 animate-in fade-in duration-300">
+    <PageContainer density="compact" className="animate-in fade-in duration-300">
       {/* ─── 1. LIVE CLASS BANNER (If Active for Selected Course) ─── */}
       {isClassLive && currentLive && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-600 via-rose-700 to-red-900 p-4 sm:p-5 text-white shadow-lg shadow-rose-950/20 border-2 border-rose-400/40 animate-in slide-in-from-top-3 duration-300">
@@ -426,24 +427,11 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. HERO SECTION ─── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EBF3FF] via-[#EEF6FF] to-[#E2EFFF] dark:from-[#131F37] dark:via-[#162746] dark:to-[#0F1B30] border border-[#BFDBFE]/80 dark:border-slate-800 p-3.5 sm:p-4 md:p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
-        {/* Soft background glow spots */}
-        <div className="absolute -top-16 -right-16 w-44 h-44 bg-blue-300/20 dark:bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-indigo-300/20 dark:bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 space-y-0.5 max-w-xl">
-          <p className="text-[9.5px] font-extrabold uppercase tracking-wider text-[#2563EB] dark:text-[#60A5FA]">
-            WELCOME BACK,
-          </p>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#0F172A] dark:text-white">
-            {firstName}!
-          </h1>
-          <p className="text-xs sm:text-[13px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-xl">
-            Track your attendance, manage fees, and view your upcoming class schedule all in one place.
-          </p>
-        </div>
-      </div>
+      {/* ─── 2. PAGE HEADER ─── */}
+      <PageHeader
+        title={`Welcome back, ${firstName}`}
+        description="Track attendance, fees, and your class schedule."
+      />
 
       <InstallDashboardBanner />
 
@@ -474,10 +462,9 @@ export const StudentDashboard: React.FC = () => {
         </Card>
       )}
 
-      {/* ─── 4. DASHBOARD CARDS — SIDE BY SIDE ON MOBILE (2 cols) ─── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">
+      <MetricGrid density="compact">
         {/* CARD 1 — OVERALL ATTENDANCE */}
-        <Card className="bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-4.5 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
+        <Card className="bg-card rounded-xl border border-border p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -519,7 +506,7 @@ export const StudentDashboard: React.FC = () => {
         {/* CARD 2 — CURRENT COURSE (For Active Course) WITH MY COURSES DROPDOWN */}
         <Card
           ref={dropdownRef}
-          className="relative bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
+          className="relative bg-card rounded-xl border border-border p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between gap-1">
@@ -638,7 +625,7 @@ export const StudentDashboard: React.FC = () => {
         </Card>
 
         {/* CARD 3 — PENDING ASSIGNMENTS (For Active Course) */}
-        <Card className="bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
+        <Card className="bg-card rounded-xl border border-border p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -674,7 +661,7 @@ export const StudentDashboard: React.FC = () => {
         </Card>
 
         {/* CARD 4 — CLASS SCHEDULE (For Active Course) */}
-        <Card className="bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
+        <Card className="bg-card rounded-xl border border-border p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -708,14 +695,14 @@ export const StudentDashboard: React.FC = () => {
             Timetable →
           </button>
         </Card>
-      </div>
+      </MetricGrid>
 
       {/* ─── 4. LOWER CONTENT: FEES & PAYMENTS + ASSIGNED INSTRUCTOR ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch">
         {/* LEFT / LARGE SECTION: Fees & Payments (8 cols) */}
         <Card
           onClick={() => navigate("/student/profile")}
-          className="lg:col-span-8 bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between gap-3 cursor-pointer"
+          className="lg:col-span-8 bg-card rounded-xl border border-border p-4 shadow-2xs hover:border-primary/30 transition-all flex items-center justify-between gap-3 cursor-pointer"
         >
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
@@ -737,7 +724,7 @@ export const StudentDashboard: React.FC = () => {
         </Card>
 
         {/* RIGHT / SMALL SECTION: Assigned Instructor (4 cols) */}
-        <Card className="lg:col-span-4 bg-white dark:bg-[#131D31] rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between">
+        <Card className="lg:col-span-4 bg-card rounded-xl border border-border p-4 shadow-2xs hover:border-primary/30 transition-all flex flex-col justify-between">
           <div className="flex items-center gap-1.5 text-slate-900 dark:text-white font-extrabold text-[10.5px] sm:text-[11px] mb-1.5">
             <UserCircle className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Assigned Instructor</span>
@@ -758,6 +745,6 @@ export const StudentDashboard: React.FC = () => {
           </div>
         </Card>
       </div>
-    </div>
+    </PageContainer>
   );
 };

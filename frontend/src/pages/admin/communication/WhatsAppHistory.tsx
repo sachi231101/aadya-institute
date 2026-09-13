@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FilterToolbar } from "@/components/layout";
 
 const statusVariant = (status: string) => {
   if (status === "SENT" || status === "DELIVERED" || status === "READ") return "success";
@@ -44,19 +45,17 @@ export const WhatsAppHistory: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <p className="text-sm text-muted-foreground">
           Delivery log for system automations, including skipped and failed sends.
         </p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+        <Button variant="outline" size="sm" className="h-9" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-wrap gap-2">
+      <FilterToolbar className="flex flex-wrap gap-2">
             <Input
               className="h-9 max-w-xs"
               placeholder="Search phone, reason..."
@@ -90,8 +89,10 @@ export const WhatsAppHistory: React.FC = () => {
                 setPage(1);
               }}
             />
-          </div>
+      </FilterToolbar>
 
+      <Card className="border-border/50">
+        <CardContent className="p-4 space-y-4">
           {isLoading ? (
             <div className="text-center py-12">
               <Loader2 className="w-5 h-5 animate-spin inline mr-2" />

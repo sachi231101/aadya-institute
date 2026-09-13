@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const AutomationRules: React.FC = () => {
   const queryClient = useQueryClient();
@@ -50,20 +51,20 @@ export const AutomationRules: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Automation Rules</h2>
-          <p className="text-sm text-text-secondary">Configure WhatsApp notification rules for academy events.</p>
-        </div>
-        <PermissionGate itemKey="communication.automation" mode="write">
-          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Rule
-          </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Automation Rules"
+        description="Configure WhatsApp notification rules for academy events."
+        actions={
+          <PermissionGate itemKey="communication.automation" mode="write">
+            <Button className="bg-primary text-white" onClick={() => setShowModal(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Rule
+            </Button>
+          </PermissionGate>
+        }
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4">
           {isLoading ? (
             <div className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...</div>
@@ -116,12 +117,12 @@ export const AutomationRules: React.FC = () => {
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#2563EB] text-white" disabled={upsertMutation.isPending}>Save Rule</Button>
+                <Button type="submit" className="bg-primary text-white" disabled={upsertMutation.isPending}>Save Rule</Button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

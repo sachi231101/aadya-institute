@@ -51,6 +51,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 
 const PAGE_SIZE = 10;
 
@@ -340,35 +341,35 @@ export const StudentReports: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
-        <Loader2 className="h-9 w-9 animate-spin text-[#2563EB]" />
-        <p className="text-sm font-medium">Loading student performance analytics...</p>
-      </div>
+      <PageContainer>
+        <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
+          <Loader2 className="h-9 w-9 animate-spin text-primary" />
+          <p className="text-sm font-medium">Loading student performance analytics...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center space-y-3">
-        <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-        <h3 className="text-lg font-bold text-red-800">Failed to load student reports</h3>
-        <p className="text-xs text-red-600">Unable to retrieve real-time student analytics metrics from database.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Retry Loading
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="p-8 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+          <h3 className="text-lg font-bold text-red-800">Failed to load student reports</h3>
+          <p className="text-xs text-red-600">Unable to retrieve real-time student analytics metrics from database.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry Loading
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4 pb-10">
-      {/* ─── 1. PAGE HEADER WITH SEARCH BAR ───────────────────────────── */}
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 shrink-0">
-            Student Analytics & Reports
-          </h2>
+    <PageContainer>
+      <PageHeader title="Student Analytics & Reports" />
 
+      <FilterToolbar className="flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
           <div className="relative w-full sm:max-w-md min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
@@ -378,7 +379,7 @@ export const StudentReports: React.FC = () => {
                 setSearchTerm(event.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-[#2563EB]"
+              className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-primary"
             />
             {searchTerm && (
               <button
@@ -393,14 +394,13 @@ export const StudentReports: React.FC = () => {
               </button>
             )}
           </div>
-        </div>
 
         <div className="flex flex-col sm:flex-row gap-2 self-start md:self-auto">
           {isAdmin && (
             <select
               value={selectedBranchId}
               onChange={(event) => handleBranchChange(event.target.value)}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]"
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:border-primary"
               aria-label="Filter student reports by branch"
             >
               <option value="ALL">All Branches</option>
@@ -416,20 +416,19 @@ export const StudentReports: React.FC = () => {
             className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm shrink-0 h-9 text-xs sm:text-sm"
             onClick={handleExport}
           >
-            <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
+            <Download className="mr-2 h-4 w-4 text-primary" />
             Export Student CSV
           </Button>
         </div>
-      </div>
+      </FilterToolbar>
 
-      {/* ─── 2. SUMMARY KPIS ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {[
           {
             label: "Total Students",
             value: summary.totalStudents,
             icon: Users,
-            color: "text-[#2563EB]",
+            color: "text-primary",
             bg: "bg-blue-50",
           },
           {
@@ -454,19 +453,19 @@ export const StudentReports: React.FC = () => {
             bg: "bg-rose-50",
           },
         ].map((kpi) => (
-          <Card key={kpi.label} className="border-slate-200 shadow-sm bg-white">
-            <CardContent className="p-4">
+          <Card key={kpi.label} size="compact" className="border-slate-200 shadow-sm bg-white">
+            <CardContent size="compact">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{kpi.label}</p>
                 <div className={`p-1.5 rounded-md ${kpi.bg}`}>
                   <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
                 </div>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-2">{kpi.value}</h3>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </MetricGrid>
 
       {/* ─── 3. STUDENT DIRECTORY TABLE & PAGINATION ────────────────────── */}
       <Card className="border-border/60 bg-white shadow-sm w-full overflow-hidden">
@@ -507,12 +506,12 @@ export const StudentReports: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${isSelected ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${isSelected ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
                               }`}>
                               {(student.name || "S").substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <span className="font-mono text-[11px] font-bold text-[#2563EB] block">
+                              <span className="font-mono text-[11px] font-bold text-primary block">
                                 {student.studentCode}
                               </span>
                               <span className="font-semibold text-slate-900 text-xs block">
@@ -617,7 +616,7 @@ export const StudentReports: React.FC = () => {
                       size="sm"
                       onClick={() => setCurrentPage(pageNum)}
                       className={`h-8 min-w-[32px] px-2 text-xs font-semibold ${isActive
-                        ? "bg-[#2563EB] hover:bg-blue-700 text-white shadow-sm border-[#2563EB]"
+                        ? "bg-primary hover:bg-blue-700 text-white shadow-sm border-primary"
                         : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
                         }`}
                     >
@@ -648,13 +647,13 @@ export const StudentReports: React.FC = () => {
           {/* Selected Student Compact Header */}
           <div className="px-4 py-3 bg-white border border-slate-200/90 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E40AF] to-[#2563EB] text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-blue-100 shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E40AF] to-primary text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-blue-100 shrink-0">
                 {(studentAnalytics.name || "S").substring(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-sm font-bold text-slate-900">{studentAnalytics.name}</h3>
-                  <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-[#2563EB] border border-blue-100">
+                  <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-primary border border-blue-100">
                     {studentAnalytics.studentCode}
                   </span>
                 </div>
@@ -691,7 +690,7 @@ export const StudentReports: React.FC = () => {
           {isSelectedAnalyticsLoading ? (
             <Card className="border-slate-200 bg-white shadow-sm">
               <CardContent className="py-12 flex items-center justify-center gap-2 text-sm text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
                 Loading selected student analytics...
               </CardContent>
             </Card>
@@ -722,7 +721,7 @@ export const StudentReports: React.FC = () => {
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5 text-[#2563EB]" />
+                      <TrendingUp className="h-3.5 w-3.5 text-primary" />
                       Attendance Trend
                     </h4>
                     <p className="text-[10px] text-slate-500 truncate max-w-[170px]">
@@ -829,7 +828,7 @@ export const StudentReports: React.FC = () => {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-xs font-black text-slate-900 leading-none">
+                        <span className="text-xs font-bold text-slate-900 leading-none">
                           {studentAnalytics.completionPercent}%
                         </span>
                         <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">Done</span>
@@ -1013,7 +1012,7 @@ export const StudentReports: React.FC = () => {
             <Card className="border-border/70 bg-white shadow-sm p-4 rounded-xl flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <TrendingUp className="h-4 w-4 text-[#2563EB]" />
+                  <TrendingUp className="h-4 w-4 text-primary" />
                   <h4 className="text-xs font-bold text-slate-900">Student Enrollment Trend</h4>
                 </div>
                 <p className="text-[11px] text-slate-500 mb-2">
@@ -1150,6 +1149,6 @@ export const StudentReports: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

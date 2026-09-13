@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Video, Play, Clock, Lock, Calendar, X, Loader2, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 import type { Recording } from "@/services/recordings.api";
 import { useSearchParams } from "react-router-dom";
 import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 
 const formatDuration = (minutes?: number) => {
   if (minutes == null || Number.isNaN(Number(minutes))) return "—";
@@ -110,48 +111,42 @@ export const StudentRecordings: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 bg-[#f8fafc] min-h-screen">
-      <div>
-        <h1 className="text-2xl font-extrabold text-[#0A2540] flex items-center gap-2.5 tracking-tight">
-          <span className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 shadow-2xs">
-            <Video className="h-6 w-6" />
-          </span>
-          Class Recordings
-        </h1>
-        <p className="text-xs text-slate-500 font-medium mt-1">
-          Watch available sessions from your enrolled batches. Recordings are retained for 7 days.
-        </p>
-      </div>
+    <PageContainer maxWidth="narrow" className="animate-in fade-in duration-500">
+      <PageHeader
+        title="Class Recordings"
+        description="Watch available sessions from your enrolled batches. Recordings are retained for 7 days."
+      />
 
-      <div className="p-3.5 px-4 bg-amber-50/80 border border-amber-200/80 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900 shadow-2xs">
+      <div className="p-3.5 px-4 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 shadow-2xs">
         <Lock className="h-4 w-4 text-amber-600 shrink-0" />
         <span className="font-medium">
           Recordings are view-only under Aadya Institute Academic Policy. Direct downloading is strictly prohibited.
         </span>
       </div>
 
+      <PageSection title="Available recordings">
       {isLoading ? (
-        <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB] mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Loading recordings...</p>
+        <Card className="bg-card rounded-xl border-border/80 p-12 text-center shadow-2xs">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading recordings...</p>
         </Card>
       ) : isError ? (
-        <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
-          <p className="text-slate-800 font-bold text-base">Unable to load recordings</p>
-          <p className="text-xs text-slate-500 mt-1">Please refresh the page and try again.</p>
+        <Card className="bg-card rounded-xl border-border/80 p-12 text-center shadow-2xs">
+          <p className="text-foreground font-semibold text-base">Unable to load recordings</p>
+          <p className="text-xs text-muted-foreground mt-1">Please refresh the page and try again.</p>
         </Card>
       ) : enrichedRecordings.length === 0 ? (
-        <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
-          <Video className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-800 font-bold text-base">No recordings available</p>
-          <p className="text-xs text-slate-500 mt-1">Recordings from your batch classes will appear here</p>
+        <Card className="bg-card rounded-xl border-border/80 p-12 text-center shadow-2xs">
+          <Video className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-foreground font-semibold text-base">No recordings available</p>
+          <p className="text-xs text-muted-foreground mt-1">Recordings from your batch classes will appear here</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {enrichedRecordings.map((rec) => (
             <Card
               key={rec.id}
-              className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden hover:shadow-lg transition-all duration-300 group flex flex-col justify-between"
+              className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden hover:shadow-lg transition-all duration-300 group flex flex-col justify-between"
             >
               <div>
                 <div
@@ -159,17 +154,17 @@ export const StudentRecordings: React.FC = () => {
                   className="relative h-44 bg-slate-900 p-4 flex flex-col justify-between overflow-hidden cursor-pointer"
                 >
                   <div className="relative z-10 flex items-center justify-between">
-                    <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10.5px] font-extrabold px-2.5 py-0.5">
+                    <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10.5px] font-semibold px-2.5 py-0.5">
                       Batch: {rec.batchLabel}
                     </Badge>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-white font-mono text-[10px] font-black shadow-xs">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-white font-mono text-[10px] font-semibold shadow-xs">
                       Available
                     </span>
                   </div>
 
                   <div className="relative z-10 flex items-center justify-center my-auto">
-                    <div className="w-13 h-13 rounded-full bg-white/90 group-hover:bg-white text-[#2563EB] flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
-                      <Play className="w-6 h-6 fill-current ml-1 text-[#2563EB]" />
+                    <div className="w-13 h-13 rounded-full bg-white/90 group-hover:bg-white text-primary flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
+                      <Play className="w-6 h-6 fill-current ml-1 text-primary" />
                     </div>
                   </div>
 
@@ -188,13 +183,13 @@ export const StudentRecordings: React.FC = () => {
                     Status: Available
                   </Badge>
 
-                  <h3 className="font-extrabold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-[#2563EB] transition-colors line-clamp-2">
+                  <h3 className="font-semibold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-primary transition-colors line-clamp-2">
                     {rec.courseLabel} — {rec.moduleLabel}
                   </h3>
 
                   <div className="flex items-center justify-between text-xs text-slate-600 font-bold pt-1">
                     <span className="flex items-center gap-1 text-slate-700">
-                      <Calendar className="w-3.5 h-3.5 text-[#2563EB]" /> {rec.dateLabel}
+                      <Calendar className="w-3.5 h-3.5 text-primary" /> {rec.dateLabel}
                     </span>
                     <span className="text-slate-500 font-medium text-[11px]">By {rec.facultyName}</span>
                   </div>
@@ -206,7 +201,7 @@ export const StudentRecordings: React.FC = () => {
                   type="button"
                   onClick={() => handleWatchRecording(rec)}
                   disabled={accessMutation.isPending && activeRecording?.id === rec.id}
-                  className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9.5 gap-1.5 shadow-sm cursor-pointer"
+                  className="w-full bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl h-9.5 gap-1.5 shadow-sm cursor-pointer"
                 >
                   {accessMutation.isPending && activeRecording?.id === rec.id ? (
                     <>
@@ -223,14 +218,15 @@ export const StudentRecordings: React.FC = () => {
           ))}
         </div>
       )}
+      </PageSection>
 
       <Dialog open={showWatchModal} onOpenChange={(open) => !open && handleCloseModal()}>
-        <DialogContent className="max-w-3xl sm:max-w-4xl bg-slate-950 text-white rounded-3xl p-0 overflow-hidden shadow-2xl border border-slate-800 max-h-[92vh] flex flex-col z-50">
+        <DialogContent className="max-w-3xl sm:max-w-4xl bg-slate-950 text-white rounded-xl p-0 overflow-hidden shadow-2xl border border-slate-800 max-h-[92vh] flex flex-col z-50">
           {activeRecording && (
             <>
               <div className="p-4 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
                 <div>
-                  <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <h3 className="font-semibold text-sm text-white flex items-center gap-2">
                     <Video className="w-4 h-4 text-emerald-400" />
                     {activeRecording.classSession?.title || "Class Recording"}
                   </h3>
@@ -273,7 +269,7 @@ export const StudentRecordings: React.FC = () => {
                     </p>
                     <Button
                       type="button"
-                      className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                      className="bg-primary hover:bg-primary text-white"
                       onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
                     >
                       <ExternalLink className="w-4 h-4 mr-2" /> Open recording
@@ -303,6 +299,6 @@ export const StudentRecordings: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

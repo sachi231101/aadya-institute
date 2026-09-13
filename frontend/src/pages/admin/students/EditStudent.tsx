@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
@@ -291,7 +292,7 @@ export const EditStudent: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-3 text-slate-600 font-medium">Loading student profile...</span>
       </div>
     );
@@ -311,23 +312,21 @@ export const EditStudent: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16">
-      {/* ─── Header ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(`${basePath}/students/all`)}
-            className="h-9 w-9 rounded-lg"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                {isDraftStudent ? "Complete Student Admission" : "Edit Student Profile"}
-              </h1>
+    <PageContainer maxWidth="narrow">
+      <div className="flex items-start gap-3">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate(`${basePath}/students/all`)}
+          className="h-9 w-9 rounded-lg shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title={
+            <span className="flex flex-wrap items-center gap-2.5">
+              {isDraftStudent ? "Complete Student Admission" : "Edit Student Profile"}
               {isDraftStudent ? (
                 <Badge className="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold">
                   Draft Student
@@ -337,14 +336,17 @@ export const EditStudent: React.FC = () => {
                   {student.status}
                 </Badge>
               )}
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Updating records for <span className="font-semibold text-slate-700">{student.user?.name || student.studentCode}</span> ({student.studentCode})
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
+            </span>
+          }
+          description={
+            <>
+              Updating records for{" "}
+              <span className="font-semibold text-slate-700">{student.user?.name || student.studentCode}</span> (
+              {student.studentCode})
+            </>
+          }
+          actions={
+            <>
           <Button
             type="button"
             variant="outline"
@@ -373,7 +375,7 @@ export const EditStudent: React.FC = () => {
               type="button"
               onClick={form.handleSubmit(onSubmit)}
               disabled={updateMutation.isPending}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5"
+              className="bg-primary hover:bg-primary text-white font-semibold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5"
             >
               {updateMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -383,7 +385,9 @@ export const EditStudent: React.FC = () => {
               Save Changes
             </Button>
           )}
-        </div>
+            </>
+          }
+        />
       </div>
 
       <Form {...form}>
@@ -395,14 +399,14 @@ export const EditStudent: React.FC = () => {
           )}
 
           {/* ─── Section 1: Academic & Admission Management (Highlighted) ─── */}
-          <Card className="border-[#2563EB]/30 shadow-sm overflow-hidden ring-1 ring-[#2563EB]/10">
+          <Card className="border-primary/30 shadow-sm overflow-hidden ring-1 ring-primary/10">
             <CardHeader className="bg-gradient-to-r from-blue-50/80 to-indigo-50/50 border-b border-blue-100 py-3.5 px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-[#2563EB]" />
+                  <GraduationCap className="h-5 w-5 text-primary" />
                   Academic Program & Batch Enrollment
                 </CardTitle>
-                <Badge variant="outline" className="bg-white text-xs font-semibold text-[#2563EB] border-[#2563EB]/30">
+                <Badge variant="outline" className="bg-white text-xs font-semibold text-primary border-primary/30">
                   Required for Admission
                 </Badge>
               </div>
@@ -420,7 +424,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           value={field.value || ""}
                           onChange={(e) => handleCourseChange(e.target.value)}
                         >
@@ -448,7 +452,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           value={field.value || ""}
                           onChange={field.onChange}
                         >
@@ -479,7 +483,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           value={field.value || "CONFIRMED"}
                           onChange={field.onChange}
                         >
@@ -508,7 +512,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           value={field.value || "INSTALLMENT"}
                           onChange={field.onChange}
                         >
@@ -601,7 +605,7 @@ export const EditStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <User className="h-4 w-4 text-[#2563EB]" />
+                <User className="h-4 w-4 text-primary" />
                 Student Identity & Center Details
               </CardTitle>
             </CardHeader>
@@ -638,7 +642,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="ACTIVE">🟢 Active Student</option>
@@ -666,7 +670,7 @@ export const EditStudent: React.FC = () => {
                         <div className="relative">
                           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
                           <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             {...field}
                           >
                             <option value="">Select branch...</option>
@@ -750,7 +754,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="Male">Male</option>
@@ -773,7 +777,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                           {...field}
                         >
                           <option value="">Select (Optional)</option>
@@ -843,7 +847,7 @@ export const EditStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <HeartHandshake className="h-4 w-4 text-[#2563EB]" />
+                <HeartHandshake className="h-4 w-4 text-primary" />
                 Parent/Guardian & Residence Info
               </CardTitle>
             </CardHeader>
@@ -1002,7 +1006,7 @@ export const EditStudent: React.FC = () => {
               <Button
                 type="submit"
                 disabled={updateMutation.isPending}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-6 shadow-sm"
+                className="bg-primary hover:bg-primary text-white font-semibold px-6 shadow-sm"
               >
                 {updateMutation.isPending ? (
                   <>
@@ -1020,6 +1024,6 @@ export const EditStudent: React.FC = () => {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 };

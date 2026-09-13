@@ -63,6 +63,15 @@ import {
 } from "@/components/common/LeadStageBadge";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
 
@@ -310,7 +319,7 @@ export const LeadDetails: React.FC = () => {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="h-8 w-8 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-text-secondary">Loading lead details...</p>
         </div>
       </div>
@@ -338,7 +347,7 @@ export const LeadDetails: React.FC = () => {
   const currentStageIndex = stagePipeline.indexOf(lead.stage);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1200px] mx-auto">
+    <PageContainer>
       <Button
         variant="ghost"
         onClick={() => navigate(`${basePath}/leads`)}
@@ -348,7 +357,7 @@ export const LeadDetails: React.FC = () => {
       </Button>
 
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#2563EB] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-primary to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
@@ -499,7 +508,7 @@ export const LeadDetails: React.FC = () => {
                   disabled={changeStageMutation.isPending || isClosed || !canEditLeads}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                     isCurrent
-                      ? "bg-white text-[#2563EB] shadow-md"
+                      ? "bg-white text-primary shadow-md"
                       : isCompleted
                         ? "bg-white/30 text-white"
                         : "bg-white/10 text-white/50"
@@ -721,7 +730,7 @@ export const LeadDetails: React.FC = () => {
                     <Button
                       type="submit"
                       disabled={updateLeadMutation.isPending}
-                      className="bg-[#2563EB] text-white"
+                      className="bg-primary text-white"
                     >
                       {updateLeadMutation.isPending ? "Saving..." : "Save changes"}
                     </Button>
@@ -1011,7 +1020,7 @@ export const LeadDetails: React.FC = () => {
                     <Button
                       type="submit"
                       size="sm"
-                      className="bg-[#2563EB] text-white"
+                      className="bg-primary text-white"
                       disabled={updateLeadMutation.isPending}
                     >
                       {updateLeadMutation.isPending ? "Saving..." : "Save notes"}
@@ -1036,7 +1045,7 @@ export const LeadDetails: React.FC = () => {
                     />
                     <Button
                       type="button"
-                      className="bg-[#2563EB] text-white shrink-0 self-end"
+                      className="bg-primary text-white shrink-0 self-end"
                       disabled={!noteDraft.trim() || addNoteMutation.isPending}
                       onClick={() => addNoteMutation.mutate(noteDraft.trim())}
                     >
@@ -1150,7 +1159,7 @@ export const LeadDetails: React.FC = () => {
               <Button
                 onClick={handleCreateApplication}
                 disabled={!appCourseId || createAppMutation.isPending}
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
               >
                 {createAppMutation.isPending ? "Creating..." : "Create Application"}
               </Button>
@@ -1228,7 +1237,7 @@ export const LeadDetails: React.FC = () => {
               <PermissionGate itemKey="leads.all" mode="write">
                 <Button
                   type="submit"
-                  className="bg-[#2563EB] text-white"
+                  className="bg-primary text-white"
                   disabled={createFollowUpMutation.isPending}
                 >
                   {createFollowUpMutation.isPending
@@ -1301,7 +1310,7 @@ export const LeadDetails: React.FC = () => {
                 <PermissionGate itemKey="leads.all" mode="write">
                   <Button
                     type="submit"
-                    className="bg-[#2563EB] text-white"
+                    className="bg-primary text-white"
                     disabled={assignMutation.isPending}
                   >
                     {assignMutation.isPending ? "Assigning..." : "Assign Counsellor"}
@@ -1453,7 +1462,7 @@ export const LeadDetails: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={manualCallMutation.isPending}
               >
                 {manualCallMutation.isPending ? "Saving..." : "Log call"}
@@ -1462,6 +1471,6 @@ export const LeadDetails: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -26,6 +26,7 @@ import {
   submissionStatusLabel,
   submissionStatusVariant,
 } from "@/utils/assignment.utils";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -187,24 +188,23 @@ export const AssignmentDetail: React.FC = () => {
   }
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 border-border shadow-xs hover:bg-muted cursor-pointer shrink-0"
-            onClick={() => navigate(assignmentsBase)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary">{assignment.title}</h2>
-            <p className="text-sm text-text-secondary">
-              {assignment.batch?.name || "Batch"} · {assignment.faculty?.user?.name || "Faculty"}
-            </p>
-          </div>
-        </div>
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 border-border shadow-xs hover:bg-muted cursor-pointer shrink-0"
+              onClick={() => navigate(assignmentsBase)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <span>{assignment.title}</span>
+          </span>
+        }
+        description={`${assignment.batch?.name || "Batch"} · ${assignment.faculty?.user?.name || "Faculty"}`}
+        actions={
         <div className="flex items-center gap-2.5 flex-wrap">
           <Badge
             variant={assignment.status === "ACTIVE" ? "success" : "secondary"}
@@ -248,7 +248,8 @@ export const AssignmentDetail: React.FC = () => {
           </Button>
           </PermissionGate>
         </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 shadow-sm">
@@ -345,7 +346,7 @@ export const AssignmentDetail: React.FC = () => {
                   href={`https://www.youtube.com/watch?v=${assignment.youtubeVideoId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-[#2563EB] hover:underline font-medium text-sm"
+                  className="inline-flex items-center gap-2 text-primary hover:underline font-medium text-sm"
                 >
                   <Video className="h-4 w-4" />
                   Watch on YouTube
@@ -533,6 +534,6 @@ export const AssignmentDetail: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
