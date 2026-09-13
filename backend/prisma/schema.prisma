@@ -444,6 +444,7 @@ model Student {
   branchId              String
   studentCode           String
   dateOfBirth           DateTime?
+  gender                String?
   qualification         String?
   qualificationMasterId String?
   areaMasterId          String?

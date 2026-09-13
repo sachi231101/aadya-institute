@@ -39,8 +39,25 @@ const studentInclude = {
     include: {
       course: { select: { id: true, name: true, code: true } },
       batch: { select: { id: true, name: true, code: true, timeSlot: true } },
+      application: {
+        include: {
+          enquiry: {
+            select: {
+              createdAt: true,
+              assignedTo: { select: { name: true } },
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" as const },
+  },
+  convertedFromLeads: {
+    select: {
+      createdAt: true,
+      assignedCounsellor: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" as const },
   },
   batchEnrollments: {
     include: {
@@ -212,6 +229,7 @@ export const createStudentWithUser = async (data: {
   passwordHash: string;
   studentCode: string;
   dateOfBirth?: string;
+  gender?: string;
   qualification?: string;
   qualificationMasterId?: string;
   areaMasterId?: string;
@@ -242,6 +260,7 @@ export const createStudentWithUser = async (data: {
         branchId: data.branchId,
         studentCode: data.studentCode,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+        gender: data.gender?.trim() || null,
         qualification: data.qualification || null,
         qualificationMasterId: data.qualificationMasterId || null,
         areaMasterId: data.areaMasterId || null,
@@ -369,6 +388,7 @@ export const updateStudent = async (
     email,
     phone,
     dateOfBirth,
+    gender,
     qualification,
     qualificationMasterId,
     areaMasterId,
@@ -382,6 +402,14 @@ export const updateStudent = async (
     downPayment,
     notes,
   } = data;
+
+  const upsertNoteField = (raw: string | null | undefined, label: string, value: string): string => {
+    const entry = `${label}: ${value}`;
+    const pattern = new RegExp(`${label}:\\s*[^|\\n]+`, "i");
+    if (!raw || !raw.trim()) return entry;
+    if (pattern.test(raw)) return raw.replace(pattern, entry);
+    return `${raw} | ${entry}`;
+  };
 
   const existing = await prisma.student.findUnique({
     where: { id },
@@ -419,6 +447,9 @@ export const updateStudent = async (
     if (dateOfBirth !== undefined) {
       studentUpdate.dateOfBirth = dateOfBirth && dateOfBirth.trim() !== "" ? new Date(dateOfBirth) : null;
     }
+    if (gender !== undefined) {
+      studentUpdate.gender = gender && gender.trim() !== "" ? gender.trim() : null;
+    }
     if (branchId !== undefined && branchId.trim() !== "") studentUpdate.branchId = branchId;
 
     await tx.student.update({
@@ -440,7 +471,13 @@ export const updateStudent = async (
       if (batchId !== undefined) admUpdate.batchId = batchId.trim() !== "" ? batchId : null;
       if (feePlan !== undefined) admUpdate.feePlan = feePlan;
       if (targetAdmissionStatus !== undefined) admUpdate.status = targetAdmissionStatus;
-      if (notes !== undefined) admUpdate.notes = notes;
+      let nextNotes = notes !== undefined ? notes : currentAdm.notes;
+      if (gender !== undefined && gender.trim() !== "") {
+        nextNotes = upsertNoteField(nextNotes, "Gender", gender.trim());
+      }
+      if (nextNotes !== undefined && nextNotes !== currentAdm.notes) {
+        admUpdate.notes = nextNotes;
+      }
       if (branchId !== undefined && branchId.trim() !== "") admUpdate.branchId = branchId;
       if (name !== undefined && name.trim() !== "") admUpdate.studentName = name.trim();
       if (email !== undefined) admUpdate.email = email.trim() !== "" ? email.trim() : null;
