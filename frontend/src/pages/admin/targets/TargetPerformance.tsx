@@ -14,6 +14,7 @@ import {
   useLeaderboard,
 } from "../../../hooks/useTargets";
 import { useAuthStore } from "../../../store/auth.store";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const TargetPerformance: React.FC = () => {
   const { user } = useAuthStore();
@@ -51,24 +52,11 @@ export const TargetPerformance: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card border border-border p-6 rounded-2xl shadow-xs">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 rounded-xl">
-              <Trophy className="w-6 h-6 text-amber-500 dark:text-amber-400" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Academy Performance & Leaderboard
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Live analytics of counselor target achievements, team rankings, and incentive rewards.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+    <PageContainer>
+      <PageHeader
+        title="Academy Performance & Leaderboard"
+        description="Live analytics of counselor target achievements, team rankings, and incentive rewards."
+        actions={
           <button
             onClick={() => {
               refetchSummary();
@@ -79,12 +67,12 @@ export const TargetPerformance: React.FC = () => {
             <RefreshCw className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             Refresh Analytics
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+        <div className="bg-card border border-border p-5 rounded-xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Total Targets
@@ -99,7 +87,7 @@ export const TargetPerformance: React.FC = () => {
           <p className="text-xs text-muted-foreground">Assigned active goals</p>
         </div>
 
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+        <div className="bg-card border border-border p-5 rounded-xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Avg Achievement
@@ -119,7 +107,7 @@ export const TargetPerformance: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+        <div className="bg-card border border-border p-5 rounded-xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Top Performer 🥇
@@ -138,7 +126,7 @@ export const TargetPerformance: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
+        <div className="bg-card border border-border p-5 rounded-xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Needs Attention
@@ -155,7 +143,7 @@ export const TargetPerformance: React.FC = () => {
       </div>
 
       {/* Tabs and Search Header */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card border border-border p-4 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card border border-border p-4 rounded-xl shadow-xs">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode("leaderboard")}
@@ -195,7 +183,7 @@ export const TargetPerformance: React.FC = () => {
 
       {/* ─── LEADERBOARD VIEW ─── */}
       {viewMode === "leaderboard" && (
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-6">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -228,7 +216,7 @@ export const TargetPerformance: React.FC = () => {
                 return (
                   <div
                     key={c.userId}
-                    className={`relative p-5 rounded-2xl border transition-all ${
+                    className={`relative p-5 rounded-xl border transition-all ${
                       isGold
                         ? "bg-amber-50/70 dark:bg-gradient-to-b dark:from-amber-500/10 dark:to-slate-900/90 border-amber-300 dark:border-amber-500/40 shadow-xs"
                         : isSilver
@@ -241,7 +229,7 @@ export const TargetPerformance: React.FC = () => {
                     {/* Rank Badge */}
                     <div className="flex items-center justify-between mb-3">
                       <span
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-sm shadow-xs ${
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-semibold text-sm shadow-xs ${
                           isGold
                             ? "bg-gradient-to-br from-amber-400 to-yellow-600 text-slate-950"
                             : isSilver
@@ -267,7 +255,7 @@ export const TargetPerformance: React.FC = () => {
                         <span
                           className={
                             c.achievementPercentage >= 100
-                              ? "text-emerald-600 dark:text-emerald-400 font-extrabold"
+                              ? "text-emerald-600 dark:text-emerald-400 font-semibold"
                               : c.achievementPercentage >= 70
                               ? "text-amber-600 dark:text-amber-400"
                               : "text-rose-600 dark:text-rose-400"
@@ -299,7 +287,7 @@ export const TargetPerformance: React.FC = () => {
 
       {/* ─── COUNSELOR COMPARISON TABLE ─── */}
       {viewMode === "counselors" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-xs">
           <div className="p-5 border-b border-border">
             <h3 className="text-base font-bold text-foreground">Counselor Target Breakdown</h3>
             <p className="text-xs text-muted-foreground">
@@ -355,6 +343,6 @@ export const TargetPerformance: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStudentAvailableExams } from '@/hooks/useExamAttempts';
 import { useStudentAcademicAccess } from '@/hooks/useStudentAcademicAccess';
+import { PageContainer, PageHeader, FilterToolbar, PageSection } from '@/components/layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,31 +91,22 @@ export const MyExams: React.FC = () => {
   }, [rawExams, academic, searchTerm, activeTab]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <ShieldCheck className="h-7 w-7 text-indigo-600" />
-            Online Examinations
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Access your scheduled course tests, proctored mock exams, and view performance results.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Online Examinations"
+        description="Scheduled tests and results."
+      />
 
-      {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg w-fit">
+      <FilterToolbar className="justify-between">
+        <div className="flex items-center gap-1.5 p-1 bg-muted rounded-lg w-fit">
           {(['ALL', 'ACTIVE', 'COMPLETED'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              className={`h-9 px-3.5 text-xs font-semibold rounded-md transition-all ${
                 activeTab === tab
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-card text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {tab === 'ALL' ? 'All Exams' : tab === 'ACTIVE' ? 'Active & Available' : 'Completed'}
@@ -123,16 +115,17 @@ export const MyExams: React.FC = () => {
         </div>
 
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search exam or course..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 text-sm"
+            className="pl-9 text-sm h-9"
           />
         </div>
-      </div>
+      </FilterToolbar>
 
+      <PageSection title="Examinations">
       {/* Loading & Empty States */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -376,7 +369,8 @@ export const MyExams: React.FC = () => {
           })}
         </div>
       )}
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };
 

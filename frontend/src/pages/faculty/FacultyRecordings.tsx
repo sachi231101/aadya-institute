@@ -15,6 +15,7 @@ import { useRecordings, useRecordingAccess, useSyncRecording } from "@/hooks/use
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { getApiErrorMessage } from "@/utils/api-error";
 import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
+import { PageContainer, PageHeader, FilterToolbar, PageSection } from "@/components/layout";
 
 const SYNCING_STATUSES = new Set(["PENDING", "PROCESSING", "RECORDING"]);
 
@@ -186,36 +187,30 @@ export const FacultyRecordings: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-[1500px] mx-auto min-h-screen">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex md:hidden items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#2563EB] mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <FileVideo className="w-6 h-6 text-[#2563EB]" />
-            Class Recordings
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            After End & Complete Class, sync status appears here as Queued → Syncing → Available.
-            Use Refresh sync if Drive is still processing.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="inline-flex md:hidden items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-primary -mt-2"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+      <PageHeader
+        title="Class Recordings"
+        description="Sync status after End Class: Queued → Syncing → Available. Refresh if Drive is still processing."
+      />
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input
-          placeholder="Search recordings..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <FilterToolbar>
+        <div className="relative flex-1 min-w-[180px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search recordings..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-9"
+          />
+        </div>
+      </FilterToolbar>
 
       {syncNotice && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -228,9 +223,10 @@ export const FacultyRecordings: React.FC = () => {
         </div>
       )}
 
+      <PageSection title="Recordings">
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : isError ? (
         <div className="text-center py-16 space-y-3">
@@ -258,10 +254,10 @@ export const FacultyRecordings: React.FC = () => {
             const isAvailable = status === "AVAILABLE";
             const isExpired = rec.expiresAt && new Date(rec.expiresAt).getTime() <= Date.now();
             return (
-              <Card key={rec.id} className="rounded-2xl overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
+              <Card key={rec.id} className="rounded-xl overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                       <Video className="w-5 h-5" />
                     </div>
                     <div className="text-right max-w-[60%]">
@@ -359,7 +355,7 @@ export const FacultyRecordings: React.FC = () => {
                         status === "RECORDING"
                           ? "flex-1"
                           : "w-full"
-                      } bg-[#2563EB] hover:bg-[#1D4ED8] text-white`}
+                      } bg-primary hover:bg-primary text-white`}
                       onClick={() => handleViewRecording(rec)}
                       disabled={
                         !isAvailable ||
@@ -392,6 +388,7 @@ export const FacultyRecordings: React.FC = () => {
           })}
         </div>
       )}
+      </PageSection>
 
       <Dialog open={showWatchModal} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
@@ -422,7 +419,7 @@ export const FacultyRecordings: React.FC = () => {
                 </p>
                 <Button
                   type="button"
-                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                  className="bg-primary hover:bg-primary text-white"
                   onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" /> Open recording
@@ -432,6 +429,6 @@ export const FacultyRecordings: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -10,6 +10,7 @@ import {
   RotateCcw,
   FileSpreadsheet,
 } from "lucide-react";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   useImportJobs,
   useDeletedRecords,
@@ -148,15 +149,15 @@ export const DataManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <Database className="w-6 h-6" /> Data Management
-        </h2>
-        <p className="text-sm text-text-secondary">
-          Import, export, restore soft-deleted records, and view backup health.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Database className="w-6 h-6" /> Data Management
+          </span>
+        }
+        description="Import, export, restore soft-deleted records, and view backup health."
+      />
 
       {message && (
         <div className="text-sm rounded-lg border border-border/50 bg-slate-50 px-3 py-2 text-text-secondary">
@@ -201,7 +202,7 @@ export const DataManagement: React.FC = () => {
           />
           <div className="flex gap-2">
             <Button
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               size="sm"
               onClick={handlePreview}
               disabled={previewMutation.isPending}
@@ -310,7 +311,7 @@ export const DataManagement: React.FC = () => {
               <option value="branches">Branches</option>
             </select>
             <Button
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               size="sm"
               onClick={handleExport}
               disabled={exportMutation.isPending}
@@ -420,6 +421,6 @@ export const DataManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

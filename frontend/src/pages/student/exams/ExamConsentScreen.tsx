@@ -19,6 +19,7 @@ import {
 import { useExamInstructions, useStartExam } from '@/hooks/useExamAttempts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PageContainer } from '@/components/layout';
 import { Badge } from '@/components/ui/badge';
 
 export const ExamConsentScreen: React.FC = () => {
@@ -117,16 +118,16 @@ export const ExamConsentScreen: React.FC = () => {
 
   if (isLoading && !exam) {
     return (
-      <div className="max-w-4xl mx-auto py-12 space-y-6 animate-pulse">
+      <PageContainer maxWidth="narrow" className="animate-pulse">
         <div className="h-8 bg-slate-200 rounded w-1/3" />
         <div className="h-64 bg-slate-100 rounded-xl" />
         <div className="h-40 bg-slate-100 rounded-xl" />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-4 space-y-6">
+    <PageContainer maxWidth="narrow">
       {/* Back Button */}
       <Button
         variant="ghost"
@@ -152,7 +153,7 @@ export const ExamConsentScreen: React.FC = () => {
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-2xl sm:text-3xl font-extrabold text-white">
+              <CardTitle className="text-2xl sm:text-3xl font-semibold text-white">
                 {exam.name}
               </CardTitle>
               {exam.module?.name && (
@@ -401,7 +402,7 @@ export const ExamConsentScreen: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };
 

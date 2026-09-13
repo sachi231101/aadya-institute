@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Jobs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,20 +71,20 @@ export const Jobs: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Job Openings</h2>
-          <p className="text-sm text-text-secondary">Active placement job postings.</p>
-        </div>
-        <PermissionGate itemKey="placement.jobs" mode="write">
-          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Create Job
-          </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Job Openings"
+        description="Active placement job postings."
+        actions={
+          <PermissionGate itemKey="placement.jobs" mode="write">
+            <Button className="bg-primary text-white" onClick={() => setShowModal(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Create Job
+            </Button>
+          </PermissionGate>
+        }
+      />
 
-      <Card className="border-border/50">
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-4 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
@@ -229,7 +230,7 @@ export const Jobs: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -239,6 +240,6 @@ export const Jobs: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

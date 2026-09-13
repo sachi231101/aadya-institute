@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  Clock,
   ArrowLeft,
   Search,
   Eye,
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from '@/components/layout';
 import {
   Table,
   TableBody,
@@ -96,7 +96,7 @@ export const ExamAttempts: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Back Button */}
       <Button
         variant="ghost"
@@ -107,87 +107,69 @@ export const ExamAttempts: React.FC = () => {
         <ArrowLeft className="h-4 w-4" /> Back to Exam Details
       </Button>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2.5">
             <Users className="h-7 w-7 text-indigo-600" />
             Live Examination Attempts & Proctoring Monitor
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Exam: <strong className="text-slate-800">{exam?.name || 'Loading...'}</strong> • Real-time student session tracking & violation logs.
-          </p>
+          </span>
+        }
+        description={
+          <>
+            Exam: <strong className="text-slate-800">{exam?.name || "Loading..."}</strong> • Real-time student session tracking & violation logs.
+          </>
+        }
+      />
+
+      <MetricGrid density="compact">
+        <Card size="compact" className="border-border rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Total Attempts</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{total}</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">In Progress</p>
+            <p className="text-2xl font-semibold text-amber-600 mt-1">{inProgressCount}</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Completed</p>
+            <p className="text-2xl font-semibold text-emerald-600 mt-1">{completedCount}</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border rounded-xl">
+          <CardContent size="compact">
+            <p className="text-xs font-semibold text-muted-foreground">Terminated (Violations)</p>
+            <p className="text-2xl font-semibold text-red-600 mt-1">{terminatedCount}</p>
+          </CardContent>
+        </Card>
+      </MetricGrid>
+
+      <FilterToolbar className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search student code, name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-xs rounded-xl"
+          />
         </div>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Total Attempts</p>
-              <p className="text-2xl font-extrabold text-slate-900 mt-1">{total}</p>
-            </div>
-            <Users className="h-8 w-8 text-indigo-200" />
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">In Progress</p>
-              <p className="text-2xl font-extrabold text-amber-600 mt-1">{inProgressCount}</p>
-            </div>
-            <Clock className="h-8 w-8 text-amber-200" />
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Completed</p>
-              <p className="text-2xl font-extrabold text-emerald-600 mt-1">{completedCount}</p>
-            </div>
-            <CheckCircle2 className="h-8 w-8 text-emerald-200" />
-          </CardContent>
-        </Card>
-        <Card className="border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Terminated (Violations)</p>
-              <p className="text-2xl font-extrabold text-red-600 mt-1">{terminatedCount}</p>
-            </div>
-            <XCircle className="h-8 w-8 text-red-200" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters & Search */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search student code, name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 text-xs"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 px-3 text-xs rounded-md border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="EVALUATING">Needs Grading</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="TERMINATED">Terminated</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="">All Statuses</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="EVALUATING">Needs Grading</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="TERMINATED">Terminated</option>
+        </select>
+      </FilterToolbar>
 
       {/* Attempts Table */}
       <Card className="border-slate-200 shadow-sm overflow-hidden">
@@ -446,7 +428,7 @@ export const ExamAttempts: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

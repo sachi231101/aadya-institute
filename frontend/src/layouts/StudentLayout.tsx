@@ -499,7 +499,7 @@ export const StudentLayout: React.FC = () => {
         </header>
 
         {/* Main Outlet with mobile bottom padding so it never covers content */}
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto bg-slate-50/60 dark:bg-bg-primary">
+        <main className="flex-1 pb-24 lg:pb-0 overflow-y-auto bg-bg-primary">
           <Outlet />
         </main>
 

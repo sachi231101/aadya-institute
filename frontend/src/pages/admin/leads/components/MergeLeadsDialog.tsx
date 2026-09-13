@@ -104,7 +104,7 @@ export function MergeLeadsDialog({
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={!primaryId || mergeMutation.isPending}
               >
                 {mergeMutation.isPending ? (

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { ArrowLeft, UserPlus, Save, Loader2, RefreshCw } from "lucide-react";
 
 const buildFacultySchema = (
@@ -145,19 +146,17 @@ export const AddFaculty: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
+    <PageContainer maxWidth="narrow">
+      <div className="flex items-start gap-3">
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
+          className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs shrink-0"
           onClick={() => navigate(`${basePath}/faculty/all`)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Add New Faculty</h1>
-        </div>
+        <PageHeader className="flex-1 min-w-0" title="Add New Faculty" />
       </div>
 
       <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
@@ -393,6 +392,6 @@ export const AddFaculty: React.FC = () => {
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

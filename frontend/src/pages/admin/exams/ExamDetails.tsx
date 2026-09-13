@@ -68,6 +68,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 const PICKER_PAGE_SIZE = 20;
 
@@ -309,89 +310,85 @@ export const ExamDetails: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Top Breadcrumb & Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(basePath)}
-            className="h-9 w-9 rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">{exam.name}</h1>
-              {getStatusBadge(exam.status)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {exam.course?.name || "General Course"} {exam.module && `• Module: ${exam.module.name}`} • Created by {exam.createdBy?.name || "Admin"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-indigo-600 border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
-            onClick={() => navigate(`${basePath}/${exam.id}/attempts`)}
-          >
-            <Users className="h-4 w-4" /> View Attempts & Proctoring
-          </Button>
-
-          {canEditExams && ["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(basePath)}
+              className="h-9 w-9 rounded-full -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            {exam.name}
+            {getStatusBadge(exam.status)}
+          </span>
+        }
+        description={`${exam.course?.name || "General Course"}${exam.module ? ` • Module: ${exam.module.name}` : ""} • Created by ${exam.createdBy?.name || "Admin"}`}
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5"
-              onClick={() => navigate(`${basePath}/${exam.id}/edit`)}
+              className="gap-1.5 text-indigo-600 border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+              onClick={() => navigate(`${basePath}/${exam.id}/attempts`)}
             >
-              <Edit className="h-4 w-4" /> Edit
+              <Users className="h-4 w-4" /> View Attempts & Proctoring
             </Button>
-          )}
 
-          {canEditExams && ["DRAFT", "PUBLISHED"].includes(exam.status) && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-purple-600 border-purple-300 dark:border-purple-800"
-              onClick={handleOpenSchedule}
-            >
-              <Calendar className="h-4 w-4" /> Schedule
-            </Button>
-          )}
+            {canEditExams && ["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => navigate(`${basePath}/${exam.id}/edit`)}
+              >
+                <Edit className="h-4 w-4" /> Edit
+              </Button>
+            )}
 
-          {canEditExams && exam.status === "DRAFT" && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={publishMutation.isPending}
-              onClick={handlePublish}
-            >
-              {publishMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              Publish Exam
-            </Button>
-          )}
+            {canEditExams && ["DRAFT", "PUBLISHED"].includes(exam.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-purple-600 border-purple-300 dark:border-purple-800"
+                onClick={handleOpenSchedule}
+              >
+                <Calendar className="h-4 w-4" /> Schedule
+              </Button>
+            )}
 
-          {canEditExams && ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-gray-500"
-              onClick={handleArchive}
-            >
-              <Archive className="h-4 w-4" /> Archive
-            </Button>
-          )}
-        </div>
-      </div>
+            {canEditExams && exam.status === "DRAFT" && (
+              <Button
+                size="sm"
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={publishMutation.isPending}
+                onClick={handlePublish}
+              >
+                {publishMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Publish Exam
+              </Button>
+            )}
+
+            {canEditExams && ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-gray-500"
+                onClick={handleArchive}
+              >
+                <Archive className="h-4 w-4" /> Archive
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Quick Summary Highlights */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1409,7 +1406,7 @@ export const ExamDetails: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

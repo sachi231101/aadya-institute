@@ -49,6 +49,7 @@ import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useAuthStore } from "@/store/auth.store";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -532,7 +533,7 @@ export const AllLeadsList: React.FC = () => {
   const activeFilterCount = countActiveAdvancedFilters(advancedApplied);
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       <ReadOnlyBanner itemKey="leads.all" label="All Leads" />
 
       {toastMessage && (
@@ -541,84 +542,79 @@ export const AllLeadsList: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-            All Leads
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Control center for lead pipeline, assignment, and follow-up
-          </p>
-          <LeadModuleNavLinks className="mt-2" />
-        </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex rounded-xl border border-border bg-muted/40 p-0.5 overflow-hidden shadow-xs">
-            <Button
-              type="button"
-              variant={view === "list" ? "default" : "ghost"}
-              size="sm"
-              className={`rounded-lg text-xs font-bold h-8 px-3 transition-all ${
-                view === "list"
-                  ? "bg-white dark:bg-slate-800 text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setView("list")}
-            >
-              <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
-            </Button>
-            <Button
-              type="button"
-              variant={view === "kanban" ? "default" : "ghost"}
-              size="sm"
-              className={`rounded-lg text-xs font-bold h-8 px-3 transition-all ${
-                view === "kanban"
-                  ? "bg-white dark:bg-slate-800 text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setView("kanban")}
-            >
-              <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
-            </Button>
-          </div>
-          <PermissionGate itemKey="leads.all" mode="write">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5 rounded-xl"
-              onClick={() => {
-                setImportJobs([]);
-                setShowImportModal(true);
-              }}
-            >
-              <Upload className="h-4 w-4" />
-              Import
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5 rounded-xl"
-              onClick={handleExport}
-              disabled={exportMutation.isPending}
-            >
-              {exportMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Export
-            </Button>
-            <Button
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
-              onClick={() =>
-                navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Create
-            </Button>
-          </PermissionGate>
-        </div>
-      </div>
+      <PageHeader
+        title="All Leads"
+        description="Lead pipeline, assignment, and follow-up."
+        actions={
+          <>
+            <div className="flex rounded-xl border border-border bg-muted/40 p-0.5 overflow-hidden shadow-xs">
+              <Button
+                type="button"
+                variant={view === "list" ? "default" : "ghost"}
+                size="sm"
+                className={`rounded-lg text-xs font-semibold h-8 px-3 transition-all ${
+                  view === "list"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setView("list")}
+              >
+                <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
+              </Button>
+              <Button
+                type="button"
+                variant={view === "kanban" ? "default" : "ghost"}
+                size="sm"
+                className={`rounded-lg text-xs font-semibold h-8 px-3 transition-all ${
+                  view === "kanban"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setView("kanban")}
+              >
+                <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
+              </Button>
+            </div>
+            <PermissionGate itemKey="leads.all" mode="write">
+              <Button
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
+                onClick={() =>
+                  navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Create
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 px-2.5 rounded-xl">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setImportJobs([]);
+                      setShowImportModal(true);
+                    }}
+                  >
+                    <Upload className="h-4 w-4 mr-2" /> Import
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+                    {exportMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Export
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </PermissionGate>
+          </>
+        }
+      />
+      <LeadModuleNavLinks className="mt-1" />
 
       <LeadSummaryCards
         summary={summary}
@@ -627,8 +623,7 @@ export const AllLeadsList: React.FC = () => {
         isLoading={dashboardLoading}
       />
 
-      <Card className="border-border/60 shadow-xs rounded-2xl">
-        <CardContent className="p-4 space-y-4">
+      <FilterToolbar className="flex flex-col gap-3">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
             <div className="relative flex-1 w-full min-w-[200px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -721,6 +716,7 @@ export const AllLeadsList: React.FC = () => {
               )}
             </Button>
           </div>
+      </FilterToolbar>
 
           {selectedIds.length > 0 && view === "list" && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
@@ -760,6 +756,8 @@ export const AllLeadsList: React.FC = () => {
             </div>
           )}
 
+          <Card className="border-border/60 shadow-xs rounded-xl">
+            <CardContent className="p-4 space-y-4">
           {isLoading ? (
             <div className="text-center py-12 text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
@@ -780,7 +778,7 @@ export const AllLeadsList: React.FC = () => {
                 return (
                   <div
                     key={stage}
-                    className="min-w-[250px] w-[250px] shrink-0 rounded-2xl bg-muted/20 border border-border p-3.5 shadow-xs flex flex-col"
+                    className="min-w-[250px] w-[250px] shrink-0 rounded-xl bg-muted/20 border border-border p-3.5 shadow-xs flex flex-col"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <LeadStageBadge stage={stage} label={label} />
@@ -1177,7 +1175,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={assignMutation.isPending}
               >
                 {assignMutation.isPending ? "Assigning..." : "Assign"}
@@ -1265,7 +1263,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={changeStageMutation.isPending}
               >
                 {changeStageMutation.isPending ? "Saving..." : "Update"}
@@ -1316,7 +1314,7 @@ export const AllLeadsList: React.FC = () => {
               <Button type="button" variant="outline" onClick={closeRowAction}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#2563EB] text-white">
+              <Button type="submit" className="bg-primary text-white">
                 Save note
               </Button>
             </DialogFooter>
@@ -1369,7 +1367,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={updateTagsMutation.isPending}
               >
                 {updateTagsMutation.isPending ? "Saving..." : "Save tags"}
@@ -1465,7 +1463,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={manualCallMutation.isPending}
               >
                 {manualCallMutation.isPending ? "Saving..." : "Log call"}
@@ -1548,7 +1546,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={createFollowUpMutation.isPending}
               >
                 {createFollowUpMutation.isPending ? "Scheduling..." : "Schedule"}
@@ -1618,7 +1616,7 @@ export const AllLeadsList: React.FC = () => {
               Close
             </Button>
             <Button
-              className="bg-[#2563EB] text-white gap-1"
+              className="bg-primary text-white gap-1"
               disabled={
                 importBusy || !importJobs.some((j) => j.status === "previewed")
               }
@@ -1634,6 +1632,6 @@ export const AllLeadsList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

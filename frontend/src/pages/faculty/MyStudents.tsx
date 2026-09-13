@@ -1,11 +1,12 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, GraduationCap, Loader2, AlertCircle, Users } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Search, Loader2, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFacultyMyStudents } from "@/hooks/useFaculty";
+import { PageContainer, PageHeader, FilterToolbar, PageSection } from "@/components/layout";
 
 export const FacultyMyStudents: React.FC = () => {
   const navigate = useNavigate();
@@ -21,41 +22,33 @@ export const FacultyMyStudents: React.FC = () => {
   const meta = data?.meta;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-          <GraduationCap className="w-6 h-6 text-[#2563EB]" />
-          My Students
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Students enrolled in batches assigned to you.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="My Students"
+        description="Students enrolled in batches assigned to you."
+      />
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input
-          placeholder="Search by name, code, email..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="pl-10"
-        />
-      </div>
+      <FilterToolbar>
+        <div className="relative flex-1 min-w-[180px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, code, email..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="pl-10 h-9"
+          />
+        </div>
+      </FilterToolbar>
 
+      <PageSection title={`${meta?.total ?? students.length} students`}>
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-            <Users className="w-4 h-4" />
-            {meta?.total ?? students.length} students
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : isError ? (
             <div className="text-center py-12 space-y-3">
@@ -135,6 +128,7 @@ export const FacultyMyStudents: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };

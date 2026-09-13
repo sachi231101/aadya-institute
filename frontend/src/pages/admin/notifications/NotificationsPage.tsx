@@ -31,6 +31,7 @@ import {
 } from "../../../hooks/useNotifications";
 import type { NotificationType, NotificationItem } from "../../../services/notifications.api";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,7 @@ export const NotificationsPage: React.FC = () => {
       return <SettingsIcon className="h-5 w-5 text-slate-600" />;
     }
     if (mod === "dashboard") {
-      return <LayoutDashboard className="h-5 w-5 text-[#2563EB]" />;
+      return <LayoutDashboard className="h-5 w-5 text-primary" />;
     }
     return <Bell className="h-5 w-5 text-slate-600" />;
   };
@@ -271,29 +272,27 @@ export const NotificationsPage: React.FC = () => {
     : "Monitor real-time academy operations alerts, admissions, payments, attendance risks, and AI voice calls.";
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <Bell className="h-6 w-6 text-[#2563EB]" />
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Bell className="h-6 w-6 text-primary" />
             {headerTitle}
-          </h2>
-          <p className="text-sm text-text-secondary">
-            {headerDescription}
-          </p>
-        </div>
-
-        {unreadCount > 0 && (
-          <Button
-            onClick={() => markAllAsReadMutation.mutate()}
-            disabled={markAllAsReadMutation.isPending}
-            className="bg-[#2563EB] hover:bg-[#F39A16] text-white shadow-sm gap-2"
-          >
-            <CheckCheck className="h-4 w-4" /> Mark All as Read ({unreadCount})
-          </Button>
-        )}
-      </div>
+          </span>
+        }
+        description={headerDescription}
+        actions={
+          unreadCount > 0 ? (
+            <Button
+              onClick={() => markAllAsReadMutation.mutate()}
+              disabled={markAllAsReadMutation.isPending}
+              className="bg-primary hover:bg-[#F39A16] text-white shadow-sm gap-2"
+            >
+              <CheckCheck className="h-4 w-4" /> Mark All as Read ({unreadCount})
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Filter Bar */}
       <Card className="border-border/50 bg-white shadow-sm">
@@ -324,7 +323,7 @@ export const NotificationsPage: React.FC = () => {
               <Button
                 variant={unreadOnly ? "default" : "outline"}
                 size="sm"
-                className={unreadOnly ? "bg-[#2563EB] text-white" : ""}
+                className={unreadOnly ? "bg-primary text-white" : ""}
                 onClick={() => setUnreadOnly(!unreadOnly)}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
@@ -342,7 +341,7 @@ export const NotificationsPage: React.FC = () => {
                 size="sm"
                 className={`rounded-full px-3.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
                   selectedFilter === tab.id
-                    ? "bg-[#2563EB] text-white shadow-xs"
+                    ? "bg-primary text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 }`}
                 onClick={() => {
@@ -361,7 +360,7 @@ export const NotificationsPage: React.FC = () => {
       <div className="space-y-3">
         {isLoading ? (
           <div className="py-16 text-center text-slate-500 space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin text-[#2563EB] mx-auto" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
             <p className="text-sm font-medium">Fetching real-time notifications...</p>
           </div>
         ) : isError ? (
@@ -393,7 +392,7 @@ export const NotificationsPage: React.FC = () => {
                       </h4>
                       {renderBadge(item)}
                       {!item.isRead && (
-                        <Badge variant="default" className="bg-[#2563EB] text-white text-[10px]">
+                        <Badge variant="default" className="bg-primary text-white text-[10px]">
                           NEW
                         </Badge>
                       )}
@@ -432,7 +431,7 @@ export const NotificationsPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       title="View Feature"
-                      className="text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 h-8 w-8 p-0"
+                      className="text-slate-400 hover:text-primary hover:bg-blue-50 h-8 w-8 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleItemClick(item);
@@ -500,6 +499,6 @@ export const NotificationsPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

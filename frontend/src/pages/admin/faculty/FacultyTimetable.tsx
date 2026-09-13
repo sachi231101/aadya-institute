@@ -2,8 +2,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Download,
-  Bell,
-  SlidersHorizontal,
   Building2,
   BookOpen,
   Search,
@@ -19,6 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -417,35 +416,23 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 text-slate-800 font-sans w-full max-w-[1720px] mx-auto animate-in fade-in duration-200">
-      {/* ─── 1. TOP ESSENTIAL ACTIONS (NO LARGE HEADING OR WEEK CARDS) ──── */}
-      <div className="flex items-center justify-end gap-2.5">
-        <Button
-          variant="outline"
-          onClick={handleExportCSV}
-          className="text-xs font-bold h-9 px-4 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs rounded-xl cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5 text-slate-500" /> Export CSV
-        </Button>
-        <button
-          className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
-          title="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow-xs">
-            6
-          </span>
-        </button>
-        <button
-          className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
-          title="Timetable Controls & Settings"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </button>
-      </div>
+    <PageContainer density="compact" className="text-slate-800 font-sans animate-in fade-in duration-200">
+      <PageHeader
+        title="Faculty Timetable"
+        description="Weekly faculty schedule and room assignments."
+        actions={
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+            className="text-xs font-bold h-9 px-4 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs rounded-xl cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5 text-slate-500" /> Export CSV
+          </Button>
+        }
+      />
 
-      {/* ─── 2. COMPACT FILTER BAR ──────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* ─── COMPACT FILTER BAR ──────────────────────────────────────── */}
+      <FilterToolbar className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* Assigned Center Dropdown */}
           <div className="relative min-w-[190px]">
@@ -505,7 +492,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
             <Filter className="h-3.5 w-3.5" /> More Filters
           </Button>
         </div>
-      </div>
+      </FilterToolbar>
 
       {/* ─── 3. STATUS LEGEND ────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-5 px-1 py-1 text-xs font-semibold text-slate-600">
@@ -544,7 +531,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
       )}
 
       {/* ─── 4. TIMETABLE MATRIX TABLE (DAYS AS ROWS × TIME SLOTS) ───────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto w-full scrollbar-thin">
           {slotsLoading ? (
             <div className="py-16 text-center text-sm text-muted-foreground">Loading time slots from Master Setup…</div>
@@ -592,7 +579,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-rose-500 shrink-0" />
                           <div>
-                            <div className="font-extrabold text-xs text-rose-900">{day.dayShort}</div>
+                            <div className="font-semibold text-xs text-rose-900">{day.dayShort}</div>
                             <div className="text-[10px] font-semibold text-rose-700/80">{day.dateStr}</div>
                           </div>
                         </div>
@@ -600,7 +587,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
                       {/* Full-width Holiday banner across all time slots */}
                       <td colSpan={Math.max(timeSlotColumns.length, 1)} className="py-3 px-4 text-center align-middle">
-                        <div className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-rose-100/70 border border-rose-200 text-rose-700 text-xs font-black tracking-wider uppercase shadow-2xs">
+                        <div className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-rose-100/70 border border-rose-200 text-rose-700 text-xs font-bold tracking-wider uppercase shadow-2xs">
                           <Calendar className="h-3.5 w-3.5" />
                           <span>{day.holidayTitle || "HOLIDAY"}</span>
                         </div>
@@ -616,7 +603,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-[#5B50EC] shrink-0" />
                         <div>
-                          <div className="font-extrabold text-xs text-slate-900">{day.dayShort}</div>
+                          <div className="font-semibold text-xs text-slate-900">{day.dayShort}</div>
                           <div className="text-[10px] font-semibold text-slate-400">{day.dateStr}</div>
                         </div>
                       </div>
@@ -770,7 +757,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
       {/* ─── 6. BOTTOM INFORMATION & ADD NEW CLASS BAR ──────────────────── */}
       {!isFacultyUser && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
             <Info className="h-4 w-4 text-[#5B50EC] shrink-0" />
             <span>Click on any cell to view or edit the schedule.</span>
@@ -796,16 +783,16 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
       {/* ─── MODAL 1: CLASS DETAILS PANEL ───────────────────────────────── */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           {selectedSlot && (
             <>
               <DialogHeader className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-[#5B50EC] border border-indigo-200 uppercase">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-[#5B50EC] border border-indigo-200 uppercase">
                     {selectedSlot.day.dayName} • {selectedSlot.slot.timeRange}
                   </span>
                 </div>
-                <DialogTitle className="text-xl font-black text-slate-900">
+                <DialogTitle className="text-xl font-bold text-slate-900">
                   {selectedSlot.slot.courseName}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -813,7 +800,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-3 my-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+              <div className="space-y-3 my-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200/60">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Classroom</span>
@@ -830,7 +817,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
                 <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Attendance Status</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
                     {selectedSlot.slot.attendanceStatus || "PENDING"}
                   </span>
                 </div>
@@ -893,9 +880,9 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
       {/* ─── MODAL 2: ADD / EDIT CLASS FORM ─────────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-black text-slate-900">
+            <DialogTitle className="text-xl font-bold text-slate-900">
               Manage Class Schedule
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1014,6 +1001,6 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -11,6 +11,7 @@ import {
 import { useFeeInvoice, useCancelFeeInvoice } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,47 +76,50 @@ export const InvoiceDetail: React.FC = () => {
     invoice.status !== "CANCELLED" && (invoice.amountPaid || 0) <= 0 && invoice.balance > 0;
 
   return (
-    <div className="space-y-6 print:space-y-4">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 print:hidden">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link to={`${basePath}/fees/invoices`}>
-              <ArrowLeft className="h-4 w-4" /> Invoices
-            </Link>
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary font-mono">
-              {invoice.invoiceNo}
-            </h2>
-            <p className="text-sm text-text-secondary">
-              {invoice.studentName} · {invoice.admissionNo}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" && (
-            <Button asChild className="gap-2">
-              <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
-                <CreditCard className="h-4 w-4" /> Record Payment
+    <PageContainer maxWidth="narrow" className="print:space-y-4">
+      <PageHeader
+        className="print:hidden"
+        title={<span className="font-mono">{invoice.invoiceNo}</span>}
+        description={
+          <>
+            <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2 mb-1">
+              <Link to={`${basePath}/fees/invoices`}>
+                <ArrowLeft className="h-4 w-4" /> Invoices
               </Link>
             </Button>
-          )}
-          <Button variant="outline" onClick={handlePrint} className="gap-2">
-            <Printer className="h-4 w-4" /> Print
-          </Button>
-          {canCancel && (
-            <PermissionGate itemKey="fees.invoices" mode="write">
-              <Button
-                variant="destructive"
-                onClick={() => setShowCancel(true)}
-                className="gap-2"
-              >
-                <Ban className="h-4 w-4" /> Cancel
+            <span className="block">
+              <p className="text-sm text-text-secondary">
+                {invoice.studentName} · {invoice.admissionNo}
+              </p>
+            </span>
+          </>
+        }
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" && (
+              <Button asChild className="gap-2">
+                <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
+                  <CreditCard className="h-4 w-4" /> Record Payment
+                </Link>
               </Button>
-            </PermissionGate>
-          )}
-        </div>
-      </div>
+            )}
+            <Button variant="outline" onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" /> Print
+            </Button>
+            {canCancel && (
+              <PermissionGate itemKey="fees.invoices" mode="write">
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowCancel(true)}
+                  className="gap-2"
+                >
+                  <Ban className="h-4 w-4" /> Cancel
+                </Button>
+              </PermissionGate>
+            )}
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">
@@ -253,6 +257,6 @@ export const InvoiceDetail: React.FC = () => {
           </Card>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

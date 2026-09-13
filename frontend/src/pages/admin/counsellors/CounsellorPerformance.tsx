@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Target, Loader2, AlertCircle } from "lucide-react";
 import { useCounsellorPerformance } from "@/hooks/useLeads";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +37,7 @@ export const CounsellorPerformance: React.FC = () => {
       ? data.data
       : [];
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
   const openCounsellorLeads = (counsellorId?: string) => {
@@ -45,11 +46,11 @@ export const CounsellorPerformance: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Counsellor Performance</h2>
-        <p className="text-sm text-text-secondary">Lead conversion and follow-up metrics by counsellor.</p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Counsellor Performance"
+        description="Lead conversion and follow-up metrics by counsellor."
+      />
       <Card className="border-border/50">
         <CardContent className="p-4">
           <Table>
@@ -80,7 +81,7 @@ export const CounsellorPerformance: React.FC = () => {
                       onClick={() => openCounsellorLeads(counsellorId)}
                       title={counsellorId ? "View leads assigned to this counsellor" : undefined}
                     >
-                      <TableCell className="font-medium text-[#2563EB]">{c.name}</TableCell>
+                      <TableCell className="font-medium text-primary">{c.name}</TableCell>
                       <TableCell>{c.totalLeads ?? 0}</TableCell>
                       <TableCell>{c.converted ?? 0}</TableCell>
                       <TableCell>{c.followUps ?? c.pendingFollowUps ?? 0}</TableCell>
@@ -93,6 +94,6 @@ export const CounsellorPerformance: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

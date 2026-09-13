@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { PageContainer, PageHeader } from '@/components/layout';
 
 type GradeDraft = {
   marksAwarded: string;
@@ -106,40 +107,39 @@ export const ExamManualGrading: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(`${basePath}/${examId}/attempts`)}
-            className="text-slate-500 hover:text-slate-900 gap-1.5 -ml-2"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to Attempts
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             <ClipboardCheck className="h-6 w-6 text-indigo-600" />
             Manual Grading
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {gradePayload.exam?.name} — {studentName} (Attempt #{gradePayload.attempt?.attemptNumber})
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="text-xs gap-1">
-            <Clock className="h-3 w-3" /> {pendingCount} pending
-          </Badge>
-          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs gap-1">
-            <CheckCircle2 className="h-3 w-3" /> {gradedCount}/{totalSubjective} graded
-          </Badge>
-          {gradePayload.attempt?.status === 'COMPLETED' && (
-            <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-xs">
-              Attempt completed
+          </span>
+        }
+        description={`${gradePayload.exam?.name} — ${studentName} (Attempt #${gradePayload.attempt?.attemptNumber})`}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`${basePath}/${examId}/attempts`)}
+              className="text-slate-500 hover:text-slate-900 gap-1.5 -ml-2"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Attempts
+            </Button>
+            <Badge variant="outline" className="text-xs gap-1">
+              <Clock className="h-3 w-3" /> {pendingCount} pending
             </Badge>
-          )}
-        </div>
-      </div>
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs gap-1">
+              <CheckCircle2 className="h-3 w-3" /> {gradedCount}/{totalSubjective} graded
+            </Badge>
+            {gradePayload.attempt?.status === 'COMPLETED' && (
+              <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-xs">
+                Attempt completed
+              </Badge>
+            )}
+          </>
+        }
+      />
 
       {totalSubjective === 0 ? (
         <Card>
@@ -270,7 +270,7 @@ export const ExamManualGrading: React.FC = () => {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

@@ -63,6 +63,7 @@ import { LeadScoreBadge } from "@/pages/admin/leads/components/LeadScoreBadge";
 import { AiCallingResultCard } from "@/pages/admin/leads/components/AiCallingResultCard";
 import { CallDetailDrawer } from "@/pages/admin/leads/components/CallDetailDrawer";
 import { LeadModuleNavLinks } from "@/pages/admin/leads/components/LeadModuleNavLinks";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar, PageSection } from "@/components/layout";
 
 type WorkspaceTab = "queue" | "active" | "results";
 
@@ -471,7 +472,7 @@ export const AiCallingQualification: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-1">
+    <PageContainer density="compact">
       <ReadOnlyBanner itemKey="leads.ai_calling" label="AI Calling" />
 
       {toastMessage && (
@@ -484,7 +485,7 @@ export const AiCallingQualification: React.FC = () => {
       )}
 
       {configMissingOrDisabled && (
-        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold">
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <span>
@@ -506,23 +507,16 @@ export const AiCallingQualification: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-2xl text-primary dark:text-sky-400 shrink-0 mt-0.5">
-            <Bot className="h-5 w-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-              AI Calling & Voice Qualification
-            </h1>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Queue dials, monitor live calls, and review AI qualification results.
-            </p>
+      <PageHeader
+        title="AI Calling & Voice Qualification"
+        description={
+          <>
+            <p>Queue dials, monitor live calls, and review AI qualification results.</p>
             <LeadModuleNavLinks className="mt-2" />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          </>
+        }
+        actions={
+        <div className="flex items-center gap-2.5 flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -541,7 +535,7 @@ export const AiCallingQualification: React.FC = () => {
                 setImportJobs([]);
                 setShowImportModal(true);
               }}
-              className="font-bold px-4 py-2 rounded-xl gap-1.5 h-9.5 text-xs"
+              className="h-9 px-4 text-xs font-bold rounded-xl gap-1.5"
             >
               <Upload className="h-3.5 w-3.5 stroke-[3]" />
               Import CSV
@@ -549,61 +543,42 @@ export const AiCallingQualification: React.FC = () => {
             <Button
               type="button"
               onClick={() => setShowAddLeadModal(true)}
-              className="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2 rounded-xl gap-1.5 h-9.5 text-xs"
+              className="h-9 px-4 text-xs font-bold rounded-xl gap-1.5 bg-primary hover:bg-primary/90 text-white"
             >
               <Plus className="h-3.5 w-3.5 stroke-[3]" />
               Add New Lead
             </Button>
           </PermissionGate>
         </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <Card className="bg-card rounded-2xl border border-border shadow-xs">
-          <CardContent className="p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Dialable
-              </span>
-              <Users className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <h3 className="text-xl font-black text-foreground">{kpiStats.dialable}</h3>
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Dialable</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{kpiStats.dialable}</h3>
           </CardContent>
         </Card>
-        <Card className="bg-card rounded-2xl border border-border shadow-xs">
-          <CardContent className="p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Queued
-              </span>
-              <Clock className="w-3.5 h-3.5 text-amber-600" />
-            </div>
-            <h3 className="text-xl font-black text-amber-600">{kpiStats.queued}</h3>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Queued</p>
+            <h3 className="text-xl font-bold text-amber-600 mt-0.5">{kpiStats.queued}</h3>
           </CardContent>
         </Card>
-        <Card className="bg-card rounded-2xl border border-border shadow-xs">
-          <CardContent className="p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Active
-              </span>
-              <PhoneCall className="w-3.5 h-3.5 text-cyan-600" />
-            </div>
-            <h3 className="text-xl font-black text-cyan-600">{kpiStats.active}</h3>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Active</p>
+            <h3 className="text-xl font-bold text-cyan-600 mt-0.5">{kpiStats.active}</h3>
           </CardContent>
         </Card>
-        <Card className="bg-card rounded-2xl border border-border shadow-xs">
-          <CardContent className="p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Results
-              </span>
-              <Flame className="w-3.5 h-3.5 text-emerald-600" />
-            </div>
-            <h3 className="text-xl font-black text-emerald-600">{kpiStats.results}</h3>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results</p>
+            <h3 className="text-xl font-bold text-emerald-600 mt-0.5">{kpiStats.results}</h3>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
       <Tabs
         value={workspaceTab}
@@ -637,8 +612,10 @@ export const AiCallingQualification: React.FC = () => {
 
         {/* ─── Calling Queue ─── */}
         <TabsContent value="queue" className="space-y-3 mt-0">
-          <Card className="bg-card rounded-2xl border border-border shadow-xs">
-            <CardContent className="p-3 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+          <PageSection title="Calling queue">
+          <Card className="bg-card rounded-xl border border-border shadow-xs">
+            <CardContent className="p-5">
+              <FilterToolbar className="justify-between">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
@@ -663,10 +640,11 @@ export const AiCallingQualification: React.FC = () => {
                   Start AI Call ({selectedLeadIds.size})
                 </Button>
               </PermissionGate>
+              </FilterToolbar>
             </CardContent>
           </Card>
 
-          <Card className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
+          <Card className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-bold text-foreground">Dialable leads</p>
@@ -765,7 +743,7 @@ export const AiCallingQualification: React.FC = () => {
           </Card>
 
           {queuedCallLogs.length > 0 ? (
-            <Card className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
+            <Card className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
               <div className="px-4 py-3 border-b border-border">
                 <p className="text-sm font-bold text-foreground">Initiated / queued calls</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -814,14 +792,16 @@ export const AiCallingQualification: React.FC = () => {
               ) : null}
             </Card>
           ) : null}
+          </PageSection>
         </TabsContent>
 
         {/* ─── Active Calls ─── */}
         <TabsContent value="active" className="space-y-3 mt-0">
-          <Card className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <PageSection title="Live calls">
+          <Card className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
+            <div className="px-5 py-3 border-b border-border flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-foreground">Live calls</p>
+                <p className="text-sm font-semibold text-foreground">Live calls</p>
                 <p className="text-[11px] text-muted-foreground">
                   RINGING / ANSWERED — auto-refreshes every 5 seconds.
                 </p>
@@ -897,10 +877,12 @@ export const AiCallingQualification: React.FC = () => {
               </TableBody>
             </Table>
           </Card>
+          </PageSection>
         </TabsContent>
 
         {/* ─── AI Call Results ─── */}
         <TabsContent value="results" className="space-y-3 mt-0">
+          <PageSection title="AI call results">
           {resultsHistoryQuery.isLoading ? (
             <div className="py-16 text-center text-sm text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
@@ -925,6 +907,7 @@ export const AiCallingQualification: React.FC = () => {
               ))}
             </div>
           )}
+          </PageSection>
         </TabsContent>
       </Tabs>
 
@@ -1094,6 +1077,6 @@ export const AiCallingQualification: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

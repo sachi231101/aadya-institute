@@ -1,29 +1,25 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  User,
-  GraduationCap,
   Calendar,
   CheckCircle2,
   ExternalLink,
-  BookOpen,
   FileText,
   Star,
-  ArrowLeft,
   LogOut,
-  KeyRound,
   Eye,
   EyeOff,
   Lock,
   AlertCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { api } from "@/services/api";
 
 const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
@@ -86,74 +82,34 @@ export const StudentProfile: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500 pb-10">
-      {/* Top Bar with Back and Logout */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="rounded-xl border-border text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer text-foreground hover:bg-muted"
-        >
-          <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-          <span>Back</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogout}
-          className="rounded-xl border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold gap-1.5 shadow-2xs cursor-pointer"
-        >
-          <LogOut className="w-3.5 h-3.5 text-rose-500" />
-          <span>Logout Account</span>
-        </Button>
-      </div>
-
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#2563EB] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-            {(academic.studentName || user?.name)?.charAt(0)?.toUpperCase() || "S"}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">{academic.studentName || user?.name || "Student"}</h1>
-            <p className="text-blue-100">{user?.email || user?.phone || "Aadya Student"}</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Badge className="bg-white/20 text-white border-white/30 border">
-                <GraduationCap size={12} className="mr-1" /> Student
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={academic.studentName || user?.name || "Student"}
+        description={user?.email || user?.phone || "Aadya student profile"}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            {academic.studentCode && (
+              <Badge variant="outline" className="font-mono text-[11px]">
+                {academic.studentCode}
               </Badge>
-              {academic.studentCode && (
-                <Badge className="bg-white/10 text-white/90 border-white/20 font-mono text-[11px]">
-                  ID: {academic.studentCode}
-                </Badge>
-              )}
-              {(academic.assignedCourses.length > 0
-                ? academic.assignedCourses
-                : academic.primaryCourse
-                  ? [academic.primaryCourse]
-                  : []
-              ).map((course) => (
-                <Badge
-                  key={course.id}
-                  className="bg-white/25 text-white border-white/40 font-semibold text-[11px]"
-                >
-                  {course.name}
-                </Badge>
-              ))}
-            </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="h-9 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold gap-1.5"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Personal Info */}
-        <Card className="border-border shadow-xs bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 text-foreground">
-              <User size={16} className="text-[#2563EB]" /> Personal & Enrollment Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <PageSection title="Personal & Enrollment">
+        <Card className="border-border shadow-xs bg-card rounded-xl">
+          <CardContent className="p-5 space-y-3">
             {[
               { label: "Full Name", value: academic.studentName || user?.name },
               { label: "Student Code / ID", value: academic.studentCode || user?.id },
@@ -171,7 +127,7 @@ export const StudentProfile: React.FC = () => {
             ].map(({ label, value }) => (
               <div key={label} className="p-2.5 bg-muted/40 rounded-lg border border-border/50">
                 <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                <p className="text-sm font-medium text-foreground">{value || "—"}</p>
+                <p className="text-sm font-medium text-foreground">{value || "?"}</p>
               </div>
             ))}
             {academic.assignedCourses.length > 1 && (
@@ -193,15 +149,11 @@ export const StudentProfile: React.FC = () => {
             )}
           </CardContent>
         </Card>
+        </PageSection>
 
-        {/* Academic Summary */}
-        <Card className="border-border shadow-xs bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 text-foreground">
-              <BookOpen size={16} className="text-[#2563EB]" /> Academic Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <PageSection title="Academic Summary">
+        <Card className="border-border shadow-xs bg-card rounded-xl">
+          <CardContent className="p-5 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-emerald-500/10 rounded-lg text-center border border-emerald-500/20">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
@@ -217,7 +169,7 @@ export const StudentProfile: React.FC = () => {
               </div>
               <div className="p-3 bg-amber-500/10 rounded-lg text-center border border-amber-500/20">
                 <Star className="h-5 w-5 text-amber-600 dark:text-amber-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{academic.assignedModules.length || "—"}</p>
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{academic.assignedModules.length || "?"}</p>
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Assigned Modules</p>
               </div>
               <div className="p-3 bg-purple-500/10 rounded-lg text-center border border-purple-500/20">
@@ -228,19 +180,12 @@ export const StudentProfile: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </PageSection>
       </div>
 
-      {/* ─── SECURITY / CHANGE PASSWORD SECTION ─── */}
-      <Card className="border-border shadow-xs bg-card">
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-base flex items-center gap-2 text-foreground">
-            <KeyRound size={16} className="text-[#2563EB]" /> Change Password
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Update your student portal password. The initial default password (<span className="font-mono font-semibold text-foreground">Aadya@123</span>) will be replaced with your new password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
+      <PageSection title="Change Password" description="Update your student portal password.">
+      <Card className="border-border shadow-xs bg-card rounded-xl">
+        <CardContent className="p-5">
           <form onSubmit={handlePasswordChange} className="space-y-4 max-w-lg">
             {passwordSuccess && (
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
@@ -330,7 +275,7 @@ export const StudentProfile: React.FC = () => {
             <Button
               type="submit"
               disabled={passwordLoading}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold gap-1.5 h-9 px-4 cursor-pointer"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold gap-1.5 h-9 px-4 cursor-pointer"
             >
               <Lock className="h-3.5 w-3.5" />
               <span>{passwordLoading ? "Updating Password..." : "Change Password"}</span>
@@ -338,17 +283,18 @@ export const StudentProfile: React.FC = () => {
           </form>
         </CardContent>
       </Card>
+      </PageSection>
 
-      {/* Placement Portal Link */}
-      <Card className="border-[#F39A16]/30 shadow-xs bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20">
-        <CardContent className="p-6">
+      <PageSection title="Placement Portal">
+      <Card className="border-[#F39A16]/30 shadow-xs bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl">
+        <CardContent className="p-5">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-xl bg-[#F39A16]/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="h-7 w-7 text-[#F39A16]" />
               </div>
               <div>
-                <h3 className="font-bold text-foreground text-base sm:text-lg">Placement Portal</h3>
+                <h3 className="font-semibold text-foreground text-base sm:text-lg">Placement Portal</h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Access the Aadya Institute Placement Portal to view job opportunities and career resources
                 </p>
@@ -356,7 +302,7 @@ export const StudentProfile: React.FC = () => {
             </div>
             <Button
               asChild
-              className="bg-[#F39A16] hover:bg-[#e08a0e] text-white font-semibold gap-2 shadow-xs shrink-0 cursor-pointer"
+              className="h-9 bg-[#F39A16] hover:bg-[#e08a0e] text-white font-semibold gap-2 shadow-xs shrink-0 cursor-pointer"
             >
               <a href={PLACEMENT_PORTAL_URL} target="_blank" rel="noopener noreferrer">
                 <ExternalLink size={16} />
@@ -366,7 +312,8 @@ export const StudentProfile: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };
 

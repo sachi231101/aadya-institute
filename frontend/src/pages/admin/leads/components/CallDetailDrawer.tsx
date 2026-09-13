@@ -107,7 +107,7 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
               {leadId ? (
                 <Button
                   size="sm"
-                  className="w-fit bg-[#2563EB] hover:bg-[#F39A16] text-white"
+                  className="w-fit bg-primary hover:bg-[#F39A16] text-white"
                   onClick={goToLead360}
                 >
                   Open Lead 360
@@ -191,7 +191,7 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                       href={call.recordingUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[#2563EB] text-xs font-semibold inline-flex items-center gap-1"
+                      className="text-primary text-xs font-semibold inline-flex items-center gap-1"
                     >
                       Open recording <ExternalLink className="h-3 w-3" />
                     </a>

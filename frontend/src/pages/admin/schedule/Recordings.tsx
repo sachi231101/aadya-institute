@@ -2,6 +2,7 @@
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X, RefreshCw, Ban, HardDrive, AlertCircle, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -148,27 +149,27 @@ export const Recordings: React.FC = () => {
     (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Video className="h-6 w-6 text-[#2563EB]" />
+    <PageContainer className="animate-in fade-in duration-500">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Video className="h-6 w-6 text-primary" />
             Class Recordings
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Manage Google Drive class recordings — default 7-day retention
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm" className="text-xs">
-          <Link to={classesPath}>Open Classes & Sessions</Link>
-        </Button>
-      </div>
+          </span>
+        }
+        description="Manage Google Drive class recordings — default 7-day retention"
+        actions={
+          <Button asChild variant="outline" size="sm" className="text-xs">
+            <Link to={classesPath}>Open Classes & Sessions</Link>
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <MetricGrid columns="grid-cols-1 sm:grid-cols-3">
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Video className="h-6 w-6 text-[#2563EB]" />
+              <Video className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold text-text-primary">{meta.total}</p>
@@ -202,10 +203,9 @@ export const Recordings: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-secondary" />
             <Input
@@ -245,8 +245,7 @@ export const Recordings: React.FC = () => {
               </option>
             ))}
           </select>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-0">
@@ -345,7 +344,7 @@ export const Recordings: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-[#2563EB]"
+                            className="h-8 w-8 p-0 text-primary"
                             title="Play recording"
                             onClick={() => handlePlay(rec)}
                             disabled={status !== "AVAILABLE" || daysRemaining <= 0 || (accessMutation.isPending && playTarget?.id === rec.id)}
@@ -463,7 +462,7 @@ export const Recordings: React.FC = () => {
                 </p>
                 <Button
                   type="button"
-                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                  className="bg-primary hover:bg-primary text-white"
                   onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" /> Open recording
@@ -473,6 +472,6 @@ export const Recordings: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

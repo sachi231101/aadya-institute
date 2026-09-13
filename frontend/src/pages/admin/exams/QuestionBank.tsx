@@ -26,6 +26,7 @@ import {
   useDeleteQuestionBank,
 } from "@/hooks/useQuestionBanks";
 import { useCourses } from "@/hooks/useCourses";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -147,45 +148,41 @@ export const QuestionBank: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             <HelpCircle className="h-7 w-7 text-purple-600" />
             Question Banks & Catalog
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Build reusable question repositories, organize by topic/difficulty, and curate assessments.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+          </span>
+        }
+        description="Build reusable question repositories, organize by topic/difficulty, and curate assessments."
+        actions={
           <PermissionGate itemKey="exams.question_bank" mode="write">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setShowBankModal(true)}
-          >
-            <FolderPlus className="h-4 w-4 text-purple-600" />
-            New Question Bank
-          </Button>
-
-          <Button
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
-            onClick={() => handleCreateQuestionForBank()}
-          >
-            <Plus className="h-4 w-4" />
-            Create Question
-          </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowBankModal(true)}
+              >
+                <FolderPlus className="h-4 w-4 text-purple-600" />
+                New Question Bank
+              </Button>
+              <Button
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
+                onClick={() => handleCreateQuestionForBank()}
+              >
+                <Plus className="h-4 w-4" />
+                Create Question
+              </Button>
+            </div>
           </PermissionGate>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <Card className="border-border/60">
-          <CardContent className="p-4 flex items-center justify-between">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
+        <Card size="compact" className="border-border/60">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Total Questions</p>
               <p className="text-2xl font-bold mt-1">{totalQuestions}</p>
@@ -194,18 +191,8 @@ export const QuestionBank: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">Question Banks</p>
-              <p className="text-2xl font-bold mt-1">{questionBanks.length}</p>
-            </div>
-            <Folder className="h-7 w-7 text-blue-500/40" />
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Easy</p>
               <p className="text-2xl font-bold mt-1 text-emerald-600">{easyCount}</p>
@@ -216,8 +203,8 @@ export const QuestionBank: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Medium</p>
               <p className="text-2xl font-bold mt-1 text-amber-600">{mediumCount}</p>
@@ -228,8 +215,8 @@ export const QuestionBank: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Hard</p>
               <p className="text-2xl font-bold mt-1 text-rose-600">{hardCount}</p>
@@ -239,7 +226,7 @@ export const QuestionBank: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full sm:w-[350px] grid grid-cols-2">
@@ -283,9 +270,7 @@ export const QuestionBank: React.FC = () => {
             </div>
           )}
           {/* Filter Bar */}
-          <Card className="border-border/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <FilterToolbar className="flex flex-col md:flex-row gap-3 items-center justify-between">
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -364,9 +349,7 @@ export const QuestionBank: React.FC = () => {
                     </Button>
                   )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+          </FilterToolbar>
 
           {/* Question List */}
           {questionsLoading ? (
@@ -726,7 +709,7 @@ export const QuestionBank: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 interface StudentItem {
   id: string;
@@ -552,40 +553,35 @@ export const CounsellorBatches: React.FC = () => {
   }, [batches, batchSearch]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1560px] mx-auto animate-in fade-in duration-200">
-      {/* ─── 1. MAIN PAGE HEADER ──────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shrink-0 shadow-xs">
-            <UserCheck className="h-6 w-6 stroke-[2.2]" />
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <span className="h-11 w-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-primary shrink-0 shadow-xs">
+              <UserCheck className="h-6 w-6 stroke-[2.2]" />
+            </span>
+            Counsellor — Batch Management
+          </span>
+        }
+        description="Select multiple students and assign them to one faculty member."
+        actions={
+          <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+              <Users className="w-3.5 h-3.5" />
+              <span>Students: {selectedStudentIds.length}</span>
+            </div>
+            <span className="text-slate-300">•</span>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+              <GraduationCap className="w-3.5 h-3.5 text-purple-600" />
+              <span>Faculty: {selectedFaculty ? "1/1" : "0/1"}</span>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Counsellor — Batch Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-              Select multiple students and assign them to one faculty member.
-            </p>
-          </div>
-        </div>
-
-        {/* Dynamic Summary Pill */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-xs self-start sm:self-center">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB]">
-            <Users className="w-3.5 h-3.5" />
-            <span>Students: {selectedStudentIds.length}</span>
-          </div>
-          <span className="text-slate-300">•</span>
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-            <GraduationCap className="w-3.5 h-3.5 text-purple-600" />
-            <span>Faculty: {selectedFaculty ? "1/1" : "0/1"}</span>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Success Notification Banner */}
       {successMsg && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-emerald-800 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 text-emerald-800 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successMsg}</span>
@@ -599,20 +595,20 @@ export const CounsellorBatches: React.FC = () => {
       {/* ─── 2. UPPER 2-COLUMN SECTION: STUDENT LIST & FACULTY LIST ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* ── LEFT PANEL: STUDENT LIST (SELECT MULTIPLE) ────────────────────── */}
-        <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+        <Card className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
           <CardContent className="p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+                <div className="h-8 w-8 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                   <Users className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-900">Student List</h2>
+                  <h2 className="text-base font-bold text-slate-900">Student List</h2>
                   <p className="text-[11px] text-slate-400 font-medium">Select one or more students</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge className="bg-blue-50 text-[#2563EB] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+                <Badge className="bg-blue-50 text-primary hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
                   {allStudentsList.length} Students
                 </Badge>
                 <PermissionGate itemKey="batches.all" mode="write">
@@ -620,7 +616,7 @@ export const CounsellorBatches: React.FC = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => setShowNewStudentModal(true)}
-                  className="h-7 px-2.5 text-[11px] font-bold text-[#2563EB] border-blue-200 bg-blue-50/50 hover:bg-blue-50 rounded-xl gap-1 cursor-pointer"
+                  className="h-7 px-2.5 text-[11px] font-bold text-primary border-blue-200 bg-blue-50/50 hover:bg-blue-50 rounded-xl gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   <span>+ New Student</span>
@@ -654,7 +650,7 @@ export const CounsellorBatches: React.FC = () => {
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {loadingStudents ? (
                 <div className="py-10 text-center text-xs text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#2563EB] mb-2" />
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
                   Loading students...
                 </div>
               ) : filteredStudents.length === 0 ? (
@@ -668,10 +664,10 @@ export const CounsellorBatches: React.FC = () => {
                     <div
                       key={student.id}
                       onClick={() => canEditBatches && toggleStudent(student.id)}
-                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                         canEditBatches ? "cursor-pointer" : "cursor-default"
                       } ${isSelected
-                          ? "bg-blue-50/50 border-[#2563EB]/40 shadow-xs"
+                          ? "bg-blue-50/50 border-primary/40 shadow-xs"
                           : "bg-white border-slate-200/80 hover:bg-slate-50/70"
                         }`}
                     >
@@ -679,7 +675,7 @@ export const CounsellorBatches: React.FC = () => {
                         {/* Custom Checkbox */}
                         <div
                           className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected
-                              ? "bg-[#2563EB] border-[#2563EB] text-white"
+                              ? "bg-primary border-primary text-white"
                               : "border-slate-300 bg-white"
                             }`}
                         >
@@ -688,7 +684,7 @@ export const CounsellorBatches: React.FC = () => {
 
                         {/* Avatar */}
                         <div
-                          className={`w-8 h-8 rounded-full ${student.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
+                          className={`w-8 h-8 rounded-full ${student.avatarBg} text-xs font-bold flex items-center justify-center shrink-0 shadow-2xs`}
                         >
                           {student.initials}
                         </div>
@@ -719,8 +715,8 @@ export const CounsellorBatches: React.FC = () => {
                           toggleStudent(student.id);
                         }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${isSelected
-                            ? "bg-[#2563EB] text-white shadow-xs"
-                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#2563EB] border border-slate-200"
+                            ? "bg-primary text-white shadow-xs"
+                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-primary border border-slate-200"
                           }`}
                       >
                         {isSelected ? "Selected" : "+ Add"}
@@ -735,7 +731,7 @@ export const CounsellorBatches: React.FC = () => {
         </Card>
 
         {/* ── RIGHT PANEL: FACULTY LIST (SELECT ONLY ONE) ───────────────────── */}
-        <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+        <Card className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
           <CardContent className="p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -743,11 +739,11 @@ export const CounsellorBatches: React.FC = () => {
                   <GraduationCap className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-900">Faculty List</h2>
+                  <h2 className="text-base font-bold text-slate-900">Faculty List</h2>
                   <p className="text-[11px] text-slate-400 font-medium">Select only one faculty member</p>
                 </div>
               </div>
-              <Badge className="bg-blue-50 text-[#2563EB] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+              <Badge className="bg-blue-50 text-primary hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
                 {allFacultyList.length} Faculty
               </Badge>
             </div>
@@ -781,10 +777,10 @@ export const CounsellorBatches: React.FC = () => {
                   <div
                     key={faculty.id}
                     onClick={() => canEditBatches && handleSelectFaculty(faculty)}
-                    className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                       canEditBatches ? "cursor-pointer" : "cursor-default"
                     } ${isSelected
-                        ? "bg-blue-50/50 border-[#2563EB]/40 shadow-xs"
+                        ? "bg-blue-50/50 border-primary/40 shadow-xs"
                         : "bg-white border-slate-200/80 hover:bg-slate-50/70"
                       }`}
                   >
@@ -792,7 +788,7 @@ export const CounsellorBatches: React.FC = () => {
                       {/* Radio Selector */}
                       <div
                         className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isSelected
-                            ? "border-[#2563EB] bg-[#2563EB]"
+                            ? "border-primary bg-primary"
                             : "border-slate-300 bg-white"
                           }`}
                       >
@@ -801,7 +797,7 @@ export const CounsellorBatches: React.FC = () => {
 
                       {/* Avatar */}
                       <div
-                        className={`w-8 h-8 rounded-full ${faculty.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
+                        className={`w-8 h-8 rounded-full ${faculty.avatarBg} text-xs font-bold flex items-center justify-center shrink-0 shadow-2xs`}
                       >
                         {faculty.initials}
                       </div>
@@ -833,8 +829,8 @@ export const CounsellorBatches: React.FC = () => {
                           handleSelectFaculty(faculty);
                         }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected
-                            ? "bg-[#2563EB] text-white shadow-xs"
-                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#2563EB] border border-slate-200"
+                            ? "bg-primary text-white shadow-xs"
+                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-primary border border-slate-200"
                           }`}
                       >
                         {isSelected ? "✓ Selected" : "Select"}
@@ -850,15 +846,15 @@ export const CounsellorBatches: React.FC = () => {
       </div>
 
       {/* ─── 3. MIDDLE SECTION: COMBINED SELECTED MEMBERS CARD ────────────── */}
-      <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+      <Card className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 rounded-lg bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
+              <div className="h-7 w-7 rounded-lg bg-primary text-white flex items-center justify-center shadow-xs">
                 <Check className="w-4 h-4 stroke-[3]" />
               </div>
-              <h3 className="text-base font-black text-slate-900">Selected Members</h3>
-              <Badge className="bg-blue-50 text-[#2563EB] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+              <h3 className="text-base font-bold text-slate-900">Selected Members</h3>
+              <Badge className="bg-blue-50 text-primary hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
                 {selectedStudentIds.length} Students • {selectedFaculty ? "1 Faculty" : "0 Faculty"}
               </Badge>
             </div>
@@ -878,8 +874,8 @@ export const CounsellorBatches: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-1">
             {/* LEFT COLUMN: Selected Students (Multiple) */}
             <div className="lg:col-span-7 space-y-2.5">
-              <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-[#2563EB]" />
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-primary" />
                 Selected Students (Multiple)
               </span>
 
@@ -888,7 +884,7 @@ export const CounsellorBatches: React.FC = () => {
                   {selectedStudents.map((stu) => (
                     <div
                       key={stu.id}
-                      className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between gap-2 shadow-2xs"
+                      className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2 shadow-2xs"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div
@@ -919,7 +915,7 @@ export const CounsellorBatches: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-xs text-slate-400">
+                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-xs text-slate-400">
                   No students selected yet. Select from the Student List above.
                 </div>
               )}
@@ -927,13 +923,13 @@ export const CounsellorBatches: React.FC = () => {
 
             {/* RIGHT COLUMN: Selected Faculty (Only One) */}
             <div className="lg:col-span-5 space-y-2.5">
-              <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                <GraduationCap className="w-3.5 h-3.5 text-[#2563EB]" />
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-primary" />
                 Selected Faculty (Only One)
               </span>
 
               {selectedFaculty ? (
-                <div className="p-3 bg-blue-50/60 border-2 border-[#2563EB]/30 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                <div className="p-3 bg-blue-50/60 border-2 border-primary/30 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`w-9 h-9 rounded-full ${selectedFaculty.avatarBg} font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs`}
@@ -941,7 +937,7 @@ export const CounsellorBatches: React.FC = () => {
                       {selectedFaculty.initials}
                     </div>
                     <div className="min-w-0">
-                      <span className="font-black text-xs text-slate-900 truncate block">
+                      <span className="font-bold text-xs text-slate-900 truncate block">
                         {selectedFaculty.name}
                       </span>
                       <span className="text-[11px] text-slate-500 font-medium truncate block">
@@ -961,7 +957,7 @@ export const CounsellorBatches: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-xs text-slate-400">
+                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-xs text-slate-400">
                   No faculty selected yet. Choose one from the Faculty List above.
                 </div>
               )}
@@ -971,12 +967,12 @@ export const CounsellorBatches: React.FC = () => {
       </Card>
 
       {/* ─── 4. LOWER SECTION: PREVIOUS BATCHES TABLE ─────────────────────── */}
-      <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+      <Card className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <Calendar className="w-5 h-5 text-[#2563EB]" />
-              <h3 className="text-base font-black text-slate-900">Previous Batches</h3>
+              <Calendar className="w-5 h-5 text-primary" />
+              <h3 className="text-base font-bold text-slate-900">Previous Batches</h3>
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1001,7 +997,7 @@ export const CounsellorBatches: React.FC = () => {
           </div>
 
           {/* Batches Table */}
-          <div className="border border-slate-100 rounded-2xl overflow-hidden">
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
             <Table>
               <TableHeader className="bg-slate-50/80">
                 <TableRow className="text-[11px] font-bold text-slate-500 uppercase">
@@ -1019,7 +1015,7 @@ export const CounsellorBatches: React.FC = () => {
                 {loadingBatches ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400">
-                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#2563EB] mb-2" />
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
                       Loading previous batches...
                     </TableCell>
                   </TableRow>
@@ -1046,7 +1042,7 @@ export const CounsellorBatches: React.FC = () => {
                       <TableRow key={batch.id} className="hover:bg-slate-50/60 text-xs transition-colors">
                         {/* Batch Code */}
                         <TableCell className="font-bold py-3.5">
-                          <span className="text-[#2563EB] font-mono block">{batch.code}</span>
+                          <span className="text-primary font-mono block">{batch.code}</span>
                           <span className="text-[10px] text-slate-400 font-mono block lowercase">{batch.code}001</span>
                         </TableCell>
 
@@ -1063,7 +1059,7 @@ export const CounsellorBatches: React.FC = () => {
                         {/* Assigned Faculty */}
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-100 text-[#2563EB] text-[10px] font-bold flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-primary text-[10px] font-bold flex items-center justify-center">
                               {facultyInitials}
                             </div>
                             <span className="font-semibold text-slate-800">{facultyName}</span>
@@ -1088,7 +1084,7 @@ export const CounsellorBatches: React.FC = () => {
                         {/* Status Badge */}
                         <TableCell>
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${(batch.status as string) === "ONGOING" || (batch.status as string) === "ACTIVE"
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${(batch.status as string) === "ONGOING" || (batch.status as string) === "ACTIVE"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : "bg-blue-50 text-blue-700 border-blue-200"
                               }`}
@@ -1150,7 +1146,7 @@ export const CounsellorBatches: React.FC = () => {
               <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg border-slate-200">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </Button>
-              <Button size="sm" className="h-7 px-2.5 rounded-lg bg-[#2563EB] text-white text-xs font-bold">
+              <Button size="sm" className="h-7 px-2.5 rounded-lg bg-primary text-white text-xs font-bold">
                 1
               </Button>
               <Button variant="outline" size="sm" className="h-7 px-2.5 rounded-lg border-slate-200 text-xs">
@@ -1179,16 +1175,16 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 5. STICKY BOTTOM ACTION BAR ─────────────────────────────────── */}
       {canEditBatches && (
-      <div className="sticky bottom-4 z-20 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sticky bottom-4 z-20 bg-white border border-slate-200/90 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-          <Info className="w-4 h-4 text-[#2563EB] shrink-0" />
+          <Info className="w-4 h-4 text-primary shrink-0" />
           <span>Select at least one student and one faculty to enable the assign button.</span>
         </div>
 
         <Button
           disabled={!canAssign}
           onClick={() => setShowAssignModal(true)}
-          className="h-10 px-6 text-xs font-black text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01]"
+          className="h-10 px-6 text-xs font-bold text-white bg-primary hover:bg-primary rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01]"
         >
           <span>Assign Faculty to Selected</span>
           <ArrowRight className="w-4 h-4" />
@@ -1198,14 +1194,14 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 6. CREATE / ASSIGN BATCH MODAL ───────────────────────────────── */}
       <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
-        <DialogContent className="max-w-lg rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
+        <DialogContent className="max-w-lg rounded-xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-black text-slate-900">
+                <DialogTitle className="text-base font-bold text-slate-900">
                   Create Batch Assignment
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
@@ -1322,7 +1318,7 @@ export const CounsellorBatches: React.FC = () => {
                   expectedEndDate: ends.length > 0 ? ends[ends.length - 1] : undefined,
                 });
               }}
-              className="w-full sm:flex-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
+              className="w-full sm:flex-1 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
             >
               {createBatchMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1337,14 +1333,14 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 7. EDIT BATCH MODAL ─────────────────────────────────────────── */}
       <Dialog open={!!editModalBatch} onOpenChange={(open) => !open && setEditModalBatch(null)}>
-        <DialogContent className="max-w-lg rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg rounded-xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+              <div className="h-9 w-9 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                 <Edit3 className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-black text-slate-900">
+                <DialogTitle className="text-base font-bold text-slate-900">
                   Edit Batch — {editModalBatch?.code}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
@@ -1385,7 +1381,7 @@ export const CounsellorBatches: React.FC = () => {
                 <select
                   value={editFacultyId}
                   onChange={(e) => setEditFacultyId(e.target.value)}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#2563EB]"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-primary"
                 >
                   <option value="">None — use subject instructors only</option>
                   {allFacultyList.map((f) => (
@@ -1407,10 +1403,10 @@ export const CounsellorBatches: React.FC = () => {
               </div>
 
               {/* ─── ENROLLED STUDENTS & ADD NEW STUDENTS SECTION ─── */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3">
+              <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-black text-slate-800 flex items-center gap-1.5 text-xs">
-                    <Users className="w-3.5 h-3.5 text-[#2563EB]" />
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                    <Users className="w-3.5 h-3.5 text-primary" />
                     Enrolled Students ({editEnrolledStudentIds.length})
                   </span>
                   <span
@@ -1476,14 +1472,14 @@ export const CounsellorBatches: React.FC = () => {
                 {/* Add New Students Selector */}
                 <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Plus className="w-3 h-3 text-[#2563EB]" />
+                    <Plus className="w-3 h-3 text-primary" />
                     Add New Student to Batch
                   </label>
                   <div className="flex items-center gap-2">
                     <select
                       value={selectedNewStudentIdToAdd}
                       onChange={(e) => setSelectedNewStudentIdToAdd(e.target.value)}
-                      className="flex-1 h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#2563EB]"
+                      className="flex-1 h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-primary"
                     >
                       <option value="">Choose student to add...</option>
                       {allStudentsList.filter(
@@ -1499,7 +1495,7 @@ export const CounsellorBatches: React.FC = () => {
                       type="button"
                       disabled={!selectedNewStudentIdToAdd}
                       onClick={handleAddStudentToEditBatch}
-                      className="h-9 px-3.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                      className="h-9 px-3.5 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1 shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Add</span>
@@ -1521,7 +1517,7 @@ export const CounsellorBatches: React.FC = () => {
             <Button
               disabled={editSaving}
               onClick={handleSaveEditBatch}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9 flex-1 cursor-pointer"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl h-9 flex-1 cursor-pointer"
             >
               {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
               Save Changes
@@ -1532,11 +1528,11 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 8. VIEW BATCH DETAILS MODAL ─────────────────────────────────── */}
       <Dialog open={!!detailsModalBatch} onOpenChange={(open) => !open && setDetailsModalBatch(null)}>
-        <DialogContent className="max-w-md rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-md rounded-xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2.5">
-              <Eye className="w-5 h-5 text-[#2563EB]" />
-              <DialogTitle className="text-base font-black text-slate-900">
+              <Eye className="w-5 h-5 text-primary" />
+              <DialogTitle className="text-base font-bold text-slate-900">
                 Batch Details — {detailsModalBatch?.name}
               </DialogTitle>
             </div>
@@ -1546,10 +1542,10 @@ export const CounsellorBatches: React.FC = () => {
             const viewEnrolledIds = getBatchEnrolledStudentIds(detailsModalBatch);
             return (
               <div className="space-y-3 pt-2 text-xs">
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Batch Code:</span>
-                    <span className="font-mono font-bold text-[#2563EB]">{detailsModalBatch.code}</span>
+                    <span className="font-mono font-bold text-primary">{detailsModalBatch.code}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Course:</span>
@@ -1611,7 +1607,7 @@ export const CounsellorBatches: React.FC = () => {
           <DialogFooter className="pt-2">
             <Button
               onClick={() => setDetailsModalBatch(null)}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9"
+              className="w-full bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl h-9"
             >
               Close
             </Button>
@@ -1621,14 +1617,14 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 8B. REGISTER / ADD NEW STUDENT MODAL ─────────────────────────── */}
       <Dialog open={showNewStudentModal} onOpenChange={setShowNewStudentModal}>
-        <DialogContent className="max-w-md rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
+        <DialogContent className="max-w-md rounded-xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+              <div className="h-9 w-9 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                 <Plus className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-black text-slate-900">
+                <DialogTitle className="text-base font-bold text-slate-900">
                   Register New Student
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
@@ -1681,7 +1677,7 @@ export const CounsellorBatches: React.FC = () => {
             <Button
               disabled={!regStudentName.trim()}
               onClick={handleCreateNewStudent}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9 flex-1"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl h-9 flex-1"
             >
               Add Student
             </Button>
@@ -1691,11 +1687,11 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 9. DELETE CONFIRMATION MODAL ─────────────────────────────────── */}
       <Dialog open={!!deleteModalBatch} onOpenChange={(open) => !open && setDeleteModalBatch(null)}>
-        <DialogContent className="max-w-sm rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
+        <DialogContent className="max-w-sm rounded-xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2.5 text-rose-600">
               <AlertCircle className="w-5 h-5" />
-              <DialogTitle className="text-base font-black text-slate-900">
+              <DialogTitle className="text-base font-bold text-slate-900">
                 Delete Batch?
               </DialogTitle>
             </div>
@@ -1721,7 +1717,7 @@ export const CounsellorBatches: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

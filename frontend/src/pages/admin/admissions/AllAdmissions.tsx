@@ -36,6 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import { admissionsApi } from "../../../services/admissions.api";
 import { useAdmissionById } from "../../../hooks/useAdmissions";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -724,7 +725,7 @@ export const AllAdmissions: React.FC = () => {
 
   return (
     <PermissionGate itemKey="admissions.all" mode="read">
-    <div className="p-4 lg:p-6 max-w-[1400px] w-full mx-auto space-y-4 bg-background min-h-screen text-foreground font-sans">
+    <PageContainer className="space-y-4 text-foreground font-sans">
       <ReadOnlyBanner itemKey="admissions.all" label="Admissions" />
 
       {/* ─── TOAST NOTIFICATION ─── */}
@@ -752,28 +753,24 @@ export const AllAdmissions: React.FC = () => {
         />
       ) : (
         <>
-          {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Admissions</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {totalAdmissionsCount} total · {confirmedCount} confirmed · {provisionalCount} provisional
-              </p>
-            </div>
-            <PermissionGate itemKey="admissions.all" mode="write">
-              <Button
-                size="sm"
-                onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-                className="h-9 gap-1.5 shrink-0"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                New admission
-              </Button>
-            </PermissionGate>
-          </div>
+          <PageHeader
+            title="Admissions"
+            description={`${totalAdmissionsCount} total · ${confirmedCount} confirmed · ${provisionalCount} provisional`}
+            actions={
+              <PermissionGate itemKey="admissions.all" mode="write">
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+                  className="h-9 gap-1.5 shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New admission
+                </Button>
+              </PermissionGate>
+            }
+          />
 
-          {/* Toolbar */}
-          <div className="rounded-xl border border-border bg-card p-3 shadow-xs space-y-3">
+          <FilterToolbar className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -813,7 +810,7 @@ export const AllAdmissions: React.FC = () => {
             </div>
 
             {showFilters && (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={courseFilter}
                   onChange={(e) => {
@@ -858,7 +855,7 @@ export const AllAdmissions: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
+          </FilterToolbar>
 
           {/* Table */}
           <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
@@ -986,14 +983,14 @@ export const AllAdmissions: React.FC = () => {
       {/* MANAGE ADMISSION MODAL */}
       {isManageAdmissionOpen && selectedAdmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <SlidersHorizontal className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Manage Admission</h3>
+                  <h3 className="text-base font-semibold text-foreground">Manage Admission</h3>
                   <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
                 </div>
               </div>
@@ -1079,14 +1076,14 @@ export const AllAdmissions: React.FC = () => {
       {/* FEE DETAILS MODAL */}
       {isFeeDetailsModalOpen && selectedAdmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Fee Details & Transactions</h3>
+                  <h3 className="text-base font-semibold text-foreground">Fee Details & Transactions</h3>
                   <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
                 </div>
               </div>
@@ -1159,14 +1156,14 @@ export const AllAdmissions: React.FC = () => {
       {/* DOCUMENTS MODAL */}
       {isDocsModalOpen && selectedAdmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-primary flex items-center justify-center">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Verification Documents</h3>
+                  <h3 className="text-base font-semibold text-foreground">Verification Documents</h3>
                   <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
                 </div>
               </div>
@@ -1235,7 +1232,7 @@ export const AllAdmissions: React.FC = () => {
       {/* ─── 7. DIRECT ADMISSION ENTRY MODAL ─── */}
       {isDirectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
@@ -1243,7 +1240,7 @@ export const AllAdmissions: React.FC = () => {
                   <GraduationCap className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Direct Admission Entry</h3>
+                  <h3 className="text-base font-semibold text-foreground">Direct Admission Entry</h3>
                   <p className="text-xs text-muted-foreground">Instantly enroll student with course, fee, and batch assignment</p>
                 </div>
               </div>
@@ -1466,13 +1463,13 @@ export const AllAdmissions: React.FC = () => {
       {/* ─── 8. CHANGE BATCH MODAL ─── */}
       {isChangeBatchOpen && selectedAdmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                 <RefreshCw className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-foreground">Change Batch Assignment</h3>
+                <h3 className="text-base font-semibold text-foreground">Change Batch Assignment</h3>
                 <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
               </div>
             </div>
@@ -1522,7 +1519,7 @@ export const AllAdmissions: React.FC = () => {
         </div>
       )}
 
-    </div>
+    </PageContainer>
     </PermissionGate>
   );
 };

@@ -110,7 +110,7 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
                 type="button"
                 variant="link"
                 size="sm"
-                className="h-auto p-0 text-xs text-[#2563EB]"
+                className="h-auto p-0 text-xs text-primary"
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewLead?.(leadId, "follow-ups");

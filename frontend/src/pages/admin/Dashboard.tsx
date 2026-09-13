@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
-import { PageContainer } from "@/components/layout/PageContainer";
+import { PageContainer, PageHeader, PageSection, MetricGrid } from "@/components/layout";
 import { ROUTES } from "@/constants/routes";
 
 import { useNotificationStore } from "@/store/notification.store";
@@ -202,42 +202,41 @@ export const AdminDashboard: React.FC = () => {
   const isLoading = isBranchesLoading || isStudentLoading || isFinancialLoading;
 
   return (
-    <PageContainer className="animate-in fade-in duration-300">
-      {/* 1. PAGE HEADER & FILTERS IN ONE LINE */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Dashboard Overview</h2>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <select
-            className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-          >
-            <option value="all">All Branches ({apiBranches.length})</option>
-            {apiBranches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <select
-            className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
-            value={selectedDateFilter}
-            onChange={(e) => setSelectedDateFilter(e.target.value)}
-          >
-            <option>Today</option>
-            <option>This Week</option>
-            <option>This Month</option>
-            <option>Last Month</option>
-            <option>This Year</option>
-          </select>
-
-          <Button
-            onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
-            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
-          >
-            <Building2 className="h-4 w-4" /> Manage Branches
-          </Button>
-        </div>
-      </div>
+    <PageContainer density="compact" className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Dashboard Overview"
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <select
+              className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+            >
+              <option value="all">All Branches ({apiBranches.length})</option>
+              {apiBranches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            <select
+              className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
+            >
+              <option>Today</option>
+              <option>This Week</option>
+              <option>This Month</option>
+              <option>Last Month</option>
+              <option>This Year</option>
+            </select>
+            <Button
+              onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
+              className="bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
+            >
+              <Building2 className="h-4 w-4" /> Manage Branches
+            </Button>
+          </div>
+        }
+      />
 
       <InstallDashboardBanner />
 
@@ -248,10 +247,35 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ERP Module Quick Access */}
-      <div>
-        <h3 className="text-sm font-bold text-foreground mb-3 sm:mb-3.5">Module Quick Access</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
+      <MetricGrid density="compact">
+        <Card size="compact" className="border-border bg-card shadow-xs rounded-xl">
+          <CardContent size="compact">
+            <p className="text-2xl font-semibold text-foreground">{kpiTotalStudents}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Students</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border bg-card shadow-xs rounded-xl">
+          <CardContent size="compact">
+            <p className="text-2xl font-semibold text-foreground">{kpiTotalLeads}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Leads</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border bg-card shadow-xs rounded-xl">
+          <CardContent size="compact">
+            <p className="text-2xl font-semibold text-foreground">{kpiActiveBatches}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Active Batches</p>
+          </CardContent>
+        </Card>
+        <Card size="compact" className="border-border bg-card shadow-xs rounded-xl">
+          <CardContent size="compact">
+            <p className="text-2xl font-semibold text-foreground">{formattedRevenue}</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Collected Revenue</p>
+          </CardContent>
+        </Card>
+      </MetricGrid>
+
+      <PageSection title="Module Quick Access" density="compact">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
             { label: "Leads", path: ROUTES.ADMIN.LEADS.ROOT, count: kpiTotalLeads },
             { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: kpiTotalStudents },
@@ -271,29 +295,26 @@ export const AdminDashboard: React.FC = () => {
               key={mod.label}
               type="button"
               onClick={() => navigate(mod.path)}
-              className="text-left p-3.5 sm:p-4 rounded-2xl border border-border bg-card hover:bg-blue-50/50 hover:border-blue-200 transition-all shadow-xs cursor-pointer"
+              className="text-left p-3.5 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-primary/30 transition-all shadow-xs cursor-pointer"
             >
-              <p className="text-xs font-bold text-foreground">{mod.label}</p>
-              <p className="text-xl font-black text-[#2563EB] mt-1.5">{mod.count}</p>
+              <p className="text-xs font-semibold text-foreground">{mod.label}</p>
+              <p className="text-xl font-semibold text-primary mt-1.5">{mod.count}</p>
             </button>
           ))}
         </div>
-      </div>
+      </PageSection>
 
-      {/* 3. MAIN SECTION - BRANCH REVENUE PERFORMANCE */}
-      <div>
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <h3 className="text-lg font-extrabold text-foreground tracking-tight">Branch Revenue & Operations Performance</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Live operational data from each branch.</p>
-          </div>
-        </div>
+      <PageSection
+        title="Branch Revenue & Operations"
+        description="Live operational data from each branch."
+        density="compact"
+      >
 
         {/* 4. BRANCH REVENUE CARDS */}
         {isLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
         ) : filteredBranches.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-2xl border border-border p-6 shadow-xs">
+          <div className="text-center py-12 bg-card rounded-xl border border-border p-6 shadow-xs">
             <Building2 className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
             <h4 className="text-sm font-bold text-foreground">No Branches Found</h4>
             <p className="text-xs text-muted-foreground mt-1">Create your first branch to start managing academy operations.</p>
@@ -301,7 +322,7 @@ export const AdminDashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredBranches.map((branch) => (
-              <Card key={branch.id} className="border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all rounded-2xl overflow-hidden relative flex flex-col group">
+              <Card key={branch.id} className="border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all rounded-xl overflow-hidden relative flex flex-col group">
                 <div className={`absolute top-0 left-0 right-0 h-1 ${branch.accentColor}`} />
 
                 <CardContent className="p-0 flex-1 flex flex-col">
@@ -447,20 +468,20 @@ export const AdminDashboard: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+      </PageSection>
 
-      {/* 10. REVENUE TREND & 11. TOP BRANCHES & 12. RECENT ACTIVITY */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+      <PageSection title="Revenue & Activity" density="compact">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Trend */}
-        <Card className="border-border bg-card shadow-xs rounded-2xl lg:col-span-1 flex flex-col">
+        <Card className="border-border bg-card shadow-xs rounded-xl lg:col-span-1 flex flex-col">
           <CardContent className="p-5 flex-1 flex flex-col">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="text-base font-extrabold text-foreground tracking-tight">Monthly Revenue Trend</h3>
+                <h3 className="text-base font-semibold text-foreground tracking-tight">Monthly Revenue Trend</h3>
                 <p className="text-xs text-muted-foreground">{selectedBranchId === "all" ? "All Branches" : "Selected Branch"}</p>
               </div>
               <div className="text-right">
-                <h4 className="text-xl font-extrabold text-foreground tracking-tight">{formattedRevenue}</h4>
+                <h4 className="text-xl font-semibold text-foreground tracking-tight">{formattedRevenue}</h4>
                 <p className="text-xs font-medium text-muted-foreground mt-0.5">
                   Total Collected
                 </p>
@@ -484,9 +505,9 @@ export const AdminDashboard: React.FC = () => {
         </Card>
 
         {/* Top Revenue Branches */}
-        <Card className="border-border bg-card shadow-xs rounded-2xl">
+        <Card className="border-border bg-card shadow-xs rounded-xl">
           <CardContent className="p-5">
-            <h3 className="text-base font-extrabold text-foreground tracking-tight mb-4">Top Performing Branches</h3>
+            <h3 className="text-base font-semibold text-foreground tracking-tight mb-4">Top Performing Branches</h3>
             <div className="space-y-4">
               {topBranches.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No branches registered yet.</p>
@@ -510,10 +531,10 @@ export const AdminDashboard: React.FC = () => {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="border-border bg-card shadow-xs rounded-2xl">
+        <Card className="border-border bg-card shadow-xs rounded-xl">
           <CardContent className="p-5">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-extrabold text-foreground tracking-tight">Recent Academy Records</h3>
+              <h3 className="text-base font-semibold text-foreground tracking-tight">Recent Academy Records</h3>
               <button onClick={() => navigate("/admin/reports")} className="text-xs text-primary font-bold hover:underline cursor-pointer">
                 View Reports
               </button>
@@ -558,6 +579,7 @@ export const AdminDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      </PageSection>
 
       {/* Modal Dialog: Delete Branch */}
       {deleteModalBranch && (

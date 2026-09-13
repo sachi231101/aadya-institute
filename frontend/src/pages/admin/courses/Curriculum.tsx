@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Curriculum: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -155,17 +156,13 @@ export const Curriculum: React.FC = () => {
   const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-black tracking-tight text-foreground">Course Curriculum</h2>
-        <p className="text-xs text-muted-foreground font-medium mt-0.5">
-          Structure course syllabi, module sequences, topic hours, and learning progress.
-        </p>
-      </div>
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Course Curriculum"
+        description="Structure course syllabi, module sequences, topic hours, and learning progress."
+      />
 
-      {/* Course Selection & Overview Banner */}
-      <Card className="border border-border bg-card shadow-xs rounded-2xl overflow-hidden">
+      <Card className="border border-border bg-card shadow-xs rounded-xl overflow-hidden">
         <CardContent className="p-6 space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="space-y-1 flex-1">
@@ -200,17 +197,17 @@ export const Curriculum: React.FC = () => {
             <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 text-xs">
               <div>
                 <span className="block text-[11px] font-bold text-muted-foreground uppercase">Total Duration</span>
-                <span className="font-black text-foreground text-sm">
+                <span className="font-bold text-foreground text-sm">
                   {selectedCourse?.duration || selectedCourse?.durationMonths || 6} Mos ({selectedCourse?.totalHours || 100} hrs)
                 </span>
               </div>
               <div>
                 <span className="block text-[11px] font-bold text-muted-foreground uppercase">Modules Count</span>
-                <span className="font-black text-foreground text-sm">{modules.length} Modules</span>
+                <span className="font-bold text-foreground text-sm">{modules.length} Modules</span>
               </div>
               <div>
                 <span className="block text-[11px] font-bold text-muted-foreground uppercase">Topics Completion</span>
-                <span className="font-black text-foreground text-sm">{completedTopics} / {totalTopics} ({progressPercent}%)</span>
+                <span className="font-bold text-foreground text-sm">{completedTopics} / {totalTopics} ({progressPercent}%)</span>
               </div>
             </div>
           </div>
@@ -239,7 +236,7 @@ export const Curriculum: React.FC = () => {
             const moduleCompletedCount = moduleTopics.filter((t) => t.isCompleted).length;
 
             return (
-              <Card key={module.id} className="border border-border bg-card shadow-xs rounded-2xl overflow-hidden">
+              <Card key={module.id} className="border border-border bg-card shadow-xs rounded-xl overflow-hidden">
                 <CardHeader className="p-4 bg-muted/30 hover:bg-muted/50 border-b border-border cursor-pointer transition-colors" onClick={() => toggleModuleAccordion(module.id)}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -250,7 +247,7 @@ export const Curriculum: React.FC = () => {
                         {module.code || `MOD-${index + 1}`}
                       </Badge>
                       <div>
-                        <CardTitle className="text-base font-black text-foreground">
+                        <CardTitle className="text-base font-bold text-foreground">
                           {module.name}
                         </CardTitle>
                         <CardDescription className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 font-medium">
@@ -374,10 +371,10 @@ export const Curriculum: React.FC = () => {
             );
           })
         ) : (
-          <Card className="border border-border bg-card py-12 text-center shadow-xs rounded-2xl">
+          <Card className="border border-border bg-card py-12 text-center shadow-xs rounded-xl">
             <CardContent>
               <Layers className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
-              <h3 className="text-base font-black text-foreground">No Modules Created</h3>
+              <h3 className="text-base font-bold text-foreground">No Modules Created</h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1 mb-4 font-medium">
                 This course currently has no curriculum modules defined. Start by adding your first module.
               </p>
@@ -399,7 +396,7 @@ export const Curriculum: React.FC = () => {
       {/* Modal Dialog for Adding Module */}
       {showModuleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
               Add Course Module
@@ -462,7 +459,7 @@ export const Curriculum: React.FC = () => {
       {/* Modal Dialog for Adding Topic */}
       {showTopicModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               Add Syllabus Topic
@@ -532,6 +529,6 @@ export const Curriculum: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

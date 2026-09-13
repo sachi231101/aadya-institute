@@ -494,7 +494,7 @@ export const AiHome: React.FC = () => {
         <div className="flex-1 overflow-y-auto">
           {!hasMessages ? (
             <div className="h-full flex flex-col items-center justify-center px-4 py-10 max-w-3xl mx-auto w-full">
-              <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg mb-5">
+              <div className="h-14 w-14 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg mb-5">
                 <Sparkles className="h-7 w-7" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-center text-foreground tracking-tight">
@@ -512,7 +512,7 @@ export const AiHome: React.FC = () => {
                       key={action.id}
                       type="button"
                       onClick={() => void handleSend(action.query)}
-                      className="flex items-start gap-3 text-left rounded-2xl border border-border bg-card px-4 py-3.5 hover:border-primary/40 hover:bg-muted/60 transition-colors"
+                      className="flex items-start gap-3 text-left rounded-xl border border-border bg-card px-4 py-3.5 hover:border-primary/40 hover:bg-muted/60 transition-colors"
                     >
                       <div className="mt-0.5 h-8 w-8 rounded-lg bg-muted border border-border flex items-center justify-center text-primary shrink-0">
                         <Icon className="h-4 w-4" />
@@ -542,7 +542,7 @@ export const AiHome: React.FC = () => {
                   )}
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                      "max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
                       m.role === "user"
                         ? "bg-primary text-primary-foreground rounded-br-md"
                         : m.isError
@@ -564,7 +564,7 @@ export const AiHome: React.FC = () => {
                   <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                     <Sparkles className="h-3.5 w-3.5" />
                   </div>
-                  <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Thinking…
                   </div>
@@ -577,7 +577,7 @@ export const AiHome: React.FC = () => {
 
         <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
           <div className="max-w-3xl mx-auto">
-            <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-muted/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/20 px-3 py-2">
+            <div className="relative flex items-end gap-2 rounded-xl border border-border bg-muted/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/20 px-3 py-2">
               <textarea
                 ref={textareaRef}
                 rows={1}

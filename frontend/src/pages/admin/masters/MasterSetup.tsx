@@ -52,6 +52,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -779,7 +780,7 @@ export const MasterSetup: React.FC = () => {
       <div
         key={entity.id}
         onClick={() => handleOpenMasterRecords(entity)}
-        className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all duration-200 cursor-pointer flex flex-col justify-between group min-h-[140px]"
+        className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all duration-200 cursor-pointer flex flex-col justify-between group min-h-[140px]"
       >
         <div>
           <div className="flex items-start justify-between gap-2">
@@ -790,7 +791,7 @@ export const MasterSetup: React.FC = () => {
               {usageCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] font-bold bg-blue-50 text-[#2563EB] border-blue-100"
+                  className="text-[10px] font-bold bg-blue-50 text-primary border-blue-100"
                   title={entity.usedInPages?.join(", ")}
                 >
                   Used in {usageCount} {usageCount === 1 ? "page" : "pages"}
@@ -798,7 +799,7 @@ export const MasterSetup: React.FC = () => {
               )}
             </div>
           </div>
-          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#2563EB] transition-colors">
+          <h4 className="font-semibold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-primary transition-colors">
             {entity.name}
           </h4>
           <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mt-0.5 leading-relaxed">
@@ -813,7 +814,7 @@ export const MasterSetup: React.FC = () => {
               `${currentCount} Records`
             )}
           </span>
-          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#2563EB] group-hover:translate-x-0.5 transition-all" />
+          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         </div>
       </div>
     );
@@ -843,10 +844,10 @@ export const MasterSetup: React.FC = () => {
   ) => {
     if (masters.length === 0) return null;
     return (
-      <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+      <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-xl p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
           <div>
-            <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight uppercase">
               {title}
             </h2>
             <p className="text-xs text-slate-500 font-medium">{description}</p>
@@ -854,7 +855,7 @@ export const MasterSetup: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedModuleFilter(filterKey)}
-            className="text-xs font-extrabold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+            className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1 self-start sm:self-auto cursor-pointer"
           >
             <span>View All ({masters.length})</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -868,52 +869,47 @@ export const MasterSetup: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-20 animate-in fade-in duration-200">
-      {/* ─── 1. COMPACT PAGE HEADER & VIEW SWITCHER ───────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 shadow-2xs">
+    <PageContainer className="text-slate-800 font-sans animate-in fade-in duration-200">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2.5 flex-wrap">
+            <span className="p-2 rounded-xl bg-blue-50 text-primary border border-blue-100 shadow-2xs">
               <Layers className="h-5 w-5 stroke-[2.4]" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Master Setup
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-[#2563EB] border border-blue-200">
+            </span>
+            Master Setup
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-primary border border-blue-200">
               {MASTER_ENTITY_TYPES.length} Modules
             </span>
+          </span>
+        }
+        description="Configure and manage all master data used across the institute. Changes here will reflect throughout the system."
+        actions={
+          <div className="inline-flex p-1 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-2xs shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("GRID")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "GRID"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span>Grid View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("CRUD")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "CRUD"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              <List className="h-4 w-4" />
+              <span>CRUD View</span>
+            </button>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Configure and manage all master data used across the institute. Changes here will reflect throughout the system.
-          </p>
-        </div>
-
-        {/* Segmented View Switcher */}
-        <div className="inline-flex p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-2xs shrink-0 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setViewMode("GRID")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "GRID"
-                ? "bg-[#2563EB] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-              }`}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            <span>Grid View</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("CRUD")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "CRUD"
-                ? "bg-[#2563EB] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-              }`}
-          >
-            <List className="h-4 w-4" />
-            <span>CRUD View</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -931,7 +927,7 @@ export const MasterSetup: React.FC = () => {
       )}
 
       {/* ─── 2. SEARCH & MODULE CATEGORY FILTER BAR ───────────────────────── */}
-      <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
@@ -946,7 +942,7 @@ export const MasterSetup: React.FC = () => {
           <select
             value={selectedModuleFilter}
             onChange={(e) => setSelectedModuleFilter(e.target.value)}
-            className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
+            className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
           >
             <option value="ALL">All Modules ({MASTER_ENTITY_TYPES.length})</option>
             <option value="ACADEMIC_ORG">{MASTER_CATEGORY_LABELS.ACADEMIC_ORG} ({CATEGORY_COUNTS.ACADEMIC_ORG ?? 0})</option>
@@ -977,7 +973,7 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── 4. CRUD VIEW ─────────────────────────────────────────────────── */}
       {viewMode === "CRUD" && (
-        <Card className="border border-border shadow-xs bg-card rounded-3xl overflow-hidden">
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
           <div className="overflow-x-auto w-full">
             <table className="w-full min-w-[950px] border-collapse text-left text-xs">
               <thead>
@@ -1022,7 +1018,7 @@ export const MasterSetup: React.FC = () => {
                         {usageCount > 0 ? (
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-bold bg-blue-50 text-[#2563EB] border-blue-100"
+                            className="text-[10px] font-bold bg-blue-50 text-primary border-blue-100"
                             title={item.usedInPages?.join(", ")}
                           >
                             {usageCount} {usageCount === 1 ? "page" : "pages"}
@@ -1046,7 +1042,7 @@ export const MasterSetup: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleOpenMasterRecords(item)}
-                            className="h-8 px-2.5 text-[11px] font-bold text-[#2563EB] border-blue-200 bg-blue-50/50 hover:bg-blue-100 rounded-lg gap-1 cursor-pointer"
+                            className="h-8 px-2.5 text-[11px] font-bold text-primary border-blue-200 bg-blue-50/50 hover:bg-blue-100 rounded-lg gap-1 cursor-pointer"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             <span>View</span>
@@ -1074,13 +1070,13 @@ export const MasterSetup: React.FC = () => {
       )}
 
       {/* ─── 5. BOTTOM INFORMATION PANEL ─────────────────────────────────── */}
-      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-50 text-[#2563EB] shrink-0">
+          <div className="p-2 rounded-xl bg-blue-50 text-primary shrink-0">
             <Info className="h-4 w-4 stroke-[2.2]" />
           </div>
           <div>
-            <span className="font-extrabold text-slate-900 text-xs block">About Master Setup</span>
+            <span className="font-semibold text-slate-900 text-xs block">About Master Setup</span>
             <p className="text-[11px] text-slate-500 font-medium">
               Masters are the foundation of your ERP system. Changes here will apply across all modules.
             </p>
@@ -1098,7 +1094,7 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── MODAL 1: DRILL-DOWN ENTITY RECORDS CRUD VIEW ──────────────────── */}
       <Dialog open={isRecordsModalOpen} onOpenChange={setIsRecordsModalOpen}>
-        <DialogContent className="sm:max-w-5xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-5xl bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           {selectedMasterEntity && (
             <>
               <DialogHeader className="space-y-1">
@@ -1107,10 +1103,10 @@ export const MasterSetup: React.FC = () => {
                     <div className={`p-2 rounded-xl border ${selectedMasterEntity.iconBgColor}`}>
                       <selectedMasterEntity.icon className="h-4 w-4" />
                     </div>
-                    <DialogTitle className="text-xl font-black text-slate-900">
+                    <DialogTitle className="text-xl font-bold text-slate-900">
                       {selectedMasterEntity.name} Master
                     </DialogTitle>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#2563EB]">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-primary">
                       {entityApiData?.meta?.total ?? 0} Records
                     </span>
                   </div>
@@ -1127,7 +1123,7 @@ export const MasterSetup: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                        className="h-8 text-xs font-bold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl gap-1.5"
+                        className="h-8 text-xs font-bold bg-primary hover:bg-primary text-white rounded-xl gap-1.5"
                       >
                         <Plus className="h-3.5 w-3.5" /> Add Record
                       </Button>
@@ -1162,7 +1158,7 @@ export const MasterSetup: React.FC = () => {
               </div>
 
               {/* Records Table */}
-              <div className="border border-slate-200/80 rounded-2xl overflow-hidden min-h-[200px]">
+              <div className="border border-slate-200/80 rounded-xl overflow-hidden min-h-[200px]">
                 {isEntityLoading ? (
                   <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                     <Loader2 className="h-8 w-8 animate-spin mb-3" />
@@ -1192,7 +1188,7 @@ export const MasterSetup: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                        className="mt-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
+                        className="mt-4 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1.5"
                       >
                         <Plus className="h-3.5 w-3.5" /> Add First Record
                       </Button>
@@ -1201,7 +1197,7 @@ export const MasterSetup: React.FC = () => {
                 ) : (
                   <div className="max-h-[380px] overflow-y-auto">
                     <table className="w-full border-collapse text-left text-xs">
-                      <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                      <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         <tr>
                           <th className="py-2.5 px-3">Name</th>
                           {selectedMasterEntity.id === "numberingseries" && (
@@ -1336,11 +1332,11 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── MODAL 2: ADD / EDIT RECORD DIALOG ─────────────────────────────── */}
       <Dialog open={isAddEditRecordOpen} onOpenChange={setIsAddEditRecordOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           {selectedMasterEntity && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-lg font-black text-slate-900">
+                <DialogTitle className="text-lg font-bold text-slate-900">
                   {editingRecordId ? "Edit Record" : "Add New Record"} — {selectedMasterEntity.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
@@ -1596,14 +1592,14 @@ export const MasterSetup: React.FC = () => {
 
                 {/* Live Preview for numbering series */}
                 {selectedMasterEntity.id === "numberingseries" && (
-                  <div className="p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-2 mt-2">
+                  <div className="p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-xl space-y-2 mt-2">
                     <div className="flex items-center justify-between text-[11px] font-bold text-blue-900">
                       <span className="flex items-center gap-1.5">
                         <Sparkles className="h-3.5 w-3.5 text-blue-600" /> Live Pattern Preview
                       </span>
                       <Badge className="bg-blue-600 text-white text-[9px] font-mono">LIVE SAMPLE</Badge>
                     </div>
-                    <div className="font-mono text-sm font-black text-blue-700 bg-white px-3.5 py-2 rounded-xl border border-blue-200 shadow-2xs">
+                    <div className="font-mono text-sm font-bold text-blue-700 bg-white px-3.5 py-2 rounded-xl border border-blue-200 shadow-2xs">
                       {formPatternPreview}
                     </div>
                     {editingRecordId && liveFormPreviewData?.data && (
@@ -1629,7 +1625,7 @@ export const MasterSetup: React.FC = () => {
                 <Button
                   onClick={handleSaveRecord}
                   disabled={createMasterMutation.isPending || updateMasterMutation.isPending}
-                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
+                  className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1.5"
                 >
                   {(createMasterMutation.isPending || updateMasterMutation.isPending) && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1644,9 +1640,9 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── MODAL 3: CONFIRMATION DIALOG ──────────────────────────────────── */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-sm bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-sm bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               Confirm Deactivation
             </DialogTitle>
@@ -1678,9 +1674,9 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── MODAL 4: AUDIT HISTORY MODAL ─────────────────────────────────── */}
       <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-900">
+            <DialogTitle className="text-lg font-bold text-slate-900">
               Master Setup Audit Log
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -1707,6 +1703,6 @@ export const MasterSetup: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

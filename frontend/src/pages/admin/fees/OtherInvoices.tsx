@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 interface OtherInvoicesProps {
   embedded?: boolean;
@@ -44,23 +45,21 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
   const totalPages = data?.data?.totalPages ?? 1;
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {!embedded && (
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Other Invoices</h2>
-          <p className="text-sm text-text-secondary">
-            Ad-hoc invoices with custom line items (books, kits, misc.).
-          </p>
-        </div>
-        <PermissionGate itemKey="fees.other_invoices" mode="write">
-          <Button asChild className="gap-2">
-            <Link to={`${basePath}/fees/other-invoices/new`}>
-              <Plus className="h-4 w-4" /> Create Invoice
-            </Link>
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        title="Other Invoices"
+        description="Ad-hoc invoices with custom line items (books, kits, misc.)."
+        actions={
+          <PermissionGate itemKey="fees.other_invoices" mode="write">
+            <Button asChild className="gap-2">
+              <Link to={`${basePath}/fees/other-invoices/new`}>
+                <Plus className="h-4 w-4" /> Create Invoice
+              </Link>
+            </Button>
+          </PermissionGate>
+        }
+      />
       )}
       {embedded && (
         <div className="flex justify-end">
@@ -197,6 +196,6 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

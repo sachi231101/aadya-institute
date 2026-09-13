@@ -28,6 +28,7 @@ import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 import { useSessionStore } from "@/store/session.store";
+import { PageContainer, PageHeader, FilterToolbar, PageSection } from "@/components/layout";
 
 interface SubjectAttendanceData {
   id: string;
@@ -334,42 +335,31 @@ export const StudentAttendance: React.FC = () => {
   // Empty state if not enrolled in any course
   if (enrolledCourses.length === 0 && !academic.primaryCourse) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
-        <div className="p-12 rounded-3xl bg-white dark:bg-[#0B1120] border border-slate-200/80 dark:border-slate-800/80 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-[#5B50EC] dark:text-indigo-400 flex items-center justify-center mx-auto">
+      <PageContainer className="animate-in fade-in duration-300 font-sans">
+        <div className="p-12 rounded-xl bg-white dark:bg-card border border-slate-200/80 dark:border-slate-800/80 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-primary dark:text-indigo-400 flex items-center justify-center mx-auto">
             <Calendar className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white">No Enrolled Courses Found</h3>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">No Enrolled Courses Found</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
             Attendance tracking will be available once you are enrolled in a course and assigned to a batch.
           </p>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
-      {/* ─── 1. PAGE HEADER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-[#5B50EC]/10 text-[#5B50EC] dark:text-indigo-400 border border-[#5B50EC]/20 flex items-center justify-center">
-              <Calendar className="h-5 w-5 stroke-[2.2]" />
-            </div>
-            <span>Attendance &amp; Class Tracking</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            Monitor your live attendance percentage, subject heatmaps, and session history
-          </p>
-        </div>
-
-        {/* 75% Mandatory Notice Badge */}
-        <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-xs font-bold text-amber-800 dark:text-amber-300">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>75% Minimum Attendance Required for Final Certification</span>
-        </div>
-      </div>
+    <PageContainer className="animate-in fade-in duration-300 font-sans">
+      <PageHeader
+        title="Attendance"
+        description="Your attendance percentage and session history."
+        actions={
+          <Badge variant="outline" className="text-xs font-medium text-amber-800 border-amber-200 bg-amber-50">
+            75% minimum for certification
+          </Badge>
+        }
+      />
 
       {/* ─── ENROLLED COURSE SELECTOR (When multi-course enrolled) ────────── */}
       {enrolledCourses.length > 1 && (
@@ -384,8 +374,8 @@ export const StudentAttendance: React.FC = () => {
                 onClick={() => setSelectedCourseId(c.id)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   isCourseActive
-                    ? "bg-[#5B50EC] text-white shadow-xs"
-                    : "bg-white dark:bg-[#111A2E] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800"
+                    ? "bg-primary text-white shadow-xs"
+                    : "bg-white dark:bg-card text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800"
                 }`}
               >
                 {c.name} {c.code ? `(${c.code})` : ""}
@@ -395,23 +385,23 @@ export const StudentAttendance: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. EXACT ATTENDANCE OVERVIEW MATRIX ─────────────────────────── */}
-      <div className="bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs dark:shadow-2xl p-5 sm:p-7 space-y-6 overflow-hidden transition-colors">
+      <PageSection title="Attendance overview">
+      <div className="bg-card text-foreground rounded-xl border border-border/80 shadow-xs p-5 space-y-6 overflow-hidden transition-colors">
         {/* Row 1: Section Title & Date Range Picker */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+            <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               ATTENDANCE
             </span>
             {selectedCourse && (
-              <span className="text-xs font-bold text-[#5B50EC] dark:text-indigo-400">
+              <span className="text-xs font-bold text-primary dark:text-indigo-400">
                 • {selectedCourse.name}
               </span>
             )}
           </div>
 
           {/* Date Range Selector */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#111A2E] border border-slate-200 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-card border border-slate-200 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs">
             <input
               type="date"
               value={startDate}
@@ -439,8 +429,8 @@ export const StudentAttendance: React.FC = () => {
                 onClick={() => setSelectedSubjectId(subject.id)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   isActive
-                    ? "bg-[#2563EB] text-white shadow-md shadow-blue-600/30 scale-102"
-                    : "bg-slate-100 dark:bg-[#131C31] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-[#1C2844] border border-slate-200/80 dark:border-slate-800/60"
+                    ? "bg-primary text-white shadow-md shadow-blue-600/30 scale-102"
+                    : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-[#1C2844] border border-slate-200/80 dark:border-slate-800/60"
                 }`}
               >
                 {subject.name}
@@ -454,7 +444,7 @@ export const StudentAttendance: React.FC = () => {
           {/* Rate Stats */}
           <div className="flex items-baseline gap-3">
             <span
-              className={`text-3xl sm:text-4xl font-black tracking-tight ${isGoodStanding
+              className={`text-3xl sm:text-4xl font-semibold tracking-tight ${isGoodStanding
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-rose-500 dark:text-[#F87171]"
                 }`}
@@ -530,12 +520,12 @@ export const StudentAttendance: React.FC = () => {
                       className="h-7 rounded-md flex items-center justify-center transition-all cursor-pointer select-none group relative hover:bg-slate-100 dark:hover:bg-slate-800/60"
                     >
                       {status === "P" && (
-                        <span className="text-emerald-600 dark:text-emerald-400 text-xs font-extrabold group-hover:scale-125 transition-transform">
+                        <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold group-hover:scale-125 transition-transform">
                           ✓
                         </span>
                       )}
                       {status === "A" && (
-                        <span className="text-rose-500 dark:text-[#F87171] text-xs font-extrabold group-hover:scale-125 transition-transform">
+                        <span className="text-rose-500 dark:text-[#F87171] text-xs font-semibold group-hover:scale-125 transition-transform">
                           ✕
                         </span>
                       )}
@@ -578,35 +568,29 @@ export const StudentAttendance: React.FC = () => {
               Hover over any date cell in the grid to view session details
             </span>
           )}
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">
             {currentSubject.name} Cohort Attendance
           </span>
         </div>
       </div>
+      </PageSection>
 
-      {/* ─── 3. DETAILED ATTENDANCE SESSION HISTORY ──────────────────────── */}
-      <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 shadow-xs rounded-3xl overflow-hidden">
-        <div className="p-5 border-b border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <BookOpen className="w-5 h-5 text-[#5B50EC] dark:text-indigo-400" />
-            <h3 className="text-sm font-black text-slate-900 dark:text-white">
-              Recent Class Attendance History
-            </h3>
-            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900/50 font-bold text-xs">
-              {filteredHistory.length} Sessions Logged
-            </Badge>
-          </div>
+      <PageSection title="Session history">
+      <Card className="bg-card border-border/80 shadow-xs rounded-xl overflow-hidden">
+        <div className="p-5 border-b border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold text-xs w-fit">
+            {filteredHistory.length} Sessions Logged
+          </Badge>
 
-          <div className="flex items-center gap-2">
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0D1527] p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+          <FilterToolbar>
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
               {(["ALL", "PRESENT", "ABSENT", "EXCUSED"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setHistoryFilter(tab)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${historyFilter === tab
-                      ? "bg-[#5B50EC] text-white shadow-2xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  className={`h-8 px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${historyFilter === tab
+                      ? "bg-primary text-white shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {tab}
@@ -614,17 +598,16 @@ export const StudentAttendance: React.FC = () => {
               ))}
             </div>
 
-            {/* Search Input */}
             <div className="relative w-48 sm:w-60">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search topic or faculty..."
-                className="pl-8 h-8 text-xs bg-slate-50 dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 rounded-xl"
+                className="pl-8 h-9 text-xs bg-muted/30 border-border rounded-lg"
               />
             </div>
-          </div>
+          </FilterToolbar>
         </div>
 
         <CardContent className="p-0">
@@ -641,7 +624,7 @@ export const StudentAttendance: React.FC = () => {
                 >
                   <div className="flex items-start gap-3.5">
                     <div
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${rec.status === "PRESENT"
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${rec.status === "PRESENT"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : rec.status === "ABSENT"
                             ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
@@ -672,7 +655,7 @@ export const StudentAttendance: React.FC = () => {
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0">
                     <Badge
-                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${rec.status === "PRESENT"
+                      className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-lg border ${rec.status === "PRESENT"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                           : rec.status === "ABSENT"
                             ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
@@ -691,6 +674,7 @@ export const StudentAttendance: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </PageSection>
+    </PageContainer>
   );
 };

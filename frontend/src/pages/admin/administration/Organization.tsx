@@ -15,6 +15,7 @@ import {
 } from "@/hooks/useOrganizationContext";
 import { formatCurrency } from "@/utils/format";
 import { formatOrganizationDate } from "@/utils/date";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Organization: React.FC = () => {
   const { updateOrganizationContext } = useOrganization();
@@ -51,21 +52,25 @@ export const Organization: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
-      </div>
+      <PageContainer maxWidth="narrow">
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="text-center py-20 text-red-600">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-        Failed to load.
-        <Button variant="link" onClick={() => refetch()}>
-          Retry
-        </Button>
-      </div>
+      <PageContainer maxWidth="narrow">
+        <div className="text-center py-20 text-red-600">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+          Failed to load.
+          <Button variant="link" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -77,12 +82,12 @@ export const Organization: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Organization Settings</h2>
-        <p className="text-sm text-text-secondary">Institute profile and contact information.</p>
-      </div>
-      <Card className="border-border/50">
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title="Organization Settings"
+        description="Institute profile and contact information."
+      />
+      <Card className="border-border/50 rounded-xl">
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -204,6 +209,6 @@ export const Organization: React.FC = () => {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

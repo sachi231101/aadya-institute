@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -50,13 +51,11 @@ export const Invoices: React.FC = () => {
   const totalPages = data?.data?.totalPages ?? 1;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Invoices</h2>
-        <p className="text-sm text-text-secondary">
-          Course invoices and other bills (books, kits, misc.) in one place.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Invoices"
+        description="Course invoices and other bills (books, kits, misc.) in one place."
+      />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -196,6 +195,6 @@ export const Invoices: React.FC = () => {
           <OtherInvoices embedded />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 };

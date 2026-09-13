@@ -48,6 +48,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { leadsApi, type Lead, type LeadFollowUp } from "@/services/leads.api";
 import {
   FollowUpActionMenu,
@@ -530,28 +531,26 @@ export const FollowUps: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       <ReadOnlyBanner itemKey="leads.followups" label="Follow-ups" />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Follow-ups</h2>
-          <p className="text-sm text-text-secondary">
-            Daily action center for overdue, today, and upcoming counsellor tasks.
-          </p>
-          <LeadModuleNavLinks className="mt-2" />
-        </div>
-        <PermissionGate itemKey="leads.followups" mode="write">
-          <Button
-            type="button"
-            className="bg-[#2563EB] text-white gap-2"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="w-4 h-4" />
-            Create Follow-up
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        title="Follow-ups"
+        description="Daily action center for overdue, today, and upcoming counsellor tasks."
+        actions={
+          <PermissionGate itemKey="leads.followups" mode="write">
+            <Button
+              type="button"
+              className="bg-primary text-white gap-2"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Create Follow-up
+            </Button>
+          </PermissionGate>
+        }
+      />
+      <LeadModuleNavLinks className="mt-1" />
 
       <div className="flex flex-wrap gap-2">
         {highlightChips.map((chip) => {
@@ -785,7 +784,7 @@ export const FollowUps: React.FC = () => {
             </Button>
             <Button
               type="button"
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               disabled={updateFollowUp.isPending}
               onClick={submitComplete}
             >
@@ -820,7 +819,7 @@ export const FollowUps: React.FC = () => {
             </Button>
             <Button
               type="button"
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               disabled={!rescheduleAt || updateFollowUp.isPending}
               onClick={submitReschedule}
             >
@@ -911,7 +910,7 @@ export const FollowUps: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={!createLeadId || !createScheduledAt || createFollowUp.isPending}
               >
                 {createFollowUp.isPending ? "Scheduling..." : "Schedule Follow-up"}
@@ -955,7 +954,7 @@ export const FollowUps: React.FC = () => {
               Or{" "}
               <button
                 type="button"
-                className="text-[#2563EB] underline"
+                className="text-primary underline"
                 onClick={() => {
                   const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
                   setNoteOpen(false);
@@ -972,7 +971,7 @@ export const FollowUps: React.FC = () => {
             </Button>
             <Button
               type="button"
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               disabled={!noteText.trim() || noteSaving}
               onClick={() => void submitNote()}
             >
@@ -1077,7 +1076,7 @@ export const FollowUps: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={manualCallMutation.isPending}
               >
                 {manualCallMutation.isPending ? "Saving..." : "Log call"}
@@ -1086,6 +1085,6 @@ export const FollowUps: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

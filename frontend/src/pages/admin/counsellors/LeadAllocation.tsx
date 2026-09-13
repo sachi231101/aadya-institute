@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { LeadStageBadge, isTerminalAiCallStatus } from "@/components/common/LeadStageBadge";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { getPortalBasePath } from "@/utils/portal-path";
 import type { Lead } from "@/services/leads.api";
 import { BulkAssignDialog } from "@/pages/admin/leads/components/BulkAssignDialog";
@@ -84,27 +85,25 @@ export const LeadAllocation: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Assign Leads to Counsellors</h2>
-          <p className="text-sm text-text-secondary">
-            Assign counsellors after the AI qualification call has finished.
-          </p>
-        </div>
-        {tab === "ready" && selectedIds.length > 0 && (
-          <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
-            <Button
-              type="button"
-              className="bg-[#2563EB] text-white gap-2"
-              onClick={() => setBulkAssignOpen(true)}
-            >
-              <UserPlus className="w-4 h-4" />
-              Bulk assign ({selectedIds.length})
-            </Button>
-          </PermissionGate>
-        )}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Assign Leads to Counsellors"
+        description="Assign counsellors after the AI qualification call has finished."
+        actions={
+          tab === "ready" && selectedIds.length > 0 ? (
+            <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
+              <Button
+                type="button"
+                className="bg-primary text-white gap-2"
+                onClick={() => setBulkAssignOpen(true)}
+              >
+                <UserPlus className="w-4 h-4" />
+                Bulk assign ({selectedIds.length})
+              </Button>
+            </PermissionGate>
+          ) : null
+        }
+      />
       <div className="flex gap-2">
         <Button
           type="button"
@@ -177,7 +176,7 @@ export const LeadAllocation: React.FC = () => {
                     <TableCell className="font-medium">
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-left hover:text-[#2563EB] hover:underline"
+                        className="inline-flex items-center gap-1 text-left hover:text-primary hover:underline"
                         onClick={() => openLead(lead.id)}
                       >
                         {lead.name}
@@ -204,7 +203,7 @@ export const LeadAllocation: React.FC = () => {
                       <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
                         <Button
                           size="sm"
-                          className="bg-[#2563EB] text-white"
+                          className="bg-primary text-white"
                           disabled={tab === "awaiting" || !selectedCounsellor[lead.id]}
                           onClick={() => handleAssign(lead.id)}
                         >
@@ -230,6 +229,6 @@ export const LeadAllocation: React.FC = () => {
           refetch();
         }}
       />
-    </div>
+    </PageContainer>
   );
 };

@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Table,
   TableBody,
@@ -193,42 +194,46 @@ export const Security: React.FC = () => {
 
   if (policyQuery.isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <PageContainer>
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </PageContainer>
     );
   }
 
   if (policyQuery.isError || !policyForm) {
     return (
-      <div className="flex flex-col items-center gap-3 py-20 text-red-600">
-        <AlertCircle className="w-8 h-8" />
-        <p>Failed to load security settings.</p>
-        <Button variant="outline" onClick={() => policyQuery.refetch()}>
-          Retry
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col items-center gap-3 py-20 text-red-600">
+          <AlertCircle className="w-8 h-8" />
+          <p>Failed to load security settings.</p>
+          <Button variant="outline" onClick={() => policyQuery.refetch()}>
+            Retry
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
             <Shield className="h-6 w-6 text-primary" />
             Security
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Login protection, password rules, sessions, and alerts.
-          </p>
-        </div>
-        {toast && (
-          <Badge variant="secondary" className="shrink-0">
-            {toast}
-          </Badge>
-        )}
-      </div>
+          </span>
+        }
+        description="Login protection, password rules, sessions, and alerts."
+        actions={
+          toast ? (
+            <Badge variant="secondary" className="shrink-0">
+              {toast}
+            </Badge>
+          ) : undefined
+        }
+      />
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
@@ -775,7 +780,7 @@ export const Security: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 };
 

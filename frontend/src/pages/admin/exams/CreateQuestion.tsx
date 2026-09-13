@@ -18,6 +18,7 @@ import { useCreateBulkQuestions } from "@/hooks/useQuestions";
 import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useCourses } from "@/hooks/useCourses";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -355,29 +356,24 @@ export const CreateQuestion: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto pb-24">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`${basePath}/question-bank`)}
-            className="h-9 w-9 rounded-full shrink-0"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <HelpCircle className="h-6 w-6 text-purple-600" />
-              Add Questions to Bank
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Author and batch-add multiple assessment questions seamlessly without saving one-by-one.
-            </p>
-          </div>
-        </div>
-
+    <PageContainer maxWidth="narrow" className="pb-24">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`${basePath}/question-bank`)}
+              className="h-9 w-9 rounded-full shrink-0 -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <HelpCircle className="h-6 w-6 text-purple-600" />
+            Add Questions to Bank
+          </span>
+        }
+        description="Author and batch-add multiple assessment questions seamlessly without saving one-by-one."
+        actions={
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -389,7 +385,8 @@ export const CreateQuestion: React.FC = () => {
             Add Another Question
           </Button>
         </div>
-      </div>
+        }
+      />
 
       <form onSubmit={handleSubmitAll} className="space-y-6">
         {validationError && (
@@ -831,7 +828,7 @@ export const CreateQuestion: React.FC = () => {
           </div>
         </div>
       </form>
-    </div>
+    </PageContainer>
   );
 };
 

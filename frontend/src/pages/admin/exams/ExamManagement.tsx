@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
 import { toDatetimeLocalValue } from "@/utils/date";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -188,45 +189,41 @@ export const ExamManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             <FileText className="h-7 w-7 text-primary" />
             Examination Management
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Create, schedule, manage question banks, and administer institute assessments.
-          </p>
-        </div>
+          </span>
+        }
+        description="Create, schedule, manage question banks, and administer institute assessments."
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => navigate(`${basePath}/question-bank`)}
+            >
+              <HelpCircle className="h-4 w-4 text-purple-500" />
+              Question Bank
+            </Button>
+            <PermissionGate itemKey="exams.all" mode="write">
+              <Button
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
+                onClick={() => navigate(`${basePath}/create`)}
+              >
+                <Plus className="h-4 w-4" />
+                Create Exam
+              </Button>
+            </PermissionGate>
+          </div>
+        }
+      />
 
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => navigate(`${basePath}/question-bank`)}
-          >
-            <HelpCircle className="h-4 w-4 text-purple-500" />
-            Question Bank
-          </Button>
-
-          <PermissionGate itemKey="exams.all" mode="write">
-          <Button
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
-            onClick={() => navigate(`${basePath}/create`)}
-          >
-            <Plus className="h-4 w-4" />
-            Create Exam
-          </Button>
-          </PermissionGate>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
+        <Card size="compact" className="border-border/60 shadow-sm">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Total Exams</p>
               <p className="text-2xl font-bold mt-1 text-foreground">
@@ -239,22 +236,8 @@ export const ExamManagement: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">Draft</p>
-              <p className="text-2xl font-bold mt-1 text-amber-600">
-                {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : stats?.DRAFT ?? 0}
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
-              <Edit className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60 shadow-sm">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Published</p>
               <p className="text-2xl font-bold mt-1 text-blue-600">
@@ -267,8 +250,8 @@ export const ExamManagement: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60 shadow-sm">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Scheduled</p>
               <p className="text-2xl font-bold mt-1 text-purple-600">
@@ -281,8 +264,8 @@ export const ExamManagement: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card size="compact" className="border-border/60 shadow-sm">
+          <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Live Now</p>
               <p className="text-2xl font-bold mt-1 text-emerald-600">
@@ -294,26 +277,9 @@ export const ExamManagement: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      </MetricGrid>
 
-        <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">Archived</p>
-              <p className="text-2xl font-bold mt-1 text-gray-500">
-                {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : stats?.ARCHIVED ?? 0}
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-gray-500/10 flex items-center justify-center text-gray-500">
-              <Archive className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters Bar */}
-      <Card className="border-border/60 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+      <FilterToolbar className="flex flex-col md:flex-row gap-3 items-center justify-between w-full">
             {/* Search */}
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -379,9 +345,7 @@ export const ExamManagement: React.FC = () => {
                 </Button>
               )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </FilterToolbar>
 
       {/* Exams Table */}
       <Card className="border-border/60 shadow-sm overflow-hidden">
@@ -677,7 +641,7 @@ export const ExamManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
 

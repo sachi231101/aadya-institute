@@ -40,6 +40,7 @@ import {
   Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -496,7 +497,7 @@ Best regards,
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-16 text-foreground font-sans antialiased animate-in fade-in duration-200">
+    <PageContainer maxWidth="narrow" className="text-foreground font-sans antialiased animate-in fade-in duration-200">
       {/* ─── Success Notification ─── */}
       {successToast && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl p-4 shadow-sm flex items-center justify-between">
@@ -515,31 +516,31 @@ Best regards,
         </div>
       )}
 
-      {/* ─── 1. TOP BREADCRUMB & ACTION BAR ──────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate(`${basePath}/students/all`)}
-            className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer"
+            className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Student Profile & Dossier
+          <PageHeader
+            className="flex-1 min-w-0"
+            title={studentName}
+            description={
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Student Profile & Dossier
+                </span>
+                <span className="text-muted-foreground/60">•</span>
+                <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
+                  {student.studentCode}
+                </span>
               </span>
-              <span className="text-muted-foreground/60">•</span>
-              <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                {student.studentCode}
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight mt-0.5">
-              {studentName}
-            </h1>
-          </div>
+            }
+          />
         </div>
 
         {/* Action Buttons */}
@@ -674,7 +675,7 @@ Best regards,
               </Avatar>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-extrabold text-foreground">
+                  <h2 className="text-lg sm:text-xl font-semibold text-foreground">
                     {studentName}
                   </h2>
                   <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
@@ -1276,15 +1277,15 @@ Best regards,
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl border border-border bg-muted/30">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">Total Agreed Fee</p>
-                  <h3 className="text-2xl font-black text-foreground mt-1">₹{totalFeeAmount.toLocaleString()}</h3>
+                  <h3 className="text-2xl font-bold text-foreground mt-1">₹{totalFeeAmount.toLocaleString()}</h3>
                 </div>
                 <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
                   <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Amount Paid</p>
-                  <h3 className="text-2xl font-black text-emerald-800 dark:text-emerald-300 mt-1">₹{amountPaid.toLocaleString()}</h3>
+                  <h3 className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mt-1">₹{amountPaid.toLocaleString()}</h3>
                 </div>
                 <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase">Remaining Due</p>
-                  <h3 className="text-2xl font-black text-amber-800 dark:text-amber-300 mt-1">₹{dueAmount.toLocaleString()}</h3>
+                  <h3 className="text-2xl font-bold text-amber-800 dark:text-amber-300 mt-1">₹{dueAmount.toLocaleString()}</h3>
                 </div>
               </div>
 
@@ -1443,14 +1444,14 @@ Best regards,
       {/* ─── 5. DOCUMENTS MODAL ─────────────────────────────────────────── */}
       {isDocsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-primary flex items-center justify-center">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Verification Documents</h3>
+                  <h3 className="text-base font-semibold text-foreground">Verification Documents</h3>
                   <p className="text-xs text-muted-foreground">{studentName} ({student.studentCode})</p>
                 </div>
               </div>
@@ -1704,6 +1705,6 @@ Best regards,
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

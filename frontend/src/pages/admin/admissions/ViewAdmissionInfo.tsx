@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageHeader } from "@/components/layout";
 import type { EnrichedAdmission, AdmissionRecordStatus } from "./AllAdmissions";
 
 interface ViewAdmissionInfoProps {
@@ -72,108 +73,58 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-200">
-      {/* ─── PAGE HEADER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onBack}
-            className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
+    <div className="space-y-6 pb-16 animate-in fade-in duration-200">
+      <div className="flex items-start gap-3">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onBack}
+          className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <PageHeader
+          className="flex-1"
+          title={admission.studentName}
+          description={
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-mono font-semibold text-primary">{admission.admissionNo}</span>
+              <span>·</span>
+              <span>{admission.phone}</span>
+              <span>·</span>
+              <span>{admission.email}</span>
+            </span>
+          }
+          actions={
+            <>
+              {canEditAdmissions && (
+                <Button
+                  onClick={onOpenManageAdmission}
+                  variant="outline"
+                  className="h-9 px-3.5 text-xs font-semibold border-border text-foreground hover:bg-muted/50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                  <span>Manage</span>
+                </Button>
+              )}
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent cursor-pointer"
+                onClick={handleNavigateToStudent360}
+                className="h-9 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
-                ← Back to All Admissions
+                <UserCheck className="h-3.5 w-3.5" />
+                <span>Student 360</span>
               </Button>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight mt-0.5">
-              View Student Information
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Complete admission and student details.
-            </p>
-          </div>
-        </div>
-
-        {/* Header Action Buttons */}
-        <div className="flex items-center gap-2">
-          {canEditAdmissions && (
-          <Button
-            onClick={onOpenManageAdmission}
-            variant="outline"
-            className="h-9 px-3.5 text-xs font-semibold border-border text-foreground hover:bg-muted/50 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-            <span>Manage Admission</span>
-          </Button>
-          )}
-
-          <Button
-            onClick={handleNavigateToStudent360}
-            className="h-9 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            <span>View Full Student 360</span>
-          </Button>
-        </div>
+            </>
+          }
+        />
       </div>
 
-      {/* ─── STUDENT SUMMARY ──────────────────────────────────────────── */}
-      <Card className="bg-card border-border shadow-xs overflow-hidden">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-14 w-14 border border-border">
-                <AvatarImage src={admission.avatar} alt={admission.studentName} />
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-                  {admission.studentName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-extrabold text-foreground">
-                    {admission.studentName}
-                  </h2>
-                  <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                    {admission.admissionNo}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => onCopyAdmNo(admission.admissionNo, e)}
-                    className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
-                    title="Copy Admission Number"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3 text-emerald-500" />
-                    {admission.phone}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3 text-primary" />
-                    {admission.email}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Status Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:border-l lg:border-border lg:pl-5">
+      {/* Status summary — identity already in PageHeader */}
+      <Card className="bg-card border-border shadow-xs rounded-xl overflow-hidden">
+        <CardContent className="p-4 sm:p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Admission Status</p>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Admission Status</p>
                 <div className="mt-1">
                   {renderAdmissionStatusBadge(admission.status)}
                 </div>
@@ -201,7 +152,6 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
                 </p>
               </div>
             </div>
-          </div>
         </CardContent>
       </Card>
 

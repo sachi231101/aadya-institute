@@ -98,7 +98,7 @@ export function BulkAssignDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-[#2563EB] text-white"
+              className="bg-primary text-white"
               disabled={!counsellorId || bulkAssign.isPending}
             >
               {bulkAssign.isPending ? (

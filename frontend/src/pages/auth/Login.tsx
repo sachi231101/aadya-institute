@@ -296,8 +296,6 @@ export const Login: React.FC = () => {
       {/* LEFT COLUMN: SaaS Hero Showcase (Visible on lg screens) */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[52%] bg-[#172033] text-white flex-col justify-between p-10 xl:p-14 relative overflow-hidden border-r border-[#334155]/60">
         {/* Subtle decorative background gradient glows */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#2563EB]/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
 
         {/* Top Brand & Status */}
@@ -314,7 +312,7 @@ export const Login: React.FC = () => {
 
         {/* Center Headline & Features */}
         <div className="relative z-10 my-auto py-8">
-          <h1 className="text-3xl xl:text-4xl 2xl:text-5xl font-black tracking-tight leading-[1.15] mb-4">
+          <h1 className="text-3xl xl:text-4xl 2xl:text-5xl font-bold tracking-tight leading-[1.15] mb-4">
             Next-Generation <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">
               AI Automation
@@ -387,15 +385,15 @@ export const Login: React.FC = () => {
         </div>
 
         <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-border bg-card p-7 sm:p-9 shadow-lg">
-            <div className="mb-6 text-center sm:text-left">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-lg space-y-5">
+            <div className="text-center sm:text-left space-y-1">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 Sign In
               </h2>
             </div>
 
             {error && (
-              <div className="p-3 mb-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs text-center font-medium">
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs text-center font-medium">
                 {error}
               </div>
             )}

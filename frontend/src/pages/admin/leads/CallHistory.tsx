@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -208,28 +209,26 @@ export const CallHistory: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Call History</h2>
-          <p className="text-sm text-text-secondary">
-            Unified AI and manual call logs with recordings, outcomes, and next actions.
-          </p>
-          <LeadModuleNavLinks className="mt-2" />
-        </div>
-        <PermissionGate itemKey="leads.all" mode="write">
-          <Button
-            className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
-            onClick={() => {
-              resetLogDialog();
-              setLogDialogOpen(true);
-            }}
-          >
-            <Phone className="mr-2 h-4 w-4" />
-            Log Manual Call
-          </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Call History"
+        description="Unified AI and manual call logs with recordings, outcomes, and next actions."
+        actions={
+          <PermissionGate itemKey="leads.all" mode="write">
+            <Button
+              className="bg-primary hover:bg-[#F39A16] text-white"
+              onClick={() => {
+                resetLogDialog();
+                setLogDialogOpen(true);
+              }}
+            >
+              <Phone className="mr-2 h-4 w-4" />
+              Log Manual Call
+            </Button>
+          </PermissionGate>
+        }
+      />
+      <LeadModuleNavLinks className="mt-1" />
 
       <Tabs
         value={callTypeTab}
@@ -591,7 +590,7 @@ export const CallHistory: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={createManualCall.isPending}
-                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
+                  className="bg-primary hover:bg-[#F39A16] text-white"
                 >
                   {createManualCall.isPending ? (
                     <>
@@ -607,6 +606,6 @@ export const CallHistory: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 async function triggerPdfDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -66,13 +67,11 @@ export const Receipts: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Receipts</h2>
-        <p className="text-sm text-text-secondary">
-          All fee collections — view, print, or download receipts.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Receipts"
+        description="All fee collections — view, print, or download receipts."
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
@@ -226,6 +225,6 @@ export const Receipts: React.FC = () => {
       </Card>
 
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

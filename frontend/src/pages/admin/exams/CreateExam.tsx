@@ -22,6 +22,7 @@ import { useCreateExam } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
 import { useBranches } from "@/hooks/useBranches";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -136,27 +137,24 @@ export const CreateExam: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Back Button & Title */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(basePath)}
-          className="h-9 w-9 rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(basePath)}
+              className="h-9 w-9 rounded-full -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <FileText className="h-6 w-6 text-primary" />
             Create Examination
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Configure examination rules, timing, scoring criteria, and proctoring parameters.
-          </p>
-        </div>
-      </div>
+          </span>
+        }
+        description="Configure examination rules, timing, scoring criteria, and proctoring parameters."
+      />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -582,7 +580,7 @@ export const CreateExam: React.FC = () => {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 };
 

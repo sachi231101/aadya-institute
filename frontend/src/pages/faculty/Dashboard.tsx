@@ -6,12 +6,10 @@ import {
   MapPin,
   Users,
   Video,
-  Radio,
   BookOpen,
   CheckCircle2,
   ArrowRight,
   Search,
-  GraduationCap,
   Star,
   Loader2,
   AlertCircle,
@@ -20,6 +18,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageContainer, PageHeader, PageSection, MetricGrid, FilterToolbar } from "@/components/layout";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
@@ -247,112 +246,64 @@ export const FacultyDashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1680px] mx-auto space-y-7 animate-in fade-in duration-300">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-[#2563EB] to-indigo-900 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/15">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <Badge className="bg-white/20 text-white border-white/30 text-xs px-3 py-1 font-bold">
-                Faculty Teaching Desk
-              </Badge>
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight">
-              Welcome back, {facultyName}!
-            </h1>
-            <p className="text-blue-100 text-xs sm:text-sm leading-relaxed opacity-90">
-              Your live schedule from assigned batches. Mark attendance, launch Meet, and manage assignments from here.
-            </p>
-          </div>
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title={`Welcome back, ${facultyName}`}
+        description={`Your live schedule from assigned batches at ${branchName}.`}
+        actions={
+          todayClasses[0] ? (
+            <Button
+              onClick={() => handleOpenClass(todayClasses[0])}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs sm:text-sm h-9 px-4 rounded-xl gap-2"
+            >
+              <Clock className="w-4 h-4" />
+              <span>
+                Next: {todayClasses[0].courseName || todayClasses[0].title} ({todayClasses[0].startTime})
+              </span>
+            </Button>
+          ) : undefined
+        }
+      />
 
-          {todayClasses[0] && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-              <Button
-                onClick={() => handleOpenClass(todayClasses[0])}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs sm:text-sm h-11 px-5 rounded-2xl shadow-lg gap-2"
-              >
-                <Clock className="w-4 h-4" />
-                <span>
-                  Next: {todayClasses[0].courseName || todayClasses[0].title} ({todayClasses[0].startTime})
-                </span>
-              </Button>
-            </div>
-          )}
-        </div>
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-      </div>
-
-      {/* ─── Secondary Metric Cards (Compact) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
-        <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Today's Classes</span>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{counts?.todayClasses ?? todayClasses.length}</div>
-              <p className="text-[10.5px] text-slate-500 font-medium truncate">Scheduled for today</p>
-            </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shrink-0">
-              <Calendar className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-            </div>
+      <MetricGrid density="compact">
+        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+          <CardContent size="compact">
+            <div className="text-2xl font-semibold text-foreground leading-tight">{counts?.todayClasses ?? todayClasses.length}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Today's Classes</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Upcoming</span>
-              <div className="text-xl sm:text-2xl font-black text-indigo-700 leading-tight">{upcomingCount}</div>
-              <p className="text-[10.5px] text-slate-500 font-medium truncate">Next 7 days</p>
-            </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-              <BookOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-            </div>
+        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+          <CardContent size="compact">
+            <div className="text-2xl font-semibold text-foreground leading-tight">{upcomingCount}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">Upcoming (7 days)</p>
           </CardContent>
         </Card>
 
         <Card
-          className={`rounded-2xl shadow-2xs ${liveCount > 0 ? "bg-rose-50/60 border-2 border-rose-400 animate-pulse" : "bg-white border-slate-200/80"
-            }`}
+          size="compact"
+          className={`shadow-2xs rounded-xl ${liveCount > 0 ? "bg-rose-50/60 border-2 border-rose-400" : "bg-card border-border"}`}
         >
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Live Classes</span>
-              <div className={`text-xl sm:text-2xl font-black leading-tight ${liveCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
-                {liveCount > 0 ? `${liveCount} LIVE` : "0"}
-              </div>
-              <p className="text-[10.5px] text-slate-500 font-medium truncate">
-                {liveCount > 0 ? "Session in progress" : "No live session"}
-              </p>
+          <CardContent size="compact">
+            <div className={`text-2xl font-semibold leading-tight ${liveCount > 0 ? "text-rose-600" : "text-foreground"}`}>
+              {liveCount > 0 ? `${liveCount} LIVE` : "0"}
             </div>
-            <div
-              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${liveCount > 0 ? "bg-rose-600 text-white" : "bg-rose-50 border border-rose-100 text-rose-600"
-                }`}
-            >
-              <Radio className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-            </div>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              {liveCount > 0 ? "Session in progress" : "No live session"}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Completed (Week)</span>
-              <div className="text-xl sm:text-2xl font-black text-emerald-700 leading-tight">{completedCount}</div>
-              <p className="text-[10.5px] text-slate-500 font-medium flex items-center gap-1 truncate">
-                {counts?.avgRating != null && (
-                  <>
-                    <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
-                    <span>{counts.avgRating} avg ·</span>
-                  </>
-                )}
-                <span>{counts?.pendingSubmissions ?? 0} to grade</span>
-              </p>
-            </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-              <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-            </div>
+        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+          <CardContent size="compact">
+            <div className="text-2xl font-semibold text-foreground leading-tight">{completedCount}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              Completed this week
+              {counts?.pendingSubmissions != null ? ` · ${counts.pendingSubmissions} to grade` : ""}
+            </p>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
       {(dashboard.pendingGrading?.length > 0 || dashboard.recentFeedback?.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -399,61 +350,53 @@ export const FacultyDashboard: React.FC = () => {
         </div>
       )}
 
-      <Card className="bg-white border-slate-200/80 rounded-3xl shadow-xs overflow-hidden">
-        <CardHeader className="p-6 pb-4 border-b border-slate-100 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100">
-                  <GraduationCap className="w-5 h-5" />
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">My Assigned Classes</h2>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-                Schedule for <strong className="text-slate-800">{facultyName}</strong> ({branchName}).
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl self-start overflow-x-auto">
-              {(["TODAY", "ALL", "UPCOMING", "COMPLETED"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-white text-[#2563EB] shadow-xs" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  {tab === "TODAY"
-                    ? `Today (${todayClasses.length})`
-                    : tab === "ALL"
-                      ? `All (${myAssignedClasses.length})`
-                      : tab === "UPCOMING"
-                        ? `Upcoming (${upcomingCount})`
-                        : `Completed (${completedCount})`}
-                </button>
-              ))}
-            </div>
+      <PageSection
+        title="My Assigned Classes"
+        description={`Schedule for ${facultyName} (${branchName}).`}
+        density="compact"
+        actions={
+          <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl self-start overflow-x-auto">
+            {(["TODAY", "ALL", "UPCOMING", "COMPLETED"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap h-9 ${
+                  activeTab === tab ? "bg-card text-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab === "TODAY"
+                  ? `Today (${todayClasses.length})`
+                  : tab === "ALL"
+                    ? `All (${myAssignedClasses.length})`
+                    : tab === "UPCOMING"
+                      ? `Upcoming (${upcomingCount})`
+                      : `Completed (${completedCount})`}
+              </button>
+            ))}
           </div>
-
-          <div className="relative max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        }
+      >
+        <FilterToolbar>
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search courses, batches, or rooms..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 text-xs font-medium"
+              className="pl-10 h-9 rounded-xl border-border bg-background text-xs font-medium"
             />
           </div>
-        </CardHeader>
+        </FilterToolbar>
 
-        <CardContent className="p-6 space-y-4">
+        <div className="space-y-4">
           {displayedClasses.length === 0 ? (
-            <div className="py-12 text-center space-y-3">
-              <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <div className="py-12 text-center space-y-3 rounded-xl border border-border bg-card">
+              <div className="w-14 h-14 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
                 <BookOpen className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-slate-700">No classes found</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <h3 className="text-base font-semibold text-foreground">No classes found</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 {searchQuery
                   ? "No teaching slots matched your search."
                   : "No scheduled classes yet. When admin assigns you on Timetable, they appear here and under My Classes."}
@@ -466,9 +409,9 @@ export const FacultyDashboard: React.FC = () => {
                 return (
                   <div
                     key={cls.id}
-                    className={`rounded-3xl p-5 sm:p-6 flex flex-col justify-between gap-5 relative overflow-hidden group ${isLive
-                        ? "bg-rose-50/70 border-2 border-rose-400/90 shadow-lg"
-                        : "bg-slate-50/50 hover:bg-white border border-slate-200/90 hover:border-blue-300 hover:shadow-md"
+                    className={`rounded-xl p-5 flex flex-col justify-between gap-5 relative overflow-hidden group ${isLive
+                        ? "bg-rose-50/70 border-2 border-rose-400/90 shadow-md"
+                        : "bg-card hover:bg-muted/30 border border-border hover:border-primary/30 hover:shadow-md"
                       }`}
                   >
                     {isLive && (
@@ -583,8 +526,8 @@ export const FacultyDashboard: React.FC = () => {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </PageSection>
 
       <StartClassModal
         isOpen={isModalOpen}
@@ -597,6 +540,6 @@ export const FacultyDashboard: React.FC = () => {
           refetch();
         }}
       />
-    </div>
+    </PageContainer>
   );
 };

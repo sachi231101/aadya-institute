@@ -36,6 +36,7 @@ import { useLeadDashboard } from "@/hooks/useLeads";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
 import {
   ResponsiveContainer,
   LineChart,
@@ -281,211 +282,123 @@ export const CenterDashboard: React.FC = () => {
   }, [totalCollected, totalPending]);
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-300">
-      {/* ─── 1. BRANCH LOCK CONTEXT BANNER & CONTROLS ─────────────────────── */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        {/* Branch Lock Card */}
-        <div className="flex-1 bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center shrink-0 shadow-2xs">
-              <Building2 className="h-6 w-6" />
+    <PageContainer density="compact" className="animate-in fade-in duration-300">
+      <PageHeader
+        title="Dashboard Overview"
+        description={`${branchName} — key insights and performance for your branch.`}
+        actions={
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 h-9 text-xs font-semibold text-foreground shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer text-xs font-semibold text-foreground"
+              >
+                <option value="Today">Today</option>
+                <option value="This Week">This Week</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="This Quarter">This Quarter</option>
+              </select>
             </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                Your Branch
-              </span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                  {branchName}
-                </h2>
-                <Badge className="bg-blue-50 text-[#1D4ED8] border border-blue-200 text-[10px] font-bold rounded-md">
-                  Active Branch
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200/70 text-xs md:max-w-md">
-            <div className="h-8 w-8 rounded-xl bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4" />
-            </div>
-            <div>
-              <span className="font-bold text-slate-800 block text-[11px]">
-                You are viewing data for your assigned branch only.
-              </span>
-              <span className="text-[10px] text-slate-500 block">
-                All records, reports, students, faculty, admissions, fees, and operations are restricted to this branch.
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Controls */}
-        <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
-          <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer text-xs font-bold text-slate-800"
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              className="h-9 w-9 bg-card border-border rounded-xl hover:bg-muted shadow-2xs cursor-pointer"
+              title="Refresh Dashboard"
             >
-              <option value="Today">Today</option>
-              <option value="This Week">This Week</option>
-              <option value="This Month">This Month</option>
-              <option value="Last Month">Last Month</option>
-              <option value="This Quarter">This Quarter</option>
-            </select>
+              <RefreshCw className={`h-4 w-4 text-foreground ${isRefreshing ? "animate-spin text-primary" : ""}`} />
+            </Button>
           </div>
+        }
+      />
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleRefresh}
-            className="h-10 w-10 bg-white border-slate-200/80 rounded-2xl hover:bg-slate-50 shadow-2xs cursor-pointer"
-            title="Refresh Dashboard"
-          >
-            <RefreshCw className={`h-4 w-4 text-slate-600 ${isRefreshing ? "animate-spin text-[#1D4ED8]" : ""}`} />
-          </Button>
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+              Your Branch
+            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <h2 className="text-sm font-semibold text-foreground">{branchName}</h2>
+              <Badge className="bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold rounded-md">
+                Active Branch
+              </Badge>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* ─── 2. DASHBOARD OVERVIEW HEADER ─────────────────────────────────── */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-          Dashboard Overview
-        </h1>
-        <p className="text-xs text-slate-500 font-medium">
-          Key insights and performance metrics for your branch.
-        </p>
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border text-xs md:max-w-md">
+          <Lock className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-[11px] text-muted-foreground">
+            Viewing data for your assigned branch only.
+          </span>
+        </div>
       </div>
 
       {!hasAnyModuleAccess ? (
         <DashboardBaselineView role="CENTER_MANAGER" userName={user?.name} />
       ) : (
         <>
-      {/* ─── 3. SIX BRANCH-SPECIFIC SUMMARY KPI CARDS ─────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {canReadItem("leads.all") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Total Leads</span>
-              <div className="h-8 w-8 rounded-xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(totalLeads.toLocaleString("en-IN"))}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : `${leadSummary?.interested ?? 0} interested`}</span>
-            </div>
-          </CardContent>
-        </Card>
-        )}
-
-        {canReadItem("schedule.classes") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Today's Classes</span>
-              <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Calendar className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(todayClasses)}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : `${scheduleSummary?.liveClasses ?? 0} live now`}</span>
-            </div>
-          </CardContent>
-        </Card>
-        )}
-
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {canReadItem("students.all") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Active Students</span>
-              <div className="h-8 w-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(activeStudents.toLocaleString("en-IN"))}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : trendSub("students")}</span>
-            </div>
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">Active Students</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(activeStudents.toLocaleString("en-IN"))}</p>
           </CardContent>
         </Card>
         )}
-
-        {canReadItem("batches.all") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Active Batches</span>
-              <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <BookOpen className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(activeBatchCount)}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : `${scheduleSummary?.upcomingClasses ?? 0} upcoming classes`}</span>
-            </div>
+        {canReadItem("schedule.classes") && (
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">Today's Classes</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(todayClasses)}</p>
           </CardContent>
         </Card>
         )}
-
         {canReadItem("fees.receipts") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">This Month Revenue</span>
-              <div className="h-8 w-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
-                <IndianRupee className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(formatCurrency(totalCollected))}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : `${collectionRate}% collected`}</span>
-            </div>
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">This Month Revenue</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(formatCurrency(totalCollected))}</p>
           </CardContent>
         </Card>
         )}
-
         {canReadItem("fees.students") && (
-        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Pending Fees</span>
-              <div className="h-8 w-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                <CreditCard className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(formatCurrency(totalPending))}</span>
-            </div>
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">Pending Fees</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(formatCurrency(totalPending))}</p>
           </CardContent>
         </Card>
         )}
-      </div>
+        {!canReadItem("students.all") && canReadItem("leads.all") && (
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">Total Leads</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(totalLeads.toLocaleString("en-IN"))}</p>
+          </CardContent>
+        </Card>
+        )}
+        {!canReadItem("schedule.classes") && canReadItem("batches.all") && (
+        <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
+          <CardContent size="compact">
+            <p className="text-xs font-medium text-muted-foreground">Active Batches</p>
+            <p className="text-2xl font-semibold text-foreground mt-1">{kpiValue(activeBatchCount)}</p>
+          </CardContent>
+        </Card>
+        )}
+      </MetricGrid>
 
-      {/* ─── 4. DASHBOARD ANALYTICS (3 Columns) ───────────────────────────── */}
+      <PageSection title="Branch Analytics" density="compact">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {canReadItem("admissions.all") && (
-        <div className="lg:col-span-6 xl:col-span-5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-6 xl:col-span-5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
@@ -574,7 +487,7 @@ export const CenterDashboard: React.FC = () => {
         )}
 
         {canReadItem("fees.receipts") && (
-        <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-6 xl:col-span-3.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="pb-3 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900 tracking-tight">
@@ -654,7 +567,7 @@ export const CenterDashboard: React.FC = () => {
         )}
 
         {canReadItem("counsellor.performance") && (
-        <div className="lg:col-span-12 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-12 xl:col-span-3.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
@@ -712,12 +625,13 @@ export const CenterDashboard: React.FC = () => {
         </div>
         )}
       </div>
+      </PageSection>
 
-      {/* ─── 5. QUICK ACTIONS, RECENT ADMISSIONS & PENDING TASKS ──────────── */}
+      <PageSection title="Quick Actions & Activity" density="compact">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* ─── QUICK ACTIONS (3.5 cols) ─── */}
-        <div className="lg:col-span-12 xl:col-span-4 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs">
-          <h3 className="text-sm font-black text-slate-900 tracking-tight pb-3 border-b border-slate-100">
+        <div className="lg:col-span-12 xl:col-span-4 bg-card border border-border rounded-xl p-5 shadow-xs">
+          <h3 className="text-sm font-semibold text-foreground tracking-tight pb-3 border-b border-border">
             Quick Actions
           </h3>
 
@@ -797,7 +711,7 @@ export const CenterDashboard: React.FC = () => {
         </div>
 
         {canReadItem("admissions.all") && (
-        <div className="lg:col-span-6 xl:col-span-4.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-6 xl:col-span-4.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900 tracking-tight">
@@ -846,7 +760,7 @@ export const CenterDashboard: React.FC = () => {
         )}
 
         {PENDING_TASKS.some((task) => canReadItem(task.itemKey)) && (
-        <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-6 xl:col-span-3.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900 tracking-tight">
@@ -891,18 +805,19 @@ export const CenterDashboard: React.FC = () => {
         </div>
         )}
       </div>
+      </PageSection>
         </>
       )}
 
       {/* ─── 6. FOOTER RESTRICTION NOTICE ─────────────────────────────────── */}
-      <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/60 flex items-center gap-2.5 text-xs text-slate-600">
-        <div className="h-5 w-5 rounded-full bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
+      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2.5 text-xs text-muted-foreground">
+        <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
           <Info className="h-3.5 w-3.5" />
         </div>
         <span>
-          You are logged in as <strong className="text-slate-900 font-bold">Center Manager</strong>. All data shown is for <strong className="text-[#1D4ED8] font-bold">{branchName}</strong> only.
+          You are logged in as <strong className="text-foreground font-semibold">Center Manager</strong>. All data shown is for <strong className="text-primary font-semibold">{branchName}</strong> only.
         </span>
       </div>
-    </div>
+    </PageContainer>
   );
 };

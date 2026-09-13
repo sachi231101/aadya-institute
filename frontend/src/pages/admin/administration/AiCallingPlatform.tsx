@@ -21,6 +21,7 @@ import {
 } from "@/hooks/useAiCalling";
 import type { AiCallingAgent } from "@/services/ai-calling.api";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,13 +101,15 @@ export const AiCallingPlatform: React.FC = () => {
 
   if (!isSuperAdmin) {
     return (
-      <div className="space-y-4 py-12 text-center">
-        <AlertCircle className="w-8 h-8 mx-auto text-amber-500" />
-        <h2 className="text-xl font-bold">Super Admin only</h2>
-        <p className="text-sm text-text-secondary">
-          Platform AI Calling credentials and the agent catalog are managed by Super Admins.
-        </p>
-      </div>
+      <PageContainer>
+        <div className="space-y-4 py-12 text-center">
+          <AlertCircle className="w-8 h-8 mx-auto text-amber-500" />
+          <h2 className="text-xl font-bold">Super Admin only</h2>
+          <p className="text-sm text-text-secondary">
+            Platform AI Calling credentials and the agent catalog are managed by Super Admins.
+          </p>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -207,15 +210,15 @@ export const AiCallingPlatform: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <Bot className="w-6 h-6" /> AI Calling Platform
-        </h2>
-        <p className="text-sm text-text-secondary">
-          Shared telephony credentials, agent catalog, and institute usage overview.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Bot className="w-6 h-6" /> AI Calling Platform
+          </span>
+        }
+        description="Shared telephony credentials, agent catalog, and institute usage overview."
+      />
 
       {message ? (
         <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 flex items-center gap-2">
@@ -317,7 +320,7 @@ export const AiCallingPlatform: React.FC = () => {
                   autoComplete="new-password"
                 />
               </div>
-              <Button type="submit" disabled={updatePlatform.isPending} className="bg-[#2563EB] text-white">
+              <Button type="submit" disabled={updatePlatform.isPending} className="bg-primary text-white">
                 {updatePlatform.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
                 ) : (
@@ -336,7 +339,7 @@ export const AiCallingPlatform: React.FC = () => {
             <h3 className="font-bold flex items-center gap-2">
               <Bot className="w-5 h-5" /> Agent catalog
             </h3>
-            <Button type="button" size="sm" onClick={openCreateAgent} className="bg-[#2563EB] text-white">
+            <Button type="button" size="sm" onClick={openCreateAgent} className="bg-primary text-white">
               <Plus className="h-4 w-4 mr-1" /> Add agent
             </Button>
           </div>
@@ -415,15 +418,15 @@ export const AiCallingPlatform: React.FC = () => {
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="border rounded-xl p-4">
                 <p className="text-xs text-text-secondary">Initiated</p>
-                <p className="text-2xl font-extrabold">{usage.totals.initiatedCount}</p>
+                <p className="text-2xl font-semibold">{usage.totals.initiatedCount}</p>
               </div>
               <div className="border rounded-xl p-4">
                 <p className="text-xs text-text-secondary">Completed</p>
-                <p className="text-2xl font-extrabold">{usage.totals.completedCount}</p>
+                <p className="text-2xl font-semibold">{usage.totals.completedCount}</p>
               </div>
               <div className="border rounded-xl p-4">
                 <p className="text-xs text-text-secondary">Duration (sec)</p>
-                <p className="text-2xl font-extrabold">{usage.totals.durationSeconds}</p>
+                <p className="text-2xl font-semibold">{usage.totals.durationSeconds}</p>
               </div>
             </div>
           ) : (
@@ -471,7 +474,7 @@ export const AiCallingPlatform: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={createAgent.isPending || updateAgent.isPending}
               >
                 {(createAgent.isPending || updateAgent.isPending) && (
@@ -483,6 +486,6 @@ export const AiCallingPlatform: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

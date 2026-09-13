@@ -59,7 +59,7 @@ export const BatchEnrolledStudents: React.FC<Props> = ({ batchId }) => {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin inline text-[#2563EB]" />
+              <Loader2 className="w-6 h-6 animate-spin inline text-primary" />
             </div>
           ) : isError ? (
             <p className="py-8 text-center text-sm text-red-600">Failed to load enrolled students.</p>

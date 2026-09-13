@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Placements: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -83,18 +84,18 @@ export const Placements: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Placements</h2>
-          <p className="text-sm text-text-secondary">Confirmed student placements and offers.</p>
-        </div>
-        <PermissionGate itemKey="placement.placements" mode="write">
-          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Confirm Placement
-          </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Placements"
+        description="Confirmed student placements and offers."
+        actions={
+          <PermissionGate itemKey="placement.placements" mode="write">
+            <Button className="bg-primary text-white" onClick={() => setShowModal(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Confirm Placement
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-4">
@@ -263,7 +264,7 @@ export const Placements: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#2563EB] text-white"
+                className="bg-primary text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -273,6 +274,6 @@ export const Placements: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

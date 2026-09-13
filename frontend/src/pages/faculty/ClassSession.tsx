@@ -22,6 +22,7 @@ import { useNotificationStore } from "@/store/notification.store";
 import { useQuery } from "@tanstack/react-query";
 import { studentsApi } from "@/services/students.api";
 import { batchesApi } from "@/services/batches.api";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 type SessionWorkflowStep = "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
@@ -590,67 +591,44 @@ export const FacultyClassSession: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-[1500px] mx-auto bg-[#f8fafc] min-h-screen animate-in fade-in duration-300">
-      {/* ─── TOP NAVIGATION & CLASS HEADER ─── */}
-      <div className="space-y-3">
-        <button
-          type="button"
-          onClick={() => navigate("/faculty/classes")}
-          className="inline-flex md:hidden items-center gap-1.5 text-xs font-bold text-[#2563EB] hover:underline transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to My Classes
-        </button>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0A2540] tracking-tight">
-                {courseName}
-              </h1>
-
-              {/* Dynamic Status Badge */}
-              {workflowStep === "LIVE" ? (
-                <Badge className="bg-rose-50 text-rose-700 border-rose-300 text-xs font-black px-3.5 py-1.5 flex items-center gap-2 shadow-xs animate-pulse">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-                  🔴 LIVE NOW
-                </Badge>
-              ) : workflowStep === "COMPLETED" ? (
-                <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs font-bold px-3 py-1 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  ✓ Class Completed
-                </Badge>
-              ) : workflowStep === "CANCELLED" ? (
-                <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-xs font-bold px-3 py-1">
-                  ✕ Class Cancelled
-                </Badge>
-              ) : (
-                <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-bold px-3 py-1">
-                  Upcoming Slot
-                </Badge>
-              )}
-            </div>
-
-          </div>
-
-          {/* Live Timer if Active */}
-          {workflowStep === "LIVE" && (
-            <div className="p-3.5 px-5 rounded-2xl bg-white border border-rose-200 shadow-sm flex items-center gap-3 animate-in slide-in-from-top-2">
-              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600">
-                <Clock className="w-5 h-5 animate-spin" />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-rose-600 tracking-wider">Live Duration</p>
-                <p className="text-2xl font-mono font-black text-slate-900 leading-none mt-0.5">
+    <PageContainer>
+      <PageHeader
+        title={courseName}
+        description="Mark attendance, run the live session, and manage recordings."
+        actions={
+          <>
+            {workflowStep === "LIVE" ? (
+              <Badge className="bg-rose-50 text-rose-700 border-rose-300 text-xs font-semibold px-3 py-1.5 flex items-center gap-2 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                LIVE NOW
+              </Badge>
+            ) : workflowStep === "COMPLETED" ? (
+              <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs font-semibold px-3 py-1">
+                Class Completed
+              </Badge>
+            ) : workflowStep === "CANCELLED" ? (
+              <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-xs font-semibold px-3 py-1">
+                Cancelled
+              </Badge>
+            ) : (
+              <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-3 py-1">
+                Upcoming
+              </Badge>
+            )}
+            {workflowStep === "LIVE" && (
+              <div className="px-3 py-1.5 rounded-xl bg-card border border-rose-200 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-rose-600" />
+                <span className="text-sm font-mono font-semibold text-foreground">
                   {formatTimer(secondsElapsed)}
-                </p>
+                </span>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </>
+        }
+      />
 
       {/* ─── 3-STEP PROGRESSION HEADER ─── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4">
         <div className="flex md:grid md:grid-cols-3 gap-3 overflow-x-auto pb-1 md:pb-0 snap-x">
           {/* Step 1 */}
           <button
@@ -659,12 +637,12 @@ export const FacultyClassSession: React.FC = () => {
             className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "attendance" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${activeTab === "attendance" ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
               }`}>
               1
             </div>
             <div>
-              <p className="text-xs font-extrabold text-slate-900 leading-tight">Mark Attendance</p>
+              <p className="text-xs font-semibold text-slate-900 leading-tight">Mark Attendance</p>
               <p className="text-[11px] text-slate-500 font-medium">Mark student attendance</p>
             </div>
           </button>
@@ -676,16 +654,16 @@ export const FacultyClassSession: React.FC = () => {
             className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "live_classroom" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${workflowStep === "LIVE"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${workflowStep === "LIVE"
                 ? "bg-rose-600 text-white animate-pulse"
                 : activeTab === "live_classroom"
-                  ? "bg-[#2563EB] text-white"
+                  ? "bg-primary text-white"
                   : "bg-slate-100 text-slate-700"
               }`}>
               2
             </div>
             <div>
-              <p className="text-xs font-extrabold text-slate-900 leading-tight flex items-center gap-1.5">
+              <p className="text-xs font-semibold text-slate-900 leading-tight flex items-center gap-1.5">
                 Google Meet Live Class
                 {workflowStep === "LIVE" && (
                   <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
@@ -702,12 +680,12 @@ export const FacultyClassSession: React.FC = () => {
             className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "session_history" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${activeTab === "session_history" ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
               }`}>
               3
             </div>
             <div>
-              <p className="text-xs font-extrabold text-slate-900 leading-tight">Session History & Recordings</p>
+              <p className="text-xs font-semibold text-slate-900 leading-tight">Session History & Recordings</p>
               <p className="text-[11px] text-slate-500 font-medium">View recordings and materials</p>
             </div>
           </button>
@@ -716,11 +694,11 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── TOAST / BANNER NOTIFICATION ─── */}
       {toastMsg && (
-        <div className={`p-3.5 px-5 rounded-2xl text-white flex items-center justify-between gap-3 text-xs font-bold shadow-md animate-in slide-in-from-top-2 ${toastMsg.type === "success"
-            ? "bg-[#0A2540] border border-slate-800"
+        <div className={`p-3.5 px-5 rounded-xl text-white flex items-center justify-between gap-3 text-xs font-bold shadow-md animate-in slide-in-from-top-2 ${toastMsg.type === "success"
+            ? "bg-foreground border border-slate-800"
             : toastMsg.type === "error"
               ? "bg-rose-900 border border-rose-800"
-              : "bg-[#2563EB] border border-blue-900"
+              : "bg-primary border border-blue-900"
           }`}>
           <div className="flex items-center gap-2.5">
             {toastMsg.type === "success" ? (
@@ -739,18 +717,18 @@ export const FacultyClassSession: React.FC = () => {
       {/* ─── MAIN CONTENT 2-COLUMN GRID ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* ─── LEFT COLUMN (2 COLUMNS) ─── */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-5">
           {activeTab === "attendance" && (
-            <div className="space-y-4">
-              <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 sm:p-6 space-y-5">
+            <div className="space-y-5">
+              <Card className="bg-card rounded-xl border-border/80 shadow-2xs p-5 space-y-5">
                 {/* Header & Badges */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                         <Users className="w-4 h-4" />
                       </div>
-                      <h2 className="text-base font-extrabold text-slate-900">Student Attendance</h2>
+                      <h2 className="text-base font-semibold text-slate-900">Student Attendance</h2>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                       Showing students assigned exclusively to <strong>{batchCode}</strong>.
@@ -812,12 +790,12 @@ export const FacultyClassSession: React.FC = () => {
                                 <div className="flex items-center gap-3">
                                   <Avatar className="w-8 h-8 rounded-full border border-slate-200 shadow-2xs shrink-0">
                                     <AvatarImage src={st.avatar} />
-                                    <AvatarFallback className="bg-purple-600 text-white text-[10px] font-black">
+                                    <AvatarFallback className="bg-purple-600 text-white text-[10px] font-semibold">
                                       {st.initials}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <span className="font-extrabold text-slate-900 block whitespace-nowrap">{st.name}</span>
+                                    <span className="font-semibold text-slate-900 block whitespace-nowrap">{st.name}</span>
                                     <span className="text-[10.5px] text-slate-500 font-normal whitespace-nowrap">{batchCode}</span>
                                   </div>
                                 </div>
@@ -895,12 +873,12 @@ export const FacultyClassSession: React.FC = () => {
                       variant="outline"
                       onClick={handleUpdateAttendance}
                       disabled={isUpdatingAttendance}
-                      className="w-full sm:w-auto border-2 border-[#2563EB] text-[#2563EB] bg-white hover:bg-blue-50 font-extrabold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
+                      className="w-full sm:w-auto border-2 border-primary text-primary bg-white hover:bg-blue-50 font-semibold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
                     >
                       {isUpdatingAttendance ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#2563EB]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
                       ) : (
-                        <Check className="w-4 h-4 text-[#2563EB]" />
+                        <Check className="w-4 h-4 text-primary" />
                       )}
                       {isUpdatingAttendance ? "Updating Attendance..." : "Update Attendance"}
                     </Button>
@@ -911,7 +889,7 @@ export const FacultyClassSession: React.FC = () => {
                         type="button"
                         onClick={handleGoLiveClick}
                         disabled={isPreparingMeet}
-                        className="w-full sm:w-auto bg-[#0066DA] hover:bg-[#0055b8] text-white font-extrabold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all"
+                        className="w-full sm:w-auto bg-[#0066DA] hover:bg-primary/90 text-white font-semibold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all"
                       >
                         {isPreparingMeet ? (
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -926,7 +904,7 @@ export const FacultyClassSession: React.FC = () => {
                       <Button
                         type="button"
                         onClick={handleOpenEndConfirmModal}
-                        className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-extrabold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all animate-pulse"
+                        className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-semibold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all animate-pulse"
                       >
                         <Square className="w-4 h-4 fill-current text-white" />
                         End & Complete Class
@@ -962,7 +940,7 @@ export const FacultyClassSession: React.FC = () => {
 
               {/* Info Note below Main Card */}
               <div className="p-3.5 px-4 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs font-medium flex items-center gap-2.5 shadow-2xs">
-                <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-bold shrink-0">
                   i
                 </div>
                 <span>
@@ -974,17 +952,17 @@ export const FacultyClassSession: React.FC = () => {
 
           {/* TAB 2: LIVE CLASSROOM CONTROLS */}
           {activeTab === "live_classroom" && (
-            <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 md:p-6 space-y-6">
+            <Card className="bg-card rounded-xl border-border/80 shadow-2xs p-5 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2.5">
+                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2.5">
                     Google Meet Live Class Management
                     {workflowStep === "LIVE" ? (
-                      <Badge className="bg-rose-600 text-white font-black text-[11px] px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs animate-pulse">
+                      <Badge className="bg-rose-600 text-white font-semibold text-[11px] px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs animate-pulse">
                         <span className="w-2 h-2 rounded-full bg-white" /> 🔴 LIVE NOW
                       </Badge>
                     ) : workflowStep === "COMPLETED" ? (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold text-[11px] px-3 py-1 rounded-full">
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold text-[11px] px-3 py-1 rounded-full">
                         ✓ CLASS COMPLETED
                       </Badge>
                     ) : (
@@ -1002,7 +980,7 @@ export const FacultyClassSession: React.FC = () => {
                   <Button
                     type="button"
                     onClick={handleOpenGoogleMeet}
-                    className="bg-[#00832D] hover:bg-[#006e25] text-white font-extrabold text-xs h-9 px-4 rounded-xl gap-2 shadow-xs cursor-pointer"
+                    className="bg-[#00832D] hover:bg-[#006e25] text-white font-semibold text-xs h-9 px-4 rounded-xl gap-2 shadow-xs cursor-pointer"
                   >
                     <Video className="w-4 h-4" /> Open Google Meet
                   </Button>
@@ -1010,18 +988,18 @@ export const FacultyClassSession: React.FC = () => {
               </div>
 
               {/* Live Session Details Bar */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-50/90 via-emerald-50/50 to-blue-50/80 border border-teal-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-br from-teal-50/90 via-emerald-50/50 to-blue-50/80 border border-teal-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white border border-teal-200 shadow-sm flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-white border border-teal-200 shadow-sm flex items-center justify-center shrink-0">
                     <Video className="w-6 h-6 text-[#00832D]" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-sm text-teal-950">
+                      <h4 className="font-semibold text-sm text-teal-950">
                         {workflowStep === "LIVE" ? "Google Meet is Live Now" : "Configured Live Classroom"}
                       </h4>
                       {workflowStep === "LIVE" && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                        <Badge className="bg-emerald-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md">
                           Active Session
                         </Badge>
                       )}
@@ -1050,7 +1028,7 @@ export const FacultyClassSession: React.FC = () => {
                     <Button
                       type="button"
                       onClick={handleGoLiveClick}
-                      className="h-9 text-xs font-extrabold rounded-xl bg-[#0066DA] hover:bg-[#0055b8] text-white gap-1.5 shadow-sm cursor-pointer"
+                      className="h-9 text-xs font-semibold rounded-xl bg-[#0066DA] hover:bg-primary/90 text-white gap-1.5 shadow-sm cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5" /> Host Class
                     </Button>
@@ -1060,7 +1038,7 @@ export const FacultyClassSession: React.FC = () => {
                     <Button
                       type="button"
                       onClick={handleOpenGoogleMeet}
-                      className="h-9 text-xs font-extrabold rounded-xl bg-[#00832D] hover:bg-[#006e25] text-white gap-1.5 shadow-sm cursor-pointer"
+                      className="h-9 text-xs font-semibold rounded-xl bg-[#00832D] hover:bg-[#006e25] text-white gap-1.5 shadow-sm cursor-pointer"
                     >
                       <ExternalLink className="w-3.5 h-3.5" /> Join Tab
                     </Button>
@@ -1094,7 +1072,7 @@ export const FacultyClassSession: React.FC = () => {
                   <Button
                     type="button"
                     onClick={handleOpenEndConfirmModal}
-                    className="h-10 text-xs font-extrabold rounded-xl bg-rose-600 hover:bg-rose-700 text-white gap-2 shadow-md cursor-pointer px-6 ml-auto"
+                    className="h-10 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white gap-2 shadow-md cursor-pointer px-6 ml-auto"
                   >
                     <Square className="w-4 h-4 fill-current" /> End & Complete Class
                   </Button>
@@ -1102,11 +1080,11 @@ export const FacultyClassSession: React.FC = () => {
               )}
 
               {workflowStep === "COMPLETED" && (
-                <div className="p-6 text-center space-y-3 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="p-6 text-center space-y-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-base font-extrabold text-slate-900">Class Session Completed</h3>
+                  <h3 className="text-base font-semibold text-slate-900">Class Session Completed</h3>
                   <p className="text-xs text-slate-600 max-w-md mx-auto">
                     Attendance records and class recordings are now accessible in student portals.
                   </p>
@@ -1135,10 +1113,10 @@ export const FacultyClassSession: React.FC = () => {
 
           {/* TAB 3: SESSION HISTORY */}
           {activeTab === "session_history" && (
-            <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 md:p-6 space-y-4">
+            <Card className="bg-card rounded-xl border-border/80 shadow-2xs p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-extrabold text-slate-900">Session History & Recordings</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Session History & Recordings</h2>
                   <p className="text-xs text-slate-500 font-medium">Archived classes and recordings for {batchCode}.</p>
                 </div>
                 <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-bold">
@@ -1153,9 +1131,9 @@ export const FacultyClassSession: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {sessionHistories.map((hist) => (
-                    <div key={hist.id} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs">
+                    <div key={hist.id} className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs">
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className="font-extrabold text-slate-900">{hist.course} — {hist.module}</span>
+                        <span className="font-semibold text-slate-900">{hist.course} — {hist.module}</span>
                         <span className="text-slate-500 font-mono text-[11px] font-semibold">{hist.date} • {hist.startTime} - {hist.endTime}</span>
                       </div>
                       <div className="flex items-center justify-between text-slate-600 text-[11px] pt-1">
@@ -1174,12 +1152,12 @@ export const FacultyClassSession: React.FC = () => {
         {/* ─── RIGHT SIDEBAR (CLASS DETAILS & BEFORE GOING LIVE) ─── */}
         <div className="space-y-5">
           {/* Card 1: Class Details */}
-          <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 space-y-4">
+          <Card className="bg-card rounded-xl border-border/80 shadow-2xs p-5 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-primary flex items-center justify-center">
                 <BookOpen className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-900">Class Details</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Class Details</h3>
             </div>
 
             <div className="space-y-3.5 text-xs">
@@ -1187,14 +1165,14 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-slate-400" /> Course
                 </span>
-                <span className="font-extrabold text-slate-900 text-right">{courseName}</span>
+                <span className="font-semibold text-slate-900 text-right">{courseName}</span>
               </div>
 
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-slate-400" /> Batch
                 </span>
-                <span className="font-bold text-[#2563EB] text-right">{batchCode}</span>
+                <span className="font-bold text-primary text-right">{batchCode}</span>
               </div>
 
               <div className="flex items-start justify-between gap-2">
@@ -1229,8 +1207,8 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Video className="w-3.5 h-3.5 text-slate-400" /> Class Mode
                 </span>
-                <span className="font-bold text-[#2563EB] flex items-center gap-1">
-                  <Video className="w-3.5 h-3.5 text-[#2563EB]" /> Online (Google Meet)
+                <span className="font-bold text-primary flex items-center gap-1">
+                  <Video className="w-3.5 h-3.5 text-primary" /> Online (Google Meet)
                 </span>
               </div>
 
@@ -1258,18 +1236,18 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-slate-400" /> Enrolled Students
                 </span>
-                <span className="font-extrabold text-slate-900">{attendanceCounts.total} Assigned</span>
+                <span className="font-semibold text-slate-900">{attendanceCounts.total} Assigned</span>
               </div>
 
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" /> Class Status
                 </span>
-                <Badge className={`text-[11px] font-extrabold px-2.5 py-0.5 ${workflowStep === "LIVE"
+                <Badge className={`text-[11px] font-semibold px-2.5 py-0.5 ${workflowStep === "LIVE"
                     ? "bg-rose-100 text-rose-700 border-rose-200"
                     : workflowStep === "COMPLETED"
                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                      : "bg-blue-50 text-[#2563EB] border-blue-200"
+                      : "bg-blue-50 text-primary border-blue-200"
                   }`}>
                   {workflowStep === "LIVE" ? "🔴 LIVE NOW" : workflowStep === "COMPLETED" ? "✓ Completed" : "Upcoming Slot"}
                 </Badge>
@@ -1278,12 +1256,12 @@ export const FacultyClassSession: React.FC = () => {
           </Card>
 
           {/* Card 2: Before Going Live Checklist */}
-          <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 space-y-4">
+          <Card className="bg-card rounded-xl border-border/80 shadow-2xs p-5 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-900">Before Hosting Class</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Before Hosting Class</h3>
             </div>
 
             <ul className="space-y-2.5 text-xs text-slate-700 font-medium">
@@ -1318,9 +1296,9 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 1: GO LIVE ENTRANCE CONFIRMATION ─── */}
       <Dialog open={showGoLiveModal} onOpenChange={setShowGoLiveModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5 text-[#0066DA]" /> Ready to start this class?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-2">
@@ -1328,14 +1306,14 @@ export const FacultyClassSession: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">Course:</span>
-              <span className="font-extrabold text-slate-900">{courseName}</span>
+              <span className="font-semibold text-slate-900">{courseName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Batch:</span>
-              <span className="font-bold text-[#2563EB]">{batchCode}</span>
+              <span className="font-bold text-primary">{batchCode}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Subject:</span>
@@ -1347,7 +1325,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Number of Students:</span>
-              <span className="font-extrabold text-slate-900">{attendanceCounts.total} Enrolled ({attendanceCounts.present} Present)</span>
+              <span className="font-semibold text-slate-900">{attendanceCounts.total} Enrolled ({attendanceCounts.present} Present)</span>
             </div>
           </div>
 
@@ -1364,7 +1342,7 @@ export const FacultyClassSession: React.FC = () => {
               type="button"
               onClick={handleConfirmStartLive}
               disabled={isPreparingMeet}
-              className="h-10 text-xs font-extrabold bg-[#0066DA] hover:bg-[#0055b8] text-white rounded-xl shadow-md cursor-pointer gap-2"
+              className="h-10 text-xs font-semibold bg-[#0066DA] hover:bg-primary/90 text-white rounded-xl shadow-md cursor-pointer gap-2"
             >
               {isPreparingMeet ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1379,9 +1357,9 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 2: END CLASS CONFIRMATION ─── */}
       <Dialog open={showEndConfirmModal} onOpenChange={setShowEndConfirmModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <Square className="w-5 h-5 text-rose-600 fill-current" /> End & Complete this class?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-2">
@@ -1389,14 +1367,14 @@ export const FacultyClassSession: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">Course:</span>
-              <span className="font-extrabold text-slate-900">{courseName}</span>
+              <span className="font-semibold text-slate-900">{courseName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Batch:</span>
-              <span className="font-bold text-[#2563EB]">{batchCode}</span>
+              <span className="font-bold text-primary">{batchCode}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Subject:</span>
@@ -1408,7 +1386,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Current Duration:</span>
-              <span className="font-mono font-black text-rose-600">{formatTimer(secondsElapsed)}</span>
+              <span className="font-mono font-semibold text-rose-600">{formatTimer(secondsElapsed)}</span>
             </div>
           </div>
 
@@ -1424,7 +1402,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleConfirmEndClass}
-              className="h-10 text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md cursor-pointer"
+              className="h-10 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md cursor-pointer"
             >
               End & Complete Class
             </Button>
@@ -1434,9 +1412,9 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 3: UPLOAD RECORDING ─── */}
       <Dialog open={showUploadRecordingModal} onOpenChange={setShowUploadRecordingModal}>
-        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-lg bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5 text-purple-600" /> Upload Session Recording
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-1">
@@ -1489,7 +1467,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleSaveRecording}
-              className="h-10 text-xs font-extrabold bg-[#2563EB] text-white rounded-xl shadow-md cursor-pointer"
+              className="h-10 text-xs font-semibold bg-primary text-white rounded-xl shadow-md cursor-pointer"
             >
               Save Recording
             </Button>
@@ -1499,9 +1477,9 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 4: UPLOAD MATERIALS ─── */}
       <Dialog open={showUploadMaterialsModal} onOpenChange={setShowUploadMaterialsModal}>
-        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-lg bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-600" /> Upload Class Study Materials
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-1">
@@ -1544,7 +1522,7 @@ export const FacultyClassSession: React.FC = () => {
                     type="button"
                     onClick={() => setMatType(t.key as any)}
                     className={`p-2 rounded-xl text-center font-bold text-[11px] border transition-all cursor-pointer ${matType === t.key
-                        ? "border-[#2563EB] bg-blue-50 text-[#2563EB]"
+                        ? "border-primary bg-blue-50 text-primary"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                   >
@@ -1577,7 +1555,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleSaveMaterial}
-              className="h-10 text-xs font-extrabold bg-[#2563EB] text-white rounded-xl shadow-md cursor-pointer"
+              className="h-10 text-xs font-semibold bg-primary text-white rounded-xl shadow-md cursor-pointer"
             >
               Upload Material
             </Button>
@@ -1587,9 +1565,9 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 5: ADD CLASS NOTES ─── */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
-        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-lg bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-600" /> Add Class Notes & Homework
             </DialogTitle>
           </DialogHeader>
@@ -1600,7 +1578,7 @@ export const FacultyClassSession: React.FC = () => {
               value={classNotesText}
               onChange={(e) => setClassNotesText(e.target.value)}
               placeholder="Enter lecture summary, homework assignment, or student tasks..."
-              className="w-full text-xs p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/20 font-medium"
+              className="w-full text-xs p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-medium"
             />
           </div>
 
@@ -1608,7 +1586,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setShowNotesModal(false)} className="h-9 text-xs font-bold rounded-xl cursor-pointer">
               Cancel
             </Button>
-            <Button type="button" onClick={handleSaveNotes} className="h-9 text-xs font-bold bg-[#2563EB] text-white rounded-xl cursor-pointer">
+            <Button type="button" onClick={handleSaveNotes} className="h-9 text-xs font-bold bg-primary text-white rounded-xl cursor-pointer">
               Save Notes
             </Button>
           </DialogFooter>
@@ -1617,16 +1595,16 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 6: VIEW STUDENTS ─── */}
       <Dialog open={showViewStudentsModal} onOpenChange={setShowViewStudentsModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <Users className="w-5 h-5 text-emerald-600" /> Enrolled Students ({students.length})
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
             {students.map((st) => (
               <div key={st.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                <span className="font-extrabold text-slate-900">{st.name} ({st.studentId})</span>
+                <span className="font-semibold text-slate-900">{st.name} ({st.studentId})</span>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${st.status === "PRESENT"
                     ? "bg-emerald-100 text-emerald-700"
                     : st.status === "LEAVE"
@@ -1643,13 +1621,13 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 7: ATTENDANCE UPDATED SUCCESSFULLY POPUP ─── */}
       <Dialog open={showAttendanceSuccessModal} onOpenChange={setShowAttendanceSuccessModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center space-y-4">
+        <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-2xl border border-slate-100 text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
             <CheckCircle2 className="w-8 h-8" />
           </div>
 
           <div>
-            <DialogTitle className="text-lg font-extrabold text-slate-900">
+            <DialogTitle className="text-lg font-semibold text-slate-900">
               Attendance Updated Successfully
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-1">
@@ -1657,10 +1635,10 @@ export const FacultyClassSession: React.FC = () => {
             </DialogDescription>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs text-left">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs text-left">
             <div className="flex justify-between">
               <span className="text-slate-500">Course / Batch:</span>
-              <span className="font-extrabold text-slate-900">{courseName} ({batchCode})</span>
+              <span className="font-semibold text-slate-900">{courseName} ({batchCode})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Subject:</span>
@@ -1672,7 +1650,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between pt-1.5 border-t border-slate-200/60">
               <span className="text-slate-500 font-bold">Attendance Summary:</span>
-              <div className="flex items-center gap-2 font-black">
+              <div className="flex items-center gap-2 font-semibold">
                 <span className="text-emerald-600">{attendanceCounts.present} Present</span>
                 <span className="text-slate-300">•</span>
                 <span className="text-rose-600">{attendanceCounts.absent} Absent</span>
@@ -1686,13 +1664,13 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={() => setShowAttendanceSuccessModal(false)}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-xs h-10 rounded-xl shadow-md cursor-pointer"
+              className="w-full bg-primary hover:bg-primary text-white font-semibold text-xs h-10 rounded-xl shadow-md cursor-pointer"
             >
               Done
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

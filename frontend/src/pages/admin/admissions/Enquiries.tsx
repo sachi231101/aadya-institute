@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import { ViewEnquiryInfo } from "./ViewEnquiryInfo";
 
 // ─── TYPES & MOCK/SEED DATA MATCHING THE REFERENCE IMAGE ───────────────────
@@ -688,7 +689,7 @@ export const Enquiries: React.FC = () => {
   // If an enquiry is selected, render the dedicated separate ViewEnquiryInfo centered view
   if (selectedLead) {
     return (
-      <div className="p-4 md:p-6 max-w-7xl w-full mx-auto space-y-5">
+      <PageContainer maxWidth="narrow" className="space-y-5">
         <ViewEnquiryInfo
           lead={selectedLead}
           onBack={() => setSelectedLead(null)}
@@ -702,56 +703,50 @@ export const Enquiries: React.FC = () => {
           getPriorityDot={getPriorityDot}
           getInitials={getInitials}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-[1750px] w-full mx-auto space-y-5 bg-[#f8fafc] min-h-screen">
+    <PageContainer>
 
-      {/* ─── 1. PAGE HEADER ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
-            Enquiry Management
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Manage organic student enquiries, counselling interactions, follow-ups, and application conversion.
-          </p>
-        </div>
+      <PageHeader
+        title="Enquiry Management"
+        description="Manage organic student enquiries, counselling interactions, follow-ups, and application conversion."
+        actions={
+          <>
+            <PermissionGate itemKey="admissions.enquiries" mode="write">
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
+              >
+                <Download className="h-4 w-4 text-muted-foreground" /> Import Leads
+              </Button>
+            </PermissionGate>
 
-        <div className="flex items-center gap-3">
-          <PermissionGate itemKey="admissions.enquiries" mode="write">
             <Button
-              onClick={() => setShowImportModal(true)}
+              onClick={handleExportCSV}
               variant="outline"
               className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
             >
-              <Download className="h-4 w-4 text-muted-foreground" /> Import Leads
+              <Upload className="h-4 w-4 text-muted-foreground" /> Export
             </Button>
-          </PermissionGate>
 
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
-          >
-            <Upload className="h-4 w-4 text-muted-foreground" /> Export
-          </Button>
+            <PermissionGate itemKey="admissions.enquiries" mode="write">
+              <Button
+                onClick={() => setShowAddModal(true)}
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> Add New Enquiry
+              </Button>
+            </PermissionGate>
+          </>
+        }
+      />
 
-          <PermissionGate itemKey="admissions.enquiries" mode="write">
-            <Button
-              onClick={() => setShowAddModal(true)}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4" /> Add New Enquiry
-            </Button>
-          </PermissionGate>
-        </div>
-      </div>
-
-      {/* ─── 2. TOP 5 SUMMARY CARDS ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      {/* ─── 2. SUMMARY METRICS ─── */}
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {/* Card 1: Total Enquiries */}
         <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
           <div className="flex items-start gap-3">
@@ -798,23 +793,7 @@ export const Enquiries: React.FC = () => {
           </div>
         </Card>
 
-        {/* Card 4: Interested / Qualified */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/60">
-              <CheckCircle2 className="h-4.5 w-4.5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500">Interested / Qualified</p>
-              <h3 className="text-xl font-black text-purple-600 mt-0.5 tracking-tight">
-                {leads.filter((l) => l.status === "Interested" || l.status === "Counselling" || l.priority === "Hot").length}
-              </h3>
-              <p className="text-[10px] font-bold text-purple-600 mt-0.5">Ready for next step</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 5: Converted to Application */}
+        {/* Card 4: Converted to Application */}
         <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
@@ -829,13 +808,11 @@ export const Enquiries: React.FC = () => {
             </div>
           </div>
         </Card>
-      </div>
+      </MetricGrid>
 
       {/* ─── 3. SEARCH & FILTERS BAR ─── */}
-      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4">
-        <div className="space-y-3">
-          {/* Search Input */}
-          <div className="relative">
+      <FilterToolbar className="flex-col items-stretch gap-3">
+          <div className="relative w-full">
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <Input
               type="text"
@@ -846,8 +823,7 @@ export const Enquiries: React.FC = () => {
             />
           </div>
 
-          {/* Compact Dropdown Filters Row */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
             {/* All Sources */}
             <div className="min-w-[160px]">
               <MasterSelect
@@ -937,8 +913,7 @@ export const Enquiries: React.FC = () => {
               Reset Filters
             </button>
           </div>
-        </div>
-      </Card>
+      </FilterToolbar>
 
       {/* ─── 4. TABS & VIEW TOGGLE ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-1">
@@ -1641,7 +1616,7 @@ export const Enquiries: React.FC = () => {
           <span>{toastMessage}</span>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

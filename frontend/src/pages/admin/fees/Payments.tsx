@@ -50,6 +50,7 @@ import {
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
@@ -235,30 +236,27 @@ export const Payments: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 gap-2">
-            <Link to={`${basePath}/fees/students`}>
-              <ArrowLeft className="h-4 w-4" /> Student Fees
-            </Link>
-          </Button>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Record Payment</h2>
-          <p className="text-sm text-text-secondary">
-            Collect a payment against a student due. Issued receipts appear under Receipts.
-          </p>
-        </div>
-
-        <PermissionGate itemKey="fees.payments" mode="write">
-          <Button
-            className="bg-[#2563EB] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
-            onClick={() => setShowModal(true)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Record New Payment
-          </Button>
-        </PermissionGate>
-      </div>
+    <PageContainer>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 gap-2">
+        <Link to={`${basePath}/fees/students`}>
+          <ArrowLeft className="h-4 w-4" /> Student Fees
+        </Link>
+      </Button>
+      <PageHeader
+        title="Record Payment"
+        description="Collect a payment against a student due. Issued receipts appear under Receipts."
+        actions={
+          <PermissionGate itemKey="fees.payments" mode="write">
+            <Button
+              className="bg-primary hover:bg-[#F39A16] text-white shadow-sm transition-colors"
+              onClick={() => setShowModal(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Record New Payment
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
@@ -276,7 +274,7 @@ export const Payments: React.FC = () => {
         </Card>
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
+            <div className="p-3 rounded-lg bg-blue-50 text-primary">
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
@@ -334,7 +332,7 @@ export const Payments: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="SUCCESS">Success</option>
@@ -363,7 +361,7 @@ export const Payments: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
                         Loading payment receipts...
                       </div>
                     </TableCell>
@@ -378,7 +376,7 @@ export const Payments: React.FC = () => {
                   payments.map((p) => (
                     <TableRow key={p.id} className="hover:bg-bg-secondary/30 transition-colors">
                       <TableCell className="font-medium text-slate-900 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-[#2563EB]" />
+                        <FileText className="h-4 w-4 text-primary" />
                         {p.receiptNo}
                       </TableCell>
                       <TableCell>
@@ -410,7 +408,7 @@ export const Payments: React.FC = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Receipt Actions</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => setViewReceiptItem(p)}>
-                              <FileText className="mr-2 h-4 w-4 text-[#2563EB]" /> View & Print Receipt
+                              <FileText className="mr-2 h-4 w-4 text-primary" /> View & Print Receipt
                             </DropdownMenuItem>
                             {canDeletePayment && (
                               <>
@@ -443,7 +441,7 @@ export const Payments: React.FC = () => {
                 <h3 className="text-xl font-bold text-slate-900">Official Fee Receipt</h3>
                 <p className="text-xs text-slate-500 font-mono">Aadya Institute of Technology</p>
               </div>
-              <Badge className="bg-[#2563EB] text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
+              <Badge className="bg-primary text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
             </div>
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
@@ -479,7 +477,7 @@ export const Payments: React.FC = () => {
               <Button variant="outline" onClick={() => window.print()}>
                 Print Receipt
               </Button>
-              <Button className="bg-[#2563EB]" onClick={() => setViewReceiptItem(null)}>
+              <Button className="bg-primary" onClick={() => setViewReceiptItem(null)}>
                 Close
               </Button>
             </div>
@@ -657,7 +655,7 @@ export const Payments: React.FC = () => {
                   type="checkbox"
                   checked={sendWhatsAppReceipt}
                   onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                 />
                 <label className="text-xs font-medium text-slate-600">
                   Send WhatsApp receipt confirmation
@@ -670,7 +668,7 @@ export const Payments: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
+                  className="bg-primary hover:bg-[#F39A16] text-white"
                   disabled={createPaymentMutation.isPending || !studentId}
                 >
                   {createPaymentMutation.isPending ? "Recording..." : "Submit Payment"}
@@ -681,6 +679,6 @@ export const Payments: React.FC = () => {
         </div>
       )}
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

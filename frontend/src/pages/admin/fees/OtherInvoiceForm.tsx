@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { Separator } from "@/components/ui/separator";
+import { PageContainer, PageHeader } from "@/components/layout";
 
 type DiscountType = "PERCENT" | "FLAT";
 
@@ -269,40 +270,36 @@ export const OtherInvoiceForm: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2 text-text-secondary">
-            <Link to={`${basePath}/fees/invoices?tab=other`}>
-              <ArrowLeft className="h-4 w-4" />
-              Invoices
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Other Invoice</h1>
-            <p className="text-sm text-text-secondary">
-              Create an ad-hoc invoice for books, kits, or miscellaneous charges.
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(`${basePath}/fees/invoices?tab=other`)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={createInvoice.isPending}
-            onClick={() => void submit()}
-            className="min-w-24"
-          >
-            {createInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-          </Button>
-        </div>
-      </div>
+    <PageContainer maxWidth="narrow" className="pb-10">
+      <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2 text-text-secondary">
+        <Link to={`${basePath}/fees/invoices?tab=other`}>
+          <ArrowLeft className="h-4 w-4" />
+          Invoices
+        </Link>
+      </Button>
+      <PageHeader
+        title="Other Invoice"
+        description="Create an ad-hoc invoice for books, kits, or miscellaneous charges."
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`${basePath}/fees/invoices?tab=other`)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={createInvoice.isPending}
+              onClick={() => void submit()}
+              className="min-w-24"
+            >
+              {createInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+          </>
+        }
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -310,7 +307,7 @@ export const OtherInvoiceForm: React.FC = () => {
         </div>
       ) : null}
 
-      <Card className="overflow-hidden rounded-2xl border border-border shadow-xs">
+      <Card className="overflow-hidden rounded-xl border border-border shadow-xs">
         <CardHeader className="border-b border-border bg-muted/40 px-6 pb-3 pt-4">
           <CardTitle className="text-base">Customer details</CardTitle>
           <CardDescription>Student and invoice header information</CardDescription>
@@ -473,7 +470,7 @@ export const OtherInvoiceForm: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-2xl border border-border shadow-xs">
+      <Card className="overflow-hidden rounded-xl border border-border shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between border-b border-border bg-muted/40 px-6 pb-3 pt-4">
           <div>
             <CardTitle className="text-base">Product / services / fees</CardTitle>
@@ -496,7 +493,7 @@ export const OtherInvoiceForm: React.FC = () => {
             return (
               <div
                 key={item.key}
-                className="rounded-2xl border border-border/80 bg-background p-4 shadow-xs"
+                className="rounded-xl border border-border/80 bg-background p-4 shadow-xs"
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-text-primary">Line {idx + 1}</p>
@@ -646,7 +643,7 @@ export const OtherInvoiceForm: React.FC = () => {
               />
             </div>
 
-            <div className="rounded-2xl border border-border bg-muted/20 p-4">
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
               <h3 className="mb-3 text-sm font-semibold">Billing details</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
@@ -681,7 +678,7 @@ export const OtherInvoiceForm: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-2xl border border-border shadow-xs">
+      <Card className="overflow-hidden rounded-xl border border-border shadow-xs">
         <CardHeader className="border-b border-border bg-muted/40 px-6 pb-3 pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -860,6 +857,6 @@ export const OtherInvoiceForm: React.FC = () => {
           {createInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save invoice"}
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 };

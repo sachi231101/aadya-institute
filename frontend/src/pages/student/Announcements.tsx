@@ -31,6 +31,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useAnnouncementStore } from "@/store/announcement.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import type { AnnouncementItem, AuthorRole } from "@/store/announcement.store";
+import { PageContainer, PageHeader, FilterToolbar, PageSection } from "@/components/layout";
 
 export const StudentAnnouncements: React.FC = () => {
   const { user } = useAuthStore();
@@ -132,19 +133,19 @@ export const StudentAnnouncements: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-[1700px] mx-auto animate-in fade-in duration-300">
+    <PageContainer className="animate-in fade-in duration-300">
       {/* ─── LIVE NOTIFICATION BANNER (When newest announcement is present) ─── */}
       {bannerNotice && (
-        <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-3xl shadow-lg flex items-center justify-between gap-4 animate-in slide-in-from-top-4">
+        <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl shadow-lg flex items-center justify-between gap-4 animate-in slide-in-from-top-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center text-white shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
               <Megaphone className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-[10px] font-black tracking-wider uppercase bg-white/20 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-semibold tracking-wider uppercase bg-white/20 px-2 py-0.5 rounded-full">
                 New Announcement
               </span>
-              <h4 className="text-sm font-black mt-0.5">{bannerNotice.title}</h4>
+              <h4 className="text-sm font-semibold mt-0.5">{bannerNotice.title}</h4>
               <p className="text-xs text-blue-100 line-clamp-1">{bannerNotice.message}</p>
             </div>
           </div>
@@ -155,7 +156,7 @@ export const StudentAnnouncements: React.FC = () => {
                 setSelectedAnnouncementId(bannerNotice.id);
                 setBannerNotice(null);
               }}
-              className="h-8 px-3.5 bg-white text-[#1D4ED8] hover:bg-blue-50 text-xs font-bold rounded-xl"
+            className="h-9 px-3.5 bg-white text-primary hover:bg-blue-50 text-xs font-bold rounded-xl"
             >
               View Announcement
             </Button>
@@ -169,61 +170,50 @@ export const StudentAnnouncements: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 1. PAGE HEADER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            Announcements
-          </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Stay updated with important announcements from your Faculty and Counsellor.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="Announcements"
+        description="Stay updated with important announcements from your Faculty and Counsellor."
+        actions={
           <Button
             variant="outline"
             onClick={handleMarkAllRead}
             className="h-9 px-3.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-xl border-slate-200 gap-1.5 shadow-2xs cursor-pointer"
           >
-            <CheckCheck className="h-3.5 w-3.5 text-[#1D4ED8]" />
+            <CheckCheck className="h-3.5 w-3.5 text-primary" />
             <span>Mark all as read</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* ─── 2. TWO-COLUMN WORKSPACE ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[760px] items-start">
-        {/* ─── LEFT COLUMN: ANNOUNCEMENT LIST (5 cols) ─── */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-xs flex flex-col h-full overflow-hidden">
-          {/* Header Controls */}
-          <div className="p-4 border-b border-slate-100 bg-white">
-            {/* Search & Batch Dropdown */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        <PageSection title="Inbox" className="lg:col-span-5 h-full min-h-0 flex flex-col">
+        <div className="bg-card border border-border/80 rounded-xl shadow-xs flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-5 border-b border-border/80 bg-card">
+            <FilterToolbar>
+              <div className="relative flex-1 min-w-[140px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search announcements by title, faculty, or counsellor..."
+                  placeholder="Search announcements..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9 pr-3 text-xs bg-slate-50 border-slate-200/80 rounded-xl font-medium focus:bg-white focus:ring-1 focus:ring-[#1D4ED8]"
+                  className="h-9 pl-9 pr-3 text-xs bg-muted/30 border-border rounded-lg font-medium focus:bg-background"
                 />
               </div>
 
               <select
                 value={selectedBatchFilter}
                 onChange={(e) => setSelectedBatchFilter(e.target.value)}
-                className="h-9 px-3 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer shrink-0"
+                className="h-9 px-3 text-xs font-semibold text-foreground bg-muted/30 border border-border rounded-lg outline-none cursor-pointer shrink-0"
               >
                 <option value="ALL">All My Batches</option>
                 <option value={enrolledBatch}>{enrolledBatch}</option>
               </select>
-            </div>
+            </FilterToolbar>
           </div>
 
           {/* List Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          <div className="flex-1 overflow-y-auto divide-y divide-border/80">
             {studentAnnouncements.length === 0 ? (
               <div className="p-8 text-center flex flex-col items-center justify-center h-64">
                 <Megaphone className="h-10 w-10 text-slate-300 mb-2" />
@@ -273,14 +263,14 @@ export const StudentAnnouncements: React.FC = () => {
                           <h3
                             className={`text-xs truncate ${
                               !isRead
-                                ? "font-black text-slate-900"
+                                ? "font-semibold text-slate-900"
                                 : "font-bold text-slate-800"
                             }`}
                           >
                             {item.title}
                           </h3>
                           {!isRead && (
-                            <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 text-[9px] font-black uppercase shrink-0">
+                            <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 text-[9px] font-semibold uppercase shrink-0">
                               New
                             </span>
                           )}
@@ -297,7 +287,7 @@ export const StudentAnnouncements: React.FC = () => {
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5 text-[10px]">
                         {/* Author Role Badge */}
                         <span
-                          className={`px-1.5 py-0.2 rounded-md text-[9px] font-black ${
+                          className={`px-1.5 py-0.2 rounded-md text-[9px] font-semibold ${
                             isCounsellor
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-indigo-100 text-indigo-800"
@@ -309,7 +299,7 @@ export const StudentAnnouncements: React.FC = () => {
                         <span className="text-slate-400">•</span>
                         <span className="text-slate-500">{item.facultyDesignation}</span>
                         <span className="text-slate-400">•</span>
-                        <span className="text-[#1D4ED8] font-bold">{item.batchName}</span>
+                        <span className="text-primary font-bold">{item.batchName}</span>
                       </div>
                     </div>
                   </div>
@@ -318,31 +308,31 @@ export const StudentAnnouncements: React.FC = () => {
             )}
           </div>
 
-          {/* List Footer */}
-          <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="p-3 border-t border-border/80 bg-muted/30 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
               Showing {studentAnnouncements.length} of {studentAnnouncements.length} announcements
             </span>
-            <div className="flex items-center gap-1 font-bold text-slate-700">
-              <span className="px-2 py-0.5 rounded bg-white border border-slate-200 shadow-2xs">
+            <div className="flex items-center gap-1 font-semibold text-foreground">
+              <span className="px-2 py-0.5 rounded bg-card border border-border shadow-2xs">
                 Page 1
               </span>
             </div>
           </div>
         </div>
+        </PageSection>
 
-        {/* ─── RIGHT COLUMN: ANNOUNCEMENT DETAILS (7 cols) ─── */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl shadow-xs p-6 flex flex-col justify-between h-full overflow-y-auto">
+        <PageSection title="Details" className="lg:col-span-7 h-full min-h-0 flex flex-col">
+        <div className="bg-card border border-border/80 rounded-xl shadow-xs p-5 flex flex-col justify-between flex-1 min-h-0 overflow-y-auto">
           {selectedAnnouncement ? (
             <div className="space-y-6">
               {/* Top Meta Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/80">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                       selectedAnnouncement.authorRole === "Counsellor"
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-blue-50 text-[#1D4ED8] border border-blue-200"
+                        : "bg-blue-50 text-primary border border-blue-200"
                     }`}
                   >
                     {selectedAnnouncement.type}
@@ -354,7 +344,7 @@ export const StudentAnnouncements: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                   <Calendar className="h-3.5 w-3.5" />
                   <span>{selectedAnnouncement.publishedAt || selectedAnnouncement.createdAt}</span>
                 </div>
@@ -362,13 +352,13 @@ export const StudentAnnouncements: React.FC = () => {
 
               {/* Title & Author Info */}
               <div className="space-y-3">
-                <h2 className="text-xl font-black text-slate-900 leading-tight">
+                <h2 className="text-xl font-semibold text-slate-900 leading-tight">
                   📢 {selectedAnnouncement.title}
                 </h2>
 
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/60">
                   <div
-                    className={`h-11 w-11 rounded-xl text-white font-black text-sm flex items-center justify-center shadow-xs ${
+                    className={`h-11 w-11 rounded-xl text-white font-semibold text-sm flex items-center justify-center shadow-xs ${
                       selectedAnnouncement.authorRole === "Counsellor"
                         ? "bg-gradient-to-tr from-emerald-600 to-teal-600"
                         : "bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6]"
@@ -380,7 +370,7 @@ export const StudentAnnouncements: React.FC = () => {
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                       Posted By {selectedAnnouncement.authorRole || "Faculty"}
                     </span>
-                    <h4 className="text-xs font-black text-slate-900">
+                    <h4 className="text-xs font-semibold text-slate-900">
                       {selectedAnnouncement.facultyName}
                     </h4>
                     <span
@@ -397,7 +387,7 @@ export const StudentAnnouncements: React.FC = () => {
               </div>
 
               {/* Main Message Content */}
-              <div className="p-5 rounded-2xl bg-slate-50/50 border border-slate-200/70 text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-line">
+              <div className="p-5 rounded-xl bg-slate-50/50 border border-slate-200/70 text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-line">
                 {selectedAnnouncement.message}
               </div>
 
@@ -424,9 +414,9 @@ export const StudentAnnouncements: React.FC = () => {
 
               {/* Attachment if present */}
               {selectedAnnouncement.attachmentName && (
-                <div className="p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-2xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2.5 font-bold text-[#1D4ED8]">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1D4ED8] flex items-center justify-center">
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5 font-bold text-primary">
+                    <div className="h-8 w-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center">
                       <Paperclip className="h-4 w-4" />
                     </div>
                     <div>
@@ -442,7 +432,7 @@ export const StudentAnnouncements: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs font-bold text-[#1D4ED8] bg-white border-blue-200 hover:bg-blue-50 rounded-xl gap-1.5"
+                    className="h-8 text-xs font-bold text-primary bg-white border-blue-200 hover:bg-blue-50 rounded-xl gap-1.5"
                   >
                     <Download className="h-3.5 w-3.5" />
                     <span>View / Download</span>
@@ -454,14 +444,14 @@ export const StudentAnnouncements: React.FC = () => {
               <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
                   <span>
-                    <strong className="text-slate-900 font-black">
+                    <strong className="text-slate-900 font-semibold">
                       {selectedAnnouncement.sentCount}
                     </strong>{" "}
                     Sent
                   </span>
                   <span>•</span>
                   <span>
-                    <strong className="text-slate-900 font-black">
+                    <strong className="text-slate-900 font-semibold">
                       {selectedAnnouncement.readCount}
                     </strong>{" "}
                     Read
@@ -483,7 +473,8 @@ export const StudentAnnouncements: React.FC = () => {
             </div>
           )}
         </div>
+        </PageSection>
       </div>
-    </div>
+    </PageContainer>
   );
 };

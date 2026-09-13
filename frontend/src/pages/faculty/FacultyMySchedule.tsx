@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -18,7 +18,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer } from "@/components/layout/PageContainer";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth.store";
@@ -405,43 +405,32 @@ export const FacultyMySchedule: React.FC = () => {
   const weekRangeLabel = useMemo(() => weekRange.label, [weekRange.label]);
 
   return (
-    <PageContainer className="bg-slate-50/50 dark:bg-slate-950/40">
-      {/* ─── Top Header Banner ─── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl border-2 border-[#2563EB] flex items-center justify-center text-[#2563EB] bg-blue-50/50">
-              <CalendarDays className="w-5 h-5" />
-            </div>
-            My Class Timetable
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Live and upcoming classes assigned to you.
-          </p>
-        </div>
-
-        {/* Week Switcher & View Mode Toolbar */}
+    <PageContainer>
+      <PageHeader
+        title="My Class Timetable"
+        description="Live and upcoming classes assigned to you."
+        actions={
         <div className="flex items-center gap-3 flex-wrap">
           {/* Week Selector */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1 shadow-xs">
+          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-xs">
             <Button
               variant="ghost"
               size="sm"
               onClick={handlePrevWeek}
-              className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100"
+              className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100"
               title="Previous Week"
             >
               <ChevronLeft className="w-4 h-4 text-slate-600" />
             </Button>
-            <div className="flex items-center gap-2 px-2 text-xs font-extrabold text-slate-800 dark:text-slate-200">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#2563EB]" />
+            <div className="flex items-center gap-2 px-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <CalendarIcon className="w-3.5 h-3.5 text-primary" />
               <span>{weekRangeLabel}</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleNextWeek}
-              className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100"
+              className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100"
               title="Next Week"
             >
               <ChevronRight className="w-4 h-4 text-slate-600" />
@@ -452,18 +441,18 @@ export const FacultyMySchedule: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleCurrentWeek}
-            className="h-9 px-3.5 text-xs font-bold rounded-xl border-[#2563EB]/30 text-[#2563EB] hover:bg-blue-50 bg-white dark:bg-slate-900 shadow-xs"
+            className="h-9 px-3.5 text-xs font-bold rounded-xl border-primary/30 text-primary hover:bg-blue-50 bg-white dark:bg-slate-900 shadow-xs"
           >
             Today
           </Button>
 
           {/* Timetable Grid / Class List Toggle */}
-          <div className="bg-slate-200/80 dark:bg-slate-800 p-1 rounded-2xl flex items-center text-xs font-bold shadow-2xs">
+          <div className="bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-bold shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode("TIMETABLE")}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "TIMETABLE"
-                ? "bg-[#2563EB] text-white shadow-xs"
+                ? "bg-primary text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                 }`}
             >
@@ -473,7 +462,7 @@ export const FacultyMySchedule: React.FC = () => {
               type="button"
               onClick={() => setViewMode("LIST")}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "LIST"
-                ? "bg-[#2563EB] text-white shadow-xs"
+                ? "bg-primary text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                 }`}
             >
@@ -481,19 +470,21 @@ export const FacultyMySchedule: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
+        }
+      />
 
 
-      {/* ─── Main Timetable Grid / List Display ─── */}
+      {/* --- Main Timetable Grid / List Display --- */}
       {viewMode === "TIMETABLE" ? (
+        <PageSection title="Timetable">
         <div className="space-y-6">
           {slotsLoading ? (
             <div className="flex items-center justify-center py-16 gap-2 text-sm text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-[#2563EB]" />
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
               Loading time slots from Master Setup…
             </div>
           ) : slotsEmpty ? (
-            <Card className="rounded-3xl border-dashed">
+            <Card className="rounded-xl border-dashed">
               <CardContent className="py-14 text-center space-y-2">
                 <Clock className="mx-auto h-8 w-8 text-slate-300" />
                 <p className="text-sm font-bold text-slate-800">No time slots configured</p>
@@ -506,15 +497,15 @@ export const FacultyMySchedule: React.FC = () => {
           <>
           {sessionsLoading && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
               Loading your assigned classes for this week…
             </div>
           )}
-          {/* ─── Master Time Slot Timetable Matrix (Desktop/Tablet) ─── */}
-          <div className="hidden md:block overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          {/* --- Master Time Slot Timetable Matrix (Desktop/Tablet) --- */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
             <table className="w-full border-collapse text-left min-w-[900px]">
               <thead>
-                <tr className="bg-slate-50/90 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <tr className="bg-slate-50/90 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   <th className="p-3.5 border-r border-slate-200 dark:border-slate-800 w-32 text-center shrink-0">
                     DAY / DATE
                   </th>
@@ -523,7 +514,7 @@ export const FacultyMySchedule: React.FC = () => {
                       key={slot.timeslotMasterId || slot.period}
                       className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center min-w-[95px]"
                     >
-                      <span className="block font-black text-xs text-slate-800 dark:text-slate-100">
+                      <span className="block font-semibold text-xs text-slate-800 dark:text-slate-100">
                         {slot.start.replace(/\s*(AM|PM)$/i, "")}
                       </span>
                       <span className="text-[10px] text-slate-500 font-bold block">{slot.subTitle || "—"}</span>
@@ -544,7 +535,7 @@ export const FacultyMySchedule: React.FC = () => {
                           colSpan={timeSlotColumns.length + 1}
                           className="p-2.5 text-center align-middle"
                         >
-                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-black shadow-2xs">
+                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-semibold shadow-2xs">
                             <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                             <span>
                               {day.holidayTitle || "Holiday"} – {day.formattedDate}
@@ -571,12 +562,12 @@ export const FacultyMySchedule: React.FC = () => {
                       {/* Left Day/Date Cell */}
                       <td
                         className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${day.isToday
-                          ? "bg-blue-50/60 text-[#2563EB] dark:bg-blue-950/40"
+                          ? "bg-blue-50/60 text-primary dark:bg-blue-950/40"
                           : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
                           }`}
                       >
                         <div className="flex flex-col items-center justify-center">
-                          <span className="text-xs uppercase tracking-wider font-black">
+                          <span className="text-xs uppercase tracking-wider font-semibold">
                             {day.dayShort}
                           </span>
                           <span className="text-[11px] font-semibold text-slate-500 mt-0.5">
@@ -616,13 +607,13 @@ export const FacultyMySchedule: React.FC = () => {
                             >
                               <div
                                 onClick={() => handleOpenClassDetails(matchingClass)}
-                                className={`p-2 rounded-2xl border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[72px] flex flex-col justify-between ${isLive
+                                className={`p-2 rounded-xl border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[72px] flex flex-col justify-between ${isLive
                                   ? "bg-emerald-50/90 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 ring-2 ring-emerald-500/40 shadow-xs"
                                   : isExam
                                     ? "bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 hover:border-rose-400"
                                     : isSelected
-                                      ? "bg-blue-50 border-[#2563EB] ring-2 ring-[#2563EB]/30 shadow-xs"
-                                      : "bg-blue-50/50 border-blue-100 hover:border-[#2563EB]/60 dark:bg-slate-800/60 dark:border-slate-700"
+                                      ? "bg-blue-50 border-primary ring-2 ring-primary/30 shadow-xs"
+                                      : "bg-blue-50/50 border-blue-100 hover:border-primary/60 dark:bg-slate-800/60 dark:border-slate-700"
                                   }`}
                               >
                                 <div className="flex items-center justify-between gap-1">
@@ -635,7 +626,7 @@ export const FacultyMySchedule: React.FC = () => {
                                           : "bg-blue-600"
                                         }`}
                                     />
-                                    <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
+                                    <p className="font-semibold text-[11px] text-slate-900 dark:text-white truncate">
                                       {matchingClass.courseName}
                                     </p>
                                   </div>
@@ -679,21 +670,21 @@ export const FacultyMySchedule: React.FC = () => {
             </table>
           </div>
 
-          {/* ─── Mobile Daily Cards View (Small Screens) ─── */}
+          {/* --- Mobile Daily Cards View (Small Screens) --- */}
           <div className="md:hidden space-y-3">
-            <div className="flex items-center justify-between p-1.5 bg-white dark:bg-slate-900 border border-slate-200 rounded-2xl overflow-x-auto gap-1">
+            <div className="flex items-center justify-between p-1.5 bg-white dark:bg-slate-900 border border-slate-200 rounded-xl overflow-x-auto gap-1">
               {weekDays.map((day, idx) => (
                 <button
                   key={day.iso}
                   type="button"
                   onClick={() => setMobileDayIndex(idx)}
                   className={`flex-1 min-w-[42px] py-2 px-1 text-center rounded-xl transition-all cursor-pointer ${mobileDayIndex === idx
-                    ? "bg-[#2563EB] text-white font-bold shadow-xs"
+                    ? "bg-primary text-white font-bold shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   <span className="block text-[10px] uppercase font-mono">{day.dayShort}</span>
-                  <span className="block text-xs font-black">{day.date.getDate()}</span>
+                  <span className="block text-xs font-semibold">{day.date.getDate()}</span>
                 </button>
               ))}
             </div>
@@ -708,11 +699,11 @@ export const FacultyMySchedule: React.FC = () => {
                     <span>
                       {activeDay.dayName}, {activeDay.formattedDate}
                     </span>
-                    {activeDay.isToday && <Badge className="bg-[#2563EB] text-white text-[10px]">TODAY</Badge>}
+                    {activeDay.isToday && <Badge className="bg-primary text-white text-[10px]">TODAY</Badge>}
                   </div>
 
                   {activeDay.isHoliday ? (
-                    <div className="py-4 px-4 text-center text-xs font-black text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
+                    <div className="py-4 px-4 text-center text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                       <span>
                         {activeDay.holidayTitle || "Holiday"} – {activeDay.formattedDate}
@@ -723,12 +714,12 @@ export const FacultyMySchedule: React.FC = () => {
                       <Card
                         key={cls.id}
                         onClick={() => handleOpenClassDetails(cls)}
-                        className={`rounded-2xl border cursor-pointer hover:shadow-md transition-all ${selectedClassId === cls.id ? "ring-2 ring-[#2563EB] border-[#2563EB]" : ""
+                        className={`rounded-xl border cursor-pointer hover:shadow-md transition-all ${selectedClassId === cls.id ? "ring-2 ring-primary border-primary" : ""
                           }`}
                       >
                         <CardContent className="p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold font-mono text-[#2563EB]">{cls.timeRange}</span>
+                            <span className="text-xs font-bold font-mono text-primary">{cls.timeRange}</span>
                             <Badge
                               className={
                                 cls.status === "LIVE"
@@ -736,10 +727,10 @@ export const FacultyMySchedule: React.FC = () => {
                                   : "bg-blue-50 text-blue-700 border-blue-200"
                               }
                             >
-                              {cls.status === "LIVE" ? "● LIVE NOW" : "Upcoming"}
+                              {cls.status === "LIVE" ? "? LIVE NOW" : "Upcoming"}
                             </Badge>
                           </div>
-                          <h4 className="font-extrabold text-sm text-slate-900">{cls.courseName}</h4>
+                          <h4 className="font-semibold text-sm text-slate-900">{cls.courseName}</h4>
                           <p className="text-xs text-slate-500">
                             Batch {cls.batchCode} • {cls.roomNo} ({cls.mode}) • {cls.studentCount} Students
                           </p>
@@ -747,7 +738,7 @@ export const FacultyMySchedule: React.FC = () => {
                       </Card>
                     ))
                   ) : (
-                    <div className="py-8 text-center text-xs text-slate-400 bg-white rounded-2xl border border-dashed">
+                    <div className="py-8 text-center text-xs text-slate-400 bg-white rounded-xl border border-dashed">
                       No classes scheduled for {activeDay.dayName}.
                     </div>
                   )}
@@ -756,18 +747,18 @@ export const FacultyMySchedule: React.FC = () => {
             })()}
           </div>
 
-          {/* ─── Bottom Two-Column Dashboard (Today's Classes + Class Details) ─── */}
+          {/* --- Bottom Two-Column Dashboard (Today's Classes + Class Details) --- */}
           <div ref={todayClassesSectionRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 scroll-mt-6">
             {/* Left Column: Today's Classes List */}
             <div className="lg:col-span-6 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                   Today's Classes ({weekDays.find((d) => d.isToday)?.dayShort || weekDays[0]?.dayShort}, {weekDays.find((d) => d.isToday)?.formattedDate || weekDays[0]?.formattedDate})
                 </h3>
                 <button
                   type="button"
                   onClick={() => setViewMode("LIST")}
-                  className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   View Full Day <ArrowRight className="w-3.5 h-3.5" />
                 </button>
@@ -775,7 +766,7 @@ export const FacultyMySchedule: React.FC = () => {
 
               <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
                 {todayClasses.length === 0 ? (
-                  <div className="text-center py-12 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/50">
+                  <div className="text-center py-12 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-white/50 dark:bg-slate-900/50">
                     <CalendarDays className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No classes scheduled for today</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Check the timetable grid or switch dates to view other sessions.</p>
@@ -789,19 +780,19 @@ export const FacultyMySchedule: React.FC = () => {
                       <Card
                         key={cls.id}
                         onClick={() => setSelectedClassId(cls.id)}
-                        className={`rounded-2xl border transition-all cursor-pointer ${isSelected
-                            ? "border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-blue-50/30 dark:bg-slate-800"
+                        className={`rounded-xl border transition-all cursor-pointer ${isSelected
+                            ? "border-primary ring-2 ring-primary/20 bg-blue-50/30 dark:bg-slate-800"
                             : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
                           }`}
                       >
                         <CardContent className="p-4 flex items-center justify-between gap-3">
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                                 {cls.startTime} – {cls.endTime}
                               </span>
                               <Badge
-                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${isLive
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isLive
                                     ? "bg-emerald-600 text-white animate-pulse"
                                     : "bg-blue-50 text-blue-600 border border-blue-200"
                                   }`}
@@ -809,7 +800,7 @@ export const FacultyMySchedule: React.FC = () => {
                                 {isLive ? "LIVE NOW" : "Upcoming"}
                               </Badge>
                             </div>
-                            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white">
                               {cls.courseName}
                             </h4>
                             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
@@ -837,7 +828,7 @@ export const FacultyMySchedule: React.FC = () => {
                               e.stopPropagation();
                               handleNavigateToSession(cls);
                             }}
-                            className="rounded-xl text-xs font-extrabold h-8 px-3.5 shrink-0 cursor-pointer text-[#2563EB] border-blue-200 hover:bg-[#2563EB] hover:text-white hover:border-[#2563EB] bg-white transition-all shadow-2xs"
+                            className="rounded-xl text-xs font-semibold h-8 px-3.5 shrink-0 cursor-pointer text-primary border-blue-200 hover:bg-primary hover:text-white hover:border-primary bg-white transition-all shadow-2xs"
                           >
                             View Class
                           </Button>
@@ -852,16 +843,16 @@ export const FacultyMySchedule: React.FC = () => {
             {/* Right Column: Class Details Card */}
             <div className="lg:col-span-6">
               {currentSelectedClass ? (
-                <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex flex-col justify-between">
+                <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex flex-col justify-between">
                   <div>
                     {/* Card Header */}
                     <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                           {currentSelectedClass.courseName}
                         </h3>
                         <Badge
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${currentSelectedClass.status === "LIVE"
+                          className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${currentSelectedClass.status === "LIVE"
                               ? "bg-emerald-600 text-white animate-pulse"
                               : "bg-blue-50 text-blue-600 border border-blue-200"
                             }`}
@@ -879,7 +870,7 @@ export const FacultyMySchedule: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleNavigateToSession(currentSelectedClass)}
-                        className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         Go to Class <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -889,12 +880,12 @@ export const FacultyMySchedule: React.FC = () => {
                     <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
                       {/* Row 1 */}
                       <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-primary flex items-center justify-center shrink-0 mt-0.5">
                           <BookOpen className="w-3.5 h-3.5" />
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Batch</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.batchCode}
                           </span>
                         </div>
@@ -906,7 +897,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Faculty</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {user?.name || "Faculty01"}
                           </span>
                         </div>
@@ -919,7 +910,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Subject / Module</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.subjectName}
                           </span>
                         </div>
@@ -931,7 +922,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Date</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.date
                               ? new Date(currentSelectedClass.date).toLocaleDateString("en-IN", {
                                 day: "numeric",
@@ -950,7 +941,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Scheduled Time</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.timeRange}
                           </span>
                         </div>
@@ -962,7 +953,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Enrolled Students</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.studentCount}
                           </span>
                         </div>
@@ -975,7 +966,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Mode</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.mode === "ONLINE" ? "Online" : "Offline"}
                           </span>
                         </div>
@@ -988,7 +979,7 @@ export const FacultyMySchedule: React.FC = () => {
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Attendance Status</span>
                           <span
-                            className={`font-extrabold ${currentSelectedClass.attendanceStatus === "Updated"
+                            className={`font-semibold ${currentSelectedClass.attendanceStatus === "Updated"
                                 ? "text-emerald-600 font-bold"
                                 : "text-amber-600"
                               }`}
@@ -1005,14 +996,14 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Room</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.roomNo || "Room No 1"}
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-primary flex items-center justify-center shrink-0 mt-0.5">
                           <Video className="w-3.5 h-3.5" />
                         </div>
                         <div>
@@ -1022,12 +1013,12 @@ export const FacultyMySchedule: React.FC = () => {
                               href={currentSelectedClass.meetingUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-bold text-[#2563EB] hover:underline truncate block max-w-[150px]"
+                              className="font-bold text-primary hover:underline truncate block max-w-[150px]"
                             >
                               Google Meet link
                             </a>
                           ) : (
-                            <span className="font-extrabold text-slate-400">-</span>
+                            <span className="font-semibold text-slate-400">-</span>
                           )}
                         </div>
                       </div>
@@ -1040,15 +1031,15 @@ export const FacultyMySchedule: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
-                      className="flex-1 h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-extrabold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 h-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-semibold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <UserCheck className="w-4 h-4 text-[#2563EB]" /> Update Attendance
+                      <UserCheck className="w-4 h-4 text-primary" /> Update Attendance
                     </Button>
 
                     <Button
                       type="button"
                       onClick={() => handleGoLive(currentSelectedClass)}
-                      className="flex-1 h-11 rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Video className="w-4 h-4" />{" "}
                       {currentSelectedClass.status === "LIVE"
@@ -1058,12 +1049,12 @@ export const FacultyMySchedule: React.FC = () => {
                   </div>
                 </Card>
               ) : (
-                <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex items-center justify-center p-8 text-center min-h-[360px]">
+                <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex items-center justify-center p-8 text-center min-h-[360px]">
                   <div className="max-w-xs space-y-2">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-slate-800 text-[#2563EB] flex items-center justify-center mx-auto mb-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-slate-800 text-primary flex items-center justify-center mx-auto mb-3">
                       <BookOpen className="w-6 h-6" />
                     </div>
-                    <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">No Class Selected</h3>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Class Selected</h3>
                     <p className="text-xs text-slate-400">
                       Select a scheduled class from the list or timetable above to view session details, host class, or update attendance.
                     </p>
@@ -1075,21 +1066,23 @@ export const FacultyMySchedule: React.FC = () => {
           </>
           )}
         </div>
+        </PageSection>
       ) : (
-        /* ─── Class List View ─── */
+        /* --- Class List View --- */
+        <PageSection title="Class list">
         <div className="space-y-3">
           {filteredClasses.length > 0 ? (
             filteredClasses.map((cls) => (
               <Card
                 key={cls.id}
-                className="border-slate-200 dark:border-slate-800 rounded-3xl hover:shadow-md transition-shadow overflow-hidden bg-white dark:bg-slate-900"
+                className="border-border/80 rounded-xl hover:shadow-md transition-shadow overflow-hidden bg-card"
               >
-                <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {cls.status === "LIVE" ? (
-                        <Badge className="bg-emerald-600 text-white font-extrabold text-xs px-2.5 py-0.5 animate-pulse">
-                          ● LIVE NOW
+                        <Badge className="bg-emerald-600 text-white font-semibold text-xs px-2.5 py-0.5 animate-pulse">
+                          LIVE NOW
                         </Badge>
                       ) : cls.status === "COMPLETED" ? (
                         <Badge className="bg-slate-500 text-white font-semibold text-xs px-2 py-0.5">
@@ -1098,7 +1091,7 @@ export const FacultyMySchedule: React.FC = () => {
                       ) : (
                         <Badge
                           variant="outline"
-                          className="text-xs px-2.5 py-0.5 text-[#2563EB] bg-blue-50 font-extrabold"
+                          className="text-xs px-2.5 py-0.5 text-primary bg-blue-50 font-semibold"
                         >
                           UPCOMING
                         </Badge>
@@ -1108,12 +1101,12 @@ export const FacultyMySchedule: React.FC = () => {
                       </Badge>
                       <span className="text-xs text-slate-400">•</span>
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-[#2563EB]" />
+                        <Clock className="w-3.5 h-3.5 text-primary" />
                         {cls.date} ({cls.timeRange})
                       </span>
                     </div>
 
-                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">
                       {cls.courseName}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1140,13 +1133,13 @@ export const FacultyMySchedule: React.FC = () => {
                     <Button
                       variant="outline"
                       onClick={() => handleNavigateToSession(cls, "attendance")}
-                      className="rounded-2xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-50"
+                      className="rounded-xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-50"
                     >
-                      <UserCheck className="w-3.5 h-3.5 mr-1 text-[#2563EB]" /> Attendance
+                      <UserCheck className="w-3.5 h-3.5 mr-1 text-primary" /> Attendance
                     </Button>
                     <Button
                       onClick={() => handleGoLive(cls)}
-                      className="rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold h-9 text-xs px-4"
+                      className="rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold h-9 text-xs px-4"
                     >
                       <Video className="w-3.5 h-3.5 mr-1.5" />{" "}
                       {cls.status === "LIVE" ? "Open Google Meet" : "Host Class"}
@@ -1156,14 +1149,15 @@ export const FacultyMySchedule: React.FC = () => {
               </Card>
             ))
           ) : (
-            <div className="py-16 text-center text-xs text-slate-400 bg-white rounded-3xl border border-dashed">
+            <div className="py-16 text-center text-xs text-muted-foreground bg-card rounded-xl border border-dashed">
               No classes matching your filter criteria.
             </div>
           )}
         </div>
+        </PageSection>
       )}
 
-      {/* ─── Start Class Centered Modal ─── */}
+      {/* --- Start Class Centered Modal --- */}
       <StartClassModal
         isOpen={isClassModalOpen}
         onClose={() => setIsClassModalOpen(false)}
@@ -1179,7 +1173,7 @@ export const FacultyMySchedule: React.FC = () => {
         }}
       />
 
-      {/* ─── Recording Modal ─── */}
+      {/* --- Recording Modal --- */}
       {recordingModalSession && (
         <UploadRecordingModal
           isOpen={Boolean(recordingModalSession)}
@@ -1198,7 +1192,7 @@ export const FacultyMySchedule: React.FC = () => {
         />
       )}
 
-      {/* ─── Study Materials Modal ─── */}
+      {/* --- Study Materials Modal --- */}
       {materialsModalSession && (
         <UploadStudyMaterialsModal
           isOpen={Boolean(materialsModalSession)}

@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Table,
   TableBody,
@@ -112,16 +113,12 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {!embedded && (
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Pending Dues & Installments</h2>
-          <p className="text-sm text-text-secondary">
-            Monitor unpaid course fees, track overdue student accounts, collect pending installments, and send automated reminders.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Pending Dues & Installments"
+        description="Monitor unpaid course fees, track overdue student accounts, collect pending installments, and send automated reminders."
+      />
       )}
 
       {!embedded && (
@@ -164,7 +161,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
 
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
+            <div className="p-3 rounded-lg bg-blue-50 text-primary">
               <Clock className="h-6 w-6" />
             </div>
             <div>
@@ -209,7 +206,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                     setDueWithinDays(undefined);
                   }
                 }}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="ALL">All Due Statuses</option>
                 <option value="OVERDUE">Overdue Only</option>
@@ -244,7 +241,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                   <TableRow>
                     <TableCell colSpan={11} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
                         Loading pending fee records...
                       </div>
                     </TableCell>
@@ -301,7 +298,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                           <PermissionGate itemKey="fees.pending" mode="write">
                             <Button
                               size="sm"
-                              className="bg-[#2563EB] hover:bg-[#F39A16] text-white text-xs h-8"
+                              className="bg-primary hover:bg-[#F39A16] text-white text-xs h-8"
                               onClick={() => setCollectItem(pf)}
                             >
                               <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
@@ -346,6 +343,6 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
         />
       )}
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </div>
+    </PageContainer>
   );
 };

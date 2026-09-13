@@ -18,6 +18,7 @@ import {
   Building2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -410,22 +411,16 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
-      {/* ─── Breadcrumb & Header ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
-            Faculty Attendance
-          </h1>
-        </div>
-
-        {/* Month Navigator & Today shortcut */}
-        <div className="flex items-center gap-2 self-start md:self-auto bg-card border border-border/60 rounded-xl p-1.5 shadow-xs">
+    <PageContainer>
+      <PageHeader
+        title="Faculty Attendance"
+        actions={
+        <div className="flex items-center gap-2 bg-card border border-border/60 rounded-xl p-1.5 shadow-xs">
           <Button
             variant="ghost"
             size="icon"
             onClick={handlePrevMonth}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg"
             title="Previous Month"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -439,7 +434,7 @@ export const FacultyAttendance: React.FC = () => {
             variant="ghost"
             size="icon"
             onClick={handleNextMonth}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg"
             title="Next Month"
           >
             <ChevronRight className="h-4 w-4" />
@@ -451,132 +446,63 @@ export const FacultyAttendance: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleTodayClick}
-            className="h-8 px-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100"
+            className="h-9 px-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100"
           >
             Today
           </Button>
         </div>
-      </div>
+        }
+      />
 
-      {/* ─── Summary Cards (Present, Absent, Leave, Attendance %, Working Hours) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {/* 1. PRESENT */}
-        <Card className="border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
-                Present
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
-                  {summary.presentCount + (summary.halfDayCount > 0 ? ` (+${summary.halfDayCount} HD)` : "")}
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  {summary.workingDays > 0 ? `${Math.round((summary.presentCount / summary.workingDays) * 100)}%` : "0%"}
-                </span>
-              </div>
-            </div>
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Present</p>
+            <h3 className="text-xl font-bold text-emerald-600 mt-0.5">
+              {summary.presentCount}
+              {summary.halfDayCount > 0 ? ` (+${summary.halfDayCount} HD)` : ""}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.workingDays > 0 ? `${Math.round((summary.presentCount / summary.workingDays) * 100)}%` : "0%"} of working days
+            </p>
           </CardContent>
         </Card>
-
-        {/* 2. ABSENT */}
-        <Card className="border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-500/30">
-              <XCircle className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-bold text-rose-800 dark:text-rose-400 uppercase tracking-wider">
-                Absent
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
-                  {summary.absentCount}
-                </span>
-                <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">
-                  {summary.workingDays > 0 ? `${Math.round((summary.absentCount / summary.workingDays) * 100)}%` : "0%"}
-                </span>
-              </div>
-            </div>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Absent</p>
+            <h3 className="text-xl font-bold text-rose-600 mt-0.5">{summary.absentCount}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.workingDays > 0 ? `${Math.round((summary.absentCount / summary.workingDays) * 100)}%` : "0%"} of working days
+            </p>
           </CardContent>
         </Card>
-
-        {/* 3. LEAVE */}
-        <Card className="border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-                Leave
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
-                  {summary.leaveCount}
-                </span>
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  {summary.workingDays > 0 ? `${Math.round((summary.leaveCount / summary.workingDays) * 100)}%` : "0%"}
-                </span>
-              </div>
-            </div>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Leave</p>
+            <h3 className="text-xl font-bold text-amber-600 mt-0.5">{summary.leaveCount}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.workingDays > 0 ? `${Math.round((summary.leaveCount / summary.workingDays) * 100)}%` : "0%"} of working days
+            </p>
           </CardContent>
         </Card>
-
-        {/* 4. ATTENDANCE % */}
-        <Card className="border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">
-                Attendance %
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
-                  {summary.attendancePercentage}%
-                </span>
-                <span className="text-[10.5px] font-medium text-indigo-700 dark:text-indigo-400 truncate">
-                  {summary.workingDays} days
-                </span>
-              </div>
-            </div>
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{summary.attendancePercentage}%</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {summary.workingDays} days · {summary.totalHoursStr} hrs
+            </p>
           </CardContent>
         </Card>
-
-        {/* 5. WORKING HOURS */}
-        <Card className="col-span-2 md:col-span-1 border border-cyan-200/80 dark:border-cyan-900/50 bg-cyan-50/40 dark:bg-cyan-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-cyan-600/30">
-              <Briefcase className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-bold text-cyan-800 dark:text-cyan-400 uppercase tracking-wider">
-                Working Hours
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black text-slate-900 dark:text-slate-50 truncate">
-                  {summary.totalHoursStr}
-                </span>
-              </div>
-              <div className="text-[9.5px] text-muted-foreground truncate">
-                Avg: {summary.avgHoursStr}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </MetricGrid>
 
       {/* ─── Calendar & Month Breakdown Grid ────────────────────────────── */}
       {(viewMode === "UNIFIED" || viewMode === "CALENDAR") && (
+        <PageSection title="Monthly calendar">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Monthly Interactive Calendar */}
-          <Card className="lg:col-span-2 border border-border/60 rounded-2xl shadow-xs">
-            <CardHeader className="p-4 md:p-5 border-b border-border/40 flex flex-row items-center justify-between">
+          <Card className="lg:col-span-2 border border-border/60 rounded-xl shadow-xs">
+            <CardHeader className="p-5 border-b border-border/40 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <CardTitle className="text-base md:text-lg font-bold">
@@ -588,7 +514,7 @@ export const FacultyAttendance: React.FC = () => {
                   variant="ghost"
                   size="icon"
                   onClick={handlePrevMonth}
-                  className="h-7 w-7 rounded-lg"
+                  className="h-9 w-9 rounded-lg"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -596,20 +522,20 @@ export const FacultyAttendance: React.FC = () => {
                   variant="ghost"
                   size="icon"
                   onClick={handleNextMonth}
-                  className="h-7 w-7 rounded-lg"
+                  className="h-9 w-9 rounded-lg"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="p-4 md:p-5">
+            <CardContent className="p-5">
               {/* Day Headers (Sun - Sat) */}
               <div className="grid grid-cols-7 gap-1.5 text-center mb-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
                   <div
                     key={day}
                     className={`text-xs font-bold py-1 uppercase tracking-wider ${
-                      i === 0 ? "text-rose-500 font-extrabold" : "text-muted-foreground"
+                      i === 0 ? "text-rose-500 font-semibold" : "text-muted-foreground"
                     }`}
                   >
                     {day}
@@ -679,7 +605,7 @@ export const FacultyAttendance: React.FC = () => {
           </Card>
 
           {/* Right Side Summary Breakdown Card */}
-          <Card className="border border-border/60 rounded-2xl shadow-xs flex flex-col justify-between">
+          <Card className="border border-border/60 rounded-xl shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 md:p-5 border-b border-border/40">
               <CardTitle className="text-base md:text-lg font-bold flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -744,12 +670,14 @@ export const FacultyAttendance: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+        </PageSection>
       )}
 
       {/* ─── Attendance History Table (Desktop) & Card List (Mobile) ──────── */}
       {(viewMode === "UNIFIED" || viewMode === "TABLE") && (
-        <Card className="border border-border/60 rounded-2xl shadow-xs overflow-hidden">
-          <CardHeader className="p-4 md:p-5 border-b border-border/40 flex flex-row items-center justify-between">
+        <PageSection title="Attendance history">
+        <Card className="border border-border/60 rounded-xl shadow-xs overflow-hidden">
+          <CardHeader className="p-5 border-b border-border/40 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base md:text-lg font-bold flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -884,8 +812,9 @@ export const FacultyAttendance: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </PageSection>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

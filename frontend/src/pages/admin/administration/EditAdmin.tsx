@@ -42,6 +42,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -158,18 +159,18 @@ export const EditAdmin: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <PageContainer maxWidth="narrow">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-slate-600 font-medium">Loading user...</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (isError || !admin) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <PageContainer maxWidth="narrow">
         <Button
           variant="ghost"
           onClick={() => navigate(USERS_PATH)}
@@ -185,7 +186,7 @@ export const EditAdmin: React.FC = () => {
             The staff user you are trying to edit does not exist.
           </p>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -258,25 +259,20 @@ export const EditAdmin: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(USERS_PATH)}
-          size="icon"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-            Edit User
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Update profile information
-            {hasPermissionMatrix ? " and module permissions" : ""} for {admin.name}
-          </p>
-        </div>
-      </div>
+    <PageContainer maxWidth="narrow">
+      <PageHeader
+        title="Edit User"
+        description={`Update profile information${hasPermissionMatrix ? " and module permissions" : ""} for ${admin.name}`}
+        actions={
+          <Button
+            variant="ghost"
+            onClick={() => navigate(USERS_PATH)}
+            size="icon"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+        }
+      />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -388,7 +384,7 @@ export const EditAdmin: React.FC = () => {
             <Card className="border-blue-100/80 shadow-xs">
               <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#2563EB] flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
@@ -452,7 +448,7 @@ export const EditAdmin: React.FC = () => {
             </Button>
             <Button
               type="submit"
-              className="bg-[#2563EB] hover:bg-[#F39A16] text-white transition-colors"
+              className="bg-primary hover:bg-[#F39A16] text-white transition-colors"
               disabled={isSaving || (hasPermissionMatrix && !permissionsLoaded)}
             >
               {isSaving ? (
@@ -466,6 +462,6 @@ export const EditAdmin: React.FC = () => {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 };

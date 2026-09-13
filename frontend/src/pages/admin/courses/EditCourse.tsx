@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "l
 import { coursesApi, type CourseData } from "../../../services/courses.api";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -160,25 +161,26 @@ export const EditCourse: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
-      <div className="flex items-center gap-4">
+    <PageContainer maxWidth="narrow" className="animate-in fade-in duration-300">
+      <div className="flex items-start gap-4">
         <Button
           variant="outline"
           size="sm"
           onClick={() => navigate(coursesListPath)}
-          className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
+          className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer shrink-0"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Courses
         </Button>
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-foreground">Edit Course</h2>
-          <p className="text-xs text-muted-foreground font-medium mt-0.5">Update course details, fee, and status.</p>
-        </div>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title="Edit Course"
+          description="Update course details, fee, and status."
+        />
       </div>
 
       {isSaved && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
           <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
           <div>
             <p className="text-sm font-bold">Course Updated Successfully!</p>
@@ -188,7 +190,7 @@ export const EditCourse: React.FC = () => {
       )}
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
           <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
           <div>
             <p className="text-sm font-bold">Failed to Update Course</p>
@@ -198,9 +200,9 @@ export const EditCourse: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
           <CardHeader className="border-b border-border p-6 bg-muted/20">
-            <CardTitle className="text-lg font-black text-foreground flex items-center gap-2">
+            <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               Course Specification
             </CardTitle>
@@ -378,6 +380,6 @@ export const EditCourse: React.FC = () => {
           </CardContent>
         </Card>
       </form>
-    </div>
+    </PageContainer>
   );
 };

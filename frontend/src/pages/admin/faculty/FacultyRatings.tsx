@@ -6,6 +6,7 @@ import {
   Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -95,18 +96,12 @@ export const FacultyRatings: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 min-h-screen relative overflow-x-hidden animate-in fade-in duration-300">
-      {/* ─── PAGE HEADER ─── */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
-          Faculty Ratings & Feedback
-        </h1>
-      </div>
+    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
+      <PageHeader title="Faculty Ratings & Feedback" />
 
-      {/* ─── KPI SUMMARY CARDS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5">
+      <MetricGrid density="compact">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Overall Rating</p>
             <div className="flex items-baseline gap-1 mt-0.5">
               <h3 className="text-xl font-bold text-amber-500">{kpis.overallAvg}</h3>
@@ -115,31 +110,30 @@ export const FacultyRatings: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Reviews</p>
             <h3 className="text-xl font-bold text-foreground mt-0.5">{kpis.totalReviews}</h3>
           </CardContent>
         </Card>
 
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Rated Instructors</p>
             <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{kpis.topRatedCount}</h3>
           </CardContent>
         </Card>
 
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5">
+        <Card size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent size="compact">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Evaluated Faculty</p>
             <h3 className="text-xl font-bold text-foreground mt-0.5">{kpis.totalFacultyCount}</h3>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* ─── SEARCH & BRANCH FILTER BAR ─── */}
       <Card className="border border-border/80 shadow-2xs bg-card rounded-xl p-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        <FilterToolbar className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -165,7 +159,7 @@ export const FacultyRatings: React.FC = () => {
               ))}
             </select>
           </div>
-        </div>
+        </FilterToolbar>
       </Card>
 
       {/* ─── RATINGS TABLE ─── */}
@@ -275,7 +269,7 @@ export const FacultyRatings: React.FC = () => {
       >
         <DialogContent className="max-w-xl bg-card border-border max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
               <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
               Student Reviews — {selectedFacultyForReviews?.facultyName}
             </DialogTitle>
@@ -351,6 +345,6 @@ export const FacultyRatings: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

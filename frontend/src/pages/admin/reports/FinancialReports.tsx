@@ -54,10 +54,11 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 
 const PAGE_SIZE = 10;
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]";
+  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-primary";
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -346,22 +347,26 @@ export const FinancialReports: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="py-20 flex flex-col justify-center items-center text-muted-foreground space-y-3">
-        <Loader2 className="h-9 w-9 animate-spin text-primary" />
-        <p className="text-sm font-medium">Calculating revenue, outstanding balances, and financial health...</p>
-      </div>
+      <PageContainer>
+        <div className="py-20 flex flex-col justify-center items-center text-muted-foreground space-y-3">
+          <Loader2 className="h-9 w-9 animate-spin text-primary" />
+          <p className="text-sm font-medium">Calculating revenue, outstanding balances, and financial health...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-2xl text-center space-y-3">
-        <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
-        <h3 className="text-lg font-bold text-foreground">Failed to load financial reports</h3>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Retry Loading
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-xl text-center space-y-3">
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+          <h3 className="text-lg font-bold text-foreground">Failed to load financial reports</h3>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry Loading
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -377,35 +382,30 @@ export const FinancialReports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 pb-10 print:space-y-3">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Revenue & Finance Reports</h2>
-          <p className="text-sm text-text-secondary">
-            Fee demand, collections, outstanding dues, concessions, and payment audit trails.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportSummary}>
-            <Download className="mr-2 h-4 w-4" /> Summary CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportTransactions}>
-            <Download className="mr-2 h-4 w-4" /> Transactions CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportOutstanding}>
-            <Download className="mr-2 h-4 w-4" /> Outstanding CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-        </div>
-      </div>
-
-      <Card className="border-slate-200 shadow-sm print:hidden">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <Filter className="h-3.5 w-3.5" /> Filters
+    <PageContainer className="print:space-y-3">
+      <PageHeader
+        className="print:hidden"
+        title="Revenue & Finance Reports"
+        description="Fee demand, collections, outstanding dues, concessions, and payment audit trails."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportSummary}>
+              <Download className="mr-2 h-4 w-4" /> Summary CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportTransactions}>
+              <Download className="mr-2 h-4 w-4" /> Transactions CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportOutstanding}>
+              <Download className="mr-2 h-4 w-4" /> Outstanding CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
           </div>
+        }
+      />
+
+      <FilterToolbar className="flex-col items-stretch gap-3 print:hidden">
           <div className="flex flex-wrap gap-2">
             {[
               ["all", "All Time"],
@@ -433,7 +433,7 @@ export const FinancialReports: React.FC = () => {
               </Button>
             ))}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {isAdmin && (
               <select
                 className={SELECT_CLASS}
@@ -578,28 +578,23 @@ export const FinancialReports: React.FC = () => {
           <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={resetFilters}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
           </Button>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {[
-          { label: "Fee Demand", value: inr(summary.totalFeeDemand || 0), tone: "text-slate-900" },
           { label: "Collected", value: inr(summary.totalCollected), tone: "text-emerald-600" },
           { label: "Outstanding", value: inr(summary.totalPending), tone: "text-amber-600" },
           { label: "Collection Rate", value: `${summary.collectionRate}%`, tone: "text-blue-600" },
-          { label: "Concession", value: inr(summary.totalConcession || 0), tone: "text-violet-600" },
-          { label: "Refunds", value: inr(summary.totalRefunds || 0), tone: "text-rose-600" },
           { label: "Net Revenue", value: inr(summary.netRevenue ?? summary.totalCollected), tone: "text-emerald-700" },
-          { label: "Projected", value: inr(summary.projectedRevenue), tone: "text-slate-800" },
         ].map((m) => (
-          <Card key={m.label} className="border-border/50 shadow-sm">
-            <CardContent className="p-3">
+          <Card key={m.label} size="compact" className="border-border/50 shadow-sm">
+            <CardContent size="compact">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{m.label}</p>
               <h3 className={`text-lg font-bold mt-1 ${m.tone}`}>{m.value}</h3>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </MetricGrid>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 print:hidden">
         <AttentionCard title="Overdue Fees" items={needs.overdueFees} icon={AlertTriangle} tone="bg-red-50 text-red-700" />
@@ -1184,6 +1179,6 @@ export const FinancialReports: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

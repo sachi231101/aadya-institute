@@ -57,11 +57,12 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS, FilterToolbar, PageSection } from "@/components/layout";
 
 const PAGE_SIZE = 10;
 const PIE_COLORS = ["#10b981", "#ef4444", "#f59e0b", "#2563EB", "#8b5cf6"];
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]";
+  "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:border-primary";
 
 const AttentionCard = ({
   title,
@@ -212,49 +213,44 @@ export const AttendanceReports: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-3 text-text-muted">
-        <Loader2 className="h-9 w-9 animate-spin text-[#2563EB]" />
-        <p className="text-sm font-medium">Loading attendance analytics...</p>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-20 space-y-3 text-text-muted">
+          <Loader2 className="h-9 w-9 animate-spin text-primary" />
+          <p className="text-sm font-medium">Loading attendance analytics...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center space-y-3">
-        <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-        <h3 className="text-lg font-bold text-red-800">Failed to load attendance reports</h3>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Retry Loading
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="p-8 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+          <h3 className="text-lg font-bold text-red-800">Failed to load attendance reports</h3>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry Loading
+          </Button>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-4 pb-10">
-      <div className="flex flex-col md:flex-row justify-between gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-            Student Attendance Reports
-          </h2>
-          <p className="text-sm text-slate-500">
-            Branch-scoped attendance analytics, risk flags, and session coverage.
-          </p>
-        </div>
-        <Button variant="outline" className="h-9 text-xs shrink-0" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
-          Export CSV
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Student Attendance Reports"
+        description="Branch-scoped attendance analytics, risk flags, and session coverage."
+        actions={
+          <Button variant="outline" className="h-9 text-xs shrink-0" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4 text-primary" />
+            Export CSV
+          </Button>
+        }
+      />
 
-      {/* Filters */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
+      <FilterToolbar className="flex-col items-stretch gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {isAdmin && (
               <select
                 className={SELECT_CLASS}
@@ -355,40 +351,35 @@ export const AttendanceReports: React.FC = () => {
               Reset
             </Button>
           </div>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
         {[
-          { label: "Sessions", value: summary.totalSessions, icon: CalendarDays, color: "text-[#2563EB]", bg: "bg-blue-50" },
+          { label: "Sessions", value: summary.totalSessions, icon: CalendarDays, color: "text-primary", bg: "bg-blue-50" },
           { label: "Avg Rate", value: `${summary.avgAttendanceRate}%`, icon: BarChart3, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Present", value: summary.presentCount, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Absent", value: summary.absentCount, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Leave", value: summary.leaveCount, icon: ClipboardList, color: "text-amber-600", bg: "bg-amber-50" },
           { label: "At Risk", value: summary.atRiskStudents, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50" },
           { label: "Discontinuation", value: summary.discontinuationRiskCount, icon: ShieldAlert, color: "text-red-600", bg: "bg-red-50" },
         ].map((kpi) => (
-          <Card key={kpi.label} className="border-slate-200 shadow-sm bg-white">
-            <CardContent className="p-4">
+          <Card key={kpi.label} size="compact" className="border-slate-200 shadow-sm bg-white">
+            <CardContent size="compact">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{kpi.label}</p>
                 <div className={`p-1.5 rounded-md ${kpi.bg}`}>
                   <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
                 </div>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-2">{kpi.value}</h3>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </MetricGrid>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="border-slate-200 shadow-sm xl:col-span-2">
           <CardContent className="p-4">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-sm">
-              <BarChart3 className="w-4 h-4 text-[#2563EB]" /> Monthly Attendance Trend
+              <BarChart3 className="w-4 h-4 text-primary" /> Monthly Attendance Trend
             </h3>
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={data?.monthlyTrend || []}>
@@ -405,7 +396,7 @@ export const AttendanceReports: React.FC = () => {
         <Card className="border-slate-200 shadow-sm">
           <CardContent className="p-4">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-sm">
-              <PieChartIcon className="w-4 h-4 text-[#2563EB]" /> Status Distribution
+              <PieChartIcon className="w-4 h-4 text-primary" /> Status Distribution
             </h3>
             {(data?.statusDistribution || []).every((s) => s.count === 0) ? (
               <p className="text-xs text-slate-400 text-center py-16">No attendance records.</p>
@@ -613,7 +604,7 @@ export const AttendanceReports: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <span className="font-mono text-[11px] font-bold text-[#2563EB] block">
+                          <span className="font-mono text-[11px] font-bold text-primary block">
                             {s.studentCode}
                           </span>
                           <span className="text-xs font-semibold text-slate-900">{s.name}</span>
@@ -688,6 +679,6 @@ export const AttendanceReports: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

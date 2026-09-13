@@ -23,6 +23,7 @@ import {
   Copy,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS, FilterToolbar, PageSection } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,10 +231,10 @@ export const StudentCertificates: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-6xl mx-auto animate-in fade-in duration-500 bg-[#f8fafc] dark:bg-slate-950 min-h-screen">
+    <PageContainer maxWidth="narrow" className="animate-in fade-in duration-500">
       {/* Toast Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in slide-in-from-bottom-3 duration-300">
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in slide-in-from-bottom-3 duration-300">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-semibold">{toastMessage}</span>
           <button
@@ -245,115 +246,49 @@ export const StudentCertificates: React.FC = () => {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-[#0A2540] dark:text-white flex items-center gap-3 tracking-tight">
-            <span className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 shadow-2xs">
-              <Award className="h-6 w-6 stroke-[2.2]" />
-            </span>
-            My Certificates & Credentials
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            View, download, and publicly verify your Aadya Institute academic credentials, proctored exam diplomas, and skill honors.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
+      <PageHeader
+        title="My Certificates"
+        description="View and download your issued credentials."
+        actions={
           <Button
             onClick={() => setShowRequestModal(true)}
             variant="outline"
-            className="rounded-xl border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-xs font-bold gap-2 cursor-pointer shadow-2xs"
+            className="rounded-xl text-xs font-semibold gap-2"
           >
             <Send className="w-3.5 h-3.5" />
             Request Certificate
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Earned Credentials
-              </p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                {issuedCount}
-              </h3>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Verified & Active
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600">
-              <Award className="w-5 h-5" />
-            </div>
-          </div>
+      <MetricGrid density="compact" columns={METRIC_GRID_COLUMNS[4]}>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Earned Credentials</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{issuedCount}</h3>
+          </CardContent>
         </Card>
-
-        <Card className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Distinctions & Honors
-              </p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                2
-              </h3>
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5 flex items-center gap-1">
-                <Star className="w-3 h-3 fill-current" /> Top Percentile
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-100 dark:border-amber-900 flex items-center justify-center text-amber-600">
-              <Sparkles className="w-5 h-5" />
-            </div>
-          </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Distinctions</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">2</h3>
+          </CardContent>
         </Card>
-
-        <Card className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Ready to Claim
-              </p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                {eligibleCount}
-              </h3>
-              <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Requirements Met
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center text-indigo-600">
-              <FileCheck className="w-5 h-5" />
-            </div>
-          </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ready to Claim</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{eligibleCount}</h3>
+          </CardContent>
         </Card>
-
-        <Card className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                In Progress
-              </p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                {inProgressCount}
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Enrolled Modules
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-          </div>
+        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">In Progress</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{inProgressCount}</h3>
+          </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* Filters & Search Toolbar */}
-      <Card className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Category Tabs */}
+      <FilterToolbar className="flex-col md:flex-row md:items-center">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             {[
               { id: "ALL", label: "All Credentials" },
@@ -395,12 +330,11 @@ export const StudentCertificates: React.FC = () => {
               </button>
             )}
           </div>
-        </div>
-      </Card>
+      </FilterToolbar>
 
-      {/* Certificate Cards Grid */}
+      <PageSection title="Your certificates">
       {filteredCertificates.length === 0 ? (
-        <Card className="bg-white dark:bg-slate-900 rounded-3xl border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-2xs">
+        <Card className="bg-white dark:bg-slate-900 rounded-xl border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-2xs">
           <Award className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <h3 className="text-slate-800 dark:text-slate-200 font-bold text-base">
             No certificates found
@@ -419,7 +353,7 @@ export const StudentCertificates: React.FC = () => {
             return (
               <Card
                 key={cert.id}
-                className={`bg-white dark:bg-slate-900 rounded-3xl border transition-all duration-300 group flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-lg ${
+                className={`bg-white dark:bg-slate-900 rounded-xl border transition-all duration-300 group flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-lg ${
                   isIssued
                     ? "border-slate-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700"
                     : isEligible
@@ -445,7 +379,7 @@ export const StudentCertificates: React.FC = () => {
 
                     <div className="flex items-center justify-between gap-2 relative z-10">
                       <Badge
-                        className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 border ${
+                        className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 border ${
                           isIssued
                             ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
                             : isEligible
@@ -469,7 +403,7 @@ export const StudentCertificates: React.FC = () => {
                       <p className="text-[10.5px] font-semibold tracking-wider uppercase opacity-75">
                         AADYA INSTITUTE OF SKILL DEVELOPMENT
                       </p>
-                      <h2 className="text-base font-extrabold tracking-tight leading-snug mt-0.5 line-clamp-2">
+                      <h2 className="text-base font-semibold tracking-tight leading-snug mt-0.5 line-clamp-2">
                         {cert.courseName}
                       </h2>
                     </div>
@@ -561,7 +495,7 @@ export const StudentCertificates: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => setPreviewCert(cert)}
-                        className="h-8 px-3.5 rounded-xl text-xs font-bold bg-[#5B50EC] hover:bg-[#4F46E5] text-white gap-1.5 cursor-pointer shadow-xs"
+                        className="h-8 px-3.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary text-white gap-1.5 cursor-pointer shadow-xs"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>View Certificate</span>
@@ -601,6 +535,7 @@ export const StudentCertificates: React.FC = () => {
           })}
         </div>
       )}
+      </PageSection>
 
       {/* ─── CERTIFICATE PREVIEW & PRINT MODAL ─── */}
       <Dialog open={!!previewCert} onOpenChange={(open) => !open && setPreviewCert(null)}>
@@ -640,7 +575,7 @@ export const StudentCertificates: React.FC = () => {
                   <div className="w-12 h-12 mx-auto rounded-full bg-[#1E293B] text-white flex items-center justify-center shadow-md mb-2">
                     <GraduationCap className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl md:text-2xl font-serif font-extrabold tracking-wider text-[#1E293B] uppercase">
+                  <h3 className="text-xl md:text-2xl font-serif font-semibold tracking-wider text-[#1E293B] uppercase">
                     Aadya Institute of Skill Development
                   </h3>
                   <p className="text-[10px] font-sans font-bold tracking-widest text-[#8B7355] uppercase">
@@ -652,7 +587,7 @@ export const StudentCertificates: React.FC = () => {
                   <span className="text-xs font-serif italic text-slate-500 uppercase tracking-widest block mb-1">
                     This is proudly presented to
                   </span>
-                  <h1 className="text-2xl md:text-4xl font-serif font-black text-[#0A2540] tracking-wide underline decoration-amber-500/50 underline-offset-8">
+                  <h1 className="text-2xl md:text-4xl font-serif font-semibold text-foreground tracking-wide underline decoration-amber-500/50 underline-offset-8">
                     {studentName}
                   </h1>
                 </div>
@@ -690,7 +625,7 @@ export const StudentCertificates: React.FC = () => {
                   <div className="text-center">
                     <div className="w-16 h-16 rounded-full border-4 border-amber-600 bg-gradient-to-tr from-amber-500 to-yellow-300 mx-auto flex flex-col items-center justify-center shadow-lg text-amber-950">
                       <ShieldCheck className="w-6 h-6 stroke-[2.5]" />
-                      <span className="text-[8px] font-black uppercase tracking-tighter">
+                      <span className="text-[8px] font-semibold uppercase tracking-tighter">
                         AADYA VERIFIED
                       </span>
                     </div>
@@ -723,7 +658,7 @@ export const StudentCertificates: React.FC = () => {
 
       {/* ─── REQUEST CERTIFICATE MODAL ─── */}
       <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
-        <DialogContent className="max-w-md p-6 rounded-3xl">
+        <DialogContent className="max-w-md p-6 rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-600" />
@@ -798,7 +733,7 @@ export const StudentCertificates: React.FC = () => {
               <Button
                 type="submit"
                 disabled={requestSuccess}
-                className="rounded-xl text-xs font-bold bg-[#5B50EC] hover:bg-[#4F46E5] text-white gap-1.5"
+                className="rounded-xl text-xs font-bold bg-primary hover:bg-primary text-white gap-1.5"
               >
                 {requestSuccess ? (
                   <>
@@ -816,6 +751,6 @@ export const StudentCertificates: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

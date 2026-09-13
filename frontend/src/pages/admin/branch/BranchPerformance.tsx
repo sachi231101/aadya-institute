@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBranches, useBranch, useBranchStats } from "@/hooks/useBranches";
@@ -162,52 +163,53 @@ export const BranchPerformance: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12 animate-in fade-in">
-      {/* 1. HEADER WITH BACK NAVIGATION & BRANCH PROFILE */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground border-border mt-1 cursor-pointer"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/10 border-primary/20 font-bold">
-                {branchCode}
-              </Badge>
-              <Badge className={status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
-                {status}
-              </Badge>
-              <span className="text-xs text-muted-foreground font-medium">Branch Comprehensive Analytics</span>
+    <PageContainer className="animate-in fade-in">
+      <PageHeader
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2.5">
+            <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/10 border-primary/20 font-bold">
+              {branchCode}
+            </Badge>
+            <Badge className={status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
+              {status}
+            </Badge>
+            {branchName}
+          </span>
+        }
+        description={
+          <span className="flex flex-wrap items-center gap-4 text-xs">
+            <span className="text-muted-foreground font-medium">Branch Comprehensive Analytics</span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> {address}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5" /> {phone}
+            </span>
+          </span>
+        }
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground border-border cursor-pointer"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3 bg-muted/40 border border-border px-4 py-2.5 rounded-xl">
+              <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                {managerName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Center Manager</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">{managerName}</p>
+                <p className="text-[11px] text-muted-foreground">{managerEmail}</p>
+              </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{branchName}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-0.5">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground" /> {address}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {phone}
-              </span>
-            </div>
           </div>
-        </div>
-
-        {/* MANAGER PROFILE CHIP */}
-        <div className="flex items-center gap-3 bg-muted/40 border border-border px-4 py-2.5 rounded-xl self-start md:self-auto">
-          <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center font-black text-sm shadow-xs">
-            {managerName.charAt(0)}
-          </div>
-          <div>
-            <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Center Manager</p>
-            <p className="text-sm font-bold text-foreground mt-0.5">{managerName}</p>
-            <p className="text-[11px] text-muted-foreground">{managerEmail}</p>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {isLoading && (
         <div className="flex items-center justify-center py-6 text-muted-foreground gap-2 bg-muted/30 rounded-xl border border-border">
@@ -224,7 +226,7 @@ export const BranchPerformance: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Enrolled Students</p>
-                <h3 className="text-2xl font-black text-foreground mt-1.5">{studentCount}</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1.5">{studentCount}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
                 <GraduationCap className="h-5 w-5" />
@@ -242,7 +244,7 @@ export const BranchPerformance: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Assigned Faculty</p>
-                <h3 className="text-2xl font-black text-foreground mt-1.5">{facultyCount}</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1.5">{facultyCount}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/40">
                 <Users className="h-5 w-5" />
@@ -260,7 +262,7 @@ export const BranchPerformance: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Running Batches</p>
-                <h3 className="text-2xl font-black text-foreground mt-1.5">{batchCount}</h3>
+                <h3 className="text-2xl font-bold text-foreground mt-1.5">{batchCount}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
                 <Calendar className="h-5 w-5" />
@@ -278,7 +280,7 @@ export const BranchPerformance: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Revenue</p>
-                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">{formatINR(dbCollected)}</h3>
+                <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1.5">{formatINR(dbCollected)}</h3>
               </div>
               <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
                 <DollarSign className="h-5 w-5" />
@@ -531,19 +533,19 @@ export const BranchPerformance: React.FC = () => {
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                 {pieTab === "courses" && (
                   <>
-                    <span className="text-xl font-black text-foreground">{courseSharePieData.length}</span>
+                    <span className="text-xl font-bold text-foreground">{courseSharePieData.length}</span>
                     <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Programs</span>
                   </>
                 )}
                 {pieTab === "collection" && (
                   <>
-                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{dbCollectionRate}%</span>
+                    <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{dbCollectionRate}%</span>
                     <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Collected</span>
                   </>
                 )}
                 {pieTab === "risk" && (
                   <>
-                    <span className="text-xl font-black text-foreground">{studentCount}</span>
+                    <span className="text-xl font-bold text-foreground">{studentCount}</span>
                     <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Students</span>
                   </>
                 )}
@@ -612,7 +614,7 @@ export const BranchPerformance: React.FC = () => {
                   className="p-4 rounded-xl bg-muted/30 border border-border text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                       {student.name.charAt(0)}
                     </div>
                     <div>
@@ -646,6 +648,6 @@ export const BranchPerformance: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

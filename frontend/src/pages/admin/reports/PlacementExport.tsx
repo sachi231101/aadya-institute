@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useBranchStore } from "@/store/branch.store";
+import { FilterToolbar, METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 
 const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
 
@@ -91,28 +92,27 @@ export const PlacementExport: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+    <PageContainer className="animate-in fade-in duration-500">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
             <GraduationCap className="h-6 w-6 text-[#F39A16]" />
             Placement Export — Phase 3
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Export student data for the Aadya Placement Portal
-          </p>
-        </div>
-        <Button
-          asChild
-          className="bg-[#F39A16] hover:bg-[#e08a0e] text-white font-semibold gap-2 shadow-sm"
-        >
-          <a href={PLACEMENT_PORTAL_URL} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={16} />
-            Open Placement Portal
-          </a>
-        </Button>
-      </div>
+          </span>
+        }
+        description="Export student data for the Aadya Placement Portal"
+        actions={
+          <Button
+            asChild
+            className="bg-[#F39A16] hover:bg-[#e08a0e] text-white font-semibold gap-2 shadow-sm"
+          >
+            <a href={PLACEMENT_PORTAL_URL} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={16} />
+              Open Placement Portal
+            </a>
+          </Button>
+        }
+      />
 
       {/* Info Banner */}
       <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 flex items-start gap-3">
@@ -128,12 +128,11 @@ export const PlacementExport: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+      <MetricGrid columns={METRIC_GRID_COLUMNS[3]} density="compact">
+        <Card size="compact" className="border-border/50 shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Users className="h-6 w-6 text-[#2563EB]" />
+              <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">{students.length}</p>
@@ -141,8 +140,8 @@ export const PlacementExport: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+        <Card size="compact" className="border-border/50 shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
@@ -154,8 +153,8 @@ export const PlacementExport: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
+        <Card size="compact" className="border-border/50 shadow-sm">
+          <CardContent size="compact" className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center">
               <GraduationCap className="h-6 w-6 text-[#F39A16]" />
             </div>
@@ -167,12 +166,9 @@ export const PlacementExport: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* Search + Export Buttons */}
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-3 items-center justify-between">
+      <FilterToolbar className="flex-wrap justify-between gap-3">
             <div className="relative flex-1 min-w-[250px] max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-secondary" />
               <Input
@@ -200,9 +196,7 @@ export const PlacementExport: React.FC = () => {
                 <FileSpreadsheet size={16} /> Export Excel
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+      </FilterToolbar>
 
       {/* Students Table */}
       <Card className="border-border/50 shadow-sm">
@@ -235,7 +229,7 @@ export const PlacementExport: React.FC = () => {
                   <TableRow key={student.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-[#2563EB]/10 flex items-center justify-center text-[#2563EB] font-bold text-xs">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
                           {(student.user?.name || student.name || "S").charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-sm">{student.user?.name || student.name}</span>
@@ -261,6 +255,6 @@ export const PlacementExport: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

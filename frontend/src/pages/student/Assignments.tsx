@@ -35,6 +35,7 @@ import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { canStudentSubmit, formatMarks } from "@/utils/assignment.utils";
 import { assignmentsApi, type Assignment, type AssignmentSubmission } from "@/services/assignments.api";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar, PageSection } from "@/components/layout";
 
 interface EnrichedAssignment {
   id: string;
@@ -267,39 +268,23 @@ export const StudentAssignments: React.FC = () => {
     : false;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1300px] mx-auto animate-in fade-in duration-300">
-      {/* ─── 1. PAGE HEADER ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <FileText className="h-5 w-5" />
-            </div>
-            <span>My Assignments</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            View, complete, and submit your assignments.
-          </p>
-        </div>
-
-        {/* Enrolled Batch Indicator */}
-        {(academic.primaryBatch?.name || academic.primaryCourse?.name) && (
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-[#111C35] border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <BookOpen className="w-4 h-4 text-[#5B50EC] dark:text-indigo-400" />
-            <span>
-              Cohort:{" "}
-              <strong className="text-slate-900 dark:text-white">
-                {academic.primaryCourse?.name || "Course"}
-                {academic.primaryBatch?.code ? ` (${academic.primaryBatch.code})` : ""}
-              </strong>
-            </span>
-          </div>
-        )}
-      </div>
+    <PageContainer className="animate-in fade-in duration-300">
+      <PageHeader
+        title="My Assignments"
+        description="View, complete, and submit your assignments."
+        actions={
+          (academic.primaryBatch?.name || academic.primaryCourse?.name) ? (
+            <Badge variant="outline" className="text-xs font-medium rounded-xl px-3 py-1.5">
+              {academic.primaryCourse?.name || "Course"}
+              {academic.primaryBatch?.code ? ` (${academic.primaryBatch.code})` : ""}
+            </Badge>
+          ) : undefined
+        }
+      />
 
       {/* Success Toast */}
       {toastMessage && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex items-center justify-between text-emerald-800 dark:text-emerald-300 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-emerald-800 dark:text-emerald-300 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{toastMessage}</span>
@@ -313,110 +298,73 @@ export const StudentAssignments: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. SUMMARY STATS CARDS ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Total */}
+      <MetricGrid density="compact">
         <Card
+          size="compact"
           onClick={() => setFilterTab("ALL")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-[#5B50EC] ${filterTab === "ALL"
-              ? "border-[#5B50EC] ring-2 ring-[#5B50EC]/20"
-              : "border-slate-200/80 dark:border-slate-800/80"
-            }`}
+          className={`cursor-pointer border rounded-xl shadow-2xs transition-all ${
+            filterTab === "ALL"
+              ? "border-primary ring-2 ring-primary/20"
+              : "border-border/80"
+          }`}
         >
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-[#5B50EC] dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Layers className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                {stats.total}
-              </p>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
-                Total Assignments
-              </p>
-            </div>
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{stats.total}</h3>
           </CardContent>
         </Card>
-
-        {/* Pending */}
         <Card
+          size="compact"
           onClick={() => setFilterTab("PENDING")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-amber-500 ${filterTab === "PENDING"
+          className={`cursor-pointer border rounded-xl shadow-2xs transition-all ${
+            filterTab === "PENDING"
               ? "border-amber-500 ring-2 ring-amber-500/20"
-              : "border-slate-200/80 dark:border-slate-800/80"
-            }`}
+              : "border-border/80"
+          }`}
         >
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Clock className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                {stats.pending}
-              </p>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
-                Pending
-              </p>
-            </div>
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pending</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{stats.pending}</h3>
           </CardContent>
         </Card>
-
-        {/* Submitted */}
         <Card
+          size="compact"
           onClick={() => setFilterTab("SUBMITTED")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-emerald-500 ${filterTab === "SUBMITTED"
+          className={`cursor-pointer border rounded-xl shadow-2xs transition-all ${
+            filterTab === "SUBMITTED"
               ? "border-emerald-500 ring-2 ring-emerald-500/20"
-              : "border-slate-200/80 dark:border-slate-800/80"
-            }`}
+              : "border-border/80"
+          }`}
         >
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                {stats.submitted}
-              </p>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
-                Submitted
-              </p>
-            </div>
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Submitted</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{stats.submitted}</h3>
           </CardContent>
         </Card>
-
-        {/* Graded */}
         <Card
+          size="compact"
           onClick={() => setFilterTab("GRADED")}
-          className={`cursor-pointer transition-all duration-200 bg-white dark:bg-[#111C35] border rounded-2xl shadow-xs hover:border-indigo-500 ${filterTab === "GRADED"
+          className={`cursor-pointer border rounded-xl shadow-2xs transition-all ${
+            filterTab === "GRADED"
               ? "border-indigo-500 ring-2 ring-indigo-500/20"
-              : "border-slate-200/80 dark:border-slate-800/80"
-            }`}
+              : "border-border/80"
+          }`}
         >
-          <CardContent className="p-3.5 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Star className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                {stats.graded}
-              </p>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider truncate">
-                Graded
-              </p>
-            </div>
+          <CardContent size="compact">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Graded</p>
+            <h3 className="text-xl font-bold text-foreground mt-0.5">{stats.graded}</h3>
           </CardContent>
         </Card>
-      </div>
+      </MetricGrid>
 
-      {/* ─── 3. FILTER TABS ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <FilterToolbar>
         {(["ALL", "PENDING", "SUBMITTED", "GRADED", "OVERDUE"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setFilterTab(tab)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${filterTab === tab
-                ? "bg-[#5B50EC] text-white shadow-xs"
-                : "bg-slate-100 dark:bg-[#111C35] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800"
+            className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${filterTab === tab
+                ? "bg-primary text-white shadow-xs"
+                : "bg-muted text-muted-foreground hover:text-foreground border border-border"
               }`}
           >
             {tab === "ALL" && "All Assignments"}
@@ -426,16 +374,16 @@ export const StudentAssignments: React.FC = () => {
             {tab === "OVERDUE" && `Overdue (${stats.overdue})`}
           </button>
         ))}
-      </div>
+      </FilterToolbar>
 
-      {/* ─── 4. ASSIGNMENT CARDS LIST ────────────────────────────────────── */}
+      <PageSection title="Assignments">
       <div className="space-y-4">
         {isLoading ? (
-          <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-12 text-center">
-            <p className="text-sm text-slate-500">Loading assignments...</p>
+          <Card className="bg-card border-border/80 rounded-xl p-12 text-center">
+            <p className="text-sm text-muted-foreground">Loading assignments...</p>
           </Card>
         ) : filteredAssignments.length === 0 ? (
-          <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-12 text-center">
+          <Card className="bg-white dark:bg-card border-slate-200/80 dark:border-slate-800/80 rounded-xl p-12 text-center">
             <FileText className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               No assignments found
@@ -456,15 +404,15 @@ export const StudentAssignments: React.FC = () => {
             return (
               <Card
                 key={assignment.id}
-                className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/40 rounded-3xl shadow-xs transition-all overflow-hidden group"
+                className="bg-white dark:bg-card border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/40 rounded-xl shadow-xs transition-all overflow-hidden group"
               >
-                <CardContent className="p-5 sm:p-6 space-y-4">
+                <CardContent className="p-5 space-y-4">
                   {/* Card Header: Title and Status Badge */}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2.5">
                         <span className="text-lg">📄</span>
-                        <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight group-hover:text-[#5B50EC] dark:group-hover:text-indigo-400 transition-colors">
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight group-hover:text-primary dark:group-hover:text-indigo-400 transition-colors">
                           {assignment.title}
                         </h3>
                       </div>
@@ -490,7 +438,7 @@ export const StudentAssignments: React.FC = () => {
                     {/* Status Badge */}
                     <div className="shrink-0">
                       <Badge
-                        className={`text-xs font-black uppercase px-3 py-1 rounded-xl border ${assignment.statusInfo.color}`}
+                        className={`text-xs font-semibold uppercase px-3 py-1 rounded-xl border ${assignment.statusInfo.color}`}
                       >
                         {isGraded && "★ GRADED"}
                         {isSubmitted && !isGraded && "✓ SUBMITTED"}
@@ -507,7 +455,7 @@ export const StudentAssignments: React.FC = () => {
 
                   {/* Attached Document chip if available */}
                   {assignment.hasDocument && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#0D1527] border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-muted border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                       <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
                       <span>{assignment.documentName || "Assignment_Spec.pdf"}</span>
                     </div>
@@ -563,9 +511,9 @@ export const StudentAssignments: React.FC = () => {
 
                     <Button
                       onClick={() => handleOpenAssignment(assignment)}
-                      className={`text-xs font-bold h-10 px-5 rounded-2xl cursor-pointer transition-all ${isSubmitted
-                          ? "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white"
-                          : "bg-[#5B50EC] hover:bg-[#4C40DB] text-white shadow-md shadow-indigo-500/20 hover:scale-102"
+                      className={`text-xs font-bold h-9 px-5 rounded-xl cursor-pointer transition-all ${isSubmitted
+                          ? "bg-muted hover:bg-muted/80 text-foreground"
+                          : "bg-primary hover:bg-primary text-white shadow-md shadow-indigo-500/20 hover:scale-102"
                         }`}
                     >
                       {isSubmitted ? (
@@ -587,17 +535,18 @@ export const StudentAssignments: React.FC = () => {
           })
         )}
       </div>
+      </PageSection>
 
       {/* ─── 5. VIEW & SUBMIT ASSIGNMENT DIALOG ───────────────────────────── */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-xl rounded-3xl p-6 bg-white dark:bg-[#111C35] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="max-w-xl rounded-xl p-6 bg-white dark:bg-card border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-2xl max-h-[92vh] overflow-y-auto">
           {selectedAssignment && (
             <div className="space-y-5">
               {/* Header */}
               <DialogHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <DialogTitle className="text-lg font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                       <span>{selectedAssignment.title}</span>
                     </DialogTitle>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 font-medium">
@@ -608,7 +557,7 @@ export const StudentAssignments: React.FC = () => {
                   </div>
 
                   <Badge
-                    className={`text-xs font-extrabold uppercase px-3 py-1 rounded-xl border ${currentSubmission
+                    className={`text-xs font-semibold uppercase px-3 py-1 rounded-xl border ${currentSubmission
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         : isCurrentOverdue
                           ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
@@ -621,7 +570,7 @@ export const StudentAssignments: React.FC = () => {
               </DialogHeader>
 
               {/* Instructions Section */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-muted border border-slate-200/80 dark:border-slate-800/80 space-y-2">
                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Assignment Instructions
                 </h4>
@@ -632,9 +581,9 @@ export const StudentAssignments: React.FC = () => {
 
               {/* Attached Faculty Document */}
               {selectedAssignment.attachmentFileKey && (
-                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-between gap-3">
+                <div className="p-3.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-[#5B50EC] text-white flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
                       <FileCheck className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
@@ -663,7 +612,7 @@ export const StudentAssignments: React.FC = () => {
                       a.click();
                       URL.revokeObjectURL(a.href);
                     }}
-                    className="text-xs font-bold h-8 gap-1.5 rounded-xl border-indigo-200 dark:border-indigo-800 text-[#5B50EC] dark:text-indigo-300 hover:bg-indigo-100/50"
+                    className="text-xs font-bold h-8 gap-1.5 rounded-xl border-indigo-200 dark:border-indigo-800 text-primary dark:text-indigo-300 hover:bg-indigo-100/50"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>View / Download</span>
@@ -675,7 +624,7 @@ export const StudentAssignments: React.FC = () => {
                   href={`https://www.youtube.com/watch?v=${selectedAssignment.youtubeVideoId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs font-semibold text-[#5B50EC] hover:underline"
+                  className="text-xs font-semibold text-primary hover:underline"
                 >
                   Watch related YouTube video
                 </a>
@@ -687,7 +636,7 @@ export const StudentAssignments: React.FC = () => {
               )}
 
               {/* Due Date & Deadline Notice */}
-              <div className="flex items-center justify-between text-xs p-3 rounded-2xl bg-slate-50 dark:bg-[#0D1527] border border-slate-200/60 dark:border-slate-800/60">
+              <div className="flex items-center justify-between text-xs p-3 rounded-xl bg-slate-50 dark:bg-muted border border-slate-200/60 dark:border-slate-800/60">
                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <span>
@@ -716,11 +665,11 @@ export const StudentAssignments: React.FC = () => {
               {/* ─── SUBMISSION SECTION ───────────────────────────────────── */}
               {currentSubmission ? (
                 /* Already Submitted State */
-                <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-3">
+                <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                      <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">
+                      <h4 className="text-xs font-semibold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">
                         Submitted Successfully
                       </h4>
                     </div>
@@ -738,7 +687,7 @@ export const StudentAssignments: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="p-3 bg-white dark:bg-[#111C35] rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-between">
+                  <div className="p-3 bg-white dark:bg-card rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
                       <span>📄</span>
                       <span>{currentSubmission.fileKey || "Submitted file"}</span>
@@ -749,13 +698,13 @@ export const StudentAssignments: React.FC = () => {
                   </div>
 
                   {currentSubmission.marks != null && (
-                    <div className="p-3 bg-white dark:bg-[#111C35] rounded-xl border border-emerald-300 dark:border-emerald-700 space-y-1.5">
+                    <div className="p-3 bg-white dark:bg-card rounded-xl border border-emerald-300 dark:border-emerald-700 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                           <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                           <span>Evaluation Marks</span>
                         </div>
-                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
                           {formatMarks(currentSubmission.marks, selectedAssignment?.maxMarks)}
                         </span>
                       </div>
@@ -769,7 +718,7 @@ export const StudentAssignments: React.FC = () => {
                 </div>
               ) : isCurrentOverdue ? (
                 /* Overdue without submission */
-                <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-center space-y-1.5">
+                <div className="p-4 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-center space-y-1.5">
                   <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400 mx-auto" />
                   <p className="text-xs font-bold text-rose-900 dark:text-rose-300">
                     Assignment deadline has passed.
@@ -787,7 +736,7 @@ export const StudentAssignments: React.FC = () => {
                     </label>
 
                     {uploadedFile ? (
-                      <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-lg">📄</span>
                           <div className="min-w-0">
@@ -809,14 +758,14 @@ export const StudentAssignments: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <label className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-[#5B50EC] bg-slate-50/50 dark:bg-[#0D1527]/50 hover:bg-slate-50 dark:hover:bg-[#0D1527] rounded-2xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center">
+                      <label className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-primary bg-slate-50/50 dark:bg-muted/50 hover:bg-slate-50 dark:hover:bg-[#0D1527] rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center">
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip"
                           onChange={handleFileChange}
                           className="hidden"
                         />
-                        <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 text-[#5B50EC] dark:text-indigo-400 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-xl bg-indigo-500/10 text-primary dark:text-indigo-400 flex items-center justify-center">
                           <Upload className="w-5 h-5" />
                         </div>
                         <div>
@@ -840,7 +789,7 @@ export const StudentAssignments: React.FC = () => {
                       value={submissionNotes}
                       onChange={(e) => setSubmissionNotes(e.target.value)}
                       placeholder="Add any comments or explanations for the faculty..."
-                      className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0D1527] text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#5B50EC] outline-none resize-none"
+                      className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-muted text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-primary outline-none resize-none"
                     />
                   </div>
 
@@ -856,7 +805,7 @@ export const StudentAssignments: React.FC = () => {
                     <Button
                       type="submit"
                       disabled={!uploadedFile || isSubmitting || submitMutation.isPending || uploadMutation.isPending || !canSubmitSelected}
-                      className="h-10 flex-1 bg-[#5B50EC] hover:bg-[#4C40DB] text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-10 flex-1 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting || submitMutation.isPending ? "Submitting..." : "Submit Assignment"}
                     </Button>
@@ -880,6 +829,6 @@ export const StudentAssignments: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

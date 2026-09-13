@@ -21,6 +21,7 @@ import {
   Video,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -995,40 +996,36 @@ export const Timetable: React.FC = () => {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-4 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Timetable</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {branchLabel} · {weekDateLabel}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PermissionGate itemKey="schedule.timetable" mode="write">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isSelectedDayOff}
-              onClick={() => {
-                if (isSelectedDayOff) return;
-                const defaultFac = filteredFaculty[0] || facultyRoster[0];
-                if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
-              }}
-              className="text-xs h-9 gap-1.5"
-              title={isSelectedDayOff ? selectedDayHolidayNote : undefined}
-            >
-              <Plus className="h-3.5 w-3.5" /> Add class
+    <PageContainer density="compact" className="text-slate-800 font-sans">
+      <PageHeader
+        title="Timetable"
+        description={`${branchLabel} · ${weekDateLabel}`}
+        actions={
+          <>
+            <PermissionGate itemKey="schedule.timetable" mode="write">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSelectedDayOff}
+                onClick={() => {
+                  if (isSelectedDayOff) return;
+                  const defaultFac = filteredFaculty[0] || facultyRoster[0];
+                  if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
+                }}
+                className="text-xs h-9 gap-1.5"
+                title={isSelectedDayOff ? selectedDayHolidayNote : undefined}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add class
+              </Button>
+            </PermissionGate>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs h-9 gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Export
             </Button>
-          </PermissionGate>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs h-9 gap-1.5">
-            <Download className="h-3.5 w-3.5" /> Export
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {/* Single toolbar: week nav, view, day, search */}
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+      <FilterToolbar className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
             <button
@@ -1150,7 +1147,7 @@ export const Timetable: React.FC = () => {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   isSelected
                     ? d.isWorking
-                      ? "bg-[#2563EB] text-white"
+                      ? "bg-primary text-white"
                       : "bg-rose-600 text-white"
                     : d.isWorking
                       ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -1168,7 +1165,7 @@ export const Timetable: React.FC = () => {
             );
           })}
         </div>
-      </div>
+      </FilterToolbar>
 
       {/* Notifications Alert */}
       {notificationMsg && (
@@ -1288,7 +1285,7 @@ export const Timetable: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Avatar className="w-7 h-7 border border-border shrink-0">
                             <AvatarImage src={fac.avatar} alt={fac.name} />
-                            <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-indigo-600 text-white font-bold text-[10px]">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-indigo-600 text-white font-bold text-[10px]">
                               {fac.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -1542,14 +1539,14 @@ export const Timetable: React.FC = () => {
 
       {/* ─── MODAL 1: ADD / EDIT CLASS SCHEDULE ─────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 uppercase">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-primary border border-blue-200 uppercase">
                 {modalDayKey} • Period {modalPeriod} ({timeSlotColumns.find((c) => c.period === modalPeriod)?.label})
               </span>
             </div>
-            <DialogTitle className="text-xl font-black text-slate-900">
+            <DialogTitle className="text-xl font-bold text-slate-900">
               Manage Faculty Schedule
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1632,7 +1629,7 @@ export const Timetable: React.FC = () => {
                 <select
                   value={modalSlotType}
                   onChange={(e) => setModalSlotType(e.target.value as SlotType)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#2563EB] outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-primary outline-none"
                 >
                   <option value="CLASS">Class Scheduled</option>
                   <option value="FREE">Free (clear class)</option>
@@ -1783,7 +1780,7 @@ export const Timetable: React.FC = () => {
             <Button
               onClick={handleSaveSlot}
               disabled={createSession.isPending || updateSession.isPending}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 rounded-xl"
+              className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 rounded-xl"
             >
               <Save className="h-3.5 w-3.5 mr-1" /> Save Schedule Entry
             </Button>
@@ -1793,9 +1790,9 @@ export const Timetable: React.FC = () => {
 
       {/* ─── MODAL 2: MOVE TIME SLOT ────────────────────────────────────── */}
       <Dialog open={isMoveModalOpen} onOpenChange={setIsMoveModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-900">
+            <DialogTitle className="text-lg font-bold text-slate-900">
               Move Class Time Slot
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1809,7 +1806,7 @@ export const Timetable: React.FC = () => {
               <select
                 value={targetPeriod}
                 onChange={(e) => setTargetPeriod(Number(e.target.value))}
-                className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#2563EB] outline-none"
+                className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-primary outline-none"
               >
                 {bookableSlots.map((col) => (
                   <option key={col.period} value={col.period}>
@@ -1824,7 +1821,7 @@ export const Timetable: React.FC = () => {
             <Button variant="outline" onClick={() => setIsMoveModalOpen(false)} className="text-xs font-bold rounded-xl">
               Cancel
             </Button>
-            <Button onClick={handleExecuteMoveSlot} className="bg-[#2563EB] text-white text-xs font-bold rounded-xl">
+            <Button onClick={handleExecuteMoveSlot} className="bg-primary text-white text-xs font-bold rounded-xl">
               Confirm Move
             </Button>
           </DialogFooter>
@@ -1833,14 +1830,14 @@ export const Timetable: React.FC = () => {
 
       {/* ─── MODAL 3: MANAGE WORKING DAYS & HOLIDAYS ───────────────────── */}
       <Dialog open={isWorkingDaysModalOpen} onOpenChange={setIsWorkingDaysModalOpen}>
-        <DialogContent className="sm:max-w-xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-xl bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 uppercase">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-primary border border-blue-200 uppercase">
                 Academy Schedule Config
               </span>
             </div>
-            <DialogTitle className="text-xl font-black text-slate-900 mt-1">
+            <DialogTitle className="text-xl font-bold text-slate-900 mt-1">
               Manage Working Days & Holidays
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1852,7 +1849,7 @@ export const Timetable: React.FC = () => {
             {daysConfig.map((d) => {
               const isMasterHoliday = isMasterHolidayDate(d.dateKey, visibleWeekHolidays);
               return (
-              <div key={d.key} className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-3">
+              <div key={d.key} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900">{d.fullDay}</span>
@@ -1887,7 +1884,7 @@ export const Timetable: React.FC = () => {
                           );
                         });
                       }}
-                      className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#2563EB] outline-none cursor-pointer"
+                      className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-primary outline-none cursor-pointer"
                     >
                       <option value="HOLIDAY">Holiday</option>
                       <option value="WORKING">Working Day</option>
@@ -1924,7 +1921,7 @@ export const Timetable: React.FC = () => {
               </div>
               );
             })}
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3.5">
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-bold text-slate-900">Dated holidays this week</p>
@@ -1963,13 +1960,13 @@ export const Timetable: React.FC = () => {
                 setNotificationMsg("✓ Working days and holiday configuration updated successfully.");
                 setTimeout(() => setNotificationMsg(null), 3000);
               }}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl"
+              className="w-full bg-primary hover:bg-primary text-white font-bold rounded-xl"
             >
               Save Configuration
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };
