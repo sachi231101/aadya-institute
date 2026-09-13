@@ -168,6 +168,25 @@ const mapStudentSummary = (s: any) => {
   const guardianPhone = s.guardianPhone || extractFromNotes(/Guardian Phone:\s*([^|\n]+)/i) || null;
   const addressStr = s.address || extractFromNotes(/Address:\s*([^|\n]+)/i) || null;
 
+  let enquiryAt: Date | null = null;
+  for (const lead of s.convertedFromLeads || []) {
+    if (lead.createdAt && (!enquiryAt || new Date(lead.createdAt) < enquiryAt)) {
+      enquiryAt = new Date(lead.createdAt);
+    }
+  }
+  for (const adm of s.admissions || []) {
+    const enquiryCreatedAt = adm.application?.enquiry?.createdAt;
+    if (enquiryCreatedAt && (!enquiryAt || new Date(enquiryCreatedAt) < enquiryAt)) {
+      enquiryAt = new Date(enquiryCreatedAt);
+    }
+  }
+
+  const counsellorName =
+    (s.convertedFromLeads || []).find((lead: any) => lead.assignedCounsellor?.name)?.assignedCounsellor?.name ||
+    (s.admissions || []).map((a: any) => a.application?.enquiry?.assignedTo?.name).find((n: string | undefined) => !!n) ||
+    extractFromNotes(/Counsellor:\s*([^|\n]+)/i) ||
+    null;
+
   return {
     id: s.id,
     userId: s.userId,
@@ -175,8 +194,10 @@ const mapStudentSummary = (s: any) => {
     branchId: s.branchId,
     studentCode: s.studentCode,
     dateOfBirth: s.dateOfBirth,
+    enquiryDate: enquiryAt ? enquiryAt.toISOString() : null,
     qualification: s.qualification,
     gender,
+    counsellorName,
     bloodGroup,
     guardian: guardianName || guardianPhone ? { name: guardianName, phone: guardianPhone, relation: "Parent / Guardian" } : null,
     address: addressStr ? { street: addressStr, city: s.address?.city || "Bengaluru", pincode: s.address?.pincode || "" } : null,
@@ -411,6 +432,7 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     passwordHash,
     studentCode,
     dateOfBirth: dto.dateOfBirth || undefined,
+    gender: (dto as { gender?: string }).gender || undefined,
     qualification,
     qualificationMasterId,
     areaMasterId,

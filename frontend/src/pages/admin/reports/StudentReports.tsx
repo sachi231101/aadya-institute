@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   Users,
   Download,
@@ -11,21 +11,21 @@ import {
   Loader2,
   AlertCircle,
   X,
-  GraduationCap,
-  Award,
-  BookOpen,
   ShieldAlert,
-  Clock,
   ChevronRight,
   ChevronLeft,
-  Info
+  CalendarDays,
+  ClipboardCheck,
 } from "lucide-react";
 import { useStudentReport } from "../../../hooks/useReports";
 import { useStudent, useStudentPerformance } from "@/hooks/useStudents";
+import { useBranches } from "@/hooks/useBranches";
+import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 import { downloadCsv } from "../../../utils/csvExporter";
 import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 import { CourseChips } from "@/components/common/CourseChips";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +43,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -56,12 +54,36 @@ import {
 
 const PAGE_SIZE = 10;
 
+const formatReportDate = (value?: string | null): string => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export const StudentReports: React.FC = () => {
-  const { data, isLoading, isError, refetch } = useStudentReport();
+  const { user } = useAuthStore();
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const branches = useMemo(() => branchesResponse?.data || [], [branchesResponse?.data]);
+  const isAdmin = user?.roles?.includes("ADMIN") || user?.role === "ADMIN";
+  const branchFilter =
+    isAdmin && selectedBranchId !== "ALL" ? selectedBranchId : undefined;
+  const { data, isLoading, isError, refetch } = useStudentReport(branchFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const analyticsRef = useRef<HTMLDivElement>(null);
+
+  const handleBranchChange = (branchId: string) => {
+    setSelectedBranchId(branchId);
+    setCurrentPage(1);
+    setSelectedStudentId(null);
+  };
 
   const handleSelectStudent = (id: string) => {
     setSelectedStudentId(id);
@@ -73,12 +95,13 @@ export const StudentReports: React.FC = () => {
   const enrollmentTrend = data?.enrollmentTrend || [];
   const attendanceDistribution = data?.attendanceDistribution || [];
   const courseShare = data?.courseShare || [];
-  const studentList = data?.students || [];
-
-  // Reset to first page whenever search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  const studentList = useMemo(() => data?.students || [], [data?.students]);
+  const summary = data?.summary || {
+    totalStudents: 0,
+    avgAttendanceRate: 0,
+    assignmentCompletionRate: 0,
+    discontinuationRiskCount: 0,
+  };
 
   // Filter students across Name, Roll No (studentCode), and Student ID (id)
   const filteredStudents = useMemo(() => {
@@ -118,8 +141,22 @@ export const StudentReports: React.FC = () => {
   }, [safeCurrentPage, totalPages]);
 
   // Selected student queries
-  const { data: studentDetailRes } = useStudent(selectedStudentId || undefined);
-  const { data: studentPerfRes } = useStudentPerformance(selectedStudentId || undefined);
+  const {
+    data: studentDetailRes,
+    isLoading: isStudentDetailLoading,
+    isError: isStudentDetailError,
+    refetch: refetchStudentDetail,
+  } = useStudent(selectedStudentId || undefined);
+  const {
+    data: studentPerfRes,
+    isLoading: isStudentPerformanceLoading,
+    isError: isStudentPerformanceError,
+    refetch: refetchStudentPerformance,
+  } = useStudentPerformance(selectedStudentId || undefined);
+  const isSelectedAnalyticsLoading =
+    !!selectedStudentId && (isStudentDetailLoading || isStudentPerformanceLoading);
+  const isSelectedAnalyticsError =
+    !!selectedStudentId && (isStudentDetailError || isStudentPerformanceError);
 
   const selectedStudentSummary = useMemo(() => {
     return studentList.find((s) => s.id === selectedStudentId) || null;
@@ -129,18 +166,24 @@ export const StudentReports: React.FC = () => {
   const studentPerf = studentPerfRes?.data;
 
   const handleExport = () => {
-    if (!studentList.length) {
+    if (!filteredStudents.length) {
       alert("No student report data available to export.");
       return;
     }
-    const exportData = studentList.map((s, idx) => {
+    const exportData = filteredStudents.map((s, idx) => {
       const courses = coursesFromStudent(s);
+      const packageLabel =
+        s.coursePackage || formatPackageCourseLabel(courses, s.courseName || "—");
       return {
         "#": idx + 1,
         "Roll Code": s.studentCode,
         "Student Name": s.name,
         "Branch": s.branchName,
-        "Course": formatPackageCourseLabel(courses, s.courseName || "—"),
+        "Enquiry Date": formatReportDate(s.enquiryDate),
+        "Gender": s.gender || "—",
+        "DOB": formatReportDate(s.dateOfBirth),
+        "Course Package": packageLabel,
+        "Counsellor": s.counsellorName || "—",
         "Attendance %": `${s.attendancePercentage}%`,
         "Assignments": `${s.assignmentsSubmitted}/${s.totalAssignments}`,
         "Risk Level": s.riskFlag,
@@ -156,12 +199,18 @@ export const StudentReports: React.FC = () => {
     const name = selectedStudentSummary.name || "Student";
     const studentCode = selectedStudentSummary.studentCode || "";
     const courses = coursesFromStudent(selectedStudentSummary);
-    const courseLabel = formatPackageCourseLabel(courses, selectedStudentSummary.courseName || "General Course");
-    const batchName = studentDetail?.batchEnrollments?.[0]?.batch?.name || "2026 Batch";
-    const branchName = selectedStudentSummary.branchName || "Aadya Main Branch";
+    const courseLabel =
+      selectedStudentSummary.coursePackage ||
+      formatPackageCourseLabel(courses, selectedStudentSummary.courseName || "—");
+    const batchName = studentDetail?.batchEnrollments?.[0]?.batch?.name || "—";
+    const branchName = selectedStudentSummary.branchName || "—";
+    const enquiryDate = formatReportDate(selectedStudentSummary.enquiryDate);
+    const gender = selectedStudentSummary.gender || "—";
+    const dateOfBirth = formatReportDate(selectedStudentSummary.dateOfBirth);
+    const counsellorName = selectedStudentSummary.counsellorName || "—";
 
     // 1. Attendance Trend (Weekly)
-    let weeklyAttendance: Array<{ week: string; percentage: number }> = [];
+    const weeklyAttendance: Array<{ week: string; percentage: number }> = [];
     if (studentDetail?.attendanceRecords && studentDetail.attendanceRecords.length > 0) {
       const records = [...studentDetail.attendanceRecords].sort(
         (a, b) => new Date(a.markedAt).getTime() - new Date(b.markedAt).getTime()
@@ -177,23 +226,10 @@ export const StudentReports: React.FC = () => {
           percentage: Math.round((presentCount / chunk.length) * 100),
         });
       }
-    } else {
-      // Generate standard historical curve reflecting their actual attendance rate
-      const baseRate = selectedStudentSummary.attendancePercentage || 50;
-      const variations = [-8, 6, -4, 10, -5, 2];
-      weeklyAttendance = [1, 2, 3, 4, 5, 6].map((w, idx) => {
-        const val = Math.max(15, Math.min(100, Math.round(baseRate + (variations[idx] || 0))));
-        return {
-          week: `Week ${w}`,
-          percentage: val,
-        };
-      });
     }
 
     // 2. Assignment Performance (Donut Chart)
-    const totalAssignments = selectedStudentSummary.totalAssignments || 10;
-    const submittedCount = selectedStudentSummary.assignmentsSubmitted || 0;
-    let completedCount = submittedCount;
+    let completedCount = 0;
     let pendingCount = 0;
     let notSubmittedCount = 0;
 
@@ -205,65 +241,82 @@ export const StudentReports: React.FC = () => {
       notSubmittedCount = studentDetail.assignments.filter(
         (a) => a.status === "LATE" || (!a.submittedAt && a.status !== "PENDING")
       ).length;
-    } else {
-      const remaining = Math.max(0, totalAssignments - completedCount);
-      pendingCount = Math.round(remaining * 0.7);
-      notSubmittedCount = Math.max(0, remaining - pendingCount);
     }
 
-    const assignmentTotal = completedCount + pendingCount + notSubmittedCount || totalAssignments || 1;
-    const completionPercent = Math.round((completedCount / assignmentTotal) * 100);
+    const assignmentTotal = completedCount + pendingCount + notSubmittedCount;
+    const completionPercent = assignmentTotal > 0
+      ? Math.round((completedCount / assignmentTotal) * 100)
+      : 0;
 
-    const assignmentDonutData = [
+    const assignmentDonutData = assignmentTotal > 0 ? [
       { name: "Completed", value: completedCount, color: "#10B981", percent: Math.round((completedCount / assignmentTotal) * 100) },
       { name: "Pending", value: pendingCount, color: "#F59E0B", percent: Math.round((pendingCount / assignmentTotal) * 100) },
       { name: "Not Submitted", value: notSubmittedCount, color: "#EF4444", percent: Math.round((notSubmittedCount / assignmentTotal) * 100) },
-    ];
+    ] : [];
 
     const uncompletedCount = pendingCount + notSubmittedCount;
 
     // 3. Academic Performance Trend (Test scores progression)
-    let testScoresData: Array<{ test: string; score: number; maxScore: number }> = [];
+    const testScoresData: Array<{ test: string; score: number }> = [];
     if (studentPerf?.testScores && studentPerf.testScores.length > 0) {
-      testScoresData = studentPerf.testScores.map((t) => ({
-        test: t.testName,
-        score: t.score,
-        maxScore: t.maxScore || 100,
-      }));
-    } else {
-      // Assessment marks curve derived from student's performance
-      const baseScore = Math.max(30, Math.min(95, Math.round(selectedStudentSummary.attendancePercentage * 0.9 + 5)));
-      const offsets = [5, -12, -2, -15, 8];
-      testScoresData = [1, 2, 3, 4, 5].map((tNum, idx) => ({
-        test: `Test ${tNum}`,
-        score: Math.max(25, Math.min(100, baseScore + (offsets[idx] || 0))),
-        maxScore: 100,
-      }));
+      testScoresData.push(
+        ...studentPerf.testScores.map((t) => {
+          const maxScore = t.maxScore > 0 ? t.maxScore : 100;
+          return {
+            test: t.testName,
+            score: Math.round((t.score / maxScore) * 100),
+          };
+        })
+      );
     }
 
     // 4. Risk Analysis Factors
     const attVal = selectedStudentSummary.attendancePercentage;
     const attRisk: "High Risk" | "Medium Risk" | "Low Risk" = attVal < 50 ? "High Risk" : attVal < 75 ? "Medium Risk" : "Low Risk";
 
-    const assignVal = completionPercent;
-    const assignRisk: "High Risk" | "Medium Risk" | "Low Risk" = assignVal < 40 ? "High Risk" : assignVal < 70 ? "Medium Risk" : "Low Risk";
+    const assignVal = selectedStudentSummary.totalAssignments > 0
+      ? Math.round((selectedStudentSummary.assignmentsSubmitted / selectedStudentSummary.totalAssignments) * 100)
+      : null;
+    const assignRisk: "High Risk" | "Medium Risk" | "Low Risk" | null = assignVal === null
+      ? null
+      : assignVal < 40
+        ? "High Risk"
+        : assignVal < 70
+          ? "Medium Risk"
+          : "Low Risk";
 
-    const avgTest = Math.round(
-      testScoresData.reduce((acc, curr) => acc + (curr.score / curr.maxScore) * 100, 0) / (testScoresData.length || 1)
-    );
-    const testRisk: "High Risk" | "Medium Risk" | "Low Risk" = avgTest < 50 ? "High Risk" : avgTest < 70 ? "Medium Risk" : "Low Risk";
+    const avgTest = testScoresData.length > 0
+      ? Math.round(
+          testScoresData.reduce((acc, curr) => acc + curr.score, 0) / testScoresData.length
+        )
+      : null;
+    const testRisk: "High Risk" | "Medium Risk" | "Low Risk" | null = avgTest === null
+      ? null
+      : avgTest < 50
+        ? "High Risk"
+        : avgTest < 70
+          ? "Medium Risk"
+          : "Low Risk";
 
-    const participationVal = Math.max(15, Math.min(100, Math.round((attVal + assignVal) / 2)));
-    const partRisk: "High Risk" | "Medium Risk" | "Low Risk" = participationVal < 45 ? "High Risk" : participationVal < 70 ? "Medium Risk" : "Low Risk";
+    const riskFactors: Array<{
+      name: string;
+      value: number;
+      risk: "High Risk" | "Medium Risk" | "Low Risk";
+    }> = [];
+    if (studentDetail?.attendanceRecords?.length) {
+      riskFactors.push({ name: "Attendance", value: attVal, risk: attRisk });
+    }
+    if (assignVal !== null && assignRisk !== null) {
+      riskFactors.push({ name: "Assignment Completion", value: assignVal, risk: assignRisk });
+    }
+    if (avgTest !== null && testRisk !== null) {
+      riskFactors.push({ name: "Test / Assessment Performance", value: avgTest, risk: testRisk });
+    }
 
-    const isHighRisk = selectedStudentSummary.riskFlag === "Triggered" || selectedStudentSummary.riskFlag === "At Risk" || attRisk === "High Risk" || assignRisk === "High Risk";
-
-    const riskFactors = [
-      { name: "Attendance", value: attVal, risk: attRisk },
-      { name: "Assignment Completion", value: assignVal, risk: assignRisk },
-      { name: "Test / Assessment Performance", value: avgTest, risk: testRisk },
-      { name: "Class Participation", value: participationVal, risk: partRisk },
-    ];
+    const isHighRisk =
+      selectedStudentSummary.riskFlag === "Triggered" ||
+      selectedStudentSummary.riskFlag === "At Risk" ||
+      riskFactors.some((factor) => factor.risk === "High Risk");
 
     return {
       name,
@@ -271,6 +324,10 @@ export const StudentReports: React.FC = () => {
       courseLabel,
       batchName,
       branchName,
+      enquiryDate,
+      gender,
+      dateOfBirth,
+      counsellorName,
       weeklyAttendance,
       assignmentDonutData,
       completionPercent,
@@ -317,13 +374,19 @@ export const StudentReports: React.FC = () => {
             <Input
               placeholder="Search student by name, roll no, or student ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-[#2563EB]"
             />
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm("")}
+                onClick={() => {
+                  setSearchTerm("");
+                  setCurrentPage(1);
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
@@ -332,17 +395,80 @@ export const StudentReports: React.FC = () => {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm shrink-0 h-9 text-xs sm:text-sm self-start md:self-auto"
-          onClick={handleExport}
-        >
-          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
-          Export Student CSV
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 self-start md:self-auto">
+          {isAdmin && (
+            <select
+              value={selectedBranchId}
+              onChange={(event) => handleBranchChange(event.target.value)}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:border-[#2563EB]"
+              aria-label="Filter student reports by branch"
+            >
+              <option value="ALL">All Branches</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button
+            variant="outline"
+            className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm shrink-0 h-9 text-xs sm:text-sm"
+            onClick={handleExport}
+          >
+            <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
+            Export Student CSV
+          </Button>
+        </div>
       </div>
 
-      {/* ─── 2. STUDENT DIRECTORY TABLE & PAGINATION ────────────────────── */}
+      {/* ─── 2. SUMMARY KPIS ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            label: "Total Students",
+            value: summary.totalStudents,
+            icon: Users,
+            color: "text-[#2563EB]",
+            bg: "bg-blue-50",
+          },
+          {
+            label: "Average Attendance",
+            value: `${summary.avgAttendanceRate}%`,
+            icon: CalendarDays,
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+          },
+          {
+            label: "Assignment Completion",
+            value: `${summary.assignmentCompletionRate}%`,
+            icon: ClipboardCheck,
+            color: "text-purple-600",
+            bg: "bg-purple-50",
+          },
+          {
+            label: "Discontinuation Risk",
+            value: summary.discontinuationRiskCount,
+            icon: AlertTriangle,
+            color: "text-rose-600",
+            bg: "bg-rose-50",
+          },
+        ].map((kpi) => (
+          <Card key={kpi.label} className="border-slate-200 shadow-sm bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{kpi.label}</p>
+                <div className={`p-1.5 rounded-md ${kpi.bg}`}>
+                  <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+                </div>
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mt-2">{kpi.value}</h3>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* ─── 3. STUDENT DIRECTORY TABLE & PAGINATION ────────────────────── */}
       <Card className="border-border/60 bg-white shadow-sm w-full overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -351,7 +477,12 @@ export const StudentReports: React.FC = () => {
                 <TableRow>
                   <TableHead className="w-12 font-semibold text-slate-700 text-xs">#</TableHead>
                   <TableHead className="font-semibold text-slate-900 text-xs">Roll No & Student</TableHead>
-                  <TableHead className="font-semibold text-slate-900 text-xs">Course</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">Branch</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">Enquiry Date</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">Gender</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">DOB</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">Course Package</TableHead>
+                  <TableHead className="font-semibold text-slate-900 text-xs">Counsellor</TableHead>
                   <TableHead className="font-semibold text-slate-900 text-xs">Attendance</TableHead>
                   <TableHead className="font-semibold text-slate-900 text-xs">Assignments</TableHead>
                   <TableHead className="font-semibold text-slate-900 text-xs">Risk Flag</TableHead>
@@ -390,12 +521,27 @@ export const StudentReports: React.FC = () => {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell className="text-xs font-medium text-slate-600">
+                          {student.branchName || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600 whitespace-nowrap">
+                          {formatReportDate(student.enquiryDate)}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600">
+                          {student.gender || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600 whitespace-nowrap">
+                          {formatReportDate(student.dateOfBirth)}
+                        </TableCell>
                         <TableCell className="text-xs text-slate-600 max-w-[260px]">
                           <CourseChips
                             courses={coursesFromStudent(student)}
-                            fallback={student.courseName}
+                            fallback={student.coursePackage || student.courseName}
                             maxVisible={2}
                           />
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600">
+                          {student.counsellorName || "—"}
                         </TableCell>
                         <TableCell className="text-xs font-bold text-emerald-700">
                           {student.attendancePercentage}%
@@ -423,7 +569,7 @@ export const StudentReports: React.FC = () => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-slate-400 text-xs">
+                    <TableCell colSpan={11} className="h-24 text-center text-slate-400 text-xs">
                       {searchTerm
                         ? `No student records found matching "${searchTerm}".`
                         : "No student performance records found."}
@@ -513,7 +659,15 @@ export const StudentReports: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-slate-700">Course:</span> {studentAnalytics.courseLabel}
+                  <span className="font-medium text-slate-700">Course Package:</span> {studentAnalytics.courseLabel}
+                  <span className="text-slate-300">|</span>
+                  <span className="font-medium text-slate-700">Counsellor:</span> {studentAnalytics.counsellorName}
+                  <span className="text-slate-300">|</span>
+                  <span className="font-medium text-slate-700">Gender:</span> {studentAnalytics.gender}
+                  <span className="text-slate-300">|</span>
+                  <span className="font-medium text-slate-700">DOB:</span> {studentAnalytics.dateOfBirth}
+                  <span className="text-slate-300">|</span>
+                  <span className="font-medium text-slate-700">Enquiry:</span> {studentAnalytics.enquiryDate}
                   <span className="text-slate-300">|</span>
                   <span className="font-medium text-slate-700">Batch:</span> {studentAnalytics.batchName}
                   <span className="text-slate-300">|</span>
@@ -534,6 +688,33 @@ export const StudentReports: React.FC = () => {
           </div>
 
           {/* 4-Column Side-By-Side Compact Analytics Grid */}
+          {isSelectedAnalyticsLoading ? (
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <CardContent className="py-12 flex items-center justify-center gap-2 text-sm text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />
+                Loading selected student analytics...
+              </CardContent>
+            </Card>
+          ) : isSelectedAnalyticsError ? (
+            <Card className="border-red-200 bg-red-50 shadow-sm">
+              <CardContent className="py-10 text-center space-y-3">
+                <AlertCircle className="h-6 w-6 text-red-500 mx-auto" />
+                <p className="text-sm font-semibold text-red-800">
+                  Failed to load selected student analytics.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void refetchStudentDetail();
+                    void refetchStudentPerformance();
+                  }}
+                >
+                  Retry Analytics
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* 1. ATTENDANCE TREND */}
             <Card className="border-border/70 bg-white shadow-sm flex flex-col justify-between p-4 rounded-xl">
@@ -554,8 +735,9 @@ export const StudentReports: React.FC = () => {
                 </div>
 
                 <div className="h-28 w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={studentAnalytics.weeklyAttendance} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                  {studentAnalytics.weeklyAttendance.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={studentAnalytics.weeklyAttendance} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
                       <defs>
                         <linearGradient id="compactAttGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#2563EB" stopOpacity={0.25} />
@@ -574,7 +756,7 @@ export const StudentReports: React.FC = () => {
                           fontSize: "11px",
                           padding: "4px 8px",
                         }}
-                        formatter={(value: any) => [`${value}%`, "Attendance"]}
+                        formatter={(value) => [`${value}%`, "Attendance"]}
                       />
                       <Area
                         type="monotone"
@@ -584,13 +766,18 @@ export const StudentReports: React.FC = () => {
                         fillOpacity={1}
                         fill="url(#compactAttGradient)"
                       />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-[10px] text-slate-400 text-center px-3">
+                      No attendance records yet.
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-500 flex justify-between items-center">
-                <span>Avg 6-Week Trajectory</span>
+                <span>Recorded attendance</span>
                 <span className="font-semibold text-slate-700">Weekly %</span>
               </div>
             </Card>
@@ -611,8 +798,10 @@ export const StudentReports: React.FC = () => {
                 </div>
 
                 <div className="relative h-24 w-full flex items-center justify-center my-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                  {studentAnalytics.assignmentDonutData.length > 0 ? (
+                    <>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
                       <Pie
                         data={studentAnalytics.assignmentDonutData}
                         dataKey="value"
@@ -637,42 +826,52 @@ export const StudentReports: React.FC = () => {
                           padding: "4px 8px",
                         }}
                       />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-xs font-black text-slate-900 leading-none">
-                      {studentAnalytics.completionPercent}%
-                    </span>
-                    <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">Done</span>
-                  </div>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-xs font-black text-slate-900 leading-none">
+                          {studentAnalytics.completionPercent}%
+                        </span>
+                        <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">Done</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[10px] text-slate-400 text-center px-3">
+                      No assignment records yet.
+                    </div>
+                  )}
                 </div>
 
                 {/* Compact 3-col status summary */}
-                <div className="grid grid-cols-3 gap-1 text-center text-[10px] pt-1.5 border-t border-slate-100">
-                  {studentAnalytics.assignmentDonutData.map((item) => (
-                    <div key={item.name} className="p-1 rounded bg-slate-50">
-                      <div className="flex items-center justify-center gap-1 mb-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-[9px] text-slate-500 truncate">{item.name.substring(0, 4)}</span>
+                {studentAnalytics.assignmentDonutData.length > 0 && (
+                  <div className="grid grid-cols-3 gap-1 text-center text-[10px] pt-1.5 border-t border-slate-100">
+                    {studentAnalytics.assignmentDonutData.map((item) => (
+                      <div key={item.name} className="p-1 rounded bg-slate-50">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span className="text-[9px] text-slate-500 truncate">{item.name.substring(0, 4)}</span>
+                        </div>
+                        <span className="font-bold text-slate-800 text-[10px] block">
+                          {item.value} <span className="text-slate-400 text-[8px]">({item.percent}%)</span>
+                        </span>
                       </div>
-                      <span className="font-bold text-slate-800 text-[10px] block">
-                        {item.value} <span className="text-slate-400 text-[8px]">({item.percent}%)</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {studentAnalytics.uncompletedCount > 0 ? (
-                <div className="mt-2 p-1.5 bg-amber-50/90 border border-amber-200/70 rounded flex items-center gap-1.5 text-amber-900 text-[10px] font-medium">
-                  <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                  <span className="truncate">{studentAnalytics.uncompletedCount} pending / unsubmitted</span>
-                </div>
-              ) : (
-                <div className="mt-2 p-1.5 bg-emerald-50/90 border border-emerald-200/70 rounded flex items-center gap-1.5 text-emerald-900 text-[10px] font-medium">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
-                  <span className="truncate">All submitted</span>
-                </div>
+              {studentAnalytics.assignmentDonutData.length > 0 && (
+                studentAnalytics.uncompletedCount > 0 ? (
+                  <div className="mt-2 p-1.5 bg-amber-50/90 border border-amber-200/70 rounded flex items-center gap-1.5 text-amber-900 text-[10px] font-medium">
+                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                    <span className="truncate">{studentAnalytics.uncompletedCount} pending / unsubmitted</span>
+                  </div>
+                ) : (
+                  <div className="mt-2 p-1.5 bg-emerald-50/90 border border-emerald-200/70 rounded flex items-center gap-1.5 text-emerald-900 text-[10px] font-medium">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="truncate">All submitted</span>
+                  </div>
+                )
               )}
             </Card>
 
@@ -695,8 +894,9 @@ export const StudentReports: React.FC = () => {
                 </div>
 
                 <div className="h-28 w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={studentAnalytics.testScoresData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                  {studentAnalytics.testScoresData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={studentAnalytics.testScoresData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="test" tick={{ fontSize: 9, fill: "#94A3B8" }} tickLine={false} axisLine={false} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#94A3B8" }} tickLine={false} axisLine={false} />
@@ -709,17 +909,22 @@ export const StudentReports: React.FC = () => {
                           fontSize: "11px",
                           padding: "4px 8px",
                         }}
-                        formatter={(value: any) => [`${value} / 100`, "Score"]}
+                        formatter={(value) => [`${value}%`, "Score"]}
                       />
                       <Bar dataKey="score" fill="#3B82F6" radius={[3, 3, 0, 0]} name="Score" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-[10px] text-slate-400 text-center px-3">
+                      No test or assessment records yet.
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-500 flex justify-between items-center">
-                <span>Assessment Progress</span>
-                <span className="font-semibold text-slate-700">100 Max</span>
+                <span>Recorded assessments</span>
+                <span className="font-semibold text-slate-700">Score %</span>
               </div>
             </Card>
 
@@ -750,8 +955,9 @@ export const StudentReports: React.FC = () => {
                   </Badge>
                 </div>
 
-                <div className="space-y-2 my-1">
-                  {studentAnalytics.riskFactors.map((factor) => {
+                {studentAnalytics.riskFactors.length > 0 ? (
+                  <div className="space-y-2 my-1">
+                    {studentAnalytics.riskFactors.map((factor) => {
                     const barColor =
                       factor.risk === "High Risk"
                         ? "bg-rose-500"
@@ -773,23 +979,31 @@ export const StudentReports: React.FC = () => {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                    })}
+                  </div>
+                ) : (
+                  <div className="h-24 flex items-center justify-center text-[10px] text-slate-400 text-center px-3">
+                    No recorded attendance, assignment, or assessment factors yet.
+                  </div>
+                )}
               </div>
 
-              {studentAnalytics.isHighRisk ? (
-                <div className="mt-2 p-1.5 bg-rose-50/90 border border-rose-200 rounded flex items-center gap-1.5 text-rose-900 text-[10px] font-semibold">
-                  <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />
-                  <span className="truncate">High risk • Follow-up advised</span>
-                </div>
-              ) : (
-                <div className="mt-2 p-1.5 bg-emerald-50/90 border border-emerald-200 rounded flex items-center gap-1.5 text-emerald-900 text-[10px] font-medium">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
-                  <span className="truncate">Performance within normal limits</span>
-                </div>
+              {studentAnalytics.riskFactors.length > 0 && (
+                studentAnalytics.isHighRisk ? (
+                  <div className="mt-2 p-1.5 bg-rose-50/90 border border-rose-200 rounded flex items-center gap-1.5 text-rose-900 text-[10px] font-semibold">
+                    <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />
+                    <span className="truncate">High risk • Follow-up advised</span>
+                  </div>
+                ) : (
+                  <div className="mt-2 p-1.5 bg-emerald-50/90 border border-emerald-200 rounded flex items-center gap-1.5 text-emerald-900 text-[10px] font-medium">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="truncate">Performance within normal limits</span>
+                  </div>
+                )
               )}
             </Card>
           </div>
+          )}
         </div>
       ) : (
         /* Default State when no student is selected: Display overall institute overview charts */

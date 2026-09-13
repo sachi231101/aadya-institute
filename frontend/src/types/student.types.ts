@@ -96,6 +96,7 @@ export interface Student {
   address?: StudentAddress;
   leadSource?: string;
   counsellorName?: string;
+  enquiryDate?: string | null;
   courseName?: string;
   /** All courses from admissions / package enrollments */
   courses?: Array<{ id: string; name: string; code: string }>;

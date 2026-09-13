@@ -1089,6 +1089,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       `Admission type: ${admissionType}`,
       `Academic year: ${getMasterLabel(academicYearOptions, academicYearMasterId)}`,
       counsellorName ? `Counsellor: ${counsellorName}` : null,
+      gender ? `Gender: ${gender}` : null,
       sourceMasterId
         ? `Lead source: ${getMasterLabel(leadSourceOptions, sourceMasterId)}`
         : null,
