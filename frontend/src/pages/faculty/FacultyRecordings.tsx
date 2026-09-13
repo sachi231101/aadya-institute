@@ -149,9 +149,28 @@ export const FacultyRecordings: React.FC = () => {
     setSyncNotice(null);
     setSyncNoticeError(null);
     try {
-      await syncMutation.mutateAsync(rec.id);
-      setSyncNotice("Recording sync refreshed. Status will update when Drive is ready.");
+      const result = await syncMutation.mutateAsync(rec.id);
       await refetch();
+      const status = String(
+        result?.data?.recording?.recordingStatus || ""
+      ).toUpperCase();
+      const detail =
+        result?.data?.recording?.lastSyncError ||
+        result?.data?.message ||
+        result?.message;
+
+      if (status === "AVAILABLE") {
+        setSyncNotice("Recording available.");
+      } else if (status === "FAILED") {
+        setSyncNoticeError(
+          detail ||
+            "No Google Drive recording file found. Ensure Meet recording was started and ended, then try Refresh sync again."
+        );
+      } else {
+        setSyncNotice(
+          "Recording sync refreshed. Status will update when Drive is ready."
+        );
+      }
     } catch (err) {
       setSyncNoticeError(getApiErrorMessage(err, "Failed to refresh recording sync."));
     } finally {

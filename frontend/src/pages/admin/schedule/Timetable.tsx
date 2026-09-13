@@ -60,6 +60,8 @@ import {
   formatDateKeyLabel,
   getWeekRangeFromOffset,
   toHolidayDateKey,
+  isMasterHolidayDate,
+  getMasterHolidayLabel,
   localTodayKey,
   type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
@@ -160,17 +162,17 @@ const buildDaysConfig = (
     const dateKey = addDaysToDateKey(mondayKey, idx);
     const dateStr = formatDateKeyLabel(dateKey);
     const override = overrides?.find((d) => d.key === key);
-    const holiday = holidays.find((item) => toHolidayDateKey(item.data?.date) === dateKey);
-    const isSunday = key === "SUN";
+    const isHoliday = isMasterHolidayDate(dateKey, holidays);
+    const holidayLabel = getMasterHolidayLabel(dateKey, holidays);
     return {
       key,
       label: labels[key].label,
       fullDay: labels[key].fullDay,
       dateKey,
       dateStr,
-      isWorking: holiday ? false : override?.isWorking ?? !isSunday,
-      statusType: holiday ? "HOLIDAY" : override?.statusType ?? (isSunday ? "HOLIDAY" : "WORKING"),
-      note: holiday?.label ?? override?.note ?? (isSunday ? "Weekly Off" : undefined),
+      isWorking: isHoliday ? false : override?.isWorking ?? true,
+      statusType: isHoliday ? "HOLIDAY" : override?.statusType ?? "WORKING",
+      note: holidayLabel ?? override?.note,
     };
   });
 };
@@ -1848,9 +1850,7 @@ export const Timetable: React.FC = () => {
 
           <div className="space-y-3.5 my-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
             {daysConfig.map((d) => {
-              const isMasterHoliday = visibleWeekHolidays.some(
-                (holiday) => toHolidayDateKey(holiday.data?.date) === d.dateKey
-              );
+              const isMasterHoliday = isMasterHolidayDate(d.dateKey, visibleWeekHolidays);
               return (
               <div key={d.key} className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-3">
                 <div>

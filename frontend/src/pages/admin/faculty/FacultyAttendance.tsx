@@ -107,7 +107,6 @@ export const FacultyAttendance: React.FC = () => {
     if (hasUnsavedChanges && hydratedDateKey === hydrateKey) return;
 
     const dayMap: Record<string, AttendanceRowState> = {};
-    const isSunday = new Date(selectedDate + "T00:00:00").getDay() === 0;
 
     for (const row of payload.records) {
       if (row.attendance) {
@@ -119,9 +118,9 @@ export const FacultyAttendance: React.FC = () => {
         };
       } else {
         dayMap[row.facultyId] = {
-          status: isSunday ? "WEEKLY_OFF" : "PRESENT",
-          inTime: isSunday ? "" : "09:30",
-          outTime: isSunday ? "" : "17:30",
+          status: "PRESENT",
+          inTime: "09:30",
+          outTime: "17:30",
           comments: "",
         };
       }
@@ -131,12 +130,6 @@ export const FacultyAttendance: React.FC = () => {
     setHydratedDateKey(hydrateKey);
     setHasUnsavedChanges(false);
   }, [dailyAttendanceResponse, selectedDate, activeBranchId, hasUnsavedChanges, hydratedDateKey]);
-
-  // Check if selected date is Sunday (default to WEEKLY_OFF like reference)
-  const isSelectedDateSunday = useMemo(() => {
-    const d = new Date(selectedDate + "T00:00:00");
-    return d.getDay() === 0;
-  }, [selectedDate]);
 
   // Calendar month grid calculation
   const calendarDays = useMemo(() => {
@@ -192,11 +185,10 @@ export const FacultyAttendance: React.FC = () => {
     if (currentDayAttendance[facultyId]) {
       return currentDayAttendance[facultyId];
     }
-    // Default fallback: Sunday is Weekly Off, other days Present
     return {
-      status: isSelectedDateSunday ? "WEEKLY_OFF" : "PRESENT",
-      inTime: isSelectedDateSunday ? "" : "09:30",
-      outTime: isSelectedDateSunday ? "" : "17:30",
+      status: "PRESENT",
+      inTime: "09:30",
+      outTime: "17:30",
       comments: "",
     };
   };

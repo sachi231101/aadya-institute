@@ -551,14 +551,12 @@ export const syncSessionRecordings = async (
       recordingStatus = "DELETED";
     } else if (isExpired && wasAvailable) {
       recordingStatus = "EXPIRED";
-    } else if (
-      (recState === "FILE_GENERATED" || !recState) &&
-      driveFileId &&
-      driveMeta
-    ) {
-      // Meet FILE_GENERATED, or Drive-folder fallback with a real video file.
+    } else if (driveFileId && driveMeta) {
+      // Drive file + metadata is enough — Meet may report ENDED (or other
+      // non-FILE_GENERATED states) once the file is already on Drive.
       recordingStatus = "AVAILABLE";
     } else if (recState === "STARTED") {
+      // In-progress Meet recording without a usable Drive file yet.
       recordingStatus = "RECORDING";
     }
 
@@ -662,6 +660,13 @@ export const syncSessionRecordings = async (
 
     let syncedRecordingsCount = 0;
     let latestRecording = session.recording;
+    let meetDriveFileId: string | null = null;
+    let meetRecordingHints: {
+      googleRecordingId?: string | null;
+      googleConferenceRecordId?: string | null;
+      startTime?: string;
+      endTime?: string;
+    } = {};
 
     for (const conf of conferenceRecords) {
       const recordings = await googleMeet.listConferenceRecordings(
@@ -673,6 +678,15 @@ export const syncSessionRecordings = async (
         const driveFileId = rec.driveDestination?.file
           ? googleDrive.normalizeDriveFileId(rec.driveDestination.file)
           : null;
+        if (driveFileId) {
+          meetDriveFileId = driveFileId;
+          meetRecordingHints = {
+            googleRecordingId: rec.name,
+            googleConferenceRecordId: conf.name,
+            startTime: rec.startTime,
+            endTime: rec.endTime,
+          };
+        }
         const driveMeta = driveFileId
           ? await googleDrive.getDriveFileMetadata(authClient, driveFileId)
           : null;
@@ -693,8 +707,14 @@ export const syncSessionRecordings = async (
       }
     }
 
-    // Drive folder fallback when Meet API has no recording artifacts yet.
-    if (syncedRecordingsCount === 0) {
+    // Drive fallback until we have AVAILABLE — intermediate Meet artifacts
+    // (STARTED/ENDED without usable Drive meta) must not block the search.
+    const needsDriveFallback =
+      latestRecording?.recordingStatus !== "AVAILABLE" &&
+      latestRecording?.recordingStatus !== "DELETED" &&
+      latestRecording?.recordingStatus !== "EXPIRED";
+
+    if (needsDriveFallback) {
       const startAnchor =
         session.actualStartTime ||
         session.scheduledDate ||
@@ -708,35 +728,67 @@ export const syncSessionRecordings = async (
         undefined;
 
       try {
-        let candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
-          createdAfter,
-          createdBefore,
-          nameContains: meetingCode,
-          pageSize: 10,
-        });
-        if (candidates.length === 0 && meetingCode) {
-          candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
-            createdAfter,
-            createdBefore,
-            pageSize: 10,
-          });
+        // Prefer Meet's Drive destination when present (retry metadata / link).
+        if (meetDriveFileId) {
+          const meetDriveMeta = await googleDrive.getDriveFileMetadata(
+            authClient,
+            meetDriveFileId
+          );
+          if (meetDriveMeta) {
+            const upserted = await upsertFromDriveArtifact({
+              googleRecordingId: meetRecordingHints.googleRecordingId,
+              googleConferenceRecordId: meetRecordingHints.googleConferenceRecordId,
+              driveFileId: meetDriveFileId,
+              driveMeta: meetDriveMeta,
+              startTime: meetRecordingHints.startTime,
+              endTime: meetRecordingHints.endTime,
+            });
+            if (upserted) {
+              latestRecording = upserted;
+              syncedRecordingsCount++;
+            }
+          }
         }
 
-        const best = candidates[0];
-        if (best?.id) {
-          // Prefer Drive videoMediaMetadata for duration; do not pass createdTime as Meet
-          // start/end (file create time is not recording runtime and skews fallbacks).
-          const upserted = await upsertFromDriveArtifact({
-            driveFileId: best.id,
-            driveMeta: best,
+        if (latestRecording?.recordingStatus !== "AVAILABLE") {
+          let candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
+            createdAfter,
+            createdBefore,
+            nameContains: meetingCode,
+            pageSize: 10,
           });
-          if (upserted) {
-            latestRecording = upserted;
-            syncedRecordingsCount++;
-            logger.info(
-              { classSessionId: session.id, driveFileId: best.id },
-              "[google-workspace] Linked recording via Drive folder fallback"
-            );
+          if (candidates.length === 0 && meetingCode) {
+            candidates = await googleDrive.searchRecentMeetRecordings(authClient, {
+              createdAfter,
+              createdBefore,
+              pageSize: 10,
+            });
+          }
+
+          // Prefer a candidate that matches Meet's Drive destination when present.
+          const best =
+            (meetDriveFileId
+              ? candidates.find((c) => c.id === meetDriveFileId)
+              : undefined) || candidates[0];
+          if (best?.id) {
+            // Prefer Drive videoMediaMetadata for duration; do not pass createdTime as Meet
+            // start/end (file create time is not recording runtime and skews fallbacks).
+            const upserted = await upsertFromDriveArtifact({
+              googleRecordingId: meetRecordingHints.googleRecordingId,
+              googleConferenceRecordId: meetRecordingHints.googleConferenceRecordId,
+              driveFileId: best.id,
+              driveMeta: best,
+              startTime: meetRecordingHints.startTime,
+              endTime: meetRecordingHints.endTime,
+            });
+            if (upserted) {
+              latestRecording = upserted;
+              syncedRecordingsCount++;
+              logger.info(
+                { classSessionId: session.id, driveFileId: best.id },
+                "[google-workspace] Linked recording via Drive folder fallback"
+              );
+            }
           }
         }
       } catch (fallbackErr) {
@@ -747,18 +799,24 @@ export const syncSessionRecordings = async (
       }
     }
 
-    if (syncedRecordingsCount === 0 && session.recording) {
+    if (
+      syncedRecordingsCount === 0 &&
+      session.recording &&
+      latestRecording?.recordingStatus !== "AVAILABLE" &&
+      latestRecording?.recordingStatus !== "DELETED" &&
+      latestRecording?.recordingStatus !== "EXPIRED"
+    ) {
+      // Soft-empty: keep FAILED terminal for one-shot refresh; only promote
+      // PENDING/RECORDING/PROCESSING into PROCESSING while a wait window is live.
+      const currentStatus =
+        latestRecording?.recordingStatus ?? session.recording.recordingStatus;
+      const preserveFailed = currentStatus === "FAILED";
       latestRecording = await prisma.recording.update({
         where: { id: session.recording.id },
         data: {
           lastSyncAt: syncTime,
           lastSyncError: WAITING_MESSAGE,
-          recordingStatus:
-            session.recording.recordingStatus === "AVAILABLE" ||
-            session.recording.recordingStatus === "DELETED" ||
-            session.recording.recordingStatus === "EXPIRED"
-              ? session.recording.recordingStatus
-              : "PROCESSING",
+          ...(preserveFailed ? {} : { recordingStatus: "PROCESSING" }),
         },
       });
     }

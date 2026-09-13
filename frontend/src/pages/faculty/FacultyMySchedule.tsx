@@ -31,7 +31,8 @@ import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import {
   periodFromStartTime,
   spanSlotsForSession,
-  toHolidayDateKey,
+  isMasterHolidayDate,
+  getMasterHolidayLabel,
   toDateKey,
   getWeekRangeFromOffset,
   localTodayKey,
@@ -187,10 +188,7 @@ export const FacultyMySchedule: React.FC = () => {
         name: "Day",
         short: "DAY",
       };
-      const holiday = holidayOptions.find(
-        (item) => toHolidayDateKey(item.data?.date) === iso
-      );
-      const isSunday = dayNum === 0;
+      const holidayTitle = getMasterHolidayLabel(iso, holidayOptions);
       return {
         date: localDate,
         iso,
@@ -198,8 +196,8 @@ export const FacultyMySchedule: React.FC = () => {
         dayShort: dayMeta.short,
         formattedDate: localDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
         isToday: iso === todayIso,
-        isHoliday: Boolean(holiday) || isSunday,
-        holidayTitle: holiday?.label || (isSunday ? "Sunday" : undefined),
+        isHoliday: isMasterHolidayDate(iso, holidayOptions),
+        holidayTitle,
       };
     });
   }, [weekRange.mondayKey, todayIso, holidayOptions]);

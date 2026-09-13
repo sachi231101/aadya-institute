@@ -16,6 +16,7 @@ import { NotificationService } from "../modules/notifications/notification.servi
 import {
   getRecordingAccess,
   getRecordingById,
+  syncRecording,
 } from "../modules/recordings/recording.service";
 import {
   GOOGLE_RECORDING_REPOLL_DELAY_MS,
@@ -98,6 +99,8 @@ const installGoogleDiscoveryMock = (
     recordingStartTime?: string;
     recordingEndTime?: string;
     omitDriveDuration?: boolean;
+    recordingState?: string;
+    omitDriveDestination?: boolean;
   } = {}
 ) => {
   const driveFileId = options.driveFileId ?? "drive-file-123456";
@@ -109,6 +112,7 @@ const installGoogleDiscoveryMock = (
       : options.durationMillis === null
         ? undefined
         : (options.durationMillis ?? "3600000");
+  const recordingState = options.recordingState ?? "FILE_GENERATED";
 
   t.mock.method(google as any, "meet", () => ({
     conferenceRecords: {
@@ -133,10 +137,12 @@ const installGoogleDiscoveryMock = (
             recordings: [
               {
                 name: "conferenceRecords/conf-1/recordings/rec-1",
-                state: "FILE_GENERATED",
+                state: recordingState,
                 startTime: recordingStartTime,
                 endTime: recordingEndTime,
-                driveDestination: { file: `files/${driveFileId}` },
+                ...(options.omitDriveDestination
+                  ? {}
+                  : { driveDestination: { file: `files/${driveFileId}` } }),
               },
             ],
           },
@@ -533,6 +539,12 @@ describe("Google recording sync queue", { concurrency: false }, () => {
             },
           }),
         },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({ data: null }),
+        list: async () => ({ data: { files: [] } }),
       },
     }));
 
@@ -978,6 +990,446 @@ describe("Google recording sync queue", { concurrency: false }, () => {
       storedRecording.duration,
       5,
       "Meet recording end−start must win over stale 60 and actualEndTime hour span"
+    );
+  });
+
+  test("Meet ENDED with Drive file+meta becomes AVAILABLE", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PROCESSING",
+      status: "ACTIVE",
+      expiresAt: null,
+    };
+
+    installGoogleDiscoveryMock(t, { recordingState: "ENDED" });
+    installSyncDatabaseMocks(t, () => session(storedRecording));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = storedRecording ? update : create;
+      storedRecording = { ...storedRecording, ...data, id: "recording-1", status: "ACTIVE" };
+      return storedRecording;
+    });
+
+    await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(storedRecording.googleDriveFileId, "drive-file-123456");
+    assert.strictEqual(storedRecording.lastSyncError, null);
+  });
+
+  test("Meet STARTED without Drive file still allows Drive fallback to AVAILABLE", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PENDING",
+      status: "ACTIVE",
+      expiresAt: null,
+    };
+    const driveFileId = "drive-fallback-from-started-888";
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+                startTime: "2026-09-01T09:00:00.000Z",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({
+            data: {
+              recordings: [
+                {
+                  name: "conferenceRecords/conf-1/recordings/rec-1",
+                  state: "STARTED",
+                  startTime: "2026-09-01T09:00:00.000Z",
+                },
+              ],
+            },
+          }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({
+          data: {
+            id: driveFileId,
+            name: "Started then found.mp4",
+            mimeType: "video/mp4",
+            webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+            createdTime: new Date().toISOString(),
+            videoMediaMetadata: { durationMillis: "180000" },
+          },
+        }),
+        list: async () => ({
+          data: {
+            files: [
+              {
+                id: driveFileId,
+                name: "Started then found.mp4",
+                mimeType: "video/mp4",
+                webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+                createdTime: new Date().toISOString(),
+                videoMediaMetadata: { durationMillis: "180000" },
+              },
+            ],
+          },
+        }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => ({
+      ...session(storedRecording),
+      actualStartTime: new Date(Date.now() - 10 * 60 * 1000),
+      actualEndTime: new Date(),
+      googleMeetSpace: {
+        id: "meet-space-1",
+        spaceName: "spaces/test-space",
+        meetingCode: "xyz-abcd-efg",
+        organizerUserId: adminUser.id,
+      },
+    }));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = { ...(create || {}), ...(update || {}) };
+      storedRecording = { ...storedRecording, ...data, id: "recording-1", status: "ACTIVE" };
+      return storedRecording;
+    });
+
+    const result = await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.ok(result.syncedCount >= 1);
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(storedRecording.googleDriveFileId, driveFileId);
+  });
+
+  test("Meet ENDED without Drive file still allows Drive fallback to AVAILABLE", async (t) => {
+    let storedRecording: any = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PROCESSING",
+      status: "ACTIVE",
+      expiresAt: null,
+    };
+    const driveFileId = "drive-fallback-from-ended-777";
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+                startTime: "2026-09-01T09:00:00.000Z",
+                endTime: "2026-09-01T09:30:00.000Z",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({
+            data: {
+              recordings: [
+                {
+                  name: "conferenceRecords/conf-1/recordings/rec-1",
+                  state: "ENDED",
+                  startTime: "2026-09-01T09:00:00.000Z",
+                  endTime: "2026-09-01T09:30:00.000Z",
+                },
+              ],
+            },
+          }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({
+          data: {
+            id: driveFileId,
+            name: "Ended then found.mp4",
+            mimeType: "video/mp4",
+            webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+            createdTime: new Date().toISOString(),
+            videoMediaMetadata: { durationMillis: "600000" },
+          },
+        }),
+        list: async () => ({
+          data: {
+            files: [
+              {
+                id: driveFileId,
+                name: "Ended then found.mp4",
+                mimeType: "video/mp4",
+                webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+                createdTime: new Date().toISOString(),
+                videoMediaMetadata: { durationMillis: "600000" },
+              },
+            ],
+          },
+        }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => ({
+      ...session(storedRecording),
+      actualStartTime: new Date(Date.now() - 40 * 60 * 1000),
+      actualEndTime: new Date(),
+      googleMeetSpace: {
+        id: "meet-space-1",
+        spaceName: "spaces/test-space",
+        meetingCode: "qrs-tuvw-xyz",
+        organizerUserId: adminUser.id,
+      },
+    }));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = { ...(create || {}), ...(update || {}) };
+      storedRecording = { ...storedRecording, ...data, id: "recording-1", status: "ACTIVE" };
+      return storedRecording;
+    });
+
+    const result = await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.ok(result.syncedCount >= 1);
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.strictEqual(storedRecording.googleDriveFileId, driveFileId);
+  });
+
+  test("worker past sync window marks recording FAILED with lastSyncError", async (t) => {
+    const failedUpdates: any[] = [];
+    const pendingRecording = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "PROCESSING",
+      status: "ACTIVE",
+    };
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({ data: { recordings: [] } }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({ data: null }),
+        list: async () => ({ data: { files: [] } }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => session(pendingRecording));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "update", async ({ data }: any) => {
+      Object.assign(pendingRecording, data);
+      return pendingRecording;
+    });
+    replaceMethod(t, prisma.recording as any, "updateMany", async ({ data }: any) => {
+      failedUpdates.push(data);
+      Object.assign(pendingRecording, data);
+      return { count: 1 };
+    });
+    replaceMethod(t, prisma.classSession as any, "findUnique", async (args: any) => {
+      if (args?.select) {
+        return {
+          // End time more than 6h ago → past sync window
+          actualEndTime: new Date(Date.now() - 7 * 60 * 60 * 1000),
+        };
+      }
+      return {
+        ...session(pendingRecording),
+        actualEndTime: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      };
+    });
+
+    const job = {
+      data: {
+        classSessionId: "session-1",
+        instituteId: adminUser.instituteId,
+        userId: adminUser.id,
+        pollAttempt: 5,
+        enqueuedAtMs: Date.now() - 7 * 60 * 60 * 1000,
+      },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+      updateData: async () => {},
+      moveToDelayed: async () => {
+        assert.fail("must not schedule re-poll after sync window");
+      },
+    };
+
+    await processGoogleRecordingSync(job as any, "test-token");
+
+    const failed = failedUpdates.find((u) => u.recordingStatus === "FAILED");
+    assert.ok(failed, "past sync window must mark FAILED");
+    assert.ok(
+      typeof failed.lastSyncError === "string" &&
+        /No Google Drive recording file found/i.test(failed.lastSyncError),
+      "FAILED must include clear lastSyncError"
+    );
+    assert.strictEqual(pendingRecording.recordingStatus, "FAILED");
+  });
+
+  test("empty soft sync does not demote FAILED to PROCESSING", async (t) => {
+    const failedRecording = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "FAILED",
+      status: "ACTIVE",
+      lastSyncError: "No Google Drive recording file found after the waiting window.",
+    };
+    const updates: any[] = [];
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({ data: { recordings: [] } }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({ data: null }),
+        list: async () => ({ data: { files: [] } }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () => session(failedRecording));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "update", async ({ data }: any) => {
+      updates.push(data);
+      Object.assign(failedRecording, data);
+      return failedRecording;
+    });
+
+    const result = await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.strictEqual(updates.length, 1);
+    assert.strictEqual(
+      updates[0].recordingStatus,
+      undefined,
+      "soft-empty must not set recordingStatus when already FAILED"
+    );
+    assert.ok(updates[0].lastSyncAt instanceof Date);
+    assert.strictEqual(typeof updates[0].lastSyncError, "string");
+    assert.strictEqual(failedRecording.recordingStatus, "FAILED");
+    assert.strictEqual(result.recording?.recordingStatus, "FAILED");
+  });
+
+  test("syncRecording enqueues queue job when still not AVAILABLE after immediate sync", async (t) => {
+    const enqueued: Array<{ name: string; data: any; opts: any }> = [];
+    const failedRecording = {
+      id: "recording-1",
+      classSessionId: "session-1",
+      recordingStatus: "FAILED",
+      status: "ACTIVE",
+      lastSyncError: "No Google Drive recording file found after the waiting window.",
+      classSession: {
+        id: "session-1",
+        facultyId: "faculty-1",
+        batch: {
+          instituteId: adminUser.instituteId,
+          branchId: "branch-1",
+          enrollments: [],
+        },
+        googleMeetSpace: {
+          organizerUserId: adminUser.id,
+        },
+      },
+    };
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({ data: { recordings: [] } }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({ data: null }),
+        list: async () => ({ data: { files: [] } }),
+      },
+    }));
+
+    installSyncDatabaseMocks(t, () =>
+      session({
+        id: failedRecording.id,
+        classSessionId: failedRecording.classSessionId,
+        recordingStatus: failedRecording.recordingStatus,
+        status: failedRecording.status,
+        lastSyncError: failedRecording.lastSyncError,
+      })
+    );
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "findUnique", async () => failedRecording);
+    replaceMethod(t, prisma.recording as any, "update", async ({ data }: any) => {
+      Object.assign(failedRecording, data);
+      return {
+        id: failedRecording.id,
+        classSessionId: failedRecording.classSessionId,
+        recordingStatus: failedRecording.recordingStatus,
+        status: failedRecording.status,
+        lastSyncError: failedRecording.lastSyncError,
+        lastSyncAt: failedRecording.lastSyncAt,
+      };
+    });
+    replaceMethod(t, googleRecordingQueue as any, "add", async (name: string, data: any, opts: any) => {
+      enqueued.push({ name, data, opts });
+      return { id: opts.jobId };
+    });
+
+    const result = await syncRecording(adminUser as any, "recording-1");
+
+    assert.strictEqual(result.recording?.recordingStatus, "FAILED");
+    assert.strictEqual(enqueued.length, 1);
+    assert.strictEqual(enqueued[0].name, "sync-session-recording");
+    assert.strictEqual(enqueued[0].data.classSessionId, "session-1");
+    assert.strictEqual(enqueued[0].data.userId, adminUser.id);
+    assert.strictEqual(enqueued[0].data.pollAttempt, 0);
+    assert.strictEqual(typeof enqueued[0].data.enqueuedAtMs, "number");
+    assert.match(
+      String(enqueued[0].opts.jobId),
+      /^sync-recording-session-1-\d+$/
     );
   });
 });

@@ -88,14 +88,27 @@ export const processGoogleRecordingSync = async (
     const pastSyncWindow = Date.now() > endAnchorMs + GOOGLE_RECORDING_SYNC_WINDOW_MS;
 
     if (pollAttempt >= GOOGLE_RECORDING_MAX_REPOLL_ATTEMPTS || pastSyncWindow) {
+      const lastSyncError =
+        "No Google Drive recording file found after the waiting window. Ensure Meet recording was started and ended, then use Refresh sync or wait for the next scheduled scan.";
+      await prisma.recording.updateMany({
+        where: {
+          classSessionId,
+          recordingStatus: { notIn: [...TERMINAL_STATUSES] },
+        },
+        data: {
+          recordingStatus: "FAILED",
+          lastSyncAt: new Date(),
+          lastSyncError,
+        },
+      });
       logger.info(
         {
           classSessionId,
           pollAttempt,
           pastSyncWindow,
-          recordingStatus,
+          recordingStatus: "FAILED",
         },
-        "[google-recording-queue] Re-poll cap reached; leaving non-terminal status for cron backstop"
+        "[google-recording-queue] Re-poll window exhausted; marked recording FAILED"
       );
       return;
     }

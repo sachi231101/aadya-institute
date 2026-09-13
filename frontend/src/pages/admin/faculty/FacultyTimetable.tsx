@@ -39,7 +39,8 @@ import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import {
   periodFromStartTime as mapPeriodFromStartTime,
-  toHolidayDateKey,
+  isMasterHolidayDate,
+  getMasterHolidayLabel,
   type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
 
@@ -175,11 +176,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
       const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
       const dayName = date.toLocaleDateString("en-IN", { weekday: "long" });
       const dayShort = date.toLocaleDateString("en-IN", { weekday: "short" });
-      const isSunday = dayKey === "SUN";
-      const holiday = holidayOptions.find(
-        (item) => toHolidayDateKey(item.data?.date) === dateKey
-      );
-      const isHoliday = Boolean(holiday) || isSunday;
+      const isHoliday = isMasterHolidayDate(dateKey, holidayOptions);
       const slots = createDefaultDaySlots(timeSlotColumns);
 
       sessions.forEach((raw: any) => {
@@ -217,7 +214,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
         dayShort,
         dateStr,
         isHoliday,
-        holidayTitle: holiday?.label || (isSunday ? "Weekly Off" : undefined),
+        holidayTitle: getMasterHolidayLabel(dateKey, holidayOptions),
         slots,
       };
     });
@@ -586,7 +583,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
             <tbody className="divide-y divide-slate-100 bg-white">
               {filteredSchedule.map((day) => {
-                // If this is a Holiday (e.g. Sunday)
+                // If this is a Master holiday
                 if (day.isHoliday) {
                   return (
                     <tr key={day.dayKey} className="bg-rose-50/40 hover:bg-rose-50/60 transition-colors">

@@ -245,6 +245,29 @@ export const toHolidayDateKey = (value: unknown): string => {
   return match?.[1] ?? "";
 };
 
+type MasterHolidayLike = {
+  label?: string;
+  data?: Record<string, unknown> | null;
+};
+
+/** True when `dateKey` matches a Master Setup holiday date (Sunday is not an implicit holiday). */
+export const isMasterHolidayDate = (
+  dateKey: string,
+  holidays: MasterHolidayLike[] = []
+): boolean =>
+  holidays.some((item) => toHolidayDateKey(item.data?.date) === dateKey);
+
+/** Label for a Master holiday on `dateKey`, if any. */
+export const getMasterHolidayLabel = (
+  dateKey: string,
+  holidays: MasterHolidayLike[] = []
+): string | undefined => {
+  const match = holidays.find(
+    (item) => toHolidayDateKey(item.data?.date) === dateKey
+  );
+  return match?.label;
+};
+
 export const formatDateKeyLabel = (dateKey: string, options?: Intl.DateTimeFormatOptions): string => {
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return dateKey;
