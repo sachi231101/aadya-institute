@@ -5,6 +5,7 @@
 import { env } from "../config/env";
 import { connectDatabase } from "../config/database";
 import { logger } from "../config/logger";
+import { startCronJobs } from "../jobs/scheduler";
 import { registerWorkers } from "./register";
 
 async function main() {
@@ -15,6 +16,8 @@ async function main() {
 
   await connectDatabase();
   await registerWorkers();
+  // Idempotent: no-op if API already started cron in the same process.
+  startCronJobs();
 }
 
 main().catch((err) => {

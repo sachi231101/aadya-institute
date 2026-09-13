@@ -64,23 +64,6 @@ const generateMockAttendanceData = (): DailyAttendanceRecord[] => {
     const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
     const dayName = dayNames[dayOfWeek];
 
-    if (dayOfWeek === 0) {
-      // Sunday - Weekend
-      records.push({
-        id: `att-2026-08-${d}`,
-        date: dateStr,
-        dayName,
-        checkIn: null,
-        checkOut: null,
-        workingHours: null,
-        status: "WEEKEND",
-        markedBy: "System",
-        markedAt: null,
-        remarks: "Weekly Off",
-      });
-      continue;
-    }
-
     if (d === 15) {
       // Independence Day - Holiday
       records.push({

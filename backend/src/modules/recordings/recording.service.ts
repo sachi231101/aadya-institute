@@ -17,6 +17,7 @@ import {
   deleteDriveFile,
   setRestrictedViewerPermission,
 } from "../../integrations/google/google.drive.client";
+import { googleRecordingQueue } from "../../queues/google-recording.queue";
 
 /**
  * Send RECORDING_AVAILABLE WhatsApp notifications to all ACTIVE enrolled students
@@ -491,7 +492,48 @@ const deleteGoogleDriveRecording = async (
 
 export const syncRecording = async (currentUser: AuthUser, id: string) => {
   const recording = await getRecordingById(currentUser, id);
-  return syncSessionRecordings(currentUser, recording.classSessionId);
+  const result = await syncSessionRecordings(currentUser, recording.classSessionId);
+
+  const status = result.recording?.recordingStatus;
+  const isTerminal =
+    status === "AVAILABLE" || status === "DELETED" || status === "EXPIRED";
+
+  if (!isTerminal) {
+    const organizerUserId =
+      recording.classSession?.googleMeetSpace?.organizerUserId;
+    if (organizerUserId) {
+      try {
+        await googleRecordingQueue.add(
+          "sync-session-recording",
+          {
+            classSessionId: recording.classSessionId,
+            instituteId: currentUser.instituteId,
+            userId: organizerUserId,
+            pollAttempt: 0,
+            enqueuedAtMs: Date.now(),
+          },
+          {
+            // Unique jobId so Refresh opens a new poll window even if a prior
+            // sync-recording-${sessionId} job already completed.
+            jobId: `sync-recording-${recording.classSessionId}-${Date.now()}`,
+            removeOnComplete: true,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 10000,
+            },
+          }
+        );
+      } catch (err) {
+        logger.warn(
+          { err, classSessionId: recording.classSessionId },
+          "[recordings] Failed to enqueue recording sync after refresh"
+        );
+      }
+    }
+  }
+
+  return result;
 };
 
 export const expireRecording = async (currentUser: AuthUser, id: string) => {
