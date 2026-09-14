@@ -17,6 +17,7 @@ import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader } from "@/components/layout";
 import {
   ResponsiveContainer,
@@ -78,15 +79,17 @@ export const FeeReports: React.FC = () => {
         title="Fee Financial Reports"
         description="SUCCESS payments only (VOID excluded). Outstanding from open installment dues."
         actions={
-          <Button
-            variant="outline"
-            className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
-            onClick={handleExportReport}
-            disabled={!reports}
-          >
-            <Download className="mr-2 h-4 w-4 text-primary" />
-            Export Financial Report (CSV)
-          </Button>
+          <PermissionGate itemKey="fees.reports" mode="read">
+            <Button
+              variant="outline"
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+              onClick={handleExportReport}
+              disabled={!reports}
+            >
+              <Download className="mr-2 h-4 w-4 text-primary" />
+              Export Financial Report (CSV)
+            </Button>
+          </PermissionGate>
         }
       />
 
@@ -240,8 +243,8 @@ export const FeeReports: React.FC = () => {
                         tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
                       />
                       <Tooltip
-                        formatter={(val: number) => [
-                          `₹${Number(val).toLocaleString("en-IN")}`,
+                        formatter={(val) => [
+                          `₹${Number(val ?? 0).toLocaleString("en-IN")}`,
                           "Revenue",
                         ]}
                       />
@@ -283,8 +286,8 @@ export const FeeReports: React.FC = () => {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(val: number) => [
-                            `₹${Number(val).toLocaleString("en-IN")}`,
+                          formatter={(val) => [
+                            `₹${Number(val ?? 0).toLocaleString("en-IN")}`,
                             "Revenue",
                           ]}
                         />

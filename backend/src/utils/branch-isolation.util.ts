@@ -110,7 +110,12 @@ export const assertBranchRecordAccess = (
   recordBranchId: string | null | undefined,
   message = "Resource not found"
 ): void => {
-  if (user.roles.includes("ADMIN")) return;
+  if (
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPER_ADMIN")
+  ) {
+    return;
+  }
 
   const allowed = user.allowedBranchIds ?? [];
   if (allowed.length > 0) {

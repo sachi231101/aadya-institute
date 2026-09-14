@@ -51,7 +51,7 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
         title="Other Invoices"
         description="Ad-hoc invoices with custom line items (books, kits, misc.)."
         actions={
-          <PermissionGate itemKey="fees.other_invoices" mode="write">
+          <PermissionGate itemKey="fees.invoices" mode="write">
             <Button asChild className="gap-2">
               <Link to={`${basePath}/fees/other-invoices/new`}>
                 <Plus className="h-4 w-4" /> Create Invoice
@@ -63,7 +63,7 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
       )}
       {embedded && (
         <div className="flex justify-end">
-          <PermissionGate itemKey="fees.other_invoices" mode="write">
+          <PermissionGate itemKey="fees.invoices" mode="write">
             <Button asChild className="gap-2">
               <Link to={`${basePath}/fees/other-invoices/new`}>
                 <Plus className="h-4 w-4" /> Create Invoice

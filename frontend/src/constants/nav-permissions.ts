@@ -42,15 +42,12 @@ const COUNSELOR_ALWAYS_ALLOWED = [
   "/counselor/home",
   "/counselor/settings",
   "/counselor/notifications",
-  "/counselor/targets",
-  "/counselor/targets/leaderboard",
-  "/counselor/incentives",
-  "/counselor/performance",
 ];
 
 /** Create/edit URLs that require Edit, not just Read. */
 export const isWritePortalPath = (pathname: string): boolean =>
-  /(^|\/)(add|create|new|edit|direct-entry)(\/|$)/.test(pathname);
+  /(^|\/)(add|create|new|edit|direct-entry)(\/|$)/.test(pathname) ||
+  /\/fees\/payments\/?$/.test(pathname);
 
 export const isAlwaysAllowedPortalPath = (
   pathname: string,
@@ -127,7 +124,7 @@ export const canAccessNavUrl = (
 
 function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
   const permissions = Array.from(permSet);
-  if (COUNSELOR_ITEM_READ_PERMISSIONS[itemKey]) {
+  if (itemKey in COUNSELOR_ITEM_READ_PERMISSIONS) {
     return canReadCounselorItem(permissions, itemKey);
   }
   if (CENTER_ITEM_READ_PERMISSIONS[itemKey]) {
@@ -151,7 +148,7 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
     "leads.call_history": ["ai_call.read", "lead.read"],
     "admissions.all": ["admission.read"],
     "admissions.applications": ["admission.read"],
-    "admissions.enquiries": ["lead.read"],
+    "admissions.enquiries": ["lead.read", "admission.read"],
     "counsellor.overview": ["user.read"],
     "counsellor.manage": ["user.read"],
     "counsellor.batches": ["batch.read"],
@@ -167,14 +164,11 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
     "schedule.assignments": ["assignment.read"],
     "exams.all": ["exam.read"],
     "exams.create": ["exam.read"],
-    "exams.question_bank": ["question_bank.read"],
+    "exams.question_bank": ["question_bank.read", "question.read"],
     "fees.students": ["fee.read"],
-    "fees.payments": ["fee.read"],
-    "fees.pending": ["fee.read"],
     "fees.invoices": ["fee.read"],
-    "fees.other_invoices": ["fee.read"],
     "fees.receipts": ["fee.read"],
-    "fees.reports": ["fee.read"],
+    "fees.reports": ["fee.read", "report.read"],
     "reports.students": ["report.read"],
     "reports.faculty": ["report.read"],
     "reports.courses": ["report.read"],

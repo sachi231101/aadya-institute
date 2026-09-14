@@ -283,7 +283,7 @@ async function main() {
 
   // CENTER_MANAGER role-level defaults — baseline only.
   const cmPermNames = [
-    "dashboard.read", "branch.read", "notification.read", "notification.resend",
+    "dashboard.read", "branch.read", "notification.read",
   ];
   for (const name of cmPermNames) {
     if (permissions[name]) {
@@ -296,12 +296,9 @@ async function main() {
     }
   }
 
-  // COUNSELLOR permissions
+  // COUNSELLOR role-level defaults — baseline only.
   const counsellorPermNames = [
-    "dashboard.read", "branch.read", "course.read", "lead.read", "lead.create",
-    "lead.update", "lead.convert", "ai_call.read", "ai_call.create", "admission.read",
-    "admission.create", "master.read", "chat.read", "chat.send", "notification.read",
-    "target.read", "incentive.read", "exam.read", "question.read", "question_bank.read",
+    "dashboard.read", "branch.read", "notification.read",
   ];
   for (const name of counsellorPermNames) {
     if (permissions[name]) {

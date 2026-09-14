@@ -3,7 +3,10 @@ import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
 import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
 import { sendSuccess } from "../../utils/response";
-import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
+import {
+  assertBranchRecordAccess,
+  resolveEffectiveBranchId,
+} from "../../utils/branch-isolation.util";
 import * as service from "./batch.service";
 
 export const getAll = async (
@@ -66,8 +69,18 @@ export const getById = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    await assertFacultyOwnsBatch(toAuthUser(req), req.params.id as string);
+    const currentUser = toAuthUser(req);
+    await assertFacultyOwnsBatch(currentUser, req.params.id as string);
     const batch = await service.getBatchById(req.params.id as string, instituteId);
+    const roles = currentUser.roles || [];
+    const isPureFaculty =
+      roles.includes("FACULTY") &&
+      !roles.includes("ADMIN") &&
+      !roles.includes("CENTER_MANAGER") &&
+      !roles.includes("COUNSELLOR");
+    if (!isPureFaculty) {
+      assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
+    }
     res.json({
       success: true,
       message: "Batch details retrieved successfully",

@@ -1,6 +1,10 @@
 ﻿import { test, describe } from "node:test";
 import assert from "node:assert";
-import { getBranchScopeFilter, hasBranchAccess } from "../utils/branch-isolation.util";
+import {
+  assertBranchRecordAccess,
+  getBranchScopeFilter,
+  hasBranchAccess,
+} from "../utils/branch-isolation.util";
 import { createBranchSchema, updateBranchSchema, branchListQuerySchema } from "../modules/branches/branch.validation";
 import { requireBranchAccess } from "../middlewares/branch.middleware";
 import type { AuthUser } from "../modules/auth/auth.types";
@@ -99,6 +103,15 @@ describe("Branch Isolation Helper Unit Tests", () => {
     assert.strictEqual(hasBranchAccess(multi, "branch-a"), true);
     assert.strictEqual(hasBranchAccess(multi, "branch-c"), true);
     assert.strictEqual(hasBranchAccess(multi, "branch-b"), false);
+  });
+
+  test("assertBranchRecordAccess hides cross-branch records from CENTER_MANAGER", () => {
+    assert.doesNotThrow(() => assertBranchRecordAccess(managerA, "branch-a"));
+    assert.throws(
+      () => assertBranchRecordAccess(managerA, "branch-b"),
+      (error: unknown) =>
+        error instanceof Error && error.message === "Resource not found"
+    );
   });
 
   test("getBranchScopeFilter with multiple allowedBranchIds omits single branchId", () => {

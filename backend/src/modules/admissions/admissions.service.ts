@@ -396,6 +396,7 @@ export const AdmissionsService = {
     if (!adm) {
       throw new AppError("Admission not found", 404);
     }
+    assertBranchRecordAccess(currentUser, adm.branchId, "Admission not found");
 
     const documents = await prisma.document.findMany({
       where: {

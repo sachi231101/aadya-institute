@@ -58,7 +58,12 @@ export const createUser = async (
       req.user as unknown as AuthUser,
       req.body
     );
-    sendSuccess(res, user, 201, "User created successfully");
+    const omitted = (user as { omittedPermissions?: string[] }).omittedPermissions;
+    const message =
+      omitted && omitted.length > 0
+        ? `User created successfully. ${omitted.length} permission(s) omitted (beyond your access).`
+        : "User created successfully";
+    sendSuccess(res, user, 201, message);
   } catch (err) {
     next(err);
   }
@@ -125,7 +130,12 @@ export const updateUserPermissions = async (
       req.params.id as string,
       req.body
     );
-    sendSuccess(res, user, 200, "Module permissions updated successfully");
+    const omitted = (user as { omittedPermissions?: string[] }).omittedPermissions;
+    const message =
+      omitted && omitted.length > 0
+        ? `Module permissions updated successfully. ${omitted.length} permission(s) omitted (beyond your access).`
+        : "Module permissions updated successfully";
+    sendSuccess(res, user, 200, message);
   } catch (err) {
     next(err);
   }

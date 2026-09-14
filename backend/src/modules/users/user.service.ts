@@ -8,6 +8,7 @@ import {
   ALWAYS_ON_PERMISSIONS,
   getPermissionCatalog,
   getAllCatalogPermissionNames,
+  filterAssignablePermissions,
   isItemGrantFlag,
   type PermissionRoleScope,
 } from "../../utils/permission-catalog";
@@ -126,10 +127,25 @@ export const createUserService = async (
     throw new AppError(`Invalid role(s): ${missing.join(", ")}`, 400);
   }
 
-  // Admin cannot create another ADMIN via this endpoint (safety guard)
-  if (
+  // Non-admins cannot assign ADMIN or CENTER_MANAGER (CM may only create COUNSELLOR / FACULTY)
+  const isAdminActor =
+    currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
+  if (!isAdminActor) {
+    if (input.roles.includes("ADMIN")) {
+      throw new AppError("Cannot assign ADMIN role", 403);
+    }
+    if (input.roles.includes("CENTER_MANAGER")) {
+      throw new AppError("Cannot assign CENTER_MANAGER role", 403);
+    }
+    const allowedRoles = new Set(["COUNSELLOR", "FACULTY"]);
+    const disallowed = input.roles.filter((r) => !allowedRoles.has(r));
+    if (disallowed.length > 0) {
+      throw new AppError(`Cannot assign role(s): ${disallowed.join(", ")}`, 403);
+    }
+  } else if (
     input.roles.includes("ADMIN") &&
-    !currentUser.roles.includes("ADMIN")
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("SUPER_ADMIN")
   ) {
     throw new AppError("Cannot assign ADMIN role", 403);
   }
@@ -151,7 +167,7 @@ export const createUserService = async (
     ["CENTER_MANAGER", "COUNSELLOR"].includes(r)
   );
   let branchId: string | null;
-  if (currentUser.roles.includes("CENTER_MANAGER")) {
+  if (currentUser.roles.includes("CENTER_MANAGER") && !isAdminActor) {
     branchId = currentUser.branchId || input.branchId || null;
   } else {
     branchId = input.branchId ?? null;
@@ -180,20 +196,29 @@ export const createUserService = async (
 
   // If creating a CENTER_MANAGER or COUNSELLOR, set granular permissions
   let result = user;
+  let omittedPermissions: string[] = [];
   if (input.roles.includes("CENTER_MANAGER") || input.roles.includes("COUNSELLOR")) {
     const roleScope: PermissionRoleScope = input.roles.includes("COUNSELLOR")
       ? "COUNSELLOR"
       : "CENTER_MANAGER";
 
-    const permissionNames =
+    const rawPermissionNames =
       input.permissions !== undefined
         ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
         : input.modulePermissions?.length
           ? resolveModuleKeysToPermissions(input.modulePermissions, roleScope)
           : getBaselinePermissions(roleScope);
 
+    const grantorPermissions = await loadActorPermissionNames(currentUser, instituteId);
+    const filtered = filterAssignablePermissions(rawPermissionNames, {
+      roleScope,
+      isAdmin: isAdminActor,
+      grantorPermissions,
+    });
+    omittedPermissions = filtered.omitted;
+
     try {
-      await assignDirectPermissions(user.id, permissionNames, actorId(currentUser));
+      await assignDirectPermissions(user.id, filtered.allowed, actorId(currentUser));
     } catch (err) {
       await hardDeleteUser(user.id);
       throw err;
@@ -217,10 +242,13 @@ export const createUserService = async (
       roles: result.roles,
       branchId: result.branchId,
       status: result.status,
+      ...(omittedPermissions.length > 0 ? { omittedPermissions } : {}),
     },
   });
 
-  return result;
+  return omittedPermissions.length > 0
+    ? { ...result, omittedPermissions }
+    : result;
 };
 
 // ─── Update User ─────────────────────────────────────────────────────────────
@@ -286,18 +314,47 @@ export const updateUserPermissionsService = async (
     throw new AppError("Module permissions can only be set for Center Managers and Counsellors", 400);
   }
 
+  // Branch isolation for CENTER_MANAGER
+  const isAdminActor =
+    currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
+  if (
+    currentUser.roles.includes("CENTER_MANAGER") &&
+    !isAdminActor &&
+    currentUser.branchId &&
+    existing.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("User not found", 404);
+  }
+
+  // Non-admin cannot escalate a Counsellor into CM-level catalog via permission update target
+  // (target role is derived from existing roles; CM updating another CM is blocked).
+  if (
+    !isAdminActor &&
+    existing.roles.includes("CENTER_MANAGER") &&
+    !existing.roles.includes("COUNSELLOR")
+  ) {
+    throw new AppError("Cannot update Center Manager permissions", 403);
+  }
+
   const roleScope: PermissionRoleScope = existing.roles.includes("COUNSELLOR")
     ? "COUNSELLOR"
     : "CENTER_MANAGER";
 
   // Explicit `permissions: []` (or any array) must win over legacy modulePermissions.
   // Using `.length` previously treated empty arrays as "unset" and skipped the update path.
-  const permissionNames =
+  const rawPermissionNames =
     input.permissions !== undefined
       ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
       : resolveModuleKeysToPermissions(input.modulePermissions ?? [], roleScope);
 
-  await assignDirectPermissions(userId, permissionNames, actorId(currentUser));
+  const grantorPermissions = await loadActorPermissionNames(currentUser, instituteId);
+  const filtered = filterAssignablePermissions(rawPermissionNames, {
+    roleScope,
+    isAdmin: isAdminActor,
+    grantorPermissions,
+  });
+
+  await assignDirectPermissions(userId, filtered.allowed, actorId(currentUser));
 
   // Re-fetch to include updated permissions
   const refreshed = await findUserById(userId, instituteId);
@@ -311,10 +368,15 @@ export const updateUserPermissionsService = async (
     entityType: "User",
     entityId: userId,
     oldData: { permissions: existing.permissions },
-    newData: { permissions: refreshed.permissions },
+    newData: {
+      permissions: refreshed.permissions,
+      ...(filtered.omitted.length > 0 ? { omittedPermissions: filtered.omitted } : {}),
+    },
   });
 
-  return refreshed;
+  return filtered.omitted.length > 0
+    ? { ...refreshed, omittedPermissions: filtered.omitted }
+    : refreshed;
 };
 
 // ─── Update WhatsApp Preference (self-service opt-out) ────────────────────────
@@ -466,10 +528,24 @@ export const getPermissionCatalogService = (role: "CENTER_MANAGER" | "COUNSELLOR
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+async function loadActorPermissionNames(
+  currentUser: AuthUser,
+  instituteId: string
+): Promise<string[]> {
+  if (
+    currentUser.roles.includes("ADMIN") ||
+    currentUser.roles.includes("SUPER_ADMIN")
+  ) {
+    return [];
+  }
+  const actor = await findUserById(actorId(currentUser), instituteId);
+  return actor?.permissions ?? currentUser.permissions ?? [];
+}
+
 /**
  * Set explicit permission names on a user (replaces all user-level permissions).
  * Auto-creates any missing Permission rows that belong to the staff catalogs
- * (item.* flags and coarse APIs), so Grant all works even if seed is stale.
+ * (item flags and coarse APIs), so Grant all works even if seed is stale.
  */
 async function assignDirectPermissions(
   userId: string,

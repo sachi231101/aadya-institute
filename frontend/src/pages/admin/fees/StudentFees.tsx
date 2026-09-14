@@ -258,7 +258,7 @@ export const StudentFees: React.FC = () => {
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             {row.balance > 0 && (
-                              <PermissionGate itemKey="fees.pending" mode="write">
+                              <PermissionGate itemKey="fees.students" mode="write">
                                 <Button
                                   size="sm"
                                   onClick={() => setCollectStudent(row)}

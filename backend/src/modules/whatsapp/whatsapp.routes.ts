@@ -11,7 +11,7 @@ router.use(authMiddleware);
 
 router.get(
   "/automation-config",
-  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  requireAnyPermission("whatsapp.automation.read"),
   controller.getAutomationConfig
 );
 router.patch(
@@ -22,7 +22,7 @@ router.patch(
 
 router.get(
   "/automations",
-  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  requireAnyPermission("whatsapp.automation.read"),
   controller.listAutomations
 );
 router.patch(
@@ -38,7 +38,7 @@ router.post(
 
 router.get(
   "/history",
-  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  requireAnyPermission("whatsapp.history.read"),
   controller.getHistory
 );
 
@@ -50,17 +50,17 @@ router.post(
 
 router.get(
   "/templates/all",
-  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  requireAnyPermission("whatsapp.template.read"),
   controller.listTemplates
 );
 router.get(
   "/templates",
-  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  requireAnyPermission("whatsapp.template.read"),
   controller.listTemplates
 );
 router.get(
   "/provider-templates",
-  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  requireAnyPermission("whatsapp.template.read"),
   controller.listProviderTemplates
 );
 router.post(
@@ -91,7 +91,7 @@ router.delete(
 
 router.get(
   "/rules/all",
-  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  requireAnyPermission("whatsapp.automation.read"),
   controller.listRules
 );
 router.post(
@@ -102,7 +102,7 @@ router.post(
 
 router.get(
   "/",
-  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  requireAnyPermission("whatsapp.history.read"),
   controller.getNotifications
 );
 router.get("/unread-count", controller.getUnreadCount);
@@ -110,7 +110,7 @@ router.patch("/read-all", controller.markAllAsRead);
 
 router.get(
   "/:id",
-  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  requireAnyPermission("whatsapp.history.read"),
   controller.getNotificationById
 );
 router.patch("/:id/read", controller.markAsRead);
