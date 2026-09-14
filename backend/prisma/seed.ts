@@ -329,7 +329,6 @@ async function main() {
     "dashboard.read",
     "branch.read",
     "notification.read",
-    "notification.resend",
   ];
   for (const name of cmPermNames) {
     if (permissions[name]) {
@@ -359,28 +358,12 @@ async function main() {
     },
   });
 
-  // COUNSELLOR permissions
+  // COUNSELLOR role-level defaults — baseline only (same as CM).
+  // Module access is granted per-user via UserPermission.
   const counsellorPermNames = [
     "dashboard.read",
     "branch.read",
-    "course.read",
-    "lead.read",
-    "lead.create",
-    "lead.update",
-    "lead.convert",
-    "ai_call.read",
-    "ai_call.create",
-    "admission.read",
-    "admission.create",
-    "master.read",
-    "chat.read",
-    "chat.send",
     "notification.read",
-    "target.read",
-    "incentive.read",
-    "exam.read",
-    "question.read",
-    "question_bank.read",
   ];
   for (const name of counsellorPermNames) {
     if (permissions[name]) {
@@ -399,6 +382,16 @@ async function main() {
       });
     }
   }
+
+  const counsellorPermissionIds = counsellorPermNames
+    .map((name) => permissions[name]?.id)
+    .filter((id: string | undefined): id is string => Boolean(id));
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: roles["COUNSELLOR"].id,
+      permissionId: { notIn: counsellorPermissionIds },
+    },
+  });
 
   // FACULTY permissions
   const facultyPermNames = [

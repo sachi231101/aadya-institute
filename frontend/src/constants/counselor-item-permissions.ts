@@ -32,10 +32,7 @@ export const COUNSELOR_CATALOG_ITEM_KEYS = [
   "exams.question_bank",
   "exams.results",
   "fees.students",
-  "fees.payments",
-  "fees.pending",
   "fees.invoices",
-  "fees.other_invoices",
   "fees.receipts",
   "fees.reports",
   "reports.students",
@@ -63,8 +60,10 @@ const pickMaps = (
 };
 
 /** Mirrors Admin/CM item → coarse permission mappings for Counsellor catalog items. */
-export const COUNSELOR_ITEM_READ_PERMISSIONS = pickMaps(CENTER_ITEM_READ_PERMISSIONS);
-export const COUNSELOR_ITEM_WRITE_PERMISSIONS = pickMaps(CENTER_ITEM_WRITE_PERMISSIONS);
+export const COUNSELOR_ITEM_READ_PERMISSIONS: Record<string, string[]> =
+  pickMaps(CENTER_ITEM_READ_PERMISSIONS);
+export const COUNSELOR_ITEM_WRITE_PERMISSIONS: Record<string, string[]> =
+  pickMaps(CENTER_ITEM_WRITE_PERMISSIONS);
 
 export const canReadCounselorItem = (
   permissions: string[] | undefined,

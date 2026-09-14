@@ -25,7 +25,6 @@ export const ALWAYS_ON_PERMISSIONS: string[] = [
   "dashboard.read",
   "branch.read",
   "notification.read",
-  "notification.resend",
 ];
 
 /** Permissions granted before admin assigns any module/submodule access. */
@@ -77,7 +76,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     description: "Enquiries, applications, and admissions",
     category: "ERP Modules",
     items: [
-      { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update"] },
+      { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read", "admission.read"], writePermissions: ["lead.create", "lead.update", "admission.create", "admission.update"] },
       { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
     ],
@@ -170,7 +169,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "exams.all", label: "All Examinations", readPermissions: ["exam.read"], writePermissions: ["exam.create", "exam.update", "exam.publish"] },
       { key: "exams.create", label: "Create Examination", readPermissions: ["exam.read"], writePermissions: ["exam.create", "exam.schedule", "exam.assign"] },
-      { key: "exams.question_bank", label: "Question Bank", readPermissions: ["question_bank.read"], writePermissions: ["question_bank.create", "question_bank.update", "question_bank.delete"] },
+      { key: "exams.question_bank", label: "Question Bank", readPermissions: ["question_bank.read", "question.read"], writePermissions: ["question_bank.create", "question_bank.update", "question_bank.delete", "question.create", "question.update", "question.delete", "exam.manage_questions"] },
       { key: "exams.results", label: "Results", readPermissions: ["exam.read", "exam.view_attempts"], writePermissions: ["exam.update"] },
     ],
   },
@@ -181,11 +180,9 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "fees.students", label: "Student Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
-      { key: "fees.invoices", label: "Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.other_invoices", label: "Other Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
-      { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: [] },
+      { key: "fees.invoices", label: "Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.update"] },
+      { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
+      { key: "fees.reports", label: "Fee Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
     ],
   },
   {
@@ -196,7 +193,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "targets.all", label: "Target Plans & Assignments", readPermissions: ["target.read"], writePermissions: ["target.manage", "target.assign"] },
       { key: "targets.leaderboard", label: "Leaderboard", readPermissions: ["target.read", "incentive.read"], writePermissions: [] },
-      { key: "targets.incentives", label: "Incentive Approvals", readPermissions: ["incentive.read"], writePermissions: ["target.approve"] },
+      { key: "targets.incentives", label: "Incentive Approvals", readPermissions: ["incentive.read"], writePermissions: ["incentive.approve"] },
     ],
   },
   {
@@ -221,9 +218,8 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "communication.notifications", label: "Notifications", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
-      { key: "communication.whatsapp", label: "WhatsApp", readPermissions: ["notification.read"], writePermissions: ["notification.resend", "notification.manage"] },
+      { key: "communication.whatsapp", label: "WhatsApp", readPermissions: ["whatsapp.automation.read", "whatsapp.history.read", "whatsapp.template.read"], writePermissions: ["whatsapp.automation.manage", "whatsapp.test.send", "whatsapp.template.create", "whatsapp.template.update", "notification.resend", "notification.manage"] },
       { key: "communication.email", label: "Email", readPermissions: ["email.read"], writePermissions: ["email.manage"] },
-      { key: "communication.automation", label: "Message Automation Rules", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
     ],
   },
   {
@@ -310,20 +306,81 @@ export const getCatalogItemPermissionNames = (): string[] => {
   return Array.from(names);
 };
 
+/** All coarse + item permission names for a single staff role catalog (+ always-on). */
+export const getRoleCatalogPermissionNames = (role: PermissionRoleScope): string[] => {
+  const names = new Set<string>(ALWAYS_ON_PERMISSIONS);
+  for (const mod of getPermissionCatalog(role)) {
+    for (const item of mod.items) {
+      names.add(itemShowPermission(item.key));
+      names.add(itemWritePermission(item.key));
+      for (const p of item.readPermissions) names.add(p);
+      for (const p of item.writePermissions) names.add(p);
+    }
+  }
+  return Array.from(names);
+};
+
 /** All coarse + item permission names referenced by either staff catalog (for seed / assign). */
 export const getAllCatalogPermissionNames = (): string[] => {
   const names = new Set<string>(ALWAYS_ON_PERMISSIONS);
   for (const role of ["CENTER_MANAGER", "COUNSELLOR"] as const) {
-    for (const mod of getPermissionCatalog(role)) {
-      for (const item of mod.items) {
-        names.add(itemShowPermission(item.key));
-        names.add(itemWritePermission(item.key));
-        for (const p of item.readPermissions) names.add(p);
-        for (const p of item.writePermissions) names.add(p);
-      }
+    for (const name of getRoleCatalogPermissionNames(role)) {
+      names.add(name);
     }
   }
   return Array.from(names);
+};
+
+/**
+ * Filter requested permission names for assignment.
+ * - Always restricted to the target role catalog (+ always-on).
+ * - Non-admin grantors are further capped to permissions they themselves hold.
+ */
+export const filterAssignablePermissions = (
+  requested: string[],
+  options: {
+    roleScope: PermissionRoleScope;
+    isAdmin: boolean;
+    grantorPermissions?: string[];
+  }
+): { allowed: string[]; omitted: string[] } => {
+  const catalogAllowed = new Set(getRoleCatalogPermissionNames(options.roleScope));
+  const unique = Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...requested]));
+  const inCatalog: string[] = [];
+  const omitted: string[] = [];
+
+  for (const name of unique) {
+    if (catalogAllowed.has(name) || ALWAYS_ON_PERMISSIONS.includes(name)) {
+      inCatalog.push(name);
+    } else {
+      omitted.push(name);
+    }
+  }
+
+  if (options.isAdmin) {
+    return {
+      allowed: Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...inCatalog])),
+      omitted,
+    };
+  }
+
+  const grantorSet = new Set([
+    ...ALWAYS_ON_PERMISSIONS,
+    ...(options.grantorPermissions ?? []),
+  ]);
+  const allowed: string[] = [];
+  for (const name of inCatalog) {
+    if (ALWAYS_ON_PERMISSIONS.includes(name) || grantorSet.has(name)) {
+      allowed.push(name);
+    } else {
+      omitted.push(name);
+    }
+  }
+
+  return {
+    allowed: Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...allowed])),
+    omitted: Array.from(new Set(omitted)),
+  };
 };
 
 export interface ItemAccessState {

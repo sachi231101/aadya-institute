@@ -50,13 +50,9 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
   // Fees & reports
   "fees.students": "Student Fees",
   "fees.invoices": "Invoices",
-  "fees.other_invoices": "Other Invoices",
   "fees.receipts": "Receipts",
   "fees.reports": "Fee Reports",
   "reports.financial": "Revenue & Finance Reports",
-
-  // Communication
-  "communication.automation": "Message Automation Rules",
 
   // Placement
   "placement.applications": "Job Applications",

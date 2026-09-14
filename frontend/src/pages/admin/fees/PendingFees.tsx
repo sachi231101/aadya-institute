@@ -295,7 +295,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                       <TableCell>{getStatusBadge(pf.status, pf.overdueDays)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <PermissionGate itemKey="fees.pending" mode="write">
+                          <PermissionGate itemKey="fees.students" mode="write">
                             <Button
                               size="sm"
                               className="bg-primary hover:bg-[#F39A16] text-white text-xs h-8"
@@ -305,7 +305,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                             </Button>
                           </PermissionGate>
 
-                          <PermissionGate itemKey="fees.pending" mode="write">
+                          <PermissionGate itemKey="fees.students" mode="write">
                           <Button
                             size="sm"
                             variant="outline"

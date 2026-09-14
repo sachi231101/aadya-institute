@@ -166,7 +166,7 @@ export const StudentFeeProfile: React.FC = () => {
               <Plus className="h-4 w-4" /> Add Charge
             </Button>
             {outstanding > 0 && (
-              <PermissionGate itemKey="fees.pending" mode="write">
+              <PermissionGate itemKey="fees.students" mode="write">
                 <Button className="gap-2" onClick={() => setCollectOutstanding(true)}>
                   <CreditCard className="h-4 w-4" /> Collect outstanding
                 </Button>
@@ -516,12 +516,12 @@ export const StudentFeeProfile: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <PermissionGate itemKey="fees.pending" mode="write">
+                            <PermissionGate itemKey="fees.students" mode="write">
                               <Button size="sm" onClick={() => setCollectItem(f)}>
                                 Collect
                               </Button>
                             </PermissionGate>
-                            <PermissionGate itemKey="fees.pending" mode="write">
+                            <PermissionGate itemKey="fees.students" mode="write">
                               <Button
                                 size="sm"
                                 variant="outline"

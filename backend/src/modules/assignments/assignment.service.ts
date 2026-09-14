@@ -4,6 +4,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { buildMeta } from "../../utils/pagination";
+import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 import { saveFile, getFileUrl } from "../../integrations/storage/storage.client";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
@@ -367,14 +368,8 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
     !currentUser.roles.includes("CENTER_MANAGER");
 
   // Branch isolation for managers/counsellors; faculty authorized by ownership below.
-  if (
-    !isStudentViewer &&
-    !isPureFaculty(currentUser) &&
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    batch.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Assignment not found", 404);
+  if (!isStudentViewer && !isPureFaculty(currentUser)) {
+    assertBranchRecordAccess(currentUser, batch.branchId, "Assignment not found");
   }
 
   if (isStudentViewer) {

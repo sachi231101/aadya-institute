@@ -246,7 +246,7 @@ export const Payments: React.FC = () => {
         title="Record Payment"
         description="Collect a payment against a student due. Issued receipts appear under Receipts."
         actions={
-          <PermissionGate itemKey="fees.payments" mode="write">
+          <PermissionGate itemKey="fees.receipts" mode="write">
             <Button
               className="bg-primary hover:bg-[#F39A16] text-white shadow-sm transition-colors"
               onClick={() => setShowModal(true)}

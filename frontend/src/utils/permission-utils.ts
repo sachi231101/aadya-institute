@@ -24,7 +24,6 @@ export const ALWAYS_ON_PERMISSIONS = [
   "dashboard.read",
   "branch.read",
   "notification.read",
-  "notification.resend",
 ];
 
 export const ITEM_PERMISSION_PREFIX = "item.";

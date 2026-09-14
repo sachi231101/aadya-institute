@@ -174,8 +174,14 @@ export const buildCounselorNavPermissionKeys = (): Record<string, string> => {
     "/counselor/students/add": "students.all",
     "/counselor/faculty/add": "faculty.all",
     "/counselor/faculty/courses": "faculty.all",
+    "/counselor/faculty/timetable": "faculty.all",
     "/counselor/timetable": "batches.all",
     "/counselor/performance": "targets.all",
+    // Nested fee workspaces inherit their sidebar parent item.
+    "/counselor/fees/pending": "fees.students",
+    "/counselor/fees/payments": "fees.receipts",
+    "/counselor/fees/other-invoices": "fees.invoices",
+    "/counselor/exams/questions": "exams.question_bank",
   };
   for (const mod of COUNSELOR_PORTAL_NAV) {
     mod.items?.forEach((item) => {

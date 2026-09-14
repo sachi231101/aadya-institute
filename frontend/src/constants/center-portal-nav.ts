@@ -260,6 +260,16 @@ export const buildCenterNavPermissionKeys = (): Record<string, string> => {
     "/center/courses/batches": "batches.all",
     "/center/admissions": "admissions.all",
     "/center/counselor": "counsellor.all",
+    // Nested fee workspaces inherit their sidebar parent item.
+    "/center/fees/pending": "fees.students",
+    "/center/fees/payments": "fees.receipts",
+    "/center/fees/other-invoices": "fees.invoices",
+    "/center/exams/questions": "exams.question_bank",
+    // WhatsApp automations, templates, and history are one catalog item.
+    "/center/communication/whatsapp/automations": "communication.whatsapp",
+    "/center/communication/whatsapp/templates": "communication.whatsapp",
+    "/center/communication/whatsapp/history": "communication.whatsapp",
+    "/center/communication/automation": "communication.whatsapp",
   };
   for (const mod of CENTER_PORTAL_NAV) {
     mod.items?.forEach((item) => {

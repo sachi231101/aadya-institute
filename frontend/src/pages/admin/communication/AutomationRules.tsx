@@ -56,7 +56,7 @@ export const AutomationRules: React.FC = () => {
         title="Automation Rules"
         description="Configure WhatsApp notification rules for academy events."
         actions={
-          <PermissionGate itemKey="communication.automation" mode="write">
+          <PermissionGate itemKey="communication.whatsapp" mode="write">
             <Button className="bg-primary text-white" onClick={() => setShowModal(true)}>
               <Plus className="mr-2 h-4 w-4" /> Add Rule
             </Button>

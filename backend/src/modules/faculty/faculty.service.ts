@@ -4,7 +4,10 @@ import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { SequenceService } from "../masters/sequence.service";
 import { buildMeta } from "../../utils/pagination";
-import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import {
+  assertBranchRecordAccess,
+  getBranchScopeFilter,
+} from "../../utils/branch-isolation.util";
 import {
   isPureFaculty,
   requireFacultyIdIfPureFaculty,
@@ -153,13 +156,8 @@ export const getFacultyById = async (currentUser: AuthUser, id: string) => {
   const faculty = await repo.findFacultyById(id);
   if (!faculty) throw new AppError("Faculty not found", 404);
 
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    faculty.branchId !== currentUser.branchId &&
-    !isPureFaculty(currentUser.roles)
-  ) {
-    throw new AppError("Faculty not found", 404);
+  if (!isPureFaculty(currentUser.roles)) {
+    assertBranchRecordAccess(currentUser, faculty.branchId, "Faculty not found");
   }
 
   return faculty;

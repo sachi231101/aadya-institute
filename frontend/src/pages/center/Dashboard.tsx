@@ -36,7 +36,13 @@ import { useLeadDashboard } from "@/hooks/useLeads";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
+import {
+  PageContainer,
+  PageHeader,
+  PageSection,
+  MetricGrid,
+  METRIC_GRID_COLUMNS,
+} from "@/components/layout";
 import {
   ResponsiveContainer,
   LineChart,
@@ -361,7 +367,7 @@ export const CenterDashboard: React.FC = () => {
           </CardContent>
         </Card>
         )}
-        {canReadItem("fees.receipts") && (
+        {canReadItem("fees.reports") && (
         <Card size="compact" className="border border-border bg-card rounded-xl shadow-xs">
           <CardContent size="compact">
             <p className="text-xs font-medium text-muted-foreground">This Month Revenue</p>
@@ -486,7 +492,7 @@ export const CenterDashboard: React.FC = () => {
         </div>
         )}
 
-        {canReadItem("fees.receipts") && (
+        {canReadItem("fees.reports") && (
         <div className="lg:col-span-6 xl:col-span-3.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="pb-3 border-b border-slate-100">
@@ -558,7 +564,7 @@ export const CenterDashboard: React.FC = () => {
 
           <Button
             variant="outline"
-            onClick={() => navigate("/center/fees")}
+            onClick={() => navigate("/center/fees/reports")}
             className="w-full mt-4 h-9 text-xs font-bold text-[#1D4ED8] bg-blue-50/60 border-blue-200 hover:bg-blue-100/70 rounded-xl cursor-pointer"
           >
             View Fee Details
@@ -684,9 +690,9 @@ export const CenterDashboard: React.FC = () => {
             </button>
             )}
 
-            {canReadItem("fees.students") && (
+            {canEditItem("fees.receipts") && (
             <button
-              onClick={() => navigate("/center/fees/students?tab=pending")}
+              onClick={() => navigate("/center/fees/payments")}
               className="p-3.5 rounded-2xl bg-teal-50/70 hover:bg-teal-100/70 border border-teal-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-teal-100 group-hover:bg-teal-200 text-teal-700 flex items-center justify-center transition-colors">

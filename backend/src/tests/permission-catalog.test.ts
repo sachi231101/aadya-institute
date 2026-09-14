@@ -9,6 +9,7 @@ import {
   itemWritePermission,
   ALWAYS_ON_PERMISSIONS,
   staffUserAllowsPermission,
+  filterAssignablePermissions,
 } from "../utils/permission-catalog";
 
 const CENTER_NAV_ITEM_KEYS = [
@@ -48,11 +49,9 @@ const CENTER_NAV_ITEM_KEYS = [
   "exams.question_bank",
   "exams.results",
   "fees.students",
-  "fees.pending",
-  "fees.payments",
   "fees.invoices",
-  "fees.other_invoices",
   "fees.receipts",
+  "fees.reports",
   "targets.all",
   "targets.leaderboard",
   "targets.incentives",
@@ -66,7 +65,6 @@ const CENTER_NAV_ITEM_KEYS = [
   "communication.notifications",
   "communication.whatsapp",
   "communication.email",
-  "communication.automation",
   "placement.eligible",
   "placement.companies",
   "placement.jobs",
@@ -86,6 +84,10 @@ const REMOVED_FROM_CM_CATALOG = [
   "admissions.direct",
   "courses.modules",
   "targets.assignments",
+  "fees.pending",
+  "fees.payments",
+  "fees.other_invoices",
+  "communication.automation",
   "admin.users",
   "admin.roles",
   "admin.security",
@@ -140,6 +142,64 @@ describe("CENTER_MANAGER permission catalog", () => {
         "admin.settings",
       ]
     );
+  });
+
+  test("critical catalog items grant route-aligned coarse permissions", () => {
+    const items = new Map(
+      getPermissionCatalog("CENTER_MANAGER")
+        .flatMap((module) => module.items)
+        .map((item) => [item.key, item])
+    );
+
+    assert.deepStrictEqual(items.get("admissions.enquiries")?.readPermissions, [
+      "lead.read",
+      "admission.read",
+    ]);
+    assert.deepStrictEqual(items.get("admissions.enquiries")?.writePermissions, [
+      "lead.create",
+      "lead.update",
+      "admission.create",
+      "admission.update",
+    ]);
+    assert.deepStrictEqual(items.get("targets.incentives")?.writePermissions, [
+      "incentive.approve",
+    ]);
+    assert.deepStrictEqual(items.get("fees.reports")?.readPermissions, [
+      "fee.read",
+      "report.read",
+    ]);
+    assert.deepStrictEqual(items.get("fees.reports")?.writePermissions, []);
+    assert.ok(
+      items.get("fees.students")?.writePermissions.includes("fee.update")
+    );
+    assert.ok(
+      items.get("fees.invoices")?.writePermissions.includes("fee.create")
+    );
+    assert.ok(
+      items.get("fees.receipts")?.writePermissions.includes("fee.create")
+    );
+    assert.ok(
+      items.get("exams.question_bank")?.writePermissions.includes("exam.manage_questions")
+    );
+    assert.ok(
+      items.get("exams.question_bank")?.writePermissions.includes("question.delete")
+    );
+    assert.ok(
+      items.get("communication.whatsapp")?.writePermissions.includes(
+        "whatsapp.automation.manage"
+      )
+    );
+    assert.ok(
+      items.get("communication.whatsapp")?.readPermissions.includes(
+        "whatsapp.history.read"
+      )
+    );
+    assert.ok(
+      !items.get("communication.whatsapp")?.readPermissions.includes(
+        "notification.read"
+      )
+    );
+    assert.ok(!ALWAYS_ON_PERMISSIONS.includes("notification.resend"));
   });
 });
 
@@ -224,11 +284,9 @@ const COUNSELLOR_NAV_ITEM_KEYS = [
   "exams.question_bank",
   "exams.results",
   "fees.students",
-  "fees.pending",
-  "fees.payments",
   "fees.invoices",
-  "fees.other_invoices",
   "fees.receipts",
+  "fees.reports",
   "reports.students",
   "reports.admissions",
   "reports.attendance",
@@ -367,5 +425,36 @@ describe("staffUserAllowsPermission for Center Manager", () => {
       staffUserAllowsPermission(["ADMIN"], [], "lead.delete"),
       true
     );
+  });
+});
+
+describe("filterAssignablePermissions grantor cap", () => {
+  test("non-admin grantor cannot assign permissions they do not hold", () => {
+    const { allowed, omitted } = filterAssignablePermissions(
+      ["fee.update", "lead.read", "dashboard.read"],
+      {
+        roleScope: "COUNSELLOR",
+        isAdmin: false,
+        grantorPermissions: ["lead.read", "item.leads.all"],
+      }
+    );
+    assert.ok(allowed.includes("lead.read"));
+    assert.ok(allowed.includes("dashboard.read"));
+    assert.ok(!allowed.includes("fee.update"));
+    assert.ok(omitted.includes("fee.update"));
+  });
+
+  test("drops CM-only permissions when assigning Counsellor catalog", () => {
+    const { allowed, omitted } = filterAssignablePermissions(
+      ["whatsapp.history.read", "lead.read"],
+      {
+        roleScope: "COUNSELLOR",
+        isAdmin: true,
+        grantorPermissions: [],
+      }
+    );
+    assert.ok(allowed.includes("lead.read"));
+    assert.ok(!allowed.includes("whatsapp.history.read"));
+    assert.ok(omitted.includes("whatsapp.history.read"));
   });
 });

@@ -3,9 +3,13 @@ import { hashPassword } from "../../utils/password";
 import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.util";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
-import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import {
+  assertBranchRecordAccess,
+  getBranchScopeFilter,
+} from "../../utils/branch-isolation.util";
 import {
   assertFacultyCanAccessStudent,
+  isPureFaculty,
   requireFacultyIdIfPureFaculty,
 } from "../../utils/auth-user.util";
 import type { AuthUser } from "../auth/auth.types";
@@ -269,6 +273,10 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
   if (!student) throw new AppError("Student not found", 404);
   if (student.instituteId !== currentUser.instituteId) {
     throw new AppError("Student not found", 404);
+  }
+  // Faculty access is assignment-scoped below and may legitimately cross branches.
+  if (!isPureFaculty(currentUser.roles)) {
+    assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
   }
   await assertFacultyCanAccessStudent(currentUser, id);
 

@@ -8,6 +8,7 @@ import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -64,9 +65,11 @@ export const LiveClasses: React.FC = () => {
         title="Live Classes"
         description="Currently active class sessions across batches."
         actions={
-          <Button asChild variant="outline" size="sm" className="text-xs">
-            <Link to={classesPath}>View all classes</Link>
-          </Button>
+          <PermissionGate itemKey="schedule.classes" mode="read">
+            <Button asChild variant="outline" size="sm" className="text-xs">
+              <Link to={classesPath}>View all classes</Link>
+            </Button>
+          </PermissionGate>
         }
       />
 
@@ -139,14 +142,20 @@ export const LiveClasses: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         {s.meetingUrl ? (
-                          <a
-                            href={s.meetingUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
+                          <PermissionGate
+                            itemKey="schedule.live"
+                            mode="write"
+                            fallback={<span className="text-xs text-muted-foreground">View only</span>}
                           >
-                            Join <ExternalLink className="h-3 w-3" />
-                          </a>
+                            <a
+                              href={s.meetingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
+                            >
+                              Join <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </PermissionGate>
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             {s.mode === "ONLINE" ? "No link" : "Offline"}
