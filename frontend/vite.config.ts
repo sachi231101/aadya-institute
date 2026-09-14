@@ -1,12 +1,30 @@
 import path from "path"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { inspectorServer } from '@react-dev-inspector/vite-plugin'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Open inspected components in Cursor (not VS Code).
+process.env.REACT_EDITOR ??= 'cursor'
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
-    react(),
+    /**
+     * Dev-only: receives inspect requests and opens the source file in the IDE.
+     */
+    ...(command === 'serve' ? [inspectorServer()] : []),
+    react({
+      babel: {
+        plugins:
+          command === 'serve'
+            ? [
+                // Injects data-inspector-* attrs so click-to-source works reliably.
+                '@react-dev-inspector/babel-plugin',
+              ]
+            : [],
+      },
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
@@ -139,4 +157,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/auth.store";
-import { User, Settings, LogOut, Shield, ChevronDown, Building2 } from "lucide-react";
+import { User, Settings, LogOut, ChevronDown } from "lucide-react";
 
 interface UserNavProps {
   className?: string;
@@ -28,7 +28,6 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
   const name = user?.name || "System Admin";
   const email = user?.email || "admin@aadya.in";
   const role = (user?.roles?.[0] || user?.role || "ADMIN").toUpperCase();
-  const branch = user?.branchId ? user.branchId.replace("branch-", "").toUpperCase() : null;
   const initial = (name.charAt(0) || "A").toUpperCase();
 
   // Role-based profile link
@@ -65,7 +64,7 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="w-56 mt-1 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md shadow-xl p-1.5 text-popover-foreground z-50"
+        className="w-60 mt-1 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md shadow-xl p-1.5 text-popover-foreground z-50"
         align="end"
         sideOffset={6}
       >
@@ -78,12 +77,6 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
               </span>
             </div>
             <p className="text-xs text-muted-foreground leading-none truncate">{email}</p>
-            {branch && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 pt-1">
-                <Building2 size={11} className="shrink-0" />
-                <span className="truncate">Center: {branch}</span>
-              </div>
-            )}
           </div>
         </DropdownMenuLabel>
 
