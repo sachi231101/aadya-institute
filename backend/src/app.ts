@@ -15,6 +15,12 @@ const app = express();
 const DEV_ORIGINS = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5175",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "http://localhost:4173",
   "http://127.0.0.1:4173",
 ];
@@ -24,10 +30,15 @@ const parseConfiguredOrigins = (): string[] =>
     .map((o) => o.trim())
     .filter(Boolean);
 
+const isAllowedDevOrigin = (origin: string): boolean => {
+  if (env.NODE_ENV === "production") return false;
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+};
+
 const allowedOrigins =
   env.NODE_ENV === "production"
     ? parseConfiguredOrigins()
-    : [...new Set([...DEV_ORIGINS, ...parseConfiguredOrigins()])];
+    : [...new Set([...DEV_ORIGINS, ...parseConfiguredOrigins(), env.FRONTEND_URL].filter(Boolean))];
 
 if (env.NODE_ENV === "production" && allowedOrigins.length === 0) {
   logger.warn(
@@ -47,7 +58,7 @@ app.use(
         callback(null, true);
         return;
       }
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || isAllowedDevOrigin(origin)) {
         callback(null, true);
         return;
       }

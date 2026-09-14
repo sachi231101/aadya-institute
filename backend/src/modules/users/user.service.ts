@@ -485,7 +485,7 @@ export const deleteUserService = async (
   // Prevent deleting System Administrator accounts
   const isTargetAdmin =
     existing.email === "admin@aadya.in" ||
-    existing.userRoles?.some((ur: any) => ur.role?.name === "ADMIN");
+    existing.roles?.includes("ADMIN");
 
   if (isTargetAdmin) {
     throw new AppError("System Administrator accounts cannot be deleted", 400);

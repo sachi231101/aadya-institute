@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
-  Sparkles,
   Bot,
   Target,
   UserCheck,
@@ -46,12 +45,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     title: "Dashboard",
     url: "/center/dashboard",
     icon: LayoutDashboard,
-  },
-  {
-    title: "ASK ME",
-    url: "/center/home",
-    icon: Sparkles,
-    isAi: true,
   },
   {
     title: "Lead Management",

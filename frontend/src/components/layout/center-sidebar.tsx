@@ -174,25 +174,8 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/50 p-2 space-y-2">
-        <div className="px-1">
-          <InstallAppButton variant="sidebar" />
-        </div>
-
-        <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/60 flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="h-6 w-6 rounded-lg bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
-              <Building2 className="h-3.5 w-3.5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Assigned Center</span>
-                <Lock className="h-2.5 w-2.5 text-slate-400" />
-              </div>
-              <span className="text-[11px] font-bold text-slate-800 block truncate">{branchName}</span>
-            </div>
-          </div>
-        </div>
+      <SidebarFooter className="border-t border-border/50 p-2.5 bg-bg-secondary empty:hidden">
+        <InstallAppButton variant="sidebar" />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

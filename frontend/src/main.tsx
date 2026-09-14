@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Inspector } from "react-dev-inspector";
 import { registerSW } from "virtual:pwa-register";
 import { App } from "./app/App";
 
@@ -21,6 +22,8 @@ if (typeof window !== "undefined") {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    {/* Dev-only: Ctrl+Shift+Alt+C → click element → opens file:line in Cursor */}
+    <Inspector />
     <App />
   </React.StrictMode>
 );
