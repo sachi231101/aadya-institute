@@ -319,7 +319,7 @@ export const generateSessions = async (
       instituteId,
       req.body
     );
-    sendSuccess(res, result, 200, `Generated ${result.created} class session(s)`);
+    sendSuccess(res, result, 200, `Generated ${result.created} class session(s)${result.updated ? `, updated ${result.updated}` : ""}`);
   } catch (error) {
     next(error);
   }

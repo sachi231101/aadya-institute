@@ -298,29 +298,50 @@ const syncBatchCourseRows = async (
   items: BatchCourseItemDto[],
   batchFallbackStart: Date
 ) => {
+  // Rebuild schedule lines from scratch each save; keep BatchCourse ids stable by courseId
+  // so ClassSession.batchCourseId FKs do not null out and duplicate sessions on regenerate.
   await tx.batchSchedule.deleteMany({ where: { batchId } });
-  await tx.batchCourse.deleteMany({ where: { batchId } });
+
+  const existing = await tx.batchCourse.findMany({ where: { batchId } });
+  const byCourseId = new Map(existing.map((row) => [row.courseId, row]));
+  const keepCourseIds = new Set(items.map((item) => item.courseId));
+
+  const removeIds = existing.filter((row) => !keepCourseIds.has(row.courseId)).map((row) => row.id);
+  if (removeIds.length > 0) {
+    await tx.batchCourse.deleteMany({ where: { id: { in: removeIds } } });
+  }
+
   if (items.length === 0) return [];
 
   const created = [];
   for (let idx = 0; idx < items.length; idx++) {
     const item = items[idx];
     const startDate = item.startDate ? new Date(item.startDate) : batchFallbackStart;
-    const row = await tx.batchCourse.create({
-      data: {
-        batchId,
-        courseId: item.courseId,
-        facultyId: emptyToNull(item.facultyId),
-        sequence: item.sequence ?? idx + 1,
-        startDate,
-        expectedEndDate: item.expectedEndDate ? new Date(item.expectedEndDate) : null,
-        schedulePattern: item.schedulePattern || "MWF",
-        timeSlot: item.timeSlot || "10:00 AM - 12:00 PM",
-        timeslotMasterId: emptyToNull(item.timeslotMasterId),
-        classroomMasterId: emptyToNull(item.classroomMasterId),
-        status: "ACTIVE",
-      },
-    });
+    const data = {
+      courseId: item.courseId,
+      facultyId: emptyToNull(item.facultyId),
+      sequence: item.sequence ?? idx + 1,
+      startDate,
+      expectedEndDate: item.expectedEndDate ? new Date(item.expectedEndDate) : null,
+      schedulePattern: item.schedulePattern || "MWF",
+      timeSlot: item.timeSlot || "10:00 AM - 12:00 PM",
+      timeslotMasterId: emptyToNull(item.timeslotMasterId),
+      classroomMasterId: emptyToNull(item.classroomMasterId),
+      status: "ACTIVE" as const,
+    };
+
+    const existingRow = byCourseId.get(item.courseId);
+    const row = existingRow
+      ? await tx.batchCourse.update({
+          where: { id: existingRow.id },
+          data,
+        })
+      : await tx.batchCourse.create({
+          data: {
+            batchId,
+            ...data,
+          },
+        });
     created.push({ row, item });
   }
   return created;

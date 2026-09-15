@@ -770,7 +770,22 @@ export const getMyStudents = async (currentUser: AuthUser, query: MyStudentsQuer
     take: limit,
   });
 
-  return { data, meta: buildMeta(total, page, limit) };
+  const { computeStudentAttendanceSummaries } = await import(
+    "../attendance/attendance-stats.util"
+  );
+  const summaries = await computeStudentAttendanceSummaries(data.map((s) => s.id));
+
+  const enriched = data.map((s) => {
+    const stats = summaries.get(s.id);
+    return {
+      ...s,
+      presentCount: stats?.presentCount ?? 0,
+      conductedCount: stats?.conductedCount ?? 0,
+      attendancePercentage: stats?.attendancePercentage ?? 0,
+    };
+  });
+
+  return { data: enriched, meta: buildMeta(total, page, limit) };
 };
 
 /**
@@ -843,7 +858,7 @@ export const getMyStudentAttendance = async (
       studentName: r.student.user?.name ?? r.student.studentCode,
       sessionId: r.classSession.id,
       sessionTitle: r.classSession.title,
-      date: r.classSession.scheduledDate.toISOString().slice(0, 10),
+      date: toCalendarDateKey(r.classSession.scheduledDate),
       startTime: r.classSession.startTime,
       endTime: r.classSession.endTime,
       batchId: r.classSession.batch?.id ?? r.classSession.batchId,
@@ -873,11 +888,18 @@ export const getMyStudentAttendance = async (
       absent: number;
       leave: number;
       total: number;
+      batchCodes: string[];
     }
   >();
 
+  const addBatchCode = (sid: string, code: string | null | undefined) => {
+    const row = byStudent.get(sid);
+    if (!row || !code) return;
+    if (!row.batchCodes.includes(code)) row.batchCodes.push(code);
+  };
+
   for (const row of allForAggregation) {
-    const day = row.classSession.scheduledDate.toISOString().slice(0, 10);
+    const day = toCalendarDateKey(row.classSession.scheduledDate);
     if (!calendar[day]) {
       calendar[day] = { present: 0, absent: 0, leave: 0, total: 0 };
     }
@@ -905,6 +927,7 @@ export const getMyStudentAttendance = async (
         absent: status === "ABSENT" ? 1 : 0,
         leave: status === "LEAVE" ? 1 : 0,
         total: 1,
+        batchCodes: [],
       });
     } else {
       existing.total += 1;
@@ -912,14 +935,109 @@ export const getMyStudentAttendance = async (
       else if (status === "ABSENT") existing.absent += 1;
       else if (status === "LEAVE") existing.leave += 1;
     }
+    addBatchCode(
+      sid,
+      (row.classSession as { batch?: { code?: string } | null }).batch?.code
+    );
+  }
+
+  const effectiveBatchIdsForStats = query.batchId
+    ? teachingBatchIds.filter((id) => id === query.batchId)
+    : teachingBatchIds;
+
+  // Union ACTIVE enrollments so By Student is not blank when nothing is marked yet.
+  if (effectiveBatchIdsForStats.length > 0) {
+    const enrollments = await prisma.batchEnrollment.findMany({
+      where: {
+        status: "ACTIVE",
+        batchId: { in: effectiveBatchIdsForStats },
+        ...(query.studentId ? { studentId: query.studentId } : {}),
+        ...(query.search
+          ? {
+              student: {
+                OR: [
+                  { studentCode: { contains: query.search, mode: "insensitive" } },
+                  { user: { name: { contains: query.search, mode: "insensitive" } } },
+                ],
+              },
+            }
+          : {}),
+      },
+      select: {
+        studentId: true,
+        batch: { select: { code: true } },
+        student: {
+          select: {
+            id: true,
+            studentCode: true,
+            user: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    for (const e of enrollments) {
+      if (!byStudent.has(e.studentId)) {
+        byStudent.set(e.studentId, {
+          studentId: e.student.id,
+          studentCode: e.student.studentCode,
+          studentName: e.student.user?.name ?? e.student.studentCode,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          total: 0,
+          batchCodes: e.batch.code ? [e.batch.code] : [],
+        });
+      } else {
+        addBatchCode(e.studentId, e.batch.code);
+      }
+    }
   }
 
   const totalMarks = present + absent + leave;
-  const students = Array.from(byStudent.values()).map((s) => ({
-    ...s,
-    attendancePercentage:
-      s.total > 0 ? Math.round((s.present / s.total) * 10000) / 100 : 0,
-  }));
+  const studentIds = Array.from(byStudent.keys());
+  const { computeStudentAttendanceSummaries } = await import(
+    "../attendance/attendance-stats.util"
+  );
+  const conductedSummaries = await computeStudentAttendanceSummaries(studentIds, {
+    batchIds: effectiveBatchIdsForStats,
+  });
+
+  const students = Array.from(byStudent.values())
+    .map((s) => {
+      const conducted = conductedSummaries.get(s.studentId);
+      if (conducted) {
+        return {
+          studentId: s.studentId,
+          studentCode: s.studentCode,
+          studentName: s.studentName,
+          present: conducted.presentCount,
+          absent: conducted.absentCount,
+          leave: conducted.leaveCount,
+          total: conducted.conductedCount,
+          attendancePercentage: conducted.attendancePercentage,
+          batchCodes: s.batchCodes,
+        };
+      }
+      return {
+        studentId: s.studentId,
+        studentCode: s.studentCode,
+        studentName: s.studentName,
+        present: s.present,
+        absent: s.absent,
+        leave: s.leave,
+        total: s.total,
+        attendancePercentage:
+          s.total > 0 ? Math.round((s.present / s.total) * 10000) / 100 : 0,
+        batchCodes: s.batchCodes,
+      };
+    })
+    .sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+  const overallPresent = students.reduce((sum, s) => sum + s.present, 0);
+  const overallAbsent = students.reduce((sum, s) => sum + s.absent, 0);
+  const overallLeave = students.reduce((sum, s) => sum + s.leave, 0);
+  const overallConducted = students.reduce((sum, s) => sum + s.total, 0);
 
   return {
     data: {
@@ -927,12 +1045,16 @@ export const getMyStudentAttendance = async (
       students,
       calendar,
       summary: {
-        present,
-        absent,
-        leave,
-        total: totalMarks,
+        present: overallPresent || present,
+        absent: overallAbsent || absent,
+        leave: overallLeave || leave,
+        total: overallConducted || totalMarks,
         overallPercentage:
-          totalMarks > 0 ? Math.round((present / totalMarks) * 10000) / 100 : 0,
+          overallConducted > 0
+            ? Math.round((overallPresent / overallConducted) * 10000) / 100
+            : totalMarks > 0
+              ? Math.round((present / totalMarks) * 10000) / 100
+              : 0,
       },
     },
     meta: buildMeta(total, page, limit),

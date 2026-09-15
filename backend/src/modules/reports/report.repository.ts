@@ -108,6 +108,13 @@ export class ReportRepository {
 
     const totalStudents = students.length;
 
+    const { computeStudentAttendanceSummaries } = await import(
+      "../attendance/attendance-stats.util"
+    );
+    const attendanceByStudent = await computeStudentAttendanceSummaries(
+      students.map((s) => s.id)
+    );
+
     let sumAttendance = 0;
     let totalAssignmentsAvailable = 0;
     let totalAssignmentsCompleted = 0;
@@ -170,9 +177,9 @@ export class ReportRepository {
         extractFromNotes(combinedNotes, /Counsellor:\s*([^|\n]+)/i) ||
         null;
 
-      const totalClasses = s.studentAttendances.length;
-      const presentClasses = s.studentAttendances.filter((a) => a.status === "PRESENT").length;
-      const attendancePct = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 0;
+      const stats = attendanceByStudent.get(s.id);
+      const totalClasses = stats?.conductedCount ?? 0;
+      const attendancePct = stats?.attendancePercentage ?? 0;
 
       if (totalClasses > 0) {
         sumAttendance += attendancePct;
@@ -2972,9 +2979,23 @@ export class ReportRepository {
       }
     }
 
+    const studentIdsForReport = Array.from(studentAgg.keys());
+    const { computeStudentAttendanceSummaries } = await import(
+      "../attendance/attendance-stats.util"
+    );
+    const conductedByStudent = await computeStudentAttendanceSummaries(studentIdsForReport);
+
     const students = Array.from(studentAgg.values()).map((s) => {
-      const attendancePercentage =
-        s.total > 0 ? Math.round((s.present / s.total) * 100) : 0;
+      const conducted = conductedByStudent.get(s.id);
+      const presentCount = conducted?.presentCount ?? s.present;
+      const absentCount = conducted?.absentCount ?? s.absent;
+      const leaveCount = conducted?.leaveCount ?? s.leave;
+      const totalRecords = conducted?.conductedCount ?? s.total;
+      const attendancePercentage = conducted
+        ? conducted.attendancePercentage
+        : s.total > 0
+          ? Math.round((s.present / s.total) * 100)
+          : 0;
       const sortedTheory = [...s.theoryStatuses].sort((a, b) => b.date - a.date);
       let consecutiveTheoryAbsences = 0;
       for (const record of sortedTheory) {
@@ -2986,9 +3007,9 @@ export class ReportRepository {
         break;
       }
       let riskFlag: "Normal" | "At Risk" | "Triggered" = "Normal";
-      if (consecutiveTheoryAbsences >= 3 || (attendancePercentage < 50 && s.total > 0)) {
+      if (consecutiveTheoryAbsences >= 3 || (attendancePercentage < 50 && totalRecords > 0)) {
         riskFlag = "Triggered";
-      } else if (consecutiveTheoryAbsences >= 2 || (attendancePercentage < 75 && s.total > 0)) {
+      } else if (consecutiveTheoryAbsences >= 2 || (attendancePercentage < 75 && totalRecords > 0)) {
         riskFlag = "At Risk";
       }
       return {
@@ -2999,10 +3020,10 @@ export class ReportRepository {
         courseName: s.courseName,
         batchName: s.batchName,
         attendancePercentage,
-        presentCount: s.present,
-        absentCount: s.absent,
-        leaveCount: s.leave,
-        totalRecords: s.total,
+        presentCount,
+        absentCount,
+        leaveCount,
+        totalRecords,
         consecutiveTheoryAbsences,
         riskFlag,
       };

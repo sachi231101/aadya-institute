@@ -176,25 +176,18 @@ export const findStudentAttendanceHistory = async (params: {
 };
 
 export const calculateStudentAttendanceStats = async (studentId: string) => {
-  const [presentCount, absentCount, leaveCount, totalCount] = await Promise.all([
-    prisma.studentAttendance.count({ where: { studentId, status: "PRESENT" } }),
-    prisma.studentAttendance.count({ where: { studentId, status: "ABSENT" } }),
-    prisma.studentAttendance.count({ where: { studentId, status: "LEAVE" } }),
-    prisma.studentAttendance.count({ where: { studentId } }),
-  ]);
-
-  const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 10000) / 100 : 0;
-
+  const { computeStudentAttendanceSummary } = await import("./attendance-stats.util");
+  const summary = await computeStudentAttendanceSummary(studentId);
   return {
-    totalClasses: totalCount,
-    presentCount,
-    absentCount,
-    leaveCount,
-    attendancePercentage: percentage,
+    totalClasses: summary.conductedCount,
+    presentCount: summary.presentCount,
+    absentCount: summary.absentCount,
+    leaveCount: summary.leaveCount,
+    attendancePercentage: summary.attendancePercentage,
   };
 };
 
-/** Batch-scoped past P/A/L totals for a roster of students (one query). */
+/** Batch-scoped attendance totals for a roster (Present ÷ Conducted). */
 export const findBatchAttendanceStatsForStudents = async (
   studentIds: string[],
   batchId: string
@@ -210,6 +203,10 @@ export const findBatchAttendanceStatsForStudents = async (
     }
   >
 > => {
+  const { computeStudentAttendanceSummaries } = await import("./attendance-stats.util");
+  const summaries = await computeStudentAttendanceSummaries(studentIds, {
+    batchIds: [batchId],
+  });
   const result = new Map<
     string,
     {
@@ -220,46 +217,16 @@ export const findBatchAttendanceStatsForStudents = async (
       attendancePercentage: number;
     }
   >();
-
-  if (studentIds.length === 0) return result;
-
   for (const id of studentIds) {
+    const s = summaries.get(id)!;
     result.set(id, {
-      presentCount: 0,
-      absentCount: 0,
-      leaveCount: 0,
-      totalMarked: 0,
-      attendancePercentage: 0,
+      presentCount: s.presentCount,
+      absentCount: s.absentCount,
+      leaveCount: s.leaveCount,
+      totalMarked: s.conductedCount,
+      attendancePercentage: s.attendancePercentage,
     });
   }
-
-  const rows = await prisma.studentAttendance.groupBy({
-    by: ["studentId", "status"],
-    where: {
-      studentId: { in: studentIds },
-      classSession: { batchId },
-    },
-    _count: { _all: true },
-  });
-
-  for (const row of rows) {
-    const stats = result.get(row.studentId);
-    if (!stats) continue;
-    const count = row._count._all;
-    const status = String(row.status).toUpperCase();
-    stats.totalMarked += count;
-    if (status === "PRESENT") stats.presentCount += count;
-    else if (status === "ABSENT") stats.absentCount += count;
-    else if (status === "LEAVE") stats.leaveCount += count;
-  }
-
-  for (const stats of result.values()) {
-    stats.attendancePercentage =
-      stats.totalMarked > 0
-        ? Math.round((stats.presentCount / stats.totalMarked) * 10000) / 100
-        : 0;
-  }
-
   return result;
 };
 
