@@ -134,13 +134,6 @@ export const BatchDetails: React.FC = () => {
       batch.batchCourses?.[0]?.course?.name ||
       batch.course?.name ||
       formatBatchSubjectNames(batch);
-    const admissionSlot =
-      batch.timeSlot ||
-      batch.schedules?.[0]?.timeslotMaster?.name ||
-      (batch.schedules?.[0]?.startTime
-        ? `${batch.schedules[0].startTime} to ${batch.schedules[0].endTime}`
-        : "—");
-
     return [
       { label: "Batch Code", value: batch.code },
       { label: "Batch Name", value: batch.name },
@@ -148,7 +141,6 @@ export const BatchDetails: React.FC = () => {
       { label: "End Date", value: formatLongDate(batch.expectedEndDate) },
       { label: "Course", value: formatBatchSubjectNames(batch) },
       { label: "Module", value: primaryModule },
-      { label: "Admission Batch", value: admissionSlot },
       { label: "Branch", value: batch.branch?.name || "—" },
       { label: "Capacity", value: String(batch.capacity ?? "—") },
       {

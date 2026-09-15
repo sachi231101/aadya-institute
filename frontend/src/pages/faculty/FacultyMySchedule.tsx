@@ -65,6 +65,8 @@ export interface FormattedTimetableClass {
   attendancePresent?: number;
   attendanceTotal?: number;
   attendanceStatus?: "Pending" | "Updated";
+  attendanceMarkedCount?: number;
+  enrolledStudentsCount?: number;
   startHour: number;
   startMin: number;
   endHour: number;
@@ -212,7 +214,11 @@ export const FacultyMySchedule: React.FC = () => {
     const userEmail = (user?.email || dashboard?.profile?.email || "").toLowerCase();
     const userName = (user?.name || dashboard?.profile?.name || "").toLowerCase();
 
+    const notCancelled = (s: BackendClassSession) =>
+      String(s.sessionStatus || "").toUpperCase() !== "CANCELLED";
+
     let rawSessions: BackendClassSession[] = (sessionsRes?.data || []).filter((s: BackendClassSession) => {
+      if (!notCancelled(s)) return false;
       if (!userFacultyId && !userEmail && !userName) return true;
       if (userFacultyId && (s.facultyId === userFacultyId || s.faculty?.id === userFacultyId)) return true;
       if (user?.id && s.faculty?.user?.id === user.id) return true;
@@ -223,7 +229,7 @@ export const FacultyMySchedule: React.FC = () => {
 
     // Server already scopes pure FACULTY; keep sessions if client identity fields are incomplete.
     if (rawSessions.length === 0 && (sessionsRes?.data?.length ?? 0) > 0) {
-      rawSessions = sessionsRes!.data;
+      rawSessions = sessionsRes!.data.filter(notCancelled);
     }
 
     const map = new Map<string, FormattedTimetableClass>();
@@ -264,7 +270,22 @@ export const FacultyMySchedule: React.FC = () => {
         meetingUrl: s.meetingUrl || undefined,
         status,
         studentCount: s.enrolledStudentsCount ?? 0,
-        attendanceStatus: sessionAttendance[s.id]?.length ? "Updated" : "Pending",
+        enrolledStudentsCount: s.enrolledStudentsCount ?? 0,
+        attendanceMarkedCount:
+          (s as BackendClassSession & { attendanceMarkedCount?: number }).attendanceMarkedCount ??
+          0,
+        attendanceStatus: (() => {
+          const enrolled = s.enrolledStudentsCount ?? 0;
+          const marked =
+            (s as BackendClassSession & { attendanceMarkedCount?: number })
+              .attendanceMarkedCount ?? 0;
+          const donePct =
+            (s as BackendClassSession & { attendanceDonePercentage?: number })
+              .attendanceDonePercentage ?? 0;
+          if (enrolled > 0 && (marked >= enrolled || donePct >= 100)) return "Updated";
+          if (sessionAttendance[s.id]?.length) return "Updated";
+          return "Pending";
+        })(),
         startHour: startParsed.hour,
         startMin: startParsed.min,
         endHour: endParsed.hour,
@@ -331,6 +352,19 @@ export const FacultyMySchedule: React.FC = () => {
   };
 
   const handleNavigateToSession = (cls: FormattedTimetableClass, defaultTab?: string) => {
+    // Attendance marking uses the dedicated Mark Attendance screen (same ClassSession).
+    if (defaultTab === "attendance") {
+      const enrolled = cls.enrolledStudentsCount ?? cls.studentCount ?? 0;
+      const marked = cls.attendanceMarkedCount ?? 0;
+      const fullyMarked =
+        cls.attendanceStatus === "Updated" || (enrolled > 0 && marked >= enrolled);
+      navigate(
+        fullyMarked
+          ? `/faculty/attendance/mark?sessionId=${encodeURIComponent(cls.id)}&mode=view`
+          : `/faculty/attendance/mark?sessionId=${encodeURIComponent(cls.id)}`
+      );
+      return;
+    }
     navigate(
       `/faculty/class-session?id=${encodeURIComponent(cls.id)}&course=${encodeURIComponent(cls.courseName)}&subject=${encodeURIComponent(cls.subjectName)}&batch=${encodeURIComponent(cls.batchCode)}&batchId=${encodeURIComponent(cls.batchId || "")}&room=${encodeURIComponent(cls.roomNo)}&time=${encodeURIComponent(cls.timeRange)}&date=${encodeURIComponent(cls.date)}${defaultTab ? `&tab=${defaultTab}` : ""}`
     );
@@ -1062,7 +1096,10 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
                       className="flex-1 h-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-semibold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <UserCheck className="w-4 h-4 text-primary" /> Update Attendance
+                      <UserCheck className="w-4 h-4 text-primary" />{" "}
+                      {currentSelectedClass.attendanceStatus === "Updated"
+                        ? "View Attendance"
+                        : "Update Attendance"}
                     </Button>
 
                     <Button
@@ -1164,7 +1201,8 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => handleNavigateToSession(cls, "attendance")}
                       className="rounded-xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-50"
                     >
-                      <UserCheck className="w-3.5 h-3.5 mr-1 text-primary" /> Attendance
+                      <UserCheck className="w-3.5 h-3.5 mr-1 text-primary" />{" "}
+                      {cls.attendanceStatus === "Updated" ? "View Attendance" : "Attendance"}
                     </Button>
                     <Button
                       onClick={() => handleGoLive(cls)}

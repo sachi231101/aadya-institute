@@ -189,9 +189,16 @@ export const Batches: React.FC = () => {
         endDate: generateEndDate || undefined,
       });
       await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
       await refetch();
       setSuccessMsg(
-        `Generated ${(result as { data?: { created?: number } }).data?.created ?? 0} class session(s) for "${batchToGenerate.code}".`
+        `Generated ${(result as { data?: { created?: number; updated?: number } }).data?.created ?? 0} class session(s)${
+          (result as { data?: { updated?: number } }).data?.updated
+            ? `, updated ${(result as { data?: { updated?: number } }).data?.updated}`
+            : ""
+        } for "${batchToGenerate.code}".`
       );
       setTimeout(() => setSuccessMsg(null), 4000);
       setBatchToGenerate(null);
@@ -418,6 +425,11 @@ export const Batches: React.FC = () => {
         await createBatch(payload);
         setSuccessMsg(`Batch "${code} - ${name}" created successfully.`);
       }
+
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
 
       resetFormFields();
       setShowModal(false);
@@ -668,7 +680,6 @@ export const Batches: React.FC = () => {
                     <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">BATCH SCHEDULE TITLE</TableHead>
                     <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">START DATE</TableHead>
                     <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">END DATE</TableHead>
-                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">ADMISSION BATCH</TableHead>
                     <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">MODULE</TableHead>
                     <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">NO. OF STUDENTS</TableHead>
                     <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">STATUS</TableHead>
@@ -702,12 +713,6 @@ export const Batches: React.FC = () => {
                         })
                         : "—";
                       const scheduleTitle = formatBatchScheduleTitle(batch);
-                      const timeSlot =
-                        batch.timeSlot ||
-                        batch.schedules?.[0]?.timeslotMaster?.name ||
-                        (batch.schedules?.[0]?.startTime
-                          ? `${batch.schedules[0].startTime} to ${batch.schedules[0].endTime}`
-                          : "—");
 
                       return (
                         <TableRow
@@ -746,9 +751,6 @@ export const Batches: React.FC = () => {
                           </TableCell>
                           <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{startDateLabel}</TableCell>
                           <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{endDateLabel}</TableCell>
-                          <TableCell className="px-3 py-3 text-xs font-medium align-middle max-w-[150px] leading-snug border-r border-border" title={timeSlot}>
-                            <span className="line-clamp-2">{timeSlot}</span>
-                          </TableCell>
                           <TableCell className="px-3 py-3 max-w-[130px] text-xs font-medium align-middle leading-snug border-r border-border" title={formatBatchSubjectNames(batch)}>
                             <span className="line-clamp-2 font-medium">
                               {formatBatchSubjectNames(batch)}

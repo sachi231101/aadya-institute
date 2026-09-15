@@ -318,7 +318,9 @@ export const FacultyClassSession: React.FC = () => {
         );
         await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", sessionId] });
         await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
         await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
       } catch (err: any) {
         console.warn("Backend attendance sync skipped/failed:", err?.message);
       }

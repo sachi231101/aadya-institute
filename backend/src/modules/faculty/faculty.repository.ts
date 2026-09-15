@@ -1191,7 +1191,12 @@ export const findMyStudentAttendance = async (params: {
       select: {
         status: true,
         studentId: true,
-        classSession: { select: { scheduledDate: true } },
+        classSession: {
+          select: {
+            scheduledDate: true,
+            batch: { select: { code: true } },
+          },
+        },
         student: {
           select: {
             id: true,
