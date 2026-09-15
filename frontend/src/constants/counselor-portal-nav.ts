@@ -44,12 +44,6 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "ASK ME",
-    url: "/counselor/home",
-    icon: Sparkles,
-    isAi: true,
-  },
-  {
     title: "Lead Management",
     url: "/counselor/leads",
     icon: Bot,

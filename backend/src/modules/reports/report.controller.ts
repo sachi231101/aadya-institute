@@ -2,11 +2,24 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { ReportService } from "./report.service";
 import { sendSuccess, sendError } from "../../utils/response";
-import { toAuthUser } from "../../utils/auth-user.util";
+import {
+  getFacultyTeachingStudentIds,
+  isPureFaculty,
+  requireFacultyIdIfPureFaculty,
+  toAuthUser,
+} from "../../utils/auth-user.util";
 import {
   getBranchScopeFilter,
   resolveEffectiveBranchId,
 } from "../../utils/branch-isolation.util";
+import { AppError } from "../../middlewares/error.middleware";
+
+/** Deny institute-wide reports that faculty must not access. */
+const assertNotPureFacultyReport = (user: ReturnType<typeof toAuthUser>, label: string) => {
+  if (isPureFaculty(user.roles)) {
+    throw new AppError(`Faculty cannot access ${label}`, 403);
+  }
+};
 
 export const getStudentReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -17,6 +30,14 @@ export const getStudentReport = async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
+    if (isPureFaculty(user.roles)) {
+      const facultyId = await requireFacultyIdIfPureFaculty(user);
+      const studentIds = await getFacultyTeachingStudentIds(facultyId!, instituteId);
+      const data = await ReportService.getStudentReport(instituteId, { studentIds });
+      sendSuccess(res, data, 200, "Student report retrieved successfully");
+      return;
+    }
+
     const { branchId, branchIds } = getBranchScopeFilter(
       user,
       req.query.branchId as string | undefined
@@ -24,13 +45,14 @@ export const getStudentReport = async (req: AuthenticatedRequest, res: Response)
     const data = await ReportService.getStudentReport(instituteId, { branchId, branchIds });
     sendSuccess(res, data, 200, "Student report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch student report", 400);
+    sendError(res, err.message || "Failed to fetch student report", err.statusCode || 400);
   }
 };
 
 export const getFacultyReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "faculty reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -48,13 +70,14 @@ export const getFacultyReport = async (req: AuthenticatedRequest, res: Response)
     });
     sendSuccess(res, data, 200, "Faculty report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch faculty report", 400);
+    sendError(res, err.message || "Failed to fetch faculty report", err.statusCode || 400);
   }
 };
 
 export const getCourseReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "course reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -73,13 +96,14 @@ export const getCourseReport = async (req: AuthenticatedRequest, res: Response):
     });
     sendSuccess(res, data, 200, "Course report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch course report", 400);
+    sendError(res, err.message || "Failed to fetch course report", err.statusCode || 400);
   }
 };
 
 export const getFinancialReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "financial reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -113,7 +137,7 @@ export const getFinancialReport = async (req: AuthenticatedRequest, res: Respons
     });
     sendSuccess(res, data, 200, "Financial report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch financial report", 400);
+    sendError(res, err.message || "Failed to fetch financial report", err.statusCode || 400);
   }
 };
 
@@ -136,6 +160,7 @@ export const getScheduleSummary = async (req: AuthenticatedRequest, res: Respons
 export const getAdmissionsReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "admissions reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -159,13 +184,14 @@ export const getAdmissionsReport = async (req: AuthenticatedRequest, res: Respon
     });
     sendSuccess(res, data, 200, "Admissions report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch admissions report", 400);
+    sendError(res, err.message || "Failed to fetch admissions report", err.statusCode || 400);
   }
 };
 
 export const getAttendanceReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "attendance reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -187,13 +213,14 @@ export const getAttendanceReport = async (req: AuthenticatedRequest, res: Respon
     });
     sendSuccess(res, data, 200, "Attendance report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch attendance report", 400);
+    sendError(res, err.message || "Failed to fetch attendance report", err.statusCode || 400);
   }
 };
 
 export const getExaminationsReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const user = toAuthUser(req);
+    assertNotPureFacultyReport(user, "examinations reports");
     const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
@@ -213,6 +240,6 @@ export const getExaminationsReport = async (req: AuthenticatedRequest, res: Resp
     });
     sendSuccess(res, data, 200, "Examinations report retrieved successfully");
   } catch (err: any) {
-    sendError(res, err.message || "Failed to fetch examinations report", 400);
+    sendError(res, err.message || "Failed to fetch examinations report", err.statusCode || 400);
   }
 };

@@ -37,6 +37,8 @@ import {
   getWeekRangeFromOffset,
   localTodayKey,
   findSlotByMasterId,
+  selectFacultyTimetableColumns,
+  type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
@@ -132,10 +134,13 @@ export const FacultyMySchedule: React.FC = () => {
 
   const { data: sessionsRes, refetch: refetchSessions, isLoading: sessionsLoading } =
     useClassSessions(sessionQueryParams);
-  const branchId = user?.branchId || undefined;
+  const branchId =
+    user?.branchId ||
+    (dashboard as { profile?: { branchId?: string } } | undefined)?.profile?.branchId ||
+    undefined;
   const { options: holidayOptions } = useMasterDropdown("holiday", branchId);
   const {
-    slots: timeSlotColumns,
+    slots: masterTimeSlots,
     isLoading: slotsLoading,
     isEmpty: slotsEmpty,
   } = useTimetableSlotColumns(branchId);
@@ -235,15 +240,12 @@ export const FacultyMySchedule: React.FC = () => {
 
       const masterSlot = findSlotByMasterId(
         (s as BackendClassSession & { timeslotMasterId?: string }).timeslotMasterId,
-        timeSlotColumns
+        masterTimeSlots
       );
       const startTime = s.startTime || masterSlot?.start || "09:00 AM";
       const endTime = s.endTime || masterSlot?.end || "10:00 AM";
       const startParsed = parseTimeTo24Hour(startTime);
       const endParsed = parseTimeTo24Hour(endTime);
-      const startPeriod =
-        masterSlot?.period ?? periodFromStartTime(startTime, timeSlotColumns);
-      const span = spanSlotsForSession(startTime, endTime, timeSlotColumns, startPeriod);
 
       map.set(s.id, {
         id: s.id,
@@ -267,8 +269,8 @@ export const FacultyMySchedule: React.FC = () => {
         startMin: startParsed.min,
         endHour: endParsed.hour,
         endMin: endParsed.min,
-        spanHours: span,
-        startPeriod,
+        spanHours: 1,
+        startPeriod: null,
         timeslotMasterId:
           (s as BackendClassSession & { timeslotMasterId?: string }).timeslotMasterId ||
           masterSlot?.timeslotMasterId,
@@ -276,9 +278,34 @@ export const FacultyMySchedule: React.FC = () => {
     });
 
     return Array.from(map.values());
-  }, [sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, timeSlotColumns]);
+  }, [sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, masterTimeSlots]);
 
-  const filteredClasses = assignedClasses;
+  const timeSlotColumns: TimetablePeriodSlot[] = useMemo(
+    () =>
+      selectFacultyTimetableColumns(
+        masterTimeSlots,
+        assignedClasses.map((c) => c.timeslotMasterId),
+        assignedClasses.map((c) => c.startTime)
+      ),
+    [masterTimeSlots, assignedClasses]
+  );
+
+  const classesForGrid = useMemo(() => {
+    return assignedClasses.map((cls) => {
+      const masterSlot = findSlotByMasterId(cls.timeslotMasterId, timeSlotColumns);
+      const startPeriod =
+        masterSlot?.period ?? periodFromStartTime(cls.startTime, timeSlotColumns);
+      const span = spanSlotsForSession(
+        cls.startTime,
+        cls.endTime,
+        timeSlotColumns,
+        startPeriod
+      );
+      return { ...cls, startPeriod, spanHours: span };
+    });
+  }, [assignedClasses, timeSlotColumns]);
+
+  const filteredClasses = classesForGrid;
 
   const todayClasses = useMemo(() => {
     return assignedClasses.filter((c) => c.date === todayIso);
@@ -512,12 +539,14 @@ export const FacultyMySchedule: React.FC = () => {
                   {timeSlotColumns.map((slot) => (
                     <th
                       key={slot.timeslotMasterId || slot.period}
-                      className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center min-w-[95px]"
+                      className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center min-w-[110px]"
                     >
-                      <span className="block font-semibold text-xs text-slate-800 dark:text-slate-100">
-                        {slot.start.replace(/\s*(AM|PM)$/i, "")}
+                      <span className="block font-semibold text-[11px] text-slate-800 dark:text-slate-100 leading-tight">
+                        {slot.timeTitle}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-bold block">{slot.subTitle || "—"}</span>
+                      <span className="text-[10px] text-slate-500 font-bold block mt-0.5">
+                        {slot.subTitle || "—"}
+                      </span>
                     </th>
                   ))}
                 </tr>
@@ -529,7 +558,7 @@ export const FacultyMySchedule: React.FC = () => {
                     return (
                       <tr
                         key={day.iso}
-                        className="transition-colors h-[54px] bg-rose-50/30 dark:bg-rose-950/10"
+                        className="transition-colors h-[40px] bg-rose-50/30 dark:bg-rose-950/10"
                       >
                         <td
                           colSpan={timeSlotColumns.length + 1}
@@ -554,14 +583,14 @@ export const FacultyMySchedule: React.FC = () => {
                   return (
                     <tr
                       key={day.iso}
-                      className={`transition-colors h-[86px] ${day.isToday
+                      className={`transition-colors min-h-[54px] ${day.isToday
                         ? "bg-blue-50/20 dark:bg-blue-950/10"
                         : "hover:bg-slate-50/30 dark:hover:bg-slate-800/20"
                         }`}
                     >
                       {/* Left Day/Date Cell */}
                       <td
-                        className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${day.isToday
+                        className={`p-2 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${day.isToday
                           ? "bg-blue-50/60 text-primary dark:bg-blue-950/40"
                           : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
                           }`}
@@ -607,7 +636,7 @@ export const FacultyMySchedule: React.FC = () => {
                             >
                               <div
                                 onClick={() => handleOpenClassDetails(matchingClass)}
-                                className={`p-2 rounded-xl border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[72px] flex flex-col justify-between ${isLive
+                                className={`p-1.5 rounded-lg border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[50px] flex flex-col justify-between ${isLive
                                   ? "bg-emerald-50/90 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 ring-2 ring-emerald-500/40 shadow-xs"
                                   : isExam
                                     ? "bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 hover:border-rose-400"

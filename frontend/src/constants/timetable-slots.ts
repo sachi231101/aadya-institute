@@ -122,6 +122,81 @@ export const buildTimetableSlotsFromMasters = (
   }));
 };
 
+const TEACHING_HOURS_START_MIN = 6 * 60; // 6:00 AM
+const TEACHING_HOURS_END_MIN = 22 * 60; // 10:00 PM
+
+const isWithinTeachingHours = (slot: TimetablePeriodSlot): boolean => {
+  const startMins = parseTimeToMinutes(slot.start);
+  if (startMins === null) return false;
+  return startMins >= TEACHING_HOURS_START_MIN && startMins < TEACHING_HOURS_END_MIN;
+};
+
+/** Prefer clean academy periods (45+ min, quarter-hour starts) over clock-noise test slots. */
+const isStandardPeriodSlot = (slot: TimetablePeriodSlot): boolean => {
+  const startMins = parseTimeToMinutes(slot.start);
+  const endMins = parseTimeToMinutes(slot.end);
+  if (startMins === null || endMins === null) return false;
+  const duration = endMins - startMins;
+  const minuteOfHour = startMins % 60;
+  return duration >= 45 && [0, 15, 30, 45].includes(minuteOfHour);
+};
+
+const renumberPeriods = (slots: TimetablePeriodSlot[]): TimetablePeriodSlot[] =>
+  slots.map((slot, index) => ({ ...slot, period: index + 1 }));
+
+/**
+ * Faculty "My Classes" grid columns:
+ * - Drop overnight / junk master slots outside teaching hours
+ * - Prefer standard period slots for a readable timetable
+ * - Always keep slots that host this week's assigned classes
+ */
+export const selectFacultyTimetableColumns = (
+  masterSlots: TimetablePeriodSlot[],
+  usedTimeslotMasterIds: Iterable<string | undefined | null> = [],
+  usedStartTimes: Iterable<string | undefined | null> = []
+): TimetablePeriodSlot[] => {
+  if (!masterSlots.length) return [];
+
+  const usedIds = new Set(
+    Array.from(usedTimeslotMasterIds).filter((id): id is string => Boolean(id))
+  );
+  const usedStarts = new Set(
+    Array.from(usedStartTimes)
+      .filter((t): t is string => Boolean(t?.trim()))
+      .map((t) => t.trim().toLowerCase())
+  );
+
+  const isUsedSlot = (slot: TimetablePeriodSlot) => {
+    if (slot.timeslotMasterId && usedIds.has(slot.timeslotMasterId)) return true;
+    return usedStarts.has(slot.start.trim().toLowerCase());
+  };
+
+  const inHours = masterSlots.filter(isWithinTeachingHours);
+  const pool = inHours.length > 0 ? inHours : masterSlots;
+
+  const standard = pool.filter(isStandardPeriodSlot);
+  const used = pool.filter(isUsedSlot);
+  const merged = new Map<string, TimetablePeriodSlot>();
+  for (const slot of [...standard, ...used]) {
+    const key = slot.timeslotMasterId || `${slot.start}|${slot.end}`;
+    if (!merged.has(key)) merged.set(key, slot);
+  }
+
+  // If no standard slots exist, show all teaching-hour slots (still drops midnight junk).
+  const selected =
+    merged.size > 0
+      ? Array.from(merged.values())
+      : pool;
+
+  selected.sort((a, b) => {
+    const aMins = parseTimeToMinutes(a.start) ?? Number.MAX_SAFE_INTEGER;
+    const bMins = parseTimeToMinutes(b.start) ?? Number.MAX_SAFE_INTEGER;
+    return aMins - bMins;
+  });
+
+  return renumberPeriods(selected);
+};
+
 /** Map a start time to a timetable period using the provided slot list. */
 export const periodFromStartTime = (
   startTime: string,

@@ -45,7 +45,29 @@ const sessionInclude = {
       courseModule: true,
     },
   },
+  _count: {
+    select: {
+      attendance: true,
+    },
+  },
 } satisfies Prisma.ClassSessionInclude;
+
+function mapSessionRow(session: any) {
+  const enrolledStudentsCount = session.batch?._count?.enrollments ?? 0;
+  const attendanceMarkedCount = session._count?.attendance ?? 0;
+  const { _count: batchCount, ...batchRest } = session.batch || {};
+  const { _count: sessionCount, ...sessionRest } = session;
+  return {
+    ...sessionRest,
+    batch: batchRest,
+    enrolledStudentsCount,
+    attendanceMarkedCount,
+    attendanceDonePercentage:
+      enrolledStudentsCount > 0
+        ? Math.round((attendanceMarkedCount / enrolledStudentsCount) * 10000) / 100
+        : 0,
+  };
+}
 
 function buildWhere(
   instituteId: string,
@@ -112,16 +134,6 @@ function buildWhere(
   }
 
   return where;
-}
-
-function mapSessionRow(session: any) {
-  const enrolledStudentsCount = session.batch?._count?.enrollments ?? 0;
-  const { _count, ...batchRest } = session.batch || {};
-  return {
-    ...session,
-    batch: batchRest,
-    enrolledStudentsCount,
-  };
 }
 
 export const classSessionRepository = {

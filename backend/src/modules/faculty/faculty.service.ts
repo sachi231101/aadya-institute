@@ -9,6 +9,9 @@ import {
   getBranchScopeFilter,
 } from "../../utils/branch-isolation.util";
 import {
+  assertFacultyCanAccessStudent,
+  assertFacultyOwnsBatch,
+  getFacultyTeachingBatchIds,
   isPureFaculty,
   requireFacultyIdIfPureFaculty,
   resolveFacultyIdForUser,
@@ -26,6 +29,7 @@ import type {
   UpdateFacultyDto,
   ListFacultyQuery,
   MyStudentsQuery,
+  MyStudentAttendanceQuery,
   MarkAttendanceDto,
   BulkDailyAttendanceDto,
   DailyAttendanceQuery,
@@ -332,7 +336,8 @@ export const getAllFacultyCourses = async (
 
   const params: repo.FindFacultyCoursesParams = {
     instituteId: scope.instituteId,
-    branchId: scope.branchId,
+    // Pure faculty teaching desk may cross branches
+    branchId: targetFacultyId && isPureFaculty(currentUser.roles) ? undefined : scope.branchId,
     facultyId: targetFacultyId,
     skip,
     take: limit,
@@ -766,4 +771,170 @@ export const getMyStudents = async (currentUser: AuthUser, query: MyStudentsQuer
   });
 
   return { data, meta: buildMeta(total, page, limit) };
+};
+
+/**
+ * Teaching-desk student class attendance history for the logged-in faculty.
+ */
+export const getMyStudentAttendance = async (
+  currentUser: AuthUser,
+  query: MyStudentAttendanceQuery
+) => {
+  let facultyId = currentUser.facultyId ?? null;
+  if (!facultyId) {
+    facultyId = await resolveFacultyIdForUser(currentUser.id);
+  }
+  if (!facultyId) {
+    throw new AppError("Faculty profile not found for this user", 403);
+  }
+  if (isPureFaculty(currentUser.roles)) {
+    facultyId = (await requireFacultyIdIfPureFaculty(currentUser))!;
+  }
+
+  if (query.batchId) {
+    await assertFacultyOwnsBatch(currentUser, query.batchId);
+  }
+  if (query.studentId) {
+    await assertFacultyCanAccessStudent(currentUser, query.studentId);
+  }
+
+  const teachingBatchIds = await getFacultyTeachingBatchIds(
+    facultyId,
+    currentUser.instituteId
+  );
+
+  let fromDate: Date | undefined;
+  let toDate: Date | undefined;
+  if (query.month) {
+    const [y, m] = query.month.split("-").map(Number);
+    fromDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+    toDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+  } else {
+    if (query.fromDate) fromDate = new Date(`${query.fromDate}T00:00:00.000Z`);
+    if (query.toDate) toDate = new Date(`${query.toDate}T23:59:59.999Z`);
+  }
+
+  const page = Number(query.page) || 1;
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const skip = (page - 1) * limit;
+
+  const { records, total, allForAggregation } = await repo.findMyStudentAttendance({
+    facultyId,
+    instituteId: currentUser.instituteId,
+    batchIds: teachingBatchIds,
+    batchId: query.batchId,
+    studentId: query.studentId,
+    search: query.search,
+    fromDate,
+    toDate,
+    skip,
+    take: limit,
+  });
+
+  const mappedRecords = records.map((r) => {
+    const course =
+      r.classSession.batchCourse?.course || r.classSession.batch?.course || null;
+    return {
+      id: r.id,
+      status: r.status,
+      markedAt: r.markedAt,
+      studentId: r.student.id,
+      studentCode: r.student.studentCode,
+      studentName: r.student.user?.name ?? r.student.studentCode,
+      sessionId: r.classSession.id,
+      sessionTitle: r.classSession.title,
+      date: r.classSession.scheduledDate.toISOString().slice(0, 10),
+      startTime: r.classSession.startTime,
+      endTime: r.classSession.endTime,
+      batchId: r.classSession.batch?.id ?? r.classSession.batchId,
+      batchName: r.classSession.batch?.name ?? null,
+      batchCode: r.classSession.batch?.code ?? null,
+      courseId: course?.id ?? null,
+      courseName: course?.name ?? null,
+      courseCode: course?.code ?? null,
+    };
+  });
+
+  const calendar: Record<
+    string,
+    { present: number; absent: number; leave: number; total: number }
+  > = {};
+  let present = 0;
+  let absent = 0;
+  let leave = 0;
+
+  const byStudent = new Map<
+    string,
+    {
+      studentId: string;
+      studentCode: string;
+      studentName: string;
+      present: number;
+      absent: number;
+      leave: number;
+      total: number;
+    }
+  >();
+
+  for (const row of allForAggregation) {
+    const day = row.classSession.scheduledDate.toISOString().slice(0, 10);
+    if (!calendar[day]) {
+      calendar[day] = { present: 0, absent: 0, leave: 0, total: 0 };
+    }
+    calendar[day].total += 1;
+    const status = String(row.status).toUpperCase();
+    if (status === "PRESENT") {
+      calendar[day].present += 1;
+      present += 1;
+    } else if (status === "ABSENT") {
+      calendar[day].absent += 1;
+      absent += 1;
+    } else if (status === "LEAVE") {
+      calendar[day].leave += 1;
+      leave += 1;
+    }
+
+    const sid = row.studentId;
+    const existing = byStudent.get(sid);
+    if (!existing) {
+      byStudent.set(sid, {
+        studentId: sid,
+        studentCode: row.student.studentCode,
+        studentName: row.student.user?.name ?? row.student.studentCode,
+        present: status === "PRESENT" ? 1 : 0,
+        absent: status === "ABSENT" ? 1 : 0,
+        leave: status === "LEAVE" ? 1 : 0,
+        total: 1,
+      });
+    } else {
+      existing.total += 1;
+      if (status === "PRESENT") existing.present += 1;
+      else if (status === "ABSENT") existing.absent += 1;
+      else if (status === "LEAVE") existing.leave += 1;
+    }
+  }
+
+  const totalMarks = present + absent + leave;
+  const students = Array.from(byStudent.values()).map((s) => ({
+    ...s,
+    attendancePercentage:
+      s.total > 0 ? Math.round((s.present / s.total) * 10000) / 100 : 0,
+  }));
+
+  return {
+    data: {
+      records: mappedRecords,
+      students,
+      calendar,
+      summary: {
+        present,
+        absent,
+        leave,
+        total: totalMarks,
+        overallPercentage:
+          totalMarks > 0 ? Math.round((present / totalMarks) * 10000) / 100 : 0,
+      },
+    },
+    meta: buildMeta(total, page, limit),
+  };
 };

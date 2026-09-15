@@ -399,7 +399,6 @@ async function main() {
     "branch.read",
     "course.read",
     "module.read",
-    "module.update",
     "batch.read",
     "schedule.read",
     "attendance.read",
@@ -425,6 +424,8 @@ async function main() {
     "exam.read",
     "question.read",
     "question_bank.read",
+    "document.read",
+    "document.create",
   ];
   for (const name of facultyPermNames) {
     if (permissions[name]) {
@@ -443,6 +444,16 @@ async function main() {
       });
     }
   }
+
+  const facultyPermissionIds = facultyPermNames
+    .map((name) => permissions[name]?.id)
+    .filter(Boolean) as string[];
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: roles["FACULTY"].id,
+      permissionId: { notIn: facultyPermissionIds },
+    },
+  });
 
   // STUDENT permissions
   const studentPermNames = [

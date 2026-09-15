@@ -39,7 +39,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
-import { useAnnouncementStore } from "@/store/announcement.store";
+import {
+  useAnnouncements,
+  useCreateAnnouncement,
+} from "@/hooks/useAnnouncements";
+import type { Announcement as ApiAnnouncement } from "@/services/announcements.api";
 import { useBatches } from "@/hooks/useBatches";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { useFacultyCourses } from "@/hooks/useFaculty";
@@ -60,6 +64,54 @@ type FacultyCourseGroup = {
   }[];
 };
 
+const mapApiAnnouncement = (
+  a: ApiAnnouncement,
+  facultyName: string,
+  facultyDesignation: string
+): AnnouncementItem => {
+  const isPublished = a.status === "PUBLISHED";
+  return {
+    id: a.id,
+    title: a.title,
+    message: a.body,
+    type: (a.type === "URGENT"
+      ? "Important Notice"
+      : a.type === "ASSIGNMENT"
+        ? "Assignment Reminder"
+        : "General Announcement") as AnnouncementType,
+    authorRole: "Faculty",
+    courseName: a.course?.name || "Course",
+    batchCode: a.batch?.code || "—",
+    batchName: a.batch?.name || "—",
+    facultyName: a.faculty?.user?.name || facultyName,
+    facultyDesignation,
+    studentCount: 0,
+    status: (isPublished ? "Published" : "Draft") as AnnouncementStatus,
+    createdAt: new Date(a.createdAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    publishedAt: a.publishedAt
+      ? new Date(a.publishedAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : undefined,
+    sentCount: isPublished ? 0 : 0,
+    readCount: 0,
+    isImportant: a.type === "URGENT",
+    iconBg: "bg-blue-50",
+    iconColor: "text-primary",
+    readBy: [],
+  };
+};
+
 export const FacultyAnnouncements: React.FC = () => {
   const { user } = useAuthStore();
   const { data: dashboardRes } = useFacultyDashboard();
@@ -67,11 +119,28 @@ export const FacultyAnnouncements: React.FC = () => {
   const { batches: assignedBatches, loading: batchesLoading } = useBatches(
     facultyId ? { facultyId } : undefined
   );
-  const { announcements, addAnnouncement } = useAnnouncementStore();
-  const { data: facultyCoursesRes, isLoading: loadingFacultyCourses } = useFacultyCourses({ limit: 100 });
+  const { data: announcementsRes, refetch: refetchAnnouncements } = useAnnouncements({
+    limit: 100,
+    status: "ALL",
+  });
+  const createAnnouncementMutation = useCreateAnnouncement();
+  const { data: facultyCoursesRes, isLoading: loadingFacultyCourses } = useFacultyCourses({
+    limit: 100,
+  });
 
   const facultyName = user?.name || "Faculty";
-  const facultyDesignation = (user as { specialization?: string; department?: string })?.specialization || (user as { department?: string })?.department || "Faculty";
+  const facultyDesignation =
+    (user as { specialization?: string; department?: string })?.specialization ||
+    (user as { department?: string })?.department ||
+    "Faculty";
+
+  const announcements = useMemo(
+    () =>
+      (announcementsRes?.data ?? []).map((a) =>
+        mapApiAnnouncement(a, facultyName, facultyDesignation)
+      ),
+    [announcementsRes?.data, facultyName, facultyDesignation]
+  );
 
   const facultyCourseGroups = useMemo((): FacultyCourseGroup[] => {
     const assignments = facultyCoursesRes?.data ?? [];
@@ -89,9 +158,10 @@ export const FacultyAnnouncements: React.FC = () => {
 
       const group = map.get(courseId)!;
       const batchLabel = `${assignment.code} – ${assignment.name}`;
-      if (!group.batches.some((b) => b.id === assignment.id)) {
+      const batchId = assignment.batchId || assignment.id;
+      if (!group.batches.some((b) => b.id === batchId)) {
         group.batches.push({
-          id: assignment.id,
+          id: batchId,
           name: batchLabel,
           batchCode: assignment.code,
           studentCount: assignment._count?.enrollments ?? 0,
@@ -231,7 +301,7 @@ export const FacultyAnnouncements: React.FC = () => {
   };
 
   // Publish Announcement
-  const handlePublish = (e?: React.FormEvent) => {
+  const handlePublish = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     if (!selectedCourse || !selectedBatchId) {
@@ -253,39 +323,32 @@ export const FacultyAnnouncements: React.FC = () => {
       return;
     }
 
-    addAnnouncement({
-      title: title.trim(),
-      message: message.trim(),
-      type: "Important Notice",
-      authorRole: "Faculty",
-      courseName: selectedCourse,
-      batchCode: currentBatchObj.batchCode,
-      batchName: currentBatchObj.name,
-      facultyName: facultyName,
-      facultyDesignation: facultyDesignation,
-      studentCount: currentBatchObj.studentCount,
-      status: "Published",
-      sentCount: currentBatchObj.studentCount,
-      readCount: 0,
-      isImportant: true,
-      attachmentName: attachedFile?.name,
-      attachmentSize: attachedFile?.size,
-      iconBg: "bg-blue-50",
-      iconColor: "text-primary",
-    });
+    try {
+      await createAnnouncementMutation.mutateAsync({
+        title: title.trim(),
+        body: message.trim(),
+        type: "GENERAL",
+        status: "PUBLISHED",
+        batchId: currentBatchObj.id,
+        courseId: currentCourseObj.id || undefined,
+      });
+      await refetchAnnouncements();
 
-    setTitle("");
-    setMessage("");
-    setAttachedFile(null);
+      setTitle("");
+      setMessage("");
+      setAttachedFile(null);
 
-    showToast(
-      "✓ Announcement Published Successfully",
-      `${currentBatchObj.studentCount} Students Notified in ${currentBatchObj.name}`
-    );
+      showToast(
+        "✓ Announcement Published Successfully",
+        `${currentBatchObj.studentCount} Students Notified in ${currentBatchObj.name}`
+      );
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to publish announcement");
+    }
   };
 
   // Save as Draft
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     if (!selectedCourse || !selectedBatchId) {
       alert("Please select a course and batch.");
       return;
@@ -301,32 +364,25 @@ export const FacultyAnnouncements: React.FC = () => {
       return;
     }
 
-    addAnnouncement({
-      title: title.trim(),
-      message: message.trim(),
-      type: "General Announcement",
-      authorRole: "Faculty",
-      courseName: selectedCourse,
-      batchCode: currentBatchObj.batchCode,
-      batchName: currentBatchObj.name,
-      facultyName: facultyName,
-      facultyDesignation: facultyDesignation,
-      studentCount: currentBatchObj.studentCount,
-      status: "Draft",
-      sentCount: 0,
-      readCount: 0,
-      isImportant: false,
-      attachmentName: attachedFile?.name,
-      attachmentSize: attachedFile?.size,
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-600",
-    });
+    try {
+      await createAnnouncementMutation.mutateAsync({
+        title: title.trim(),
+        body: message.trim() || title.trim(),
+        type: "GENERAL",
+        status: "DRAFT",
+        batchId: currentBatchObj.id,
+        courseId: currentCourseObj.id || undefined,
+      });
+      await refetchAnnouncements();
 
-    setTitle("");
-    setMessage("");
-    setAttachedFile(null);
+      setTitle("");
+      setMessage("");
+      setAttachedFile(null);
 
-    showToast("✓ Announcement Saved as Draft", "You can edit and publish it anytime.");
+      showToast("✓ Announcement Saved as Draft", "You can edit and publish it anytime.");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to save draft");
+    }
   };
 
   return (

@@ -96,3 +96,24 @@ export const getMyStudents = async (req: AuthenticatedRequest, res: Response, ne
     sendPaginated(res, data, meta);
   } catch (err) { next(err); }
 };
+
+export const getMyStudentAttendance = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { data, meta } = await service.getMyStudentAttendance(
+      toAuthUser(req),
+      req.query as any
+    );
+    res.status(200).json({
+      success: true,
+      message: "Faculty student attendance retrieved successfully",
+      data,
+      meta,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

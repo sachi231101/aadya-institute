@@ -72,12 +72,12 @@ const facultyNavItems: NavItem[] = [
         url: "/faculty/recordings",
         icon: FileVideo,
       },
+      {
+        title: "Study Materials",
+        url: "/faculty/study-materials",
+        icon: BookOpen,
+      },
     ],
-  },
-  {
-    title: "Class Recordings",
-    url: "/faculty/recordings",
-    icon: FileVideo,
   },
   {
     title: "Assignment Management",
@@ -123,8 +123,20 @@ const facultyNavItems: NavItem[] = [
   },
   {
     title: "Attendance",
-    url: "/faculty/attendance",
+    url: "/faculty/attendance/take",
     icon: UserCheck,
+    items: [
+      {
+        title: "Take Attendance",
+        url: "/faculty/attendance/take",
+        icon: UserCheck,
+      },
+      {
+        title: "Attendance History",
+        url: "/faculty/attendance/history",
+        icon: Clock,
+      },
+    ],
   },
   {
     title: "Student Performance",

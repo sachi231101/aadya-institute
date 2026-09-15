@@ -19,8 +19,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore, type SessionAttendanceRecord, type SessionMaterialItem } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useNotificationStore } from "@/store/notification.store";
-import { useQuery } from "@tanstack/react-query";
-import { studentsApi } from "@/services/students.api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
 import { PageContainer, PageHeader } from "@/components/layout";
 
@@ -39,6 +38,7 @@ interface EnrolledStudent {
 export const FacultyClassSession: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const {
     addRecording,
@@ -68,6 +68,11 @@ export const FacultyClassSession: React.FC = () => {
   const scheduledDate = searchParams.get("date") || "31 Aug 2026";
   const facultyName = user?.name || "Faculty01";
   const subjectName = searchParams.get("subject") || courseName || "Java Programming";
+  const tabParam = searchParams.get("tab");
+  const initialTab =
+    tabParam === "live_classroom" || tabParam === "session_history" || tabParam === "attendance"
+      ? tabParam
+      : "attendance";
 
   // Check persisted session status in store
   const persistedStatus = getSessionStatus(sessionId);
@@ -97,11 +102,7 @@ export const FacultyClassSession: React.FC = () => {
     enabled: Boolean(effectiveBatchId),
   });
 
-  const { data: studentsRes } = useQuery({
-    queryKey: ["students", "faculty-session-all"],
-    queryFn: () => studentsApi.getAll({ limit: 100 }),
-    enabled: !hasValidSessionId && !batchId,
-  });
+  // Never fall back to institute-wide student list — only session/batch roster.
 
   // Google Meet — only real meet.google.com URLs (never synthetic aady-* links)
   const isRealGoogleMeetUrl = (url?: string | null) =>
@@ -133,7 +134,7 @@ export const FacultyClassSession: React.FC = () => {
   }, [hasValidSessionId, sessionId]);
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<"attendance" | "live_classroom" | "session_history">("attendance");
+  const [activeTab, setActiveTab] = useState<"attendance" | "live_classroom" | "session_history">(initialTab);
   const [students, setStudents] = useState<EnrolledStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isUpdatingAttendance, setIsUpdatingAttendance] = useState(false);
@@ -199,17 +200,8 @@ export const FacultyClassSession: React.FC = () => {
       return;
     }
 
-    // 4. Empty for real sessions; never invent demo students for live ERP data
-    if (hasValidSessionId || effectiveBatchId) {
-      setStudents([]);
-      return;
-    }
-
-    setStudents([
-      { id: "stu-b001-01", studentId: "AAD-2026-0003", name: "SACHIN GA", initials: "SG", avatar: "", status: "PRESENT" },
-      { id: "stu-b001-02", studentId: "AAD-2026-0002", name: "Hareesh NV", initials: "HN", avatar: "", status: "ABSENT" },
-      { id: "stu-b001-03", studentId: "AAD-2026-0001", name: "adithya fs", initials: "AF", avatar: "", status: "LEAVE" },
-    ]);
+    // 4. No roster without a real session or batch — never invent demo students
+    setStudents([]);
   }, [sessionAttendanceRes, batchStudentsRes, hasValidSessionId, sessionId, effectiveBatchId]);
 
   // Live Class Timer State
@@ -324,6 +316,9 @@ export const FacultyClassSession: React.FC = () => {
             status: s.status,
           }))
         );
+        await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", sessionId] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+        await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
       } catch (err: any) {
         console.warn("Backend attendance sync skipped/failed:", err?.message);
       }
@@ -1660,11 +1655,22 @@ export const FacultyClassSession: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter className="pt-2 flex justify-center">
+          <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowAttendanceSuccessModal(false);
+                navigate("/faculty/attendance/history");
+              }}
+              className="w-full sm:w-auto font-semibold text-xs h-10 rounded-xl cursor-pointer"
+            >
+              View Attendance History
+            </Button>
             <Button
               type="button"
               onClick={() => setShowAttendanceSuccessModal(false)}
-              className="w-full bg-primary hover:bg-primary text-white font-semibold text-xs h-10 rounded-xl shadow-md cursor-pointer"
+              className="w-full sm:w-auto bg-primary hover:bg-primary text-white font-semibold text-xs h-10 rounded-xl shadow-md cursor-pointer"
             >
               Done
             </Button>

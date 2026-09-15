@@ -134,10 +134,22 @@ const buildWhereClause = (params: Omit<FindAllStudentsParams, "skip" | "take">) 
   }
 
   if (params.facultyId) {
+    // Teaching desk: coordinator, subject teacher, schedule assignee, or session host
     where.batchEnrollments = {
       some: {
         status: "ACTIVE",
-        batch: { facultyId: params.facultyId },
+        batch: {
+          OR: [
+            { facultyId: params.facultyId },
+            { batchCourses: { some: { facultyId: params.facultyId } } },
+            { schedules: { some: { facultyId: params.facultyId } } },
+            {
+              classSessions: {
+                some: { facultyId: params.facultyId, status: "ACTIVE" },
+              },
+            },
+          ],
+        },
       },
     };
   }

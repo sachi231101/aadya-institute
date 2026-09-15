@@ -238,9 +238,10 @@ export const getAllStudents = async (
   const scope = getBranchScopeFilter(currentUser, query.branchId);
   const facultyId = await requireFacultyIdIfPureFaculty(currentUser);
 
+  // Pure faculty: teaching-desk scope may cross branches — do not pin JWT branchId.
   const params: repo.FindAllStudentsParams = {
     instituteId: scope.instituteId,
-    branchId: scope.branchId,
+    branchId: facultyId ? undefined : scope.branchId,
     search: query.search || undefined,
     status: query.status || undefined,
     facultyId: facultyId || undefined,

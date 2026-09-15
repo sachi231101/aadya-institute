@@ -39,6 +39,8 @@ import billingRoutes from "../modules/billing/billing.routes";
 import securityRoutes from "../modules/security/security.routes";
 import dataManagementRoutes from "../modules/data-management/data-management.routes";
 import aiCallingRoutes from "../modules/ai-calling/ai-calling.routes";
+import studyMaterialRoutes from "../modules/study-materials/study-material.routes";
+import announcementRoutes from "../modules/announcements/announcement.routes";
 
 const router = Router();
 
@@ -99,6 +101,12 @@ router.use("/feedback", feedbackRoutes);
 
 // Documents
 router.use("/documents", documentRoutes);
+
+// Study materials (faculty teaching desk)
+router.use("/study-materials", studyMaterialRoutes);
+
+// Announcements (faculty teaching desk)
+router.use("/announcements", announcementRoutes);
 
 // Placement
 router.use("/placement", placementRoutes);

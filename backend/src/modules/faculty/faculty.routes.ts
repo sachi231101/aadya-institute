@@ -9,6 +9,7 @@ import {
   updateFacultySchema,
   listFacultyQuerySchema,
   myStudentsQuerySchema,
+  myStudentAttendanceQuerySchema,
   assignCourseSchema,
   markAttendanceSchema,
   dailyAttendanceQuerySchema,
@@ -31,6 +32,13 @@ router.get(
   requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
   validate(myStudentsQuerySchema, "query"),
   controller.getMyStudents
+);
+
+router.get(
+  "/me/student-attendance",
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  validate(myStudentAttendanceQuerySchema, "query"),
+  controller.getMyStudentAttendance
 );
 
 router.get(

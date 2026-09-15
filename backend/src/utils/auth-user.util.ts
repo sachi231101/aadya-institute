@@ -51,7 +51,59 @@ export const requireFacultyIdIfPureFaculty = async (
 };
 
 /**
+ * Teaching-desk batch filter: coordinator, subject teacher, schedule assignee, or session host.
+ * Used for list filters and ownership checks so faculty sees a consistent desk.
+ */
+export const facultyTeachingBatchWhere = (facultyId: string) => ({
+  OR: [
+    { facultyId },
+    { batchCourses: { some: { facultyId } } },
+    { schedules: { some: { facultyId } } },
+    { classSessions: { some: { facultyId, status: "ACTIVE" as const } } },
+  ],
+});
+
+/**
+ * Resolve all batch IDs in the faculty teaching desk.
+ */
+export const getFacultyTeachingBatchIds = async (
+  facultyId: string,
+  instituteId: string
+): Promise<string[]> => {
+  const batches = await prisma.batch.findMany({
+    where: {
+      instituteId,
+      ...facultyTeachingBatchWhere(facultyId),
+    },
+    select: { id: true },
+  });
+  return batches.map((b) => b.id);
+};
+
+/**
+ * Student IDs actively enrolled in the faculty teaching desk.
+ */
+export const getFacultyTeachingStudentIds = async (
+  facultyId: string,
+  instituteId: string
+): Promise<string[]> => {
+  const batchIds = await getFacultyTeachingBatchIds(facultyId, instituteId);
+  if (batchIds.length === 0) return [];
+
+  const enrollments = await prisma.batchEnrollment.findMany({
+    where: {
+      status: "ACTIVE",
+      batchId: { in: batchIds },
+    },
+    select: { studentId: true },
+    distinct: ["studentId"],
+  });
+  return enrollments.map((e) => e.studentId);
+};
+
+/**
  * Ensure a batch belongs to the faculty (when pure faculty).
+ * Matches list filters: coordinator, BatchCourse, schedule, or class session.
  */
 export const assertFacultyOwnsBatch = async (
   currentUser: AuthUser,
@@ -61,18 +113,21 @@ export const assertFacultyOwnsBatch = async (
   if (!facultyId) return;
 
   const batch = await prisma.batch.findFirst({
-    where: { id: batchId, instituteId: currentUser.instituteId },
-    select: {
-      facultyId: true,
-      batchCourses: { where: { facultyId }, select: { id: true } },
+    where: {
+      id: batchId,
+      instituteId: currentUser.instituteId,
+      ...facultyTeachingBatchWhere(facultyId),
     },
+    select: { id: true },
   });
   if (!batch) {
-    throw new AppError("Batch not found", 404);
-  }
-  const isCoordinator = batch.facultyId === facultyId;
-  const teachesSubject = batch.batchCourses.length > 0;
-  if (!isCoordinator && !teachesSubject) {
+    const exists = await prisma.batch.findFirst({
+      where: { id: batchId, instituteId: currentUser.instituteId },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new AppError("Batch not found", 404);
+    }
     throw new AppError("You do not have access to this batch", 403);
   }
 };
@@ -100,7 +155,7 @@ export const assertFacultyOwnsSession = async (
 };
 
 /**
- * Ensure a student is enrolled in at least one of the faculty's batches.
+ * Ensure a student is enrolled in at least one of the faculty's teaching-desk batches.
  */
 export const assertFacultyCanAccessStudent = async (
   currentUser: AuthUser,
@@ -115,11 +170,7 @@ export const assertFacultyCanAccessStudent = async (
       status: "ACTIVE",
       batch: {
         instituteId: currentUser.instituteId,
-        OR: [
-          { facultyId },
-          { batchCourses: { some: { facultyId } } },
-          { classSessions: { some: { facultyId } } },
-        ],
+        ...facultyTeachingBatchWhere(facultyId),
       },
     },
     select: { id: true },

@@ -46,6 +46,7 @@ export interface Faculty {
 
 export interface FacultyCourseAssignment {
   id: string;
+  batchId: string;
   instituteId: string;
   branchId: string;
   courseId: string;
@@ -240,6 +241,68 @@ export interface MyStudentsParams {
   limit?: number;
   search?: string;
   batchId?: string;
+}
+
+export interface MyStudentAttendanceParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  batchId?: string;
+  studentId?: string;
+  fromDate?: string;
+  toDate?: string;
+  month?: string;
+}
+
+export interface FacultyStudentAttendanceRecord {
+  id: string;
+  status: string;
+  markedAt: string | null;
+  studentId: string;
+  studentCode: string;
+  studentName: string;
+  sessionId: string;
+  sessionTitle?: string | null;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  batchId: string;
+  batchName: string | null;
+  batchCode: string | null;
+  courseId: string | null;
+  courseName: string | null;
+  courseCode: string | null;
+}
+
+export interface FacultyStudentAttendanceStudentSummary {
+  studentId: string;
+  studentCode: string;
+  studentName: string;
+  present: number;
+  absent: number;
+  leave: number;
+  total: number;
+  attendancePercentage: number;
+}
+
+export interface FacultyStudentAttendanceData {
+  records: FacultyStudentAttendanceRecord[];
+  students: FacultyStudentAttendanceStudentSummary[];
+  calendar: Record<string, { present: number; absent: number; leave: number; total: number }>;
+  summary: {
+    present: number;
+    absent: number;
+    leave: number;
+    total: number;
+    overallPercentage: number;
+  };
+}
+
+export interface FacultyStudentAttendanceResponse {
+  success: boolean;
+  message?: string;
+  data: FacultyStudentAttendanceData;
+  meta: PaginationMeta;
 }
 
 export interface AssignCoursePayload {

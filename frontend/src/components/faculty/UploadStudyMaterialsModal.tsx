@@ -25,6 +25,7 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
+import { useCreateStudyMaterial } from "@/hooks/useStudyMaterials";
 
 export interface StudyMaterialEntry {
   id: string;
@@ -46,6 +47,7 @@ export interface UploadStudyMaterialsModalProps {
     batchCode?: string;
     batchName?: string;
     facultyName?: string;
+    batchId?: string;
   };
   onSuccess?: () => void;
 }
@@ -65,11 +67,16 @@ export const UploadStudyMaterialsModal: React.FC<UploadStudyMaterialsModalProps>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const createMutation = useCreateStudyMaterial();
 
   const handleAddMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setErrorMessage("Please enter a title for the material.");
+      return;
+    }
+    if (!fileUrl.trim()) {
+      setErrorMessage("Please enter a file URL.");
       return;
     }
 
@@ -78,7 +85,7 @@ export const UploadStudyMaterialsModal: React.FC<UploadStudyMaterialsModalProps>
       title: title.trim(),
       fileType,
       fileSize: fileSize || "1.5 MB",
-      fileUrl: fileUrl.trim() || "https://example.com/materials/handout.pdf",
+      fileUrl: fileUrl.trim(),
       description: description.trim() || undefined,
       uploadedAt: new Date().toLocaleDateString("en-IN", {
         day: "numeric",
@@ -100,14 +107,49 @@ export const UploadStudyMaterialsModal: React.FC<UploadStudyMaterialsModalProps>
     setMaterials((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const parseSizeToBytes = (size: string): number | undefined => {
+    const match = size.trim().match(/^([\d.]+)\s*(KB|MB|B)?$/i);
+    if (!match) return undefined;
+    const n = Number(match[1]);
+    const unit = (match[2] || "B").toUpperCase();
+    if (unit === "MB") return Math.round(n * 1024 * 1024);
+    if (unit === "KB") return Math.round(n * 1024);
+    return Math.round(n);
+  };
+
   const handleSaveAndClose = async () => {
+    if (materials.length === 0) {
+      onClose();
+      return;
+    }
+    if (!sessionData.id || sessionData.id.startsWith("demo")) {
+      setErrorMessage("A real class session is required to save materials.");
+      return;
+    }
+
     setIsSubmitting(true);
-    // Simulate brief save
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setErrorMessage(null);
+    try {
+      for (const m of materials) {
+        await createMutation.mutateAsync({
+          title: m.title,
+          description: m.description,
+          fileType: m.fileType,
+          fileName: `${m.title}.${m.fileType === "slides" ? "pptx" : m.fileType}`,
+          fileUrl: m.fileUrl,
+          fileSize: parseSizeToBytes(m.fileSize),
+          classSessionId: sessionData.id,
+          batchId: sessionData.batchId,
+        });
+      }
+      setMaterials([]);
       onSuccess?.();
       onClose();
-    }, 500);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to save study materials");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderTypeIcon = (type: StudyMaterialEntry["fileType"]) => {

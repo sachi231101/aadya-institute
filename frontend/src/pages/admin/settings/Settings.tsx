@@ -24,6 +24,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useAuthStore } from "../../../store/auth.store";
+import { Link } from "react-router-dom";
 import {
   useGetSettings,
   useUpdatePersonal,
@@ -250,6 +251,20 @@ export const Settings: React.FC = () => {
         title="System Settings"
         description="Manage your personal profile, institute system configuration, security, and portal preferences."
       />
+
+      {(authUser?.roles?.includes("FACULTY") || authUser?.role === "FACULTY") &&
+        !authUser?.roles?.includes("ADMIN") && (
+          <div className="mb-4">
+            <Link
+              to="/faculty/my-attendance"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+            >
+              <Calendar className="h-4 w-4" />
+              My Desk Attendance
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
 
       {/* Notification Toast */}
       {toastMessage && (
