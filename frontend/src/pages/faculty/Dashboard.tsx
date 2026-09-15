@@ -65,7 +65,8 @@ export const FacultyDashboard: React.FC = () => {
   const [tabInitialized, setTabInitialized] = useState(false);
 
   const dashboard = dashRes?.data;
-  const facultyName = dashboard?.profile?.name || user?.name || "Faculty";
+  const rawFacultyName = dashboard?.profile?.name || user?.name || "Faculty";
+  const facultyName = rawFacultyName.charAt(0).toUpperCase() + rawFacultyName.slice(1);
   const branchName = dashboard?.profile?.branch?.name || "Aadya Branch";
 
   const todayIso = useMemo(() => {
@@ -202,7 +203,7 @@ export const FacultyDashboard: React.FC = () => {
   const handleJoinGoogleMeet = async (cls: SessionCard, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      let meetingUrl = cls.meetingUrl;
+      let meetingUrl: string | undefined = cls.meetingUrl || undefined;
       if (!meetingUrl) {
         const current = await classSessionsApi.getMeeting(cls.id);
         meetingUrl = current.data.meetingUrl || undefined;
@@ -282,14 +283,20 @@ export const FacultyDashboard: React.FC = () => {
 
         <Card
           size="compact"
-          className={`shadow-2xs rounded-xl ${liveCount > 0 ? "bg-rose-50/60 border-2 border-rose-400" : "bg-card border-border"}`}
+          className={`shadow-2xs rounded-xl border ${
+            liveCount > 0
+              ? "bg-rose-50/60 border-rose-300 ring-1 ring-rose-400/50"
+              : "bg-card border-border"
+          }`}
         >
           <CardContent size="compact">
             <div className={`text-2xl font-semibold leading-tight ${liveCount > 0 ? "text-rose-600" : "text-foreground"}`}>
               {liveCount > 0 ? `${liveCount} LIVE` : "0"}
             </div>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              {liveCount > 0 ? "Session in progress" : "No live session"}
+              {liveCount > 0
+                ? `${liveCount === 1 ? "Session" : "Sessions"} in progress`
+                : "No live session"}
             </p>
           </CardContent>
         </Card>
@@ -297,48 +304,72 @@ export const FacultyDashboard: React.FC = () => {
         <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
           <CardContent size="compact">
             <div className="text-2xl font-semibold text-foreground leading-tight">{completedCount}</div>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5 truncate">
               Completed this week
-              {counts?.pendingSubmissions != null ? ` · ${counts.pendingSubmissions} to grade` : ""}
+              {counts?.pendingSubmissions != null && counts.pendingSubmissions > 0
+                ? ` · ${counts.pendingSubmissions} to grade`
+                : ""}
             </p>
           </CardContent>
         </Card>
       </MetricGrid>
 
       {(dashboard.pendingGrading?.length > 0 || dashboard.recentFeedback?.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div
+          className={`grid gap-4 ${
+            dashboard.pendingGrading?.length > 0 && dashboard.recentFeedback?.length > 0
+              ? "grid-cols-1 lg:grid-cols-2"
+              : "grid-cols-1"
+          }`}
+        >
           {dashboard.pendingGrading?.length > 0 && (
-            <Card className="rounded-2xl border-amber-200 bg-amber-50/40">
-              <CardHeader className="pb-2 pt-4 px-5">
-                <h3 className="text-sm font-bold text-amber-900">Pending grading</h3>
+            <Card size="compact" className="rounded-xl border-amber-200 bg-amber-50/40 shadow-2xs">
+              <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <h3 className="text-sm font-semibold text-amber-900">Pending grading</h3>
+                </div>
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[11px] font-semibold">
+                  {dashboard.pendingGrading.length} {dashboard.pendingGrading.length === 1 ? "batch" : "batches"}
+                </Badge>
               </CardHeader>
-              <CardContent className="px-5 pb-4 space-y-2">
+              <CardContent size="compact" className="px-4 pb-3 space-y-2">
                 {dashboard.pendingGrading.slice(0, 3).map((a) => (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => navigate("/faculty/assignments/reviews")}
-                    className="w-full text-left text-xs font-medium p-2.5 rounded-xl bg-white border border-amber-100 hover:border-amber-300"
+                    className="w-full flex items-center justify-between text-left text-xs font-medium p-3 rounded-lg bg-white border border-amber-200/80 hover:border-amber-400 hover:shadow-xs transition-all group"
                   >
-                    <span className="font-bold text-slate-900">{a.title}</span>
-                    <span className="text-slate-500"> · {a.batchName} · {a.pendingCount} submissions</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-slate-900 block truncate">{a.title}</span>
+                      <span className="text-slate-500 text-[11px]">
+                        {a.batchName ? `Batch: ${a.batchName}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Badge className="bg-amber-100 hover:bg-amber-100 text-amber-800 border-amber-200 text-[11px] font-semibold">
+                        {a.pendingCount} {a.pendingCount === 1 ? "submission" : "submissions"}
+                      </Badge>
+                      <ArrowRight className="w-3.5 h-3.5 text-amber-600 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </button>
                 ))}
               </CardContent>
             </Card>
           )}
           {dashboard.recentFeedback?.length > 0 && (
-            <Card className="rounded-2xl border-slate-200">
-              <CardHeader className="pb-2 pt-4 px-5 flex flex-row items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Recent feedback</h3>
-                <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/faculty/feedback")}>
+            <Card size="compact" className="rounded-xl border-slate-200 shadow-2xs">
+              <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900">Recent feedback</h3>
+                <Button variant="ghost" size="sm" className="text-xs h-7 px-2" onClick={() => navigate("/faculty/feedback")}>
                   View all
                 </Button>
               </CardHeader>
-              <CardContent className="px-5 pb-4 space-y-2">
+              <CardContent size="compact" className="px-4 pb-3 space-y-2">
                 {dashboard.recentFeedback.slice(0, 3).map((f) => (
-                  <div key={f.id} className="text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-1 font-bold text-amber-600">
+                  <div key={f.id} className="text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="flex items-center gap-1 font-semibold text-amber-600">
                       <Star className="w-3 h-3 fill-current" /> {f.rating}/5 · {f.studentName}
                     </div>
                     {f.comment && <p className="text-slate-600 mt-1 line-clamp-2">{f.comment}</p>}
@@ -409,16 +440,17 @@ export const FacultyDashboard: React.FC = () => {
                 return (
                   <div
                     key={cls.id}
-                    className={`rounded-xl p-5 flex flex-col justify-between gap-5 relative overflow-hidden group ${isLive
-                        ? "bg-rose-50/70 border-2 border-rose-400/90 shadow-md"
-                        : "bg-card hover:bg-muted/30 border border-border hover:border-primary/30 hover:shadow-md"
-                      }`}
+                    className={`rounded-xl p-5 flex flex-col justify-between gap-4 relative overflow-hidden group ${
+                      isLive
+                        ? "bg-rose-50/70 border border-rose-400 ring-1 ring-rose-400/40 shadow-sm"
+                        : "bg-card hover:bg-muted/30 border border-border hover:border-primary/30 hover:shadow-xs"
+                    }`}
                   >
                     {isLive && (
-                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 to-rose-600 animate-pulse" />
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-rose-600 animate-pulse" />
                     )}
 
-                    <div className="space-y-3.5">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <Badge
@@ -427,99 +459,102 @@ export const FacultyDashboard: React.FC = () => {
                           >
                             {cls.batchCode || "BATCH"}
                           </Badge>
-                          <span className="text-xs font-semibold text-slate-500">{cls.batchName}</span>
+                          <span className="text-xs font-semibold text-slate-600">{cls.batchName}</span>
                         </div>
                         {isLive ? (
-                          <Badge className="bg-rose-600 text-white font-black text-xs px-3 py-1 rounded-full animate-pulse">
+                          <Badge className="bg-rose-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full animate-pulse">
                             LIVE NOW
                           </Badge>
                         ) : cls.sessionStatus === "COMPLETED" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                          <Badge className="bg-emerald-100 text-emerald-800 font-semibold text-xs px-2.5 py-0.5 rounded-full">
                             Completed
                           </Badge>
                         ) : (
-                          <Badge className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                          <Badge className="bg-emerald-50 text-emerald-700 font-semibold text-xs px-2.5 py-0.5 rounded-full">
                             Upcoming
                           </Badge>
                         )}
                       </div>
 
                       <div>
-                        <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight group-hover:text-[#2563EB]">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight group-hover:text-primary transition-colors">
                           {cls.courseName || cls.title || "Class Session"}
                         </h3>
                         {cls.subjectName &&
                           cls.subjectName !== cls.courseName &&
                           cls.subjectName !== cls.title && (
-                          <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
+                          <p className="text-xs font-medium text-slate-600 mt-0.5">
                             {cls.subjectName}
                           </p>
                         )}
-                        <p className="text-[11px] font-bold text-slate-500 mt-1">
-                          {cls.batchCode || "Batch"}
-                          {cls.batchName ? ` · ${cls.batchName}` : ""}
-                        </p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60 sm:col-span-2">
-                          <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
-                          <span className="font-bold">
+                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70 sm:col-span-2">
+                          <Calendar className="w-4 h-4 text-primary shrink-0" />
+                          <span className="font-semibold">
                             {cls.dateLabel}
-                            <span className="text-slate-500 font-semibold"> · {cls.timeRange}</span>
+                            <span className="text-slate-500 font-normal"> · {cls.timeRange}</span>
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
+                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70">
                           <Users className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>
-                            <strong className="font-black">{cls.assignedStudents}</strong> Students
+                            <strong className="font-semibold text-slate-900">{cls.assignedStudents}</strong>{" "}
+                            {cls.assignedStudents === 1 ? "Student" : "Students"}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-600 bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
+                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70">
                           {isLive || cls.mode === "ONLINE" ? (
                             <>
                               <Video className="w-4 h-4 text-rose-600 shrink-0" />
-                              <span className="font-bold text-rose-700">Online / Meet</span>
+                              <span className="font-semibold text-rose-700">Online / Meet</span>
                             </>
                           ) : (
                             <>
                               <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                              <span>{cls.roomNo || "TBD"}</span>
+                              <span>{cls.roomNo || "Room TBD"}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200/70 flex flex-wrap items-center justify-end gap-2">
-                      {(isLive || cls.mode === "ONLINE") && (
+                    <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {isLive ? "Session in progress" : cls.sessionStatus === "COMPLETED" ? "Class completed" : "Scheduled"}
+                      </span>
+                      <div className="flex items-center gap-2 ml-auto">
+                        {(isLive || cls.mode === "ONLINE") && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(e) => handleJoinGoogleMeet(cls, e)}
+                            className="font-semibold text-xs h-9 px-3.5 rounded-xl gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50"
+                          >
+                            <Video className="w-3.5 h-3.5" /> Join Meet
+                          </Button>
+                        )}
                         <Button
                           type="button"
-                          variant="outline"
-                          onClick={(e) => handleJoinGoogleMeet(cls, e)}
-                          className="font-black text-xs h-10 px-4 rounded-xl gap-2 border-rose-200 text-rose-700 hover:bg-rose-50"
-                        >
-                          <Video className="w-4 h-4" /> Join Google Meet
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        onClick={() => handleOpenClass(cls)}
-                        className={`font-black text-xs h-10 px-5 rounded-xl gap-2 ${isLive
-                            ? "bg-rose-600 hover:bg-rose-700 text-white"
-                            : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                          onClick={() => handleOpenClass(cls)}
+                          className={`font-semibold text-xs h-9 px-4 rounded-xl gap-1.5 ${
+                            isLive
+                              ? "bg-rose-600 hover:bg-rose-700 text-white"
+                              : "bg-primary hover:bg-primary/90 text-primary-foreground"
                           }`}
-                      >
-                        {isLive ? (
-                          <>
-                            <Video className="w-4 h-4" /> Manage Live Class
-                          </>
-                        ) : (
-                          <>
-                            Open Session <ArrowRight className="w-4 h-4" />
-                          </>
-                        )}
-                      </Button>
+                        >
+                          {isLive ? (
+                            <>
+                              <Video className="w-3.5 h-3.5" /> Manage Live Class
+                            </>
+                          ) : (
+                            <>
+                              Open Session <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );

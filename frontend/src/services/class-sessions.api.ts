@@ -28,6 +28,8 @@ export interface BackendClassSession {
   sessionStatus?: "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
   status: string;
   enrolledStudentsCount?: number;
+  attendanceMarkedCount?: number;
+  attendanceDonePercentage?: number;
   createdAt: string;
   updatedAt: string;
   batch?: {

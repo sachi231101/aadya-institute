@@ -39,6 +39,17 @@ export const myStudentsQuerySchema = z.object({
   batchId: z.string().optional(),
 }).partial();
 
+export const myStudentAttendanceQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  search: z.string().optional(),
+  batchId: z.string().optional(),
+  studentId: z.string().optional(),
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+}).partial();
+
 export const assignCourseSchema = z.object({
   batchId: z.string().min(1, "Batch ID is required"),
   facultyId: z.string().min(1, "Faculty ID is required"),
@@ -94,6 +105,7 @@ export type CreateFacultyDto = z.infer<typeof createFacultySchema>;
 export type UpdateFacultyDto = z.infer<typeof updateFacultySchema>;
 export type ListFacultyQuery = z.infer<typeof listFacultyQuerySchema>;
 export type MyStudentsQuery = z.infer<typeof myStudentsQuerySchema>;
+export type MyStudentAttendanceQuery = z.infer<typeof myStudentAttendanceQuerySchema>;
 export type AssignCourseDto = z.infer<typeof assignCourseSchema>;
 export type MarkAttendanceDto = z.infer<typeof markAttendanceSchema>;
 export type DailyAttendanceQuery = z.infer<typeof dailyAttendanceQuerySchema>;

@@ -5,6 +5,7 @@ import type {
   FacultyCoursesParams,
   FacultyAttendanceParams,
   MyStudentsParams,
+  MyStudentAttendanceParams,
   CreateFacultyPayload,
   UpdateFacultyPayload,
   AssignCoursePayload,
@@ -21,14 +22,19 @@ const FACULTY_ATTENDANCE_KEY = "faculty-attendance";
 const FACULTY_DAILY_ATTENDANCE_KEY = "faculty-daily-attendance";
 const FACULTY_DASHBOARD_KEY = "faculty-dashboard";
 const FACULTY_MY_STUDENTS_KEY = "faculty-my-students";
+const FACULTY_MY_STUDENT_ATTENDANCE_KEY = "faculty-my-student-attendance";
 
-export const useFacultyList = (params?: FacultyListParams) => {
+export const useFacultyList = (
+  params?: FacultyListParams,
+  options?: { enabled?: boolean }
+) => {
   const { user } = useAuthStore();
   const mergedParams = mergeBranchScopedParams(user, params);
 
   return useQuery({
     queryKey: [FACULTY_KEY, mergedParams],
     queryFn: () => facultyApi.getAll(mergedParams),
+    enabled: options?.enabled !== false,
   });
 };
 
@@ -54,6 +60,17 @@ export const useFacultyMyStudents = (params?: MyStudentsParams) => {
   return useQuery({
     queryKey: [FACULTY_MY_STUDENTS_KEY, params],
     queryFn: () => facultyApi.getMyStudents(params),
+  });
+};
+
+export const useFacultyMyStudentAttendance = (
+  params?: MyStudentAttendanceParams,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: [FACULTY_MY_STUDENT_ATTENDANCE_KEY, params],
+    queryFn: () => facultyApi.getMyStudentAttendance(params),
+    enabled,
   });
 };
 

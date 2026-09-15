@@ -34,6 +34,11 @@ export const findSessionWithBatchAndFaculty = async (classSessionId: string) => 
           user: { select: { id: true, name: true, email: true } },
         },
       },
+      batchModule: {
+        include: {
+          courseModule: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 };
@@ -187,6 +192,75 @@ export const calculateStudentAttendanceStats = async (studentId: string) => {
     leaveCount,
     attendancePercentage: percentage,
   };
+};
+
+/** Batch-scoped past P/A/L totals for a roster of students (one query). */
+export const findBatchAttendanceStatsForStudents = async (
+  studentIds: string[],
+  batchId: string
+): Promise<
+  Map<
+    string,
+    {
+      presentCount: number;
+      absentCount: number;
+      leaveCount: number;
+      totalMarked: number;
+      attendancePercentage: number;
+    }
+  >
+> => {
+  const result = new Map<
+    string,
+    {
+      presentCount: number;
+      absentCount: number;
+      leaveCount: number;
+      totalMarked: number;
+      attendancePercentage: number;
+    }
+  >();
+
+  if (studentIds.length === 0) return result;
+
+  for (const id of studentIds) {
+    result.set(id, {
+      presentCount: 0,
+      absentCount: 0,
+      leaveCount: 0,
+      totalMarked: 0,
+      attendancePercentage: 0,
+    });
+  }
+
+  const rows = await prisma.studentAttendance.groupBy({
+    by: ["studentId", "status"],
+    where: {
+      studentId: { in: studentIds },
+      classSession: { batchId },
+    },
+    _count: { _all: true },
+  });
+
+  for (const row of rows) {
+    const stats = result.get(row.studentId);
+    if (!stats) continue;
+    const count = row._count._all;
+    const status = String(row.status).toUpperCase();
+    stats.totalMarked += count;
+    if (status === "PRESENT") stats.presentCount += count;
+    else if (status === "ABSENT") stats.absentCount += count;
+    else if (status === "LEAVE") stats.leaveCount += count;
+  }
+
+  for (const stats of result.values()) {
+    stats.attendancePercentage =
+      stats.totalMarked > 0
+        ? Math.round((stats.presentCount / stats.totalMarked) * 10000) / 100
+        : 0;
+  }
+
+  return result;
 };
 
 /**

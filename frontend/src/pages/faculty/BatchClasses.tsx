@@ -33,21 +33,21 @@ export const FacultyBatchClasses: React.FC = () => {
       <Card className="border-amber-200/50 shadow-sm bg-amber-50/20">
         <CardContent className="p-5">
           {todaySessions.length === 0 ? (
-            <p className="text-sm text-text-secondary text-center py-4">No classes scheduled for today</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No classes scheduled for today</p>
           ) : (
             <div className="space-y-2">
               {todaySessions.map((session: any) => (
                 <div key={session.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-amber-100">
                   <div>
                     <p className="font-semibold text-sm">{session.title || "Class Session"}</p>
-                    <p className="text-xs text-text-secondary">
+                    <p className="text-xs text-muted-foreground">
                       {session.startTime} - {session.endTime} • {session.batch?.name}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => navigate(`/faculty/class-session?course=${encodeURIComponent(session.title || "Java Programming")}&batch=${encodeURIComponent(session.batch?.name || "Batch C")}`)}
+                      onClick={() => navigate(`/faculty/class-session?course=${encodeURIComponent(session.title || "Class Session")}&batch=${encodeURIComponent(session.batch?.name || "")}`)}
                       className="h-9 text-xs gap-1 bg-primary text-white hover:bg-primary font-bold cursor-pointer"
                     >
                       <Users size={12} /> Mark Attendance & Open Classroom
@@ -68,11 +68,11 @@ export const FacultyBatchClasses: React.FC = () => {
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-5">
           {isLoading ? (
-            <p className="text-sm text-text-secondary text-center py-8">Loading...</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
           ) : sessions.length === 0 ? (
             <div className="text-center py-8">
               <BookOpen className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-text-secondary font-medium">No class sessions found</p>
+              <p className="text-muted-foreground font-medium">No class sessions found</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -84,13 +84,13 @@ export const FacultyBatchClasses: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-medium text-sm">{session.title || "Session"}</p>
-                      <p className="text-xs text-text-secondary">
+                      <p className="text-xs text-muted-foreground">
                         {session.batch?.name} • {session.startTime} - {session.endTime}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary">
+                    <span className="text-xs text-muted-foreground">
                       {new Date(session.scheduledDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                     </span>
                     <Badge className={`text-xs border ${

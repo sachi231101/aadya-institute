@@ -92,7 +92,10 @@ export const CourseAssignment: React.FC = () => {
   };
 
   const { data: coursesResponse, isLoading, isError, refetch } = useFacultyCourses(coursesParams);
-  const { data: facultyResponse } = useFacultyList({ limit: 100, status: "ACTIVE" });
+  const { data: facultyResponse } = useFacultyList(
+    { limit: 100, status: "ACTIVE" },
+    { enabled: !isFacultyOnly }
+  );
   const assignMutation = useAssignFacultyCourse();
 
   const actualAssignments = coursesResponse?.data ?? [];
@@ -109,16 +112,10 @@ export const CourseAssignment: React.FC = () => {
         a.branchId === selectedBranchFilter || 
         a.branch?.id === selectedBranchFilter;
 
-      if (isFacultyOnly && user) {
-        const matchesFacultyUser =
-          a.faculty?.user?.id === user.id ||
-          (a.faculty as { userId?: string } | null)?.userId === user.id;
-        return matchesStatus && matchesCourse && matchesBranch && matchesFacultyUser;
-      }
-
+      // Pure faculty: backend already scopes to teaching desk — no client faculty-list filter needed
       return matchesStatus && matchesCourse && matchesBranch;
     });
-  }, [actualAssignments, selectedStatusFilter, selectedCourseFilter, selectedBranchFilter, isFacultyOnly, user]);
+  }, [actualAssignments, selectedStatusFilter, selectedCourseFilter, selectedBranchFilter]);
 
   const totalCoursesCount = new Set(assignments.map((a) => a.course?.id || a.courseId)).size;
   const activeBatchesCount = assignments.filter((a) => a.status === "ACTIVE" || !a.status).length;

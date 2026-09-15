@@ -20,7 +20,7 @@ import {
 
 export const FacultyFeedback: React.FC = () => {
   const { user } = useAuthStore();
-  const facultyName = user?.name || "Ramesh Kumar";
+  const facultyName = user?.name || "Faculty";
   const facultyId = (user as any)?.facultyId as string | undefined;
 
   const { feedbacks: localFeedbacks } = useFeedbackStore();
@@ -59,18 +59,12 @@ export const FacultyFeedback: React.FC = () => {
         : "Recent",
     }));
 
-    // Filter local feedbacks matching faculty name (or show if faculty matches)
+    // Filter local feedbacks matching current faculty name
     const matchingLocal = localFeedbacks.filter((f) => {
       if (!f.facultyName) return true;
       const fn = f.facultyName.toLowerCase();
       const currentFn = facultyName.toLowerCase();
-      return (
-        fn.includes(currentFn) ||
-        currentFn.includes(fn) ||
-        fn === "ramesh kumar" ||
-        currentFn === "ramesh kumar" ||
-        fn === "adithya hm"
-      );
+      return fn.includes(currentFn) || currentFn.includes(fn);
     });
 
     const combined = [...matchingLocal];

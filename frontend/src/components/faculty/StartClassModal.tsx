@@ -536,6 +536,9 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
           status: s.status,
         }));
         await classSessionsApi.saveAttendance(session.id, payload);
+        await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", session.id] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+        await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
       }
       setAttendanceSaveSuccess(true);
       setTimeout(() => setAttendanceSaveSuccess(false), 2000);
@@ -560,6 +563,9 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
             session.id,
             students.map((s) => ({ studentId: s.id, status: s.status }))
           );
+          await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", session.id] });
+          await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+          await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
         } catch {
           // Continue — ending class is more important than a flaky attendance save
         }

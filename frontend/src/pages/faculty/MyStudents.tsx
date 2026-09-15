@@ -69,7 +69,8 @@ export const FacultyMyStudents: React.FC = () => {
                     <th className="py-3 pr-4">Code</th>
                     <th className="py-3 pr-4">Contact</th>
                     <th className="py-3 pr-4">Batches</th>
-                    <th className="py-3">Status</th>
+                    <th className="py-3 pr-4">Status</th>
+                    <th className="py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -90,7 +91,7 @@ export const FacultyMyStudents: React.FC = () => {
                           ))}
                         </div>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 pr-4">
                         <Badge
                           className={
                             s.status === "ACTIVE"
@@ -100,6 +101,18 @@ export const FacultyMyStudents: React.FC = () => {
                         >
                           {s.status}
                         </Badge>
+                      </td>
+                      <td className="py-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() =>
+                            navigate(`/faculty/attendance/history?studentId=${encodeURIComponent(s.id)}`)
+                          }
+                        >
+                          Attendance
+                        </Button>
                       </td>
                     </tr>
                   ))}

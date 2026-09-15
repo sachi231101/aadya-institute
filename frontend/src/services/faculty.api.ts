@@ -11,6 +11,8 @@ import type {
   FacultyCoursesParams,
   FacultyAttendanceParams,
   MyStudentsParams,
+  MyStudentAttendanceParams,
+  FacultyStudentAttendanceResponse,
   AssignCoursePayload,
   MarkAttendancePayload,
   DailyAttendanceParams,
@@ -53,6 +55,16 @@ export const facultyApi = {
 
   getMyStudents: async (params?: MyStudentsParams): Promise<PaginatedResponse<FacultyMyStudent>> => {
     const response = await api.get<PaginatedResponse<FacultyMyStudent>>("/faculty/me/students", { params });
+    return response.data;
+  },
+
+  getMyStudentAttendance: async (
+    params?: MyStudentAttendanceParams
+  ): Promise<FacultyStudentAttendanceResponse> => {
+    const response = await api.get<FacultyStudentAttendanceResponse>(
+      "/faculty/me/student-attendance",
+      { params }
+    );
     return response.data;
   },
 

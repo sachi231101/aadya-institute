@@ -53,110 +53,7 @@ const calcWorkingHours = (inTime: string | null, outTime: string | null): string
   return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m`;
 };
 
-// Generate realistic initial month records (August 2026 / Current Month)
-const generateMockAttendanceData = (): DailyAttendanceRecord[] => {
-  const daysInAug = 31;
-  const records: DailyAttendanceRecord[] = [];
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  for (let d = 1; d <= daysInAug; d++) {
-    const dateStr = `2026-08-${String(d).padStart(2, "0")}`;
-    const dateObj = new Date(2026, 7, d);
-    const dayOfWeek = dateObj.getDay(); // 0 is Sunday, 6 is Saturday
-    const dayName = dayNames[dayOfWeek];
-
-    if (d === 15) {
-      // Independence Day - Holiday
-      records.push({
-        id: `att-2026-08-${d}`,
-        date: dateStr,
-        dayName,
-        checkIn: null,
-        checkOut: null,
-        workingHours: null,
-        status: "HOLIDAY",
-        markedBy: "Admin",
-        markedAt: "08:00 AM",
-        remarks: "Independence Day",
-      });
-      continue;
-    }
-
-    if (d === 7 || d === 14 || d === 21) {
-      // Absent days
-      records.push({
-        id: `att-2026-08-${d}`,
-        date: dateStr,
-        dayName,
-        checkIn: null,
-        checkOut: null,
-        workingHours: null,
-        status: "ABSENT",
-        markedBy: d === 7 ? "Admin" : d === 14 ? "Center Manager" : "Counsellor",
-        markedAt: "09:30 AM",
-        remarks: d === 14 ? "Medical Leave (Uninformed)" : "Uninformed Absence",
-      });
-      continue;
-    }
-
-    if (d === 23 || d === 26) {
-      // Approved Leave
-      records.push({
-        id: `att-2026-08-${d}`,
-        date: dateStr,
-        dayName,
-        checkIn: null,
-        checkOut: null,
-        workingHours: null,
-        status: "LEAVE",
-        markedBy: "Admin",
-        markedAt: "09:15 AM",
-        remarks: d === 26 ? "Personal Work" : "Casual Leave Approved",
-      });
-      continue;
-    }
-
-    if (d === 1) {
-      // Saturday - Half day or present
-      records.push({
-        id: `att-2026-08-${d}`,
-        date: dateStr,
-        dayName,
-        checkIn: "08:55 AM",
-        checkOut: "01:30 PM",
-        workingHours: "04h 35m",
-        status: "HALF_DAY",
-        markedBy: "Admin",
-        markedAt: "09:00 AM",
-        remarks: "Half Day Session",
-      });
-      continue;
-    }
-
-    // Default Present days
-    const inHour = 8;
-    const inMinute = 45 + (d % 15);
-    const checkIn = `${String(inHour).padStart(2, "0")}:${String(inMinute).padStart(2, "0")} AM`;
-    const checkOut = inMinute > 55 ? "06:12 PM" : "06:04 PM";
-    const hours = inMinute > 55 ? "08h 57m" : "09h 12m";
-    const isLate = inMinute > 52;
-
-    records.push({
-      id: `att-2026-08-${d}`,
-      date: dateStr,
-      dayName,
-      checkIn,
-      checkOut,
-      workingHours: hours,
-      status: "PRESENT",
-      markedBy: d % 3 === 0 ? "Center Manager" : d % 2 === 0 ? "Counsellor" : "Admin",
-      markedAt: `${String(inHour).padStart(2, "0")}:${String(inMinute + 5).padStart(2, "0")} AM`,
-      remarks: isLate ? "Late Check-in" : "On Time",
-    });
-  }
-
-  return records;
-};
 
 export const FacultyAttendance: React.FC = () => {
   const { user } = useAuthStore();
@@ -543,36 +440,44 @@ export const FacultyAttendance: React.FC = () => {
                 ))}
               </div>
 
-              {/* Month Grid (August 2026 starts on Saturday, day index 6) */}
-              <div className="grid grid-cols-7 gap-1.5 text-center">
-                {/* 6 blank cells leading up to Saturday Aug 1 */}
-                {Array.from({ length: 6 }).map((_, idx) => (
-                  <div key={`blank-${idx}`} className="h-12 md:h-14 rounded-xl bg-slate-50/40 dark:bg-slate-900/10 border border-transparent" />
-                ))}
+              {/* Month Grid — dynamically calculated */}
+              {(() => {
+                const firstDayIndex = new Date(selectedYear, selectedMonth, 1).getDay(); // 0=Sun
+                const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+                const todayStr = new Date().toISOString().split("T")[0];
+                return (
+                  <div className="grid grid-cols-7 gap-1.5 text-center">
+                    {/* Leading blank cells */}
+                    {Array.from({ length: firstDayIndex }).map((_, idx) => (
+                      <div key={`blank-${idx}`} className="h-12 md:h-14 rounded-xl bg-slate-50/40 dark:bg-slate-900/10 border border-transparent" />
+                    ))}
 
-                {/* Days 1..31 */}
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
-                  const style = getCalendarDayColor(d);
-                  const isToday = d === 31;
-                  return (
-                    <div
-                      key={`day-${d}`}
-                      className={`h-12 md:h-14 rounded-xl p-1 md:p-1.5 flex flex-col justify-between items-center transition-all cursor-default border border-border/20 ${style.bg}`}
-                      title={`August ${d}, 2026: ${style.label}`}
-                    >
-                      <div className="w-full flex justify-between items-center px-1">
-                        <span className={`text-xs md:text-sm font-bold ${isToday ? "text-white" : ""}`}>
-                          {d}
-                        </span>
-                        <span className={`w-2 h-2 rounded-full ${style.dot}`} />
-                      </div>
-                      <span className={`text-[10px] font-semibold tracking-tight ${isToday ? "text-blue-100" : "opacity-80"}`}>
-                        {style.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    {/* Day cells 1..daysInMonth */}
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
+                      const style = getCalendarDayColor(d);
+                      const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                      const isToday = dateStr === todayStr;
+                      return (
+                        <div
+                          key={`day-${d}`}
+                          className={`h-12 md:h-14 rounded-xl p-1 md:p-1.5 flex flex-col justify-between items-center transition-all cursor-default border border-border/20 ${style.bg}`}
+                          title={`${monthNames[selectedMonth]} ${d}, ${selectedYear}: ${style.label}`}
+                        >
+                          <div className="w-full flex justify-between items-center px-1">
+                            <span className={`text-xs md:text-sm font-bold ${isToday ? "text-white" : ""}`}>
+                              {d}
+                            </span>
+                            <span className={`w-2 h-2 rounded-full ${style.dot}`} />
+                          </div>
+                          <span className={`text-[10px] font-semibold tracking-tight ${isToday ? "text-blue-100" : "opacity-80"}`}>
+                            {style.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* Calendar Legend */}
               <div className="flex flex-wrap items-center justify-center gap-3.5 mt-5 pt-4 border-t border-border/40 text-xs font-medium text-muted-foreground">

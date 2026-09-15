@@ -12,6 +12,8 @@ import type {
 export interface StudentReportBranchScope {
   branchId?: string;
   branchIds?: string[];
+  /** When set, restrict report to these student IDs (faculty teaching desk). */
+  studentIds?: string[];
 }
 
 export class ReportRepository {
@@ -20,12 +22,38 @@ export class ReportRepository {
    */
   static async getStudentReportData(
     instituteId: string,
-    { branchId, branchIds }: StudentReportBranchScope = {}
+    { branchId, branchIds, studentIds }: StudentReportBranchScope = {}
   ): Promise<StudentReportResponse> {
+    if (studentIds && studentIds.length === 0) {
+      return {
+        summary: {
+          totalStudents: 0,
+          avgAttendanceRate: 0,
+          assignmentCompletionRate: 0,
+          discontinuationRiskCount: 0,
+        },
+        enrollmentTrend: [],
+        attendanceDistribution: [
+          { range: "90-100% Attendance", count: 0, color: "#10b981" },
+          { range: "75-89% Attendance", count: 0, color: "#1769AA" },
+          { range: "50-74% Attendance", count: 0, color: "#f59e0b" },
+          { range: "Below 50% (Risk)", count: 0, color: "#ef4444" },
+        ],
+        courseShare: [],
+        students: [],
+      };
+    }
+
     const students = await prisma.student.findMany({
       where: {
         instituteId,
-        ...(branchId ? { branchId } : branchIds?.length ? { branchId: { in: branchIds } } : {}),
+        ...(studentIds
+          ? { id: { in: studentIds } }
+          : branchId
+            ? { branchId }
+            : branchIds?.length
+              ? { branchId: { in: branchIds } }
+              : {}),
       },
       include: {
         user: { select: { name: true, email: true } },

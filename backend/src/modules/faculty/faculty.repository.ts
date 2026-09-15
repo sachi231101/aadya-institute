@@ -316,6 +316,7 @@ export const findFacultyCourses = async (params: FindFacultyCoursesParams) => {
     .filter((bc) => bc.facultyId && bc.faculty)
     .map((bc) => ({
       id: bc.id,
+      batchId: bc.batchId,
       instituteId: bc.batch.instituteId,
       branchId: bc.batch.branchId,
       courseId: bc.courseId,
@@ -979,6 +980,12 @@ export const findMyStudents = async (params: {
             OR: [
               { facultyId: params.facultyId },
               { batchCourses: { some: { facultyId: params.facultyId } } },
+              { schedules: { some: { facultyId: params.facultyId } } },
+              {
+                classSessions: {
+                  some: { facultyId: params.facultyId, status: "ACTIVE" as const },
+                },
+              },
             ],
           }),
     },
@@ -1069,4 +1076,132 @@ export const findMyStudents = async (params: {
   const total = all.length;
   const data = all.slice(params.skip, params.skip + params.take);
   return { data, total };
+};
+
+/**
+ * Teaching-desk student class attendance history (records + calendar + per-student %).
+ * Scoped to sessions in teaching-desk batches hosted by this faculty when facultyId is set on sessions.
+ */
+export const findMyStudentAttendance = async (params: {
+  facultyId: string;
+  instituteId: string;
+  batchIds: string[];
+  batchId?: string;
+  studentId?: string;
+  search?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  skip: number;
+  take: number;
+}) => {
+  if (params.batchIds.length === 0) {
+    return {
+      records: [] as never[],
+      total: 0,
+      allForAggregation: [] as never[],
+    };
+  }
+
+  const effectiveBatchIds = params.batchId
+    ? params.batchIds.filter((id) => id === params.batchId)
+    : params.batchIds;
+
+  if (effectiveBatchIds.length === 0) {
+    return {
+      records: [] as never[],
+      total: 0,
+      allForAggregation: [] as never[],
+    };
+  }
+
+  const where = {
+    ...(params.studentId ? { studentId: params.studentId } : {}),
+    ...(params.search
+      ? {
+          student: {
+            OR: [
+              { studentCode: { contains: params.search, mode: "insensitive" as const } },
+              { user: { name: { contains: params.search, mode: "insensitive" as const } } },
+            ],
+          },
+        }
+      : {}),
+    classSession: {
+      status: "ACTIVE" as const,
+      batchId: { in: effectiveBatchIds },
+      // Prefer sessions this faculty hosts (teaching classes they mark)
+      facultyId: params.facultyId,
+      ...(params.fromDate || params.toDate
+        ? {
+            scheduledDate: {
+              ...(params.fromDate ? { gte: params.fromDate } : {}),
+              ...(params.toDate ? { lte: params.toDate } : {}),
+            },
+          }
+        : {}),
+    },
+  };
+
+  const include = {
+    student: {
+      select: {
+        id: true,
+        studentCode: true,
+        user: { select: { id: true, name: true } },
+      },
+    },
+    classSession: {
+      select: {
+        id: true,
+        title: true,
+        scheduledDate: true,
+        startTime: true,
+        endTime: true,
+        batchId: true,
+        facultyId: true,
+        batch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            courseId: true,
+            course: { select: { id: true, name: true, code: true } },
+          },
+        },
+        batchCourse: {
+          select: {
+            course: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+    },
+  };
+
+  const [total, records, allForAggregation] = await Promise.all([
+    prisma.studentAttendance.count({ where }),
+    prisma.studentAttendance.findMany({
+      where,
+      include,
+      orderBy: { classSession: { scheduledDate: "desc" } },
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.studentAttendance.findMany({
+      where,
+      select: {
+        status: true,
+        studentId: true,
+        classSession: { select: { scheduledDate: true } },
+        student: {
+          select: {
+            id: true,
+            studentCode: true,
+            user: { select: { name: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  return { records, total, allForAggregation };
 };

@@ -16,6 +16,12 @@ import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { AppError } from "../../middlewares/error.middleware";
 import { getSessionSubjectLabel } from "../../utils/batch-course.util";
+import {
+  assertFacultyCanAccessStudent,
+  getFacultyTeachingStudentIds,
+  isPureFaculty,
+  requireFacultyIdIfPureFaculty,
+} from "../../utils/auth-user.util";
 
 /**
  * Helper to trigger absence notification for a student marked ABSENT.
@@ -145,23 +151,44 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
 
   const attendanceMap = new Map(attendanceRecords.map((r) => [r.studentId, r]));
 
-  const enrolledStudents = session.batch.enrollments
+  const enrolledBase = session.batch.enrollments
     .filter((enrollment) => Boolean(enrollment.student?.id))
-    .map((enrollment) => {
-      const s = enrollment.student;
-      const att = attendanceMap.get(s.id);
-      return {
-        studentId: s.id,
-        studentCode: s.studentCode,
-        name: s.user?.name ?? s.studentCode,
-        email: s.user?.email ?? null,
-        phone: s.user?.phone ?? null,
-        status: att?.status ?? null,
-        markedAt: att?.markedAt ?? null,
-        remarks: att?.remarks ?? null,
-        attendanceId: att?.id ?? null,
-      };
-    });
+    .map((enrollment) => enrollment.student);
+
+  const studentIds = enrolledBase.map((s) => s.id);
+  const pastStats = await repo.findBatchAttendanceStatsForStudents(
+    studentIds,
+    session.batchId
+  );
+
+  const enrolledStudents = enrolledBase.map((s) => {
+    const att = attendanceMap.get(s.id);
+    const stats = pastStats.get(s.id) ?? {
+      presentCount: 0,
+      absentCount: 0,
+      leaveCount: 0,
+      totalMarked: 0,
+      attendancePercentage: 0,
+    };
+    return {
+      studentId: s.id,
+      studentCode: s.studentCode,
+      name: s.user?.name ?? s.studentCode,
+      email: s.user?.email ?? null,
+      phone: s.user?.phone ?? null,
+      status: att?.status ?? null,
+      markedAt: att?.markedAt ?? null,
+      remarks: att?.remarks ?? null,
+      attendanceId: att?.id ?? null,
+      presentCount: stats.presentCount,
+      absentCount: stats.absentCount,
+      leaveCount: stats.leaveCount,
+      totalMarked: stats.totalMarked,
+      attendancePercentage: stats.attendancePercentage,
+    };
+  });
+
+  const markedCount = enrolledStudents.filter((s) => s.status != null).length;
 
   return {
     classSession: {
@@ -170,6 +197,7 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
       scheduledDate: session.scheduledDate,
       startTime: session.startTime,
       endTime: session.endTime,
+      roomNo: session.roomNo ?? null,
       branchId: session.branchId,
       batchId: session.batchId,
       batch: {
@@ -185,9 +213,15 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
         id: session.faculty.id,
         name: session.faculty.user.name,
       },
+      moduleName: session.batchModule?.courseModule?.name ?? null,
     },
     students: enrolledStudents,
     enrolledStudentsCount: enrolledStudents.length,
+    attendanceMarkedCount: markedCount,
+    attendanceDonePercentage:
+      enrolledStudents.length > 0
+        ? Math.round((markedCount / enrolledStudents.length) * 10000) / 100
+        : 0,
   };
 };
 
@@ -288,6 +322,8 @@ export const getStudentAttendance = async (
     if (targetStudent.userId !== currentUser.id) {
       throw new AppError("Forbidden — students can only view their own attendance", 403);
     }
+  } else if (isPureFaculty(currentUser.roles)) {
+    await assertFacultyCanAccessStudent(currentUser, targetStudentId);
   } else if (!currentUser.roles.includes("ADMIN") && !hasBranchAccess(currentUser, targetStudent.branchId)) {
     throw new AppError("Forbidden — branch mismatch", 403);
   }
@@ -333,6 +369,8 @@ export const getStudentAttendanceSummary = async (
     if (targetStudent.userId !== currentUser.id) {
       throw new AppError("Forbidden — students can only view their own attendance summary", 403);
     }
+  } else if (isPureFaculty(currentUser.roles)) {
+    await assertFacultyCanAccessStudent(currentUser, targetStudentId);
   } else if (!currentUser.roles.includes("ADMIN") && !hasBranchAccess(currentUser, targetStudent.branchId)) {
     throw new AppError("Forbidden — branch mismatch", 403);
   }
@@ -350,6 +388,7 @@ export const getStudentAttendanceSummary = async (
 /**
  * List students at discontinuation risk (2+ consecutive theory absences).
  * Approved LEAVE does not count toward the streak; PRESENT resets it.
+ * Pure faculty: only students in their teaching desk.
  */
 export const getDiscontinuationRisk = async (
   currentUser: AuthUser,
@@ -357,11 +396,27 @@ export const getDiscontinuationRisk = async (
 ) => {
   const scope = getBranchScopeFilter(currentUser, query.branchId);
 
+  let teachingStudentIds: string[] | null = null;
+  if (isPureFaculty(currentUser.roles)) {
+    const facultyId = await requireFacultyIdIfPureFaculty(currentUser);
+    teachingStudentIds = await getFacultyTeachingStudentIds(
+      facultyId!,
+      currentUser.instituteId
+    );
+    if (teachingStudentIds.length === 0) {
+      return [];
+    }
+  }
+
   const students = await prisma.student.findMany({
     where: {
       instituteId: scope.instituteId,
       status: "ACTIVE",
-      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+      ...(teachingStudentIds
+        ? { id: { in: teachingStudentIds } }
+        : scope.branchId
+          ? { branchId: scope.branchId }
+          : {}),
     },
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },

@@ -1,14 +1,13 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Check,
   X,
   Clock,
   Users,
-  Video,
-  ArrowRight,
   Save,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,28 +20,34 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { classSessionsApi } from "../../services/class-sessions.api";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { PageContainer, PageHeader, MetricGrid, PageSection } from "@/components/layout";
 
-type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
+type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
 interface StudentRecord {
   id: string;
-  studentId: string;
+  studentCode: string;
   name: string;
   avatar: string;
   email: string;
   status: AttendanceStatus;
   remarks: string;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  attendancePercentage: number;
 }
 
 export const FacultyMarkAttendance: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: sessionRes, isLoading: sessionMetaLoading } = useQuery({
     queryKey: ["class-session", sessionId],
@@ -57,45 +62,58 @@ export const FacultyMarkAttendance: React.FC = () => {
   });
 
   const session = sessionRes?.data;
-  const sessionLabel = session
-    ? getSessionSubjectLabel({ title: session.title, batch: session.batch })
+  const attendancePayload = sessionAttendanceRes?.data;
+  const classMeta = attendancePayload?.classSession || session;
+  const sessionLabel = classMeta
+    ? getSessionSubjectLabel({ title: classMeta.title, batch: classMeta.batch })
     : "Class session";
-  const batchLabel = session?.batch?.code || session?.batch?.name || "";
+  const batchLabel = classMeta?.batch?.code || classMeta?.batch?.name || "";
+  const dateLabel = classMeta?.scheduledDate
+    ? String(classMeta.scheduledDate).slice(0, 10)
+    : "";
+  const timeLabel =
+    classMeta?.startTime && classMeta?.endTime
+      ? `${classMeta.startTime} – ${classMeta.endTime}`
+      : "";
 
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!sessionId) {
       setStudents([]);
       setSaveError(
-        "Open attendance from My Classes with a valid sessionId. Saving without a session is disabled."
+        "Open attendance from Add New or History with a valid session."
       );
       return;
     }
 
-    const roster = sessionAttendanceRes?.data?.students;
+    const roster = attendancePayload?.students;
     if (Array.isArray(roster) && roster.length > 0) {
       setStudents(
         roster.map((s: any) => {
           const name = s.name || "Student";
-          const rawStatus = s.status as string | null;
+          const rawStatus = String(s.status || "").toUpperCase();
           const status: AttendanceStatus =
             rawStatus === "ABSENT"
               ? "ABSENT"
               : rawStatus === "LEAVE"
-                ? "EXCUSED"
+                ? "LEAVE"
                 : "PRESENT";
           return {
             id: s.studentId || s.id,
-            studentId:
+            studentCode:
               s.studentCode || `STU-${String(s.studentId || s.id).slice(0, 4)}`,
             name,
             avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
             email: s.email || "",
             status,
             remarks: s.remarks || "",
+            presentCount: Number(s.presentCount) || 0,
+            absentCount: Number(s.absentCount) || 0,
+            leaveCount: Number(s.leaveCount) || 0,
+            attendancePercentage: Number(s.attendancePercentage) || 0,
           };
         })
       );
@@ -106,19 +124,25 @@ export const FacultyMarkAttendance: React.FC = () => {
     if (!sessionLoading) {
       setStudents([]);
     }
-  }, [sessionAttendanceRes, sessionId, sessionLoading]);
+  }, [attendancePayload, sessionId, sessionLoading]);
+
+  const visibleStudents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.studentCode.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q)
+    );
+  }, [students, search]);
 
   const stats = useMemo(() => {
-    const totalStudents = students.length;
-    const presentCount = students.filter((s) => s.status === "PRESENT").length;
-    const absentCount = students.filter((s) => s.status === "ABSENT").length;
-    const excusedCount = students.filter((s) => s.status === "EXCUSED").length;
-
     return {
-      total: totalStudents,
-      present: presentCount,
-      absent: absentCount,
-      excused: excusedCount,
+      total: students.length,
+      present: students.filter((s) => s.status === "PRESENT").length,
+      absent: students.filter((s) => s.status === "ABSENT").length,
+      leave: students.filter((s) => s.status === "LEAVE").length,
     };
   }, [students]);
 
@@ -138,11 +162,13 @@ export const FacultyMarkAttendance: React.FC = () => {
     );
   };
 
+  const markAll = (status: AttendanceStatus) => {
+    setStudents((prev) => prev.map((s) => ({ ...s, status })));
+  };
+
   const persistAttendance = async (): Promise<boolean> => {
     if (!sessionId) {
-      setSaveError(
-        "Open attendance from a class session (sessionId required). Go to My Classes and open a session."
-      );
+      setSaveError("A class session is required to save attendance.");
       return false;
     }
     setIsSaving(true);
@@ -152,10 +178,17 @@ export const FacultyMarkAttendance: React.FC = () => {
         sessionId,
         students.map((s) => ({
           studentId: s.id,
-          status: s.status === "EXCUSED" ? "LEAVE" : s.status,
+          status: s.status,
           remarks: s.remarks || undefined,
         }))
       );
+      await queryClient.invalidateQueries({
+        queryKey: ["class-session-attendance", sessionId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["faculty-my-student-attendance"],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
       return true;
     } catch (err: any) {
       setSaveError(
@@ -174,14 +207,24 @@ export const FacultyMarkAttendance: React.FC = () => {
     if (ok) setIsSavedPopupOpen(true);
   };
 
-  const goLive = () => {
-    if (!sessionId) {
-      setSaveError("Open attendance from My Classes with a valid sessionId first.");
-      return;
-    }
-    navigate(`/faculty/class-session?id=${encodeURIComponent(sessionId)}&mode=live`, {
-      state: { live: true },
-    });
+  const ratioBar = (pct: number) => {
+    const clamped = Math.max(0, Math.min(100, pct));
+    const color =
+      clamped >= 75
+        ? "bg-emerald-500"
+        : clamped >= 50
+          ? "bg-amber-500"
+          : "bg-rose-500";
+    return (
+      <div className="flex items-center gap-2 min-w-[100px]">
+        <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div className={`h-full ${color}`} style={{ width: `${clamped}%` }} />
+        </div>
+        <span className="text-[11px] font-semibold tabular-nums w-9 text-right">
+          {clamped}%
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -191,181 +234,223 @@ export const FacultyMarkAttendance: React.FC = () => {
         description={
           sessionMetaLoading
             ? "Loading session…"
-            : session
-              ? [sessionLabel, batchLabel, session.startTime && session.endTime
-                  ? `${session.startTime} – ${session.endTime}`
-                  : null]
-                  .filter(Boolean)
-                  .join(" · ")
-              : sessionId
-                ? "Take attendance for this class session."
-                : "Open from My Classes with a session to mark attendance."
+            : [sessionLabel, batchLabel, dateLabel, timeLabel]
+                .filter(Boolean)
+                .join(" · ") || "Mark Present / Absent / Leave for this class."
+        }
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => navigate("/faculty/attendance/history")}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            History
+          </Button>
         }
       />
 
+      <Card className="border border-slate-200 mb-4">
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <span className="text-slate-400 font-medium block">Date</span>
+            <span className="font-semibold text-slate-800">{dateLabel || "—"}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 font-medium block">Time</span>
+            <span className="font-semibold text-slate-800">{timeLabel || "—"}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 font-medium block">Batch</span>
+            <span className="font-semibold text-slate-800">{batchLabel || "—"}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 font-medium block">Course</span>
+            <span className="font-semibold text-slate-800">{sessionLabel}</span>
+          </div>
+        </CardContent>
+      </Card>
+
       <MetricGrid density="compact">
-        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
-          <CardContent size="compact">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total</p>
-            <h3 className="text-xl font-bold text-foreground mt-0.5">{stats.total}</h3>
+        <Card className="border border-border/80 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Total
+            </p>
+            <h3 className="text-xl font-bold mt-0.5">{stats.total}</h3>
           </CardContent>
         </Card>
-        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
-          <CardContent size="compact">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Present</p>
-            <h3 className="text-xl font-bold text-emerald-600 mt-0.5">{stats.present}</h3>
+        <Card className="border border-border/80 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Present
+            </p>
+            <h3 className="text-xl font-bold text-emerald-600 mt-0.5">
+              {stats.present}
+            </h3>
           </CardContent>
         </Card>
-        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
-          <CardContent size="compact">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Absent</p>
+        <Card className="border border-border/80 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Absent
+            </p>
             <h3 className="text-xl font-bold text-rose-600 mt-0.5">{stats.absent}</h3>
           </CardContent>
         </Card>
-        <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
-          <CardContent size="compact">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Leave</p>
-            <h3 className="text-xl font-bold text-amber-600 mt-0.5">{stats.excused}</h3>
+        <Card className="border border-border/80 shadow-2xs">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Leave
+            </p>
+            <h3 className="text-xl font-bold text-amber-600 mt-0.5">{stats.leave}</h3>
           </CardContent>
         </Card>
       </MetricGrid>
 
-      <PageSection title="Roster">
-      <Card className="border-border/50 rounded-xl overflow-hidden">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-3 w-10">#</th>
-                  <th className="py-3 px-4">Student ID</th>
-                  <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4">Remarks</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border text-foreground">
-                {sessionLoading ? (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-muted-foreground">
-                      <Loader2 className="h-6 w-6 mx-auto animate-spin text-primary mb-2" />
-                      <p className="text-sm font-medium">Loading roster…</p>
-                    </td>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <Input
+          className="max-w-xs h-9"
+          placeholder="Search student…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Button type="button" variant="outline" size="sm" onClick={() => markAll("PRESENT")}>
+          Mark all Present
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => markAll("ABSENT")}>
+          Mark all Absent
+        </Button>
+      </div>
+
+      <PageSection title="Student roster">
+        <Card className="border-border/50 rounded-xl overflow-hidden">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse min-w-[980px]">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3 w-10">#</th>
+                    <th className="py-3 px-4">Student</th>
+                    <th className="py-3 px-3 text-center">P</th>
+                    <th className="py-3 px-3 text-center">A</th>
+                    <th className="py-3 px-3 text-center">L</th>
+                    <th className="py-3 px-4">Past %</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4">Comments</th>
                   </tr>
-                ) : students.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-muted-foreground">
-                      <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                      <p className="text-sm font-semibold text-foreground">
-                        No students enrolled in this batch yet
-                      </p>
-                      <p className="text-xs mt-0.5">
-                        Admitted students assigned to this batch will appear here
-                        automatically.
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  students.map((student, idx) => (
-                    <tr
-                      key={student.id}
-                      className="hover:bg-muted/40 transition-colors"
-                    >
-                      <td className="py-3.5 px-3 font-medium text-muted-foreground">
-                        {idx + 1}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono font-medium text-muted-foreground">
-                        {student.studentId}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="w-8 h-8 rounded-full border border-border">
-                            <AvatarImage src={student.avatar} alt={student.name} />
-                            <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
-                              {student.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-semibold text-foreground text-xs">
-                            {student.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-medium text-muted-foreground">
-                        {student.email}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleStatusChange(student.id, "PRESENT")
-                            }
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              student.status === "PRESENT"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
-                            }`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Present</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleStatusChange(student.id, "ABSENT")
-                            }
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              student.status === "ABSENT"
-                                ? "bg-rose-50 text-rose-700 border border-rose-300"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
-                            }`}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Absent</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleStatusChange(student.id, "EXCUSED")
-                            }
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              student.status === "EXCUSED"
-                                ? "bg-amber-50 text-amber-700 border border-amber-300"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
-                            }`}
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Leave</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 min-w-[200px]">
-                        <Input
-                          type="text"
-                          value={student.remarks}
-                          onChange={(e) =>
-                            handleRemarkChange(student.id, e.target.value)
-                          }
-                          placeholder="Add remarks (optional)..."
-                          className="h-8 text-xs rounded-lg"
-                        />
+                </thead>
+                <tbody className="divide-y divide-border text-foreground">
+                  {sessionLoading ? (
+                    <tr>
+                      <td colSpan={8} className="p-12 text-center text-muted-foreground">
+                        <Loader2 className="h-6 w-6 mx-auto animate-spin text-primary mb-2" />
+                        <p className="text-sm font-medium">Loading roster…</p>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="p-3.5 bg-muted/40 border-t border-border flex items-center justify-between gap-2 text-xs text-muted-foreground font-medium">
-            <span>
-              Showing {students.length} student
-              {students.length === 1 ? "" : "s"}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : visibleStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-12 text-center text-muted-foreground">
+                        <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                        <p className="text-sm font-semibold text-foreground">
+                          No students enrolled in this batch yet
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleStudents.map((student, idx) => (
+                      <tr key={student.id} className="hover:bg-muted/40 transition-colors">
+                        <td className="py-3.5 px-3 font-medium text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="w-8 h-8 rounded-full border border-border">
+                              <AvatarImage src={student.avatar} alt={student.name} />
+                              <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
+                                {student.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-semibold text-foreground text-xs">
+                                {student.name}
+                              </div>
+                              <div className="font-mono text-[10px] text-muted-foreground">
+                                {student.studentCode}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-semibold text-emerald-700">
+                          {student.presentCount}
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-semibold text-rose-700">
+                          {student.absentCount}
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-semibold text-amber-700">
+                          {student.leaveCount}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {ratioBar(student.attendancePercentage)}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "PRESENT")}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                student.status === "PRESENT"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                              }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Present
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "ABSENT")}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                student.status === "ABSENT"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-300"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                              }`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Absent
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "LEAVE")}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                student.status === "LEAVE"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-300"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                              }`}
+                            >
+                              <Clock className="w-3.5 h-3.5" />
+                              Leave
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 min-w-[160px]">
+                          <Input
+                            type="text"
+                            value={student.remarks}
+                            onChange={(e) =>
+                              handleRemarkChange(student.id, e.target.value)
+                            }
+                            placeholder="Optional note…"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </PageSection>
 
       <div className="sticky bottom-4 z-20 p-4 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex flex-col gap-3 shadow-md">
@@ -376,41 +461,27 @@ export const FacultyMarkAttendance: React.FC = () => {
         )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="text-sm font-semibold text-foreground block leading-tight">
-              {students.length} Students in Session Roster
+            <span className="text-sm font-semibold text-foreground block">
+              {students.length} students in roster
             </span>
-            <span className="text-xs text-muted-foreground font-medium mt-0.5 block">
-              {sessionId
-                ? "Attendance saves to the selected class session."
-                : "Open this page from My Classes with a sessionId."}
+            <span className="text-xs text-muted-foreground mt-0.5 block">
+              Saves Present / Absent / Leave for this class session.
             </span>
           </div>
-
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
+              onClick={() => navigate("/faculty/attendance/new")}
+            >
+              Back
+            </Button>
+            <Button
               onClick={handleSaveAttendance}
               disabled={isSaving || !sessionId || students.length === 0}
-              className="text-xs font-semibold h-9 px-5 rounded-xl gap-2"
+              className="gap-2"
             >
               <Save className="h-4 w-4" />
-              <span>{isSaving ? "Saving..." : "Save Attendance"}</span>
-            </Button>
-
-            <Button
-              onClick={async () => {
-                if (students.length > 0 && sessionId) {
-                  const ok = await persistAttendance();
-                  if (!ok) return;
-                }
-                goLive();
-              }}
-              disabled={!sessionId || isSaving}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold h-9 px-6 rounded-xl gap-2"
-            >
-              <Video className="h-4 w-4" />
-              <span>Save & Go Live</span>
-              <ArrowRight className="h-4 w-4" />
+              {isSaving ? "Saving…" : "Save"}
             </Button>
           </div>
         </div>
@@ -445,20 +516,18 @@ export const FacultyMarkAttendance: React.FC = () => {
               {stats.absent} Absent
             </span>
             <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">
-              {stats.excused} Leave
+              {stats.leave} Leave
             </span>
           </div>
 
           <Button
             onClick={() => {
               setIsSavedPopupOpen(false);
-              goLive();
+              navigate("/faculty/attendance/history");
             }}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold gap-2"
+            className="w-full rounded-xl font-semibold"
           >
-            <Video className="w-4 h-4" />
-            Go Online & Take Class
-            <ArrowRight className="w-4 h-4" />
+            View Attendance History
           </Button>
         </DialogContent>
       </Dialog>

@@ -128,14 +128,18 @@ import { ExaminationReports } from "../pages/admin/reports/ExaminationReports";
 
 // Faculty Portal Expansion
 import { FacultyBatchClasses } from "../pages/faculty/BatchClasses";
-import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 import { FacultyClassSession } from "../pages/faculty/ClassSession";
 import { FacultyRecordings } from "../pages/faculty/FacultyRecordings";
 import { FacultyAnnouncements } from "../pages/faculty/Announcements";
+import { FacultyStudyMaterials } from "../pages/faculty/StudyMaterials";
 import { FacultyMyStudents } from "../pages/faculty/MyStudents";
 import { FacultyFeedback } from "../pages/faculty/Feedback";
 import { FacultyMySchedule } from "../pages/faculty/FacultyMySchedule";
 import { FacultyAttendance as FacultyPortalAttendance } from "../pages/faculty/FacultyAttendance";
+import { FacultyTakeAttendance } from "../pages/faculty/TakeAttendance";
+import { FacultyStudentAttendanceHistory } from "../pages/faculty/StudentAttendanceHistory";
+import { FacultyAttendanceFilter } from "../pages/faculty/AttendanceFilter";
+import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -489,20 +493,29 @@ export const AppRoutes: React.FC = () => {
         <Route path="courses" element={<CourseAssignment />} />
         <Route path="class-session" element={<FacultyClassSession />} />
         <Route path="classes/:id" element={<FacultyClassSession />} />
-        <Route path="attendance" element={<FacultyPortalAttendance />} />
+        <Route path="attendance">
+          <Route index element={<Navigate to="take" replace />} />
+          <Route path="take" element={<FacultyTakeAttendance />} />
+          <Route path="history" element={<FacultyStudentAttendanceHistory />} />
+          <Route path="new" element={<FacultyAttendanceFilter />} />
+          <Route path="mark" element={<FacultyMarkAttendance />} />
+        </Route>
+        <Route path="my-attendance" element={<FacultyPortalAttendance />} />
         <Route path="students">
-          <Route path="attendance" element={<FacultyMarkAttendance />} />
-          <Route path="attendance-records" element={<FacultyMarkAttendance />} />
+          <Route path="attendance" element={<Navigate to="/faculty/attendance/take" replace />} />
+          <Route path="attendance-records" element={<Navigate to="/faculty/attendance/history" replace />} />
           <Route path="all" element={<FacultyMyStudents />} />
         </Route>
         <Route path="feedback" element={<FacultyFeedback />} />
         <Route path="timetable" element={<FacultyMySchedule />} />
         <Route path="classes" element={<FacultyMySchedule />} />
         <Route path="recordings" element={<FacultyRecordings />} />
+        <Route path="study-materials" element={<FacultyStudyMaterials />} />
         <Route path="schedule">
           <Route path="classes" element={<FacultyMySchedule />} />
           <Route path="timetable" element={<FacultyMySchedule />} />
           <Route path="recordings" element={<FacultyRecordings />} />
+          <Route path="study-materials" element={<FacultyStudyMaterials />} />
         </Route>
         <Route path="reports">
           <Route path="students" element={<StudentReports />} />

@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Users,
   Download,
@@ -68,17 +69,35 @@ const formatReportDate = (value?: string | null): string => {
 
 export const StudentReports: React.FC = () => {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = useMemo(() => branchesResponse?.data || [], [branchesResponse?.data]);
   const isAdmin = user?.roles?.includes("ADMIN") || user?.role === "ADMIN";
+  const isFacultyOnly =
+    (user?.roles?.includes("FACULTY") || user?.role === "FACULTY") &&
+    !isAdmin &&
+    !user?.roles?.includes("CENTER_MANAGER") &&
+    !user?.roles?.includes("COUNSELLOR");
   const branchFilter =
     isAdmin && selectedBranchId !== "ALL" ? selectedBranchId : undefined;
   const { data, isLoading, isError, refetch } = useStudentReport(branchFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
+    searchParams.get("studentId")
+  );
   const analyticsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("studentId");
+    if (!fromUrl) return;
+    setSelectedStudentId((prev) => (prev === fromUrl ? prev : fromUrl));
+    const t = setTimeout(() => {
+      analyticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [searchParams]);
 
   const handleBranchChange = (branchId: string) => {
     setSelectedBranchId(branchId);
@@ -367,7 +386,13 @@ export const StudentReports: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader title="Student Analytics & Reports" />
+      <PageHeader
+        title={
+          isFacultyOnly
+            ? "My Students' Performance"
+            : "Student Analytics & Reports"
+        }
+      />
 
       <FilterToolbar className="flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
           <div className="relative w-full sm:max-w-md min-w-[220px]">
