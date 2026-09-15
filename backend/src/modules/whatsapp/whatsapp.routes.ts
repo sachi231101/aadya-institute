@@ -10,6 +10,12 @@ router.use(authMiddleware);
 // Static paths MUST be registered before /:id
 
 router.get(
+  "/readiness",
+  requireAnyPermission("whatsapp.automation.read"),
+  controller.getReadiness
+);
+
+router.get(
   "/automation-config",
   requireAnyPermission("whatsapp.automation.read"),
   controller.getAutomationConfig

@@ -3,6 +3,8 @@ import { AppError } from "../../../middlewares/error.middleware";
 import { LeadActivityService } from "./lead-activity.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { CreateFollowUpDTO, UpdateFollowUpDTO } from "../lead.types";
+import { triggerNotification } from "../../whatsapp/whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../../whatsapp/whatsapp.constants";
 
 const followUpInclude = {
   lead: {
@@ -110,6 +112,27 @@ export const LeadFollowupService = {
         }
       );
 
+      return followUp;
+    }).then(async (followUp) => {
+      const type = String(dto.type ?? "CALL").toUpperCase();
+      if (["DEMO", "WHATSAPP", "MEETING", "VISIT", "REMINDER"].includes(type) && lead.phoneNumber) {
+        setImmediate(() => {
+          void triggerNotification({
+            instituteId: lead.instituteId,
+            event: NotificationEvent.DEMO_SCHEDULED,
+            idempotencyKey: buildIdempotencyKey.DEMO_SCHEDULED(leadId, followUp.id),
+            recipientPhone: lead.phoneNumber,
+            recipientName: lead.name || "Lead",
+            templateParams: {
+              lead_name: lead.name || "Lead",
+              scheduled_at: scheduledDate.toLocaleString("en-IN"),
+              course_name: lead.interestedIn || "Course",
+              counsellor_name: followUp.counsellor?.name || "Counsellor",
+            },
+            metadata: { leadId, followUpId: followUp.id, type },
+          }).catch(() => {});
+        });
+      }
       return followUp;
     });
   },

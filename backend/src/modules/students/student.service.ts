@@ -356,6 +356,7 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
 import { prisma } from "../../config/database";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
+import * as studentAllocationService from "./student-allocation.service";
 
 /**
  * Create a new student (User + Student + STUDENT role + optional Course/Batch/Fee).
@@ -454,6 +455,14 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
 
   // Welcome WhatsApp is triggered only from confirmed admission flows (not raw createStudent),
   // so bulk import / direct creates do not fan out messages.
+  // Batch Assigned does fire when a batch is set at create time.
+  if (dto.batchId && dto.batchId.trim() !== "") {
+    const batchId = dto.batchId.trim();
+    setImmediate(() => {
+      void studentAllocationService.triggerBatchAssignedNotification(student.id, batchId);
+    });
+  }
+
   return student;
 };
 
@@ -489,12 +498,49 @@ export const updateStudent = async (id: string, dto: UpdateStudentDto) => {
     areaMasterId = resolved?.masterId;
   }
 
-  return repo.updateStudent(id, {
+  const previousBatchId =
+    student.batchEnrollments?.find((e: { status?: string }) => e.status === "ACTIVE")?.batchId ||
+    student.admissions?.[0]?.batchId ||
+    null;
+  const nextBatchId =
+    dto.batchId !== undefined && dto.batchId.trim() !== "" ? dto.batchId.trim() : null;
+
+  const updated = await repo.updateStudent(id, {
     ...dto,
     qualification,
     qualificationMasterId,
     areaMasterId,
   });
+
+  // Student Details / activate flows enroll via PATCH student — not the batch enroll API.
+  if (nextBatchId && nextBatchId !== previousBatchId) {
+    setImmediate(() => {
+      void studentAllocationService.triggerBatchAssignedNotification(id, nextBatchId);
+    });
+  }
+
+  if (dto.status === "COMPLETED" && student.status !== "COMPLETED") {
+    const stamp = new Date().toISOString().slice(0, 10);
+    setImmediate(() => {
+      void triggerNotification({
+        instituteId: student.instituteId,
+        studentId: id,
+        event: NotificationEvent.COURSE_COMPLETED,
+        idempotencyKey: buildIdempotencyKey.COURSE_COMPLETED(id, stamp),
+        templateParams: {
+          student_name: student.user?.name || "Student",
+          course_name: student.admissions?.[0]?.course?.name || "Course",
+          batch_name:
+            student.batchEnrollments?.[0]?.batch?.name ||
+            student.admissions?.[0]?.batch?.name ||
+            "Batch",
+        },
+        metadata: { status: "COMPLETED" },
+      }).catch(() => {});
+    });
+  }
+
+  return updated;
 };
 
 /**

@@ -23,6 +23,7 @@ import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 import { assertActiveMaster } from "../masters/master.validator";
+import * as studentAllocationService from "../students/student-allocation.service";
 
 const resolveRequiredTermsAcceptance = async (
   instituteId: string,
@@ -375,6 +376,16 @@ export const AdmissionsService = {
 
     setImmediate(() => {
       triggerAdmissionNotification(admission.id);
+      if (dto.batchId && admission.studentId) {
+        void studentAllocationService
+          .triggerBatchAssignedNotification(admission.studentId, dto.batchId)
+          .catch((err) =>
+            logger.error(
+              { err, admissionId: admission.id },
+              "[admissions] Failed to trigger batch assigned notification on convert"
+            )
+          );
+      }
     });
 
     return admission;
@@ -470,6 +481,16 @@ export const AdmissionsService = {
 
     setImmediate(() => {
       triggerAdmissionNotification(admission.id);
+      if (normalizedDto.batchId && admission.studentId) {
+        void studentAllocationService
+          .triggerBatchAssignedNotification(admission.studentId, normalizedDto.batchId)
+          .catch((err) =>
+            logger.error(
+              { err, admissionId: admission.id },
+              "[admissions] Failed to trigger batch assigned notification"
+            )
+          );
+      }
       if (dto.sendCredentials && admission.studentId && options?.currentUser) {
         sendStudentCredentialsWhatsAppService(admission.studentId, options.currentUser).catch(
           (err) => logger.error({ err, admissionId: admission.id }, "[admissions] Failed to send credentials")
@@ -502,6 +523,26 @@ export const AdmissionsService = {
           ? { ...dto, termsAcceptance: undefined }
           : dto;
     await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, normalizedDto);
+
+    const nextBatchId =
+      dto.batchId !== undefined && dto.batchId.trim() !== "" ? dto.batchId.trim() : null;
+    if (
+      nextBatchId &&
+      existing.studentId &&
+      nextBatchId !== existing.batchId
+    ) {
+      setImmediate(() => {
+        void studentAllocationService
+          .triggerBatchAssignedNotification(existing.studentId!, nextBatchId)
+          .catch((err) =>
+            logger.error(
+              { err, admissionId: id },
+              "[admissions] Failed to trigger batch assigned notification on update"
+            )
+          );
+      });
+    }
+
     return this.getAdmissionById(id, currentUser);
   },
 

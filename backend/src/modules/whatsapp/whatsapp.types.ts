@@ -50,6 +50,9 @@ export interface TriggerNotificationInput {
   templateParams: Record<string, string>;
   idempotencyKey?: string;
   metadata?: Record<string, unknown>;
+  /** Direct recipient override (e.g. lead phone without a User row). */
+  recipientPhone?: string;
+  recipientName?: string;
 }
 
 export interface NotificationFilters {

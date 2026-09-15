@@ -5,7 +5,18 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { batchIncludesCourse, getBatchCourseIds } from "../../utils/batch-course.util";
 
-const triggerBatchAssignedNotification = async (studentId: string, batchId: string) => {
+const formatBatchDate = (value: Date | string | null | undefined): string => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+export const triggerBatchAssignedNotification = async (studentId: string, batchId: string) => {
   try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -26,6 +37,7 @@ const triggerBatchAssignedNotification = async (studentId: string, batchId: stri
         ? batch.batchCourses.map((bc) => bc.course?.name).filter(Boolean).join(", ")
         : batch.course?.name ?? "Course";
 
+    const batchDate = formatBatchDate(batch.startDate);
     const idempotencyKey = buildIdempotencyKey.STUDENT_BATCH_ASSIGNED(studentId, batchId);
 
     await triggerNotification({
@@ -37,6 +49,9 @@ const triggerBatchAssignedNotification = async (studentId: string, batchId: stri
         student_name: student.user?.name ?? "Student",
         batch_name: batch.name,
         course_name: courseNames,
+        batch_date: batchDate,
+        batch_start_date: batchDate,
+        time_slot: batch.timeSlot ?? "",
       },
       metadata: {
         batchId,
@@ -326,8 +341,56 @@ export const transferStudent = async (
   });
 
   setImmediate(() => {
-    triggerBatchAssignedNotification(studentId, toBatchId);
+    triggerBatchTransferredNotification(studentId, fromBatchId, toBatchId);
   });
 
   return enrollment;
+};
+
+const triggerBatchTransferredNotification = async (
+  studentId: string,
+  fromBatchId: string,
+  toBatchId: string
+) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+    const [fromBatch, toBatch] = await Promise.all([
+      prisma.batch.findUnique({
+        where: { id: fromBatchId },
+        include: { course: true },
+      }),
+      prisma.batch.findUnique({
+        where: { id: toBatchId },
+        include: { course: true },
+      }),
+    ]);
+    if (!student || !toBatch) return;
+    const batchDate = formatBatchDate(toBatch.startDate);
+    await triggerNotification({
+      instituteId: student.instituteId,
+      studentId: student.id,
+      event: NotificationEvent.BATCH_TRANSFERRED,
+      idempotencyKey: buildIdempotencyKey.BATCH_TRANSFERRED(
+        studentId,
+        fromBatchId,
+        toBatchId
+      ),
+      templateParams: {
+        student_name: student.user?.name ?? "Student",
+        from_batch_name: fromBatch?.name ?? "Previous batch",
+        to_batch_name: toBatch.name,
+        course_name: toBatch.course?.name ?? "Course",
+        batch_date: batchDate,
+      },
+      metadata: { fromBatchId, toBatchId },
+    });
+  } catch (err) {
+    logger.error(
+      { err, studentId, fromBatchId, toBatchId },
+      "[student-allocation] Failed to trigger batch transferred notification"
+    );
+  }
 };

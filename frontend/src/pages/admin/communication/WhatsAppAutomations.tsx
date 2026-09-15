@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, MessageSquare, Send } from "lucide-react";
 import { whatsappApi, type WhatsAppAutomation } from "@/services/whatsapp.api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 
-const CATEGORY_ORDER = ["ADMISSIONS", "FEES", "CLASSES", "ACADEMICS"] as const;
+const CATEGORY_ORDER = [
+  "ADMISSIONS",
+  "FEES",
+  "CLASSES",
+  "ACADEMICS",
+  "RISK",
+  "ENGAGEMENT",
+  "LEADS",
+] as const;
 const CATEGORY_LABEL: Record<string, string> = {
   ADMISSIONS: "Admissions",
   FEES: "Fees",
   CLASSES: "Classes",
   ACADEMICS: "Academics",
+  RISK: "Risk",
+  ENGAGEMENT: "Engagement",
+  LEADS: "Leads",
+};
+
+const getApiErrorMessage = (err: unknown, fallback = "Request failed"): string => {
+  if (!err || typeof err !== "object") return fallback;
+  const axiosErr = err as {
+    response?: { data?: { message?: string } };
+    message?: string;
+  };
+  return axiosErr.response?.data?.message || axiosErr.message || fallback;
 };
 
 const DELAY_HOUR_OPTIONS = [
@@ -65,8 +86,37 @@ type AutomationsTemplates = Array<{
   event: string;
   status: string;
   category?: string | null;
+  body?: string | null;
   variables?: string[];
 }>;
+
+const resolveTemplateBody = (
+  item: WhatsAppAutomation,
+  templates: AutomationsTemplates
+): string | null => {
+  if (item.template?.body?.trim()) return item.template.body.trim();
+  const selected = templates.find((t) => t.id === item.templateId);
+  return selected?.body?.trim() || null;
+};
+
+const fillTemplatePreview = (
+  body: string,
+  sampleVariables: Record<string, string>,
+  variableMap: Record<string, string>,
+  slots: string[]
+): string => {
+  const orderedSamples = slots.map((slot) => {
+    const field = variableMap[slot];
+    if (field && sampleVariables[field]) return sampleVariables[field];
+    return sampleVariables[slot] || Object.values(sampleVariables)[0] || "…";
+  });
+  let i = 0;
+  return body.replace(/\{\{\s*[\w.]+\s*\}\}/g, () => {
+    const sample = orderedSamples[i] ?? `{{${i + 1}}}`;
+    i += 1;
+    return sample;
+  });
+};
 
 const TimingControl: React.FC<{
   item: WhatsAppAutomation;
@@ -200,13 +250,32 @@ const TimingControl: React.FC<{
 
 export const WhatsAppAutomations: React.FC = () => {
   const queryClient = useQueryClient();
+  const { pathname } = useLocation();
+  const hubBase =
+    pathname.replace(/\/(automations|templates|history)\/?$/, "") || pathname;
+  const historyHref = `${hubBase}/history`;
+
   const [testFor, setTestFor] = useState<WhatsAppAutomation | null>(null);
   const [testPhone, setTestPhone] = useState("");
   const [testName, setTestName] = useState("Test User");
+  const [testResult, setTestResult] = useState<{
+    notificationId: string;
+    status: string;
+    event: string;
+  } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["whatsapp", "automations"],
     queryFn: () => whatsappApi.listAutomations(),
+  });
+
+  const { data: readiness } = useQuery({
+    queryKey: ["whatsapp", "readiness"],
+    queryFn: async () => {
+      const res = await whatsappApi.getReadiness();
+      return res.data;
+    },
+    staleTime: 15_000,
   });
 
   const payload = data?.data;
@@ -224,7 +293,10 @@ export const WhatsAppAutomations: React.FC = () => {
 
   const globalMutation = useMutation({
     mutationFn: (enabled: boolean) => whatsappApi.patchAutomationConfig(enabled),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "readiness"] });
+    },
   });
 
   const patchMutation = useMutation({
@@ -239,16 +311,28 @@ export const WhatsAppAutomations: React.FC = () => {
         configuration?: Record<string, unknown>;
       };
     }) => whatsappApi.patchAutomation(type, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "readiness"] });
+    },
   });
 
   const testMutation = useMutation({
     mutationFn: () =>
       whatsappApi.testAutomation(testFor!.event, testPhone, testName || undefined),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const notification = res?.data as
+        | { id?: string; status?: string; event?: string }
+        | undefined;
+      setTestResult({
+        notificationId: notification?.id || "",
+        status: notification?.status || "QUEUED",
+        event: notification?.event || testFor?.event || "",
+      });
       setTestFor(null);
       setTestPhone("");
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "history"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "readiness"] });
     },
   });
 
@@ -313,6 +397,18 @@ export const WhatsAppAutomations: React.FC = () => {
             <p className="text-xs text-muted-foreground mt-0.5">
               Global master switch — pauses every automation when off.
             </p>
+            {readiness && !readiness.overallReady && (
+              <p className="text-xs text-amber-700 mt-2 flex items-start gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Setup is not fully ready
+                  {readiness.blockingIssues[0] ? `: ${readiness.blockingIssues[0]}` : "."}
+                  {!readiness.provider.configured || !readiness.worker.online
+                    ? " Fix the checklist above before expecting delivery."
+                    : ""}
+                </span>
+              </p>
+            )}
           </div>
           <PermissionGate itemKey="communication.whatsapp" mode="write">
             <div className="flex items-center gap-3">
@@ -328,6 +424,32 @@ export const WhatsAppAutomations: React.FC = () => {
           </PermissionGate>
         </CardContent>
       </Card>
+
+      {testResult && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50/60 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-2 text-sm text-emerald-900">
+            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Test message queued</p>
+              <p className="text-xs text-emerald-800/90 mt-0.5">
+                Status: {testResult.status}
+                {testResult.notificationId
+                  ? ` · ID ${testResult.notificationId.slice(0, 8)}…`
+                  : ""}
+                {testResult.event ? ` · ${testResult.event}` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" size="sm" asChild>
+              <Link to={historyHref}>View History</Link>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setTestResult(null)}>
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-16 text-muted-foreground">
@@ -453,13 +575,50 @@ export const WhatsAppAutomations: React.FC = () => {
                             variant="outline"
                             size="sm"
                             className="gap-1.5"
-                            onClick={() => setTestFor(item)}
+                            onClick={() => {
+                              setTestResult(null);
+                              testMutation.reset();
+                              setTestFor(item);
+                            }}
                             disabled={!item.enabled || !globalEnabled || incomplete}
                           >
                             <Send className="h-3.5 w-3.5" /> Test Message
                           </Button>
                         </PermissionGate>
                       </div>
+
+                      {item.templateId && (() => {
+                        const body = resolveTemplateBody(item, templates);
+                        if (!body) {
+                          return (
+                            <div className="rounded-md border border-dashed border-border/70 bg-muted/10 px-3 py-2">
+                              <p className="text-xs font-semibold text-foreground">Message preview</p>
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                No message text stored yet. Open Templates and click Sync from MSG91.
+                              </p>
+                            </div>
+                          );
+                        }
+                        const preview = fillTemplatePreview(
+                          body,
+                          item.sampleVariables || {},
+                          map,
+                          slots
+                        );
+                        return (
+                          <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1.5">
+                            <p className="text-xs font-semibold text-foreground">Message preview</p>
+                            <pre className="whitespace-pre-wrap text-sm text-foreground font-sans leading-relaxed">
+                              {preview}
+                            </pre>
+                            {preview !== body && (
+                              <p className="text-[11px] text-muted-foreground">
+                                Placeholders filled with sample values for this automation.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {item.templateId && slots.length > 0 && (
                         <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
@@ -535,11 +694,18 @@ export const WhatsAppAutomations: React.FC = () => {
               </div>
               {testMutation.isError && (
                 <p className="text-xs text-red-600">
-                  {(testMutation.error as Error)?.message || "Test send failed"}
+                  {getApiErrorMessage(testMutation.error, "Test send failed")}
                 </p>
               )}
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setTestFor(null)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTestFor(null);
+                    testMutation.reset();
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -554,6 +720,13 @@ export const WhatsAppAutomations: React.FC = () => {
                   )}
                 </Button>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                After sending, check delivery on{" "}
+                <Link to={historyHref} className="text-primary underline font-medium">
+                  History
+                </Link>
+                .
+              </p>
             </CardContent>
           </Card>
         </div>

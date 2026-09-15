@@ -1,6 +1,7 @@
 ﻿import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { cn } from "@/utils";
+import { WhatsAppReadinessCard } from "./WhatsAppReadinessCard";
 
 const TABS = [
   { label: "Automations", segment: "automations", suffix: /\/automations\/?$/ },
@@ -22,6 +23,8 @@ export function WhatsAppHub() {
         title="WhatsApp"
         description="System automations, templates, and delivery history."
       />
+
+      <WhatsAppReadinessCard />
 
       <nav className="flex flex-wrap gap-1 border-b border-border pb-px">
         {TABS.map((tab) => (

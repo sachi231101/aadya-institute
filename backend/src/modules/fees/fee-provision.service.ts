@@ -352,6 +352,45 @@ export async function provisionStudentFeesInTransaction(
 
   enqueueReceiptPdfGeneration(payment.id);
 
+  if (concession > 0 && input.studentId) {
+    setImmediate(async () => {
+      try {
+        const { triggerNotification } = await import("../whatsapp/whatsapp.service");
+        const { NotificationEvent, buildIdempotencyKey } = await import(
+          "../whatsapp/whatsapp.constants"
+        );
+        const { prisma } = await import("../../config/database");
+        const student = await prisma.student.findUnique({
+          where: { id: input.studentId },
+          include: {
+            user: { select: { name: true } },
+            admissions: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              include: { course: { select: { name: true } } },
+            },
+          },
+        });
+        if (!student) return;
+        const stamp = new Date().toISOString().slice(0, 13);
+        await triggerNotification({
+          instituteId: input.instituteId,
+          studentId: input.studentId,
+          event: NotificationEvent.CONCESSION_APPLIED,
+          idempotencyKey: buildIdempotencyKey.CONCESSION_APPLIED(input.studentId, stamp),
+          templateParams: {
+            student_name: student.user?.name || input.studentName || "Student",
+            concession_amount: String(concession),
+            course_name: student.admissions?.[0]?.course?.name || input.courseName || "Course",
+          },
+          metadata: { concessionAmount: concession },
+        });
+      } catch {
+        /* non-blocking */
+      }
+    });
+  }
+
   return { pendingFees: refreshed, payment, concessionAmount: concession };
 }
 
