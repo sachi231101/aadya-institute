@@ -703,6 +703,26 @@ export const gradeSubmission = async (
     marks: dto.marks,
     feedback: dto.feedback || undefined,
     evaluatedBy: currentUser.id,
+  }).then(async (graded) => {
+    setImmediate(() => {
+      void triggerNotification({
+        instituteId: currentUser.instituteId,
+        studentId: submission.studentId,
+        event: NotificationEvent.ASSIGNMENT_GRADED,
+        idempotencyKey: buildIdempotencyKey.ASSIGNMENT_GRADED(
+          submission.studentId,
+          submissionId
+        ),
+        templateParams: {
+          student_name: submission.student?.user?.name || "Student",
+          assignment_title: submission.assignment.title || "Assignment",
+          marks: String(dto.marks),
+          max_marks: String(maxMarks),
+        },
+        metadata: { submissionId, assignmentId: submission.assignmentId },
+      }).catch(() => {});
+    });
+    return graded;
   });
 };
 

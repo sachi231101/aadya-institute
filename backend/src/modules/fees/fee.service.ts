@@ -169,9 +169,23 @@ const maybeSendPaymentConfirmation = async (params: {
   paymentId: string;
   amount: number;
   receiptNo: string;
+  remainingAmount?: number;
   enabled?: boolean;
 }) => {
   if (params.enabled === false) return;
+  const paymentDate = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const baseParams = {
+    student_name: params.studentName,
+    amount: String(params.amount),
+    receipt_no: params.receiptNo,
+    course_name: params.courseName || "Course",
+    payment_date: paymentDate,
+  };
+
   void triggerNotification({
     instituteId: params.instituteId,
     studentId: params.studentId,
@@ -180,14 +194,35 @@ const maybeSendPaymentConfirmation = async (params: {
       params.studentId,
       params.paymentId
     ),
-    templateParams: {
-      student_name: params.studentName,
-      amount: String(params.amount),
-      receipt_no: params.receiptNo,
-      course_name: params.courseName || "Course",
-    },
+    templateParams: baseParams,
     metadata: { paymentId: params.paymentId },
   }).catch(() => {});
+
+  void triggerNotification({
+    instituteId: params.instituteId,
+    studentId: params.studentId,
+    event: NotificationEvent.FEE_RECEIPT,
+    idempotencyKey: buildIdempotencyKey.FEE_RECEIPT(params.studentId, params.paymentId),
+    templateParams: baseParams,
+    metadata: { paymentId: params.paymentId },
+  }).catch(() => {});
+
+  if ((params.remainingAmount ?? 0) > 0) {
+    void triggerNotification({
+      instituteId: params.instituteId,
+      studentId: params.studentId,
+      event: NotificationEvent.PARTIAL_PAYMENT_CONFIRMATION,
+      idempotencyKey: buildIdempotencyKey.PARTIAL_PAYMENT_CONFIRMATION(
+        params.studentId,
+        params.paymentId
+      ),
+      templateParams: {
+        ...baseParams,
+        remaining_amount: String(params.remainingAmount),
+      },
+      metadata: { paymentId: params.paymentId },
+    }).catch(() => {});
+  }
 };
 
 export const FeeService = {

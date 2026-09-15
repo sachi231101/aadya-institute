@@ -172,7 +172,63 @@ export const classSessionService = {
     }
 
     const enriched = await applyClassSessionMasters(instituteId, data, existing.branchId);
-    return classSessionRepository.update(id, instituteId, enriched);
+    const updated = await classSessionRepository.update(id, instituteId, enriched);
+
+    const scheduleChanged = Boolean(
+      data.scheduledDate || data.startTime || data.endTime
+    );
+    if (scheduleChanged) {
+      const oldDate =
+        existing.scheduledDate instanceof Date
+          ? existing.scheduledDate.toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : String(existing.scheduledDate).slice(0, 10);
+      const newDate = new Date(scheduledDate).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      const stamp = `${scheduledDate}:${startTime}`;
+      setImmediate(async () => {
+        try {
+          const { triggerNotification } = await import("../whatsapp/whatsapp.service");
+          const { NotificationEvent, buildIdempotencyKey } = await import(
+            "../whatsapp/whatsapp.constants"
+          );
+          const session = await classSessionRepository.findById(id, instituteId);
+          const enrollments = session?.batch?.enrollments || [];
+          for (const enr of enrollments) {
+            if (!enr.student) continue;
+            await triggerNotification({
+              instituteId,
+              studentId: enr.student.id,
+              event: NotificationEvent.CLASS_RESCHEDULED,
+              idempotencyKey: buildIdempotencyKey.CLASS_RESCHEDULED(
+                enr.student.id,
+                id,
+                stamp
+              ),
+              templateParams: {
+                student_name: enr.student.user?.name || "Student",
+                batch_name: session?.batch?.name || "Batch",
+                old_date: oldDate,
+                new_date: newDate,
+                old_time: existing.startTime,
+                new_time: startTime,
+              },
+              metadata: { classSessionId: id },
+            });
+          }
+        } catch (err) {
+          logger.error({ err, id }, "[class-session] CLASS_RESCHEDULED notify failed");
+        }
+      });
+    }
+
+    return updated;
   },
 
   startLiveClass: async (id: string, instituteId: string, meetingUrl?: string) => {

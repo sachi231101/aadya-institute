@@ -5,6 +5,9 @@ import { firstClassJob } from "../modules/whatsapp/jobs/first-class.job";
 import { moduleStartJob } from "../modules/whatsapp/jobs/module-start.job";
 import { feeReminderJob } from "../modules/whatsapp/jobs/fee-reminder.job";
 import { examReminderJob } from "../modules/whatsapp/jobs/exam-reminder.job";
+import { assignmentDueReminderJob } from "../modules/whatsapp/jobs/assignment-due.job";
+import { birthdayGreetingJob } from "../modules/whatsapp/jobs/birthday.job";
+import { leadFollowupReminderJob } from "../modules/whatsapp/jobs/lead-followup.job";
 import { recordingCleanupJob } from "./recording-cleanup.job";
 import { googleRecordingSyncJob } from "./google-recording-sync.job";
 import { aiFollowupJob } from "./ai-followup.job";
@@ -73,6 +76,27 @@ export const startCronJobs = (): void => {
     logger.info("[cron] Running exam-reminder job");
     await examReminderJob().catch((e) =>
       logger.error({ err: e }, "[cron] exam-reminder failed")
+    );
+  });
+
+  cron.schedule("15 * * * *", async () => {
+    logger.info("[cron] Running assignment-due reminder job");
+    await assignmentDueReminderJob().catch((e) =>
+      logger.error({ err: e }, "[cron] assignment-due failed")
+    );
+  });
+
+  cron.schedule("0 8 * * *", async () => {
+    logger.info("[cron] Running birthday greeting job");
+    await birthdayGreetingJob().catch((e) =>
+      logger.error({ err: e }, "[cron] birthday failed")
+    );
+  });
+
+  cron.schedule("0 9 * * *", async () => {
+    logger.info("[cron] Running lead follow-up reminder job");
+    await leadFollowupReminderJob().catch((e) =>
+      logger.error({ err: e }, "[cron] lead-followup failed")
     );
   });
 

@@ -851,6 +851,45 @@ export const AiCallingService = {
             "[AiCalling] LeadAiOutcomeService.process failed"
           );
         }
+
+        if (mappedStatus === "COMPLETED" && aiSummary) {
+          try {
+            const lead = await prisma.lead.findUnique({
+              where: { id: leadId },
+              select: {
+                name: true,
+                assignedCounsellorId: true,
+                instituteId: true,
+                assignedCounsellor: { select: { id: true, name: true, phone: true } },
+              },
+            });
+            const counsellorId = lead?.assignedCounsellorId;
+            if (counsellorId) {
+              const { triggerNotification } = await import("../whatsapp/whatsapp.service");
+              const { NotificationEvent, buildIdempotencyKey } = await import(
+                "../whatsapp/whatsapp.constants"
+              );
+              await triggerNotification({
+                instituteId: lead.instituteId,
+                userId: counsellorId,
+                event: NotificationEvent.AI_CALL_SUMMARY_READY,
+                idempotencyKey: buildIdempotencyKey.AI_CALL_SUMMARY_READY(callLog.id),
+                templateParams: {
+                  counsellor_name: lead.assignedCounsellor?.name || "Counsellor",
+                  lead_name: lead.name || "Lead",
+                  call_status: mappedStatus,
+                  summary: String(aiSummary).slice(0, 500),
+                },
+                metadata: { callLogId: callLog.id, leadId },
+              });
+            }
+          } catch (err) {
+            logger.error(
+              { err, callLogId: callLog.id, leadId },
+              "[AiCalling] AI_CALL_SUMMARY_READY notify failed"
+            );
+          }
+        }
       }
     }
 

@@ -41,8 +41,11 @@ export {
   listRules,
   listAutomations,
   getAutomationConfig,
+  getWhatsAppReadiness,
   NotificationService,
 } from "./whatsapp.service";
+export * from "./whatsapp-readiness.util";
+export * from "./template-body.util";
 export * from "./whatsapp.controller";
 export { default as whatsappRoutes } from "./whatsapp.routes";
 export * from "./whatsapp.queue";
@@ -55,3 +58,6 @@ export * from "./jobs/first-class.job";
 export * from "./jobs/module-start.job";
 export * from "./jobs/fee-reminder.job";
 export * from "./jobs/exam-reminder.job";
+export * from "./jobs/assignment-due.job";
+export * from "./jobs/birthday.job";
+export * from "./jobs/lead-followup.job";

@@ -17,10 +17,39 @@ import { logger } from "../../config/logger";
 import { AppError } from "../../middlewares/error.middleware";
 import { getSessionSubjectLabel } from "../../utils/batch-course.util";
 
+const triggerLeaveNotification = async (studentId: string, classSessionId: string) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+    const session = await prisma.classSession.findUnique({
+      where: { id: classSessionId },
+      include: { batch: true },
+    });
+    if (!student || !session) return;
+    const dateStr = session.scheduledDate.toISOString().split("T")[0];
+    await triggerNotification({
+      instituteId: student.instituteId,
+      studentId: student.id,
+      event: NotificationEvent.LEAVE_STATUS_UPDATED,
+      idempotencyKey: buildIdempotencyKey.LEAVE_STATUS_UPDATED(studentId, classSessionId),
+      templateParams: {
+        student_name: student.user?.name ?? "Student",
+        batch_name: session.batch?.name ?? "Batch",
+        date: dateStr,
+        status: "LEAVE",
+      },
+      metadata: { classSessionId },
+    });
+  } catch (err) {
+    logger.error({ err, studentId, classSessionId }, "[attendance] Failed to trigger leave notification");
+  }
+};
+
 /**
  * Helper to trigger absence notification for a student marked ABSENT.
  * Note: LEAVE and PRESENT statuses MUST NOT trigger this notification.
- * TODO: Check Leave module for approved leave requests before triggering notification once Leave model exists.
  */
 const triggerAbsenceNotification = async (studentId: string, classSessionId: string) => {
   try {
@@ -82,6 +111,31 @@ export const checkConsecutiveAbsences = async (studentId: string, batchId: strin
         { studentId, batchId, consecutiveAbsences },
         "[attendance] Business Rule Alert: Student has reached 3 consecutive ABSENCES. Eligible for discontinuation workflow."
       );
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: { user: { select: { name: true } } },
+      });
+      const batch = await prisma.batch.findUnique({
+        where: { id: batchId },
+        select: { name: true },
+      });
+      if (student?.instituteId) {
+        const dateKey = new Date().toISOString().slice(0, 10);
+        void triggerNotification({
+          instituteId: student.instituteId,
+          studentId,
+          event: NotificationEvent.DISCONTINUATION_RISK,
+          idempotencyKey: buildIdempotencyKey.DISCONTINUATION_RISK(studentId, batchId, dateKey),
+          templateParams: {
+            student_name: student.user?.name || "Student",
+            batch_name: batch?.name || "Batch",
+            consecutive_absences: String(consecutiveAbsences),
+          },
+          metadata: { batchId, consecutiveAbsences },
+        }).catch((err) =>
+          logger.error({ err, studentId, batchId }, "[attendance] DISCONTINUATION_RISK notify failed")
+        );
+      }
     }
 
     return consecutiveAbsences;
@@ -216,12 +270,14 @@ export const submitBulkSessionAttendance = async (
   // Execute bulk upsert transaction
   const result = await repo.bulkUpsertSessionAttendance(classSessionId, entries, currentUser.id);
 
-  // Asynchronous Trigger: ABSENT -> STUDENT_ABSENT notification (LEAVE and PRESENT skipped)
-  // Also check 3 consecutive absences
+  // Asynchronous Trigger: ABSENT / LEAVE notifications + consecutive absence check
   setImmediate(() => {
     for (const entry of entries) {
       if (entry.status === "ABSENT") {
         triggerAbsenceNotification(entry.studentId, classSessionId);
+      }
+      if (entry.status === "LEAVE") {
+        triggerLeaveNotification(entry.studentId, classSessionId);
       }
       checkConsecutiveAbsences(entry.studentId, session.batchId);
     }
@@ -252,11 +308,16 @@ export const updateAttendanceRecord = async (
     markedBy: currentUser.id,
   });
 
-  // If status changed to ABSENT, trigger absence notification
+  // If status changed to ABSENT/LEAVE, trigger notifications
   if (dto.status === "ABSENT") {
     setImmediate(() => {
       triggerAbsenceNotification(existing.studentId, existing.classSessionId);
       checkConsecutiveAbsences(existing.studentId, existing.classSession.batchId);
+    });
+  }
+  if (dto.status === "LEAVE") {
+    setImmediate(() => {
+      triggerLeaveNotification(existing.studentId, existing.classSessionId);
     });
   }
 
@@ -471,6 +532,11 @@ export const markAttendance = async (dto: MarkAttendanceDto, markedBy?: string) 
       triggerAbsenceNotification(dto.studentId, dto.classSessionId);
     });
   }
+  if (dto.status === "LEAVE") {
+    setImmediate(() => {
+      triggerLeaveNotification(dto.studentId, dto.classSessionId);
+    });
+  }
 
   return result;
 };
@@ -489,6 +555,9 @@ export const bulkMarkAttendance = async (dto: BulkMarkAttendanceDto, markedBy?: 
     for (const entry of entries) {
       if (entry.status === "ABSENT" && entry.classSessionId) {
         triggerAbsenceNotification(entry.studentId, entry.classSessionId);
+      }
+      if (entry.status === "LEAVE" && entry.classSessionId) {
+        triggerLeaveNotification(entry.studentId, entry.classSessionId);
       }
     }
   });

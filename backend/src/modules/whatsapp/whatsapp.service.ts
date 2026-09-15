@@ -36,10 +36,22 @@ import {
   invalidVariableMapTargets,
   isVariableMapComplete,
 } from "./variable-map.util";
+import {
+  buildBlockingIssues,
+  countReadyAutomations,
+  isOverallReady,
+  maskPhoneTail,
+} from "./whatsapp-readiness.util";
+import { extractTemplateBodyFromRaw } from "./template-body.util";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import type { AuthUser } from "../auth/auth.types";
 import { buildMeta } from "../../utils/pagination";
-import { isWhatsappProviderConnected } from "../integrations/integration.service";
+import {
+  isWhatsappProviderConnected,
+  resolveWhatsappProviderConfig,
+} from "../integrations/integration.service";
+import * as integrationRepo from "../integrations/integration.repository";
+import { getRedis } from "../../config/redis";
 import { createAuditLog } from "../../utils/audit-log.util";
 import { AppError } from "../../middlewares/error.middleware";
 
@@ -204,12 +216,20 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
     }
     recipientUser = user;
     branchId = user?.branchId ?? undefined;
+  } else if (input.recipientPhone?.trim()) {
+    // Lead / external recipient without a User row
+    recipientUser = {
+      phone: input.recipientPhone.trim(),
+      name: input.recipientName?.trim() || "Recipient",
+      whatsappEnabled: true,
+    };
   }
 
   if (!recipientUser) {
     return persistSkip(input, SkipReason.RECIPIENT_NOT_FOUND, { templateId: template.id });
   }
-  if (!recipientUser.phone) {
+  const effectivePhone = input.recipientPhone?.trim() || recipientUser.phone;
+  if (!effectivePhone) {
     return persistSkip(input, SkipReason.INVALID_PHONE, {
       templateId: template.id,
       userId: targetUserId,
@@ -218,14 +238,14 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
     });
   }
 
-  const phoneDigits = recipientUser.phone.replace(/\D/g, "");
+  const phoneDigits = effectivePhone.replace(/\D/g, "");
   const local10 = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
   if (!isValidIndianPhone(local10)) {
     return persistSkip(input, SkipReason.INVALID_PHONE, {
       templateId: template.id,
       userId: targetUserId,
       studentId: targetStudentId,
-      phone: recipientUser.phone,
+      phone: effectivePhone,
       name: recipientUser.name ?? undefined,
     });
   }
@@ -235,7 +255,7 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
       templateId: template.id,
       userId: targetUserId,
       studentId: targetStudentId,
-      phone: recipientUser.phone,
+      phone: effectivePhone,
       name: recipientUser.name ?? undefined,
     });
   }
@@ -310,8 +330,8 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
       metadata: {
         ...input.metadata,
         templateParams,
-        recipientPhone: recipientUser.phone,
-        recipientName: recipientUser.name,
+        recipientPhone: effectivePhone,
+        recipientName: input.recipientName?.trim() || recipientUser.name,
         provider: "MSG91",
         campaignName: template.providerTemplateName,
         language: template.language,
@@ -370,6 +390,135 @@ export const getAutomationConfig = async (instituteId: string) => {
   return repo.getOrCreateAutomationConfig(instituteId);
 };
 
+const pingRedis = async (): Promise<{ ok: boolean; message: string }> => {
+  try {
+    const redis = getRedis();
+    if (!redis) {
+      return { ok: false, message: "Redis client not available" };
+    }
+    if (redis.status !== "ready" && redis.status !== "connecting") {
+      await redis.connect().catch(() => undefined);
+    }
+    const pong = await redis.ping();
+    if (pong === "PONG") {
+      return { ok: true, message: "Redis reachable" };
+    }
+    return { ok: false, message: "Redis ping failed" };
+  } catch {
+    return { ok: false, message: "Redis is unavailable" };
+  }
+};
+
+const getWhatsappWorkerStatus = async (): Promise<{
+  online: boolean;
+  workersCount: number;
+  message: string;
+}> => {
+  try {
+    const getWorkers = (
+      whatsappQueue as unknown as {
+        getWorkers?: () => Promise<unknown[]>;
+      }
+    ).getWorkers;
+    if (typeof getWorkers !== "function") {
+      return {
+        online: false,
+        workersCount: 0,
+        message: "Worker status unavailable",
+      };
+    }
+    const workers = await getWorkers.call(whatsappQueue);
+    const workersCount = Array.isArray(workers) ? workers.length : 0;
+    return {
+      online: workersCount > 0,
+      workersCount,
+      message:
+        workersCount > 0
+          ? `${workersCount} WhatsApp worker(s) connected`
+          : "No WhatsApp workers connected. Run `npm run worker` in backend.",
+    };
+  } catch {
+    return {
+      online: false,
+      workersCount: 0,
+      message: "Could not query WhatsApp workers",
+    };
+  }
+};
+
+/**
+ * Setup readiness checklist for Communication → WhatsApp.
+ * Does not call MSG91 live — use Integrations test for live verify.
+ */
+export const getWhatsAppReadiness = async (instituteId: string) => {
+  await repo.ensureInstituteAutomationRules(instituteId);
+
+  const [providerConfigured, providerConfig, integrationRow, config, templates, rules, redis, worker] =
+    await Promise.all([
+      isWhatsappProviderConnected(instituteId),
+      resolveWhatsappProviderConfig(instituteId),
+      integrationRepo.findByInstituteAndType(instituteId, "WHATSAPP"),
+      repo.getOrCreateAutomationConfig(instituteId),
+      repo.findAllTemplates(instituteId),
+      repo.findAllRules(instituteId),
+      pingRedis(),
+      getWhatsappWorkerStatus(),
+    ]);
+
+  const activeTemplates = templates.filter((t) => t.status === "ACTIVE");
+  const { enabledCount, readyCount } = countReadyAutomations(
+    rules.map((r) => ({
+      event: r.event,
+      enabled: r.enabled,
+      templateId: r.templateId,
+      configuration: r.configuration,
+      template: r.template
+        ? {
+            id: r.template.id,
+            status: r.template.status,
+            variables: r.template.variables,
+          }
+        : null,
+    })),
+    SYSTEM_AUTOMATION_EVENTS
+  );
+
+  const checkInput = {
+    providerConfigured,
+    redisOk: redis.ok,
+    workerOnline: worker.online,
+    globalEnabled: config.enabled,
+    activeTemplateCount: activeTemplates.length,
+    readyAutomationCount: readyCount,
+  };
+
+  const blockingIssues = buildBlockingIssues(checkInput);
+  const overallReady = isOverallReady(checkInput);
+
+  return {
+    overallReady,
+    blockingIssues,
+    provider: {
+      configured: providerConfigured,
+      status: integrationRow?.status ?? (providerConfigured ? "CONFIGURED" : "NOT_CONFIGURED"),
+      integratedNumberMasked: maskPhoneTail(providerConfig.integratedNumber),
+      isEnabled: providerConfig.isEnabled !== false,
+    },
+    redis,
+    worker,
+    globalEnabled: config.enabled,
+    templates: {
+      total: templates.length,
+      activeCount: activeTemplates.length,
+    },
+    automations: {
+      enabledCount,
+      readyCount,
+      catalogCount: SYSTEM_AUTOMATION_EVENTS.length,
+    },
+  };
+};
+
 export const patchAutomationConfig = async (
   currentUser: AuthUser,
   enabled: boolean
@@ -422,6 +571,7 @@ export const listAutomations = async (instituteId: string) => {
             name: rule.template.name,
             status: rule.template.status,
             providerTemplateName: rule.template.providerTemplateName,
+            body: rule.template.body ?? null,
             variables: Array.isArray(rule.template.variables)
               ? (rule.template.variables as string[])
               : [],
@@ -441,6 +591,7 @@ export const listAutomations = async (instituteId: string) => {
       event: t.event,
       status: t.status,
       category: t.category,
+      body: t.body ?? null,
       variables: Array.isArray(t.variables) ? (t.variables as string[]) : [],
     })),
   };
@@ -987,6 +1138,7 @@ export const syncTemplatesFromMsg91 = async (
       .map((v) => String(v))
       .filter((v) => v.startsWith("body_"))
       .map((_, idx) => `var_${idx + 1}`);
+    const bodyText = extractTemplateBodyFromRaw(t.raw) ?? undefined;
 
     if (existing) {
       // Refresh provider metadata only; never force ACTIVE
@@ -995,6 +1147,7 @@ export const syncTemplatesFromMsg91 = async (
         providerNamespace: t.namespace ?? existing.providerNamespace,
         language: t.language || existing.language,
         category: t.category ?? existing.category ?? undefined,
+        ...(bodyText ? { body: bodyText } : {}),
         ...(existing.status === "ACTIVE"
           ? {}
           : { status: existing.status === "INACTIVE" ? "INACTIVE" : "SYNCED" }),
@@ -1023,7 +1176,7 @@ export const syncTemplatesFromMsg91 = async (
       language: t.language || "en",
       variables: bodyVars,
       category: t.category ?? undefined,
-      body: undefined,
+      body: bodyText,
       status: "SYNCED",
     });
     created += 1;

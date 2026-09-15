@@ -39,6 +39,7 @@ export interface WhatsAppAutomation {
     name: string;
     status: string;
     providerTemplateName: string;
+    body?: string | null;
     variables: string[];
   } | null;
   configuration: Record<string, unknown> & {
@@ -61,6 +62,7 @@ export interface AutomationsResponse {
     event: string;
     status: string;
     category?: string | null;
+    body?: string | null;
     variables?: string[];
   }>;
 }
@@ -81,7 +83,42 @@ export interface WhatsAppHistoryItem {
   providerMessageId?: string | null;
 }
 
+export interface WhatsAppReadiness {
+  overallReady: boolean;
+  blockingIssues: string[];
+  provider: {
+    configured: boolean;
+    status: string;
+    integratedNumberMasked: string | null;
+    isEnabled: boolean;
+  };
+  redis: {
+    ok: boolean;
+    message: string;
+  };
+  worker: {
+    online: boolean;
+    workersCount: number;
+    message: string;
+  };
+  globalEnabled: boolean;
+  templates: {
+    total: number;
+    activeCount: number;
+  };
+  automations: {
+    enabledCount: number;
+    readyCount: number;
+    catalogCount: number;
+  };
+}
+
 export const whatsappApi = {
+  getReadiness: async (): Promise<{ data: WhatsAppReadiness }> => {
+    const response = await api.get("/whatsapp/readiness");
+    return response.data;
+  },
+
   getAutomationConfig: async () => {
     const response = await api.get("/whatsapp/automation-config");
     return response.data;

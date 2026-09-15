@@ -61,6 +61,15 @@ export const getAutomationConfig = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
+export const getReadiness = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const data = await service.getWhatsAppReadiness(req.user!.instituteId);
+    sendSuccess(res, data, 200, "WhatsApp readiness retrieved");
+  } catch (err) {
+    handle(err, res, "Failed to get WhatsApp readiness");
+  }
+};
+
 export const patchAutomationConfig = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const body = patchAutomationConfigSchema.parse(req.body);
