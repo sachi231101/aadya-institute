@@ -107,7 +107,7 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
               {leadId ? (
                 <Button
                   size="sm"
-                  className="w-fit bg-primary hover:bg-[#F39A16] text-white"
+                  className="w-fit"
                   onClick={goToLead360}
                 >
                   Open Lead 360

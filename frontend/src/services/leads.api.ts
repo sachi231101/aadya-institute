@@ -256,6 +256,20 @@ export const leadsApi = {
     return response.data;
   },
 
+  convertLead: async (
+    id: string,
+    data?: {
+      courseId?: string;
+      batchId?: string;
+      feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
+      notes?: string;
+      createStudentUser?: boolean;
+    }
+  ) => {
+    const response = await api.post(`/leads/${id}/convert`, data || {});
+    return response.data;
+  },
+
   triggerAiCall: async (id: string) => {
     const response = await api.post(`/leads/${id}/ai-call`);
     return response.data;

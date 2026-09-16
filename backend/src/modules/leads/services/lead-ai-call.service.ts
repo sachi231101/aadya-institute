@@ -70,5 +70,15 @@ export async function processQueuedLeadCall(leadId: string): Promise<void> {
 }
 
 export function isTelephonyConfigured(): boolean {
-  return Boolean(process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY);
+  const baseUrl =
+    process.env.TELEPHONY_BASE_URL || "https://apps.sarvam.ai/api/outbounds";
+  const apiKey =
+    process.env.TELEPHONY_API_KEY || process.env.SARVAM_API_KEY;
+  const orgId = process.env.SARVAM_ORG_ID;
+  const workspaceId = process.env.SARVAM_WORKSPACE_ID;
+  const appId = process.env.SARVAM_APP_ID;
+  const connectionId = process.env.SARVAM_CONNECTION_ID;
+  return Boolean(
+    baseUrl && apiKey && orgId && workspaceId && appId && connectionId
+  );
 }

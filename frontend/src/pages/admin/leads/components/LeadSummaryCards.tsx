@@ -1,4 +1,5 @@
 import { cn } from "@/utils";
+import { MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
 import type { LeadDashboardSummary } from "@/services/leads.api";
 
 export type LeadKpiKey =
@@ -58,7 +59,7 @@ export function LeadSummaryCards({
   isLoading,
 }: LeadSummaryCardsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+    <MetricGrid density="compact" columns={METRIC_GRID_COLUMNS[4]}>
       {CARDS.map(({ key, label, getValue }) => {
         const value = summary ? getValue(summary) : 0;
         const isActive = activeKey === key;
@@ -69,7 +70,7 @@ export function LeadSummaryCards({
             onClick={() => onSelect(key)}
             disabled={isLoading}
             className={cn(
-              "rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-xs transition-all cursor-pointer hover:border-primary/40",
+              "rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-xs transition-colors cursor-pointer hover:border-primary/40",
               isActive && "ring-2 ring-primary border-primary bg-primary/5"
             )}
           >
@@ -82,6 +83,6 @@ export function LeadSummaryCards({
           </button>
         );
       })}
-    </div>
+    </MetricGrid>
   );
 }

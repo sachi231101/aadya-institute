@@ -418,15 +418,12 @@ export const AiCallingQualification: React.FC = () => {
         sourceMasterId: newLeadSourceMasterId || undefined,
         branchId: user.branchId,
       });
-      const createdId = created?.data?.id;
-      if (triggerImmediateCall && createdId) {
-        await triggerCallMutation.mutateAsync(createdId);
-      }
+      // Backend createLead already enqueues the initial AI call — do not dial again.
       const sourceLabel = getMasterLabel(leadSourceOptions, newLeadSourceMasterId) || "manual";
       showToast(
         triggerImmediateCall
-          ? `Lead ${newLeadName} created & AI call queued`
-          : `Lead ${newLeadName} created from ${sourceLabel}`
+          ? `Lead ${newLeadName} created — AI call queued automatically`
+          : `Lead ${newLeadName} created from ${sourceLabel} (AI call still queued on create)`
       );
       setShowAddLeadModal(false);
       setNewLeadName("");
@@ -435,6 +432,7 @@ export const AiCallingQualification: React.FC = () => {
       setNewLeadSourceMasterId("");
       setTriggerImmediateCall(true);
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      void created;
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -509,12 +507,7 @@ export const AiCallingQualification: React.FC = () => {
 
       <PageHeader
         title="AI Calling & Voice Qualification"
-        description={
-          <>
-            <p>Queue dials, monitor live calls, and review AI qualification results.</p>
-            <LeadModuleNavLinks className="mt-2" />
-          </>
-        }
+        description="Queue dials, monitor live calls, and review AI qualification results."
         actions={
         <div className="flex items-center gap-2.5 flex-wrap">
           <Button
@@ -552,6 +545,7 @@ export const AiCallingQualification: React.FC = () => {
         </div>
         }
       />
+      <LeadModuleNavLinks className="mt-1" />
 
       <MetricGrid density="compact">
         <Card size="compact" className="border border-border/80 bg-card rounded-xl shadow-2xs">
@@ -988,13 +982,14 @@ export const AiCallingQualification: React.FC = () => {
                 placeholder="Select source"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={triggerImmediateCall}
                 onChange={(e) => setTriggerImmediateCall(e.target.checked)}
+                disabled
               />
-              Start AI call immediately after create
+              AI call queues automatically on create (no second dial)
             </label>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowAddLeadModal(false)}>
