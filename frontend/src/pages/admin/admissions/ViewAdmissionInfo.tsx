@@ -7,7 +7,6 @@ import {
   Phone,
   Mail,
   CreditCard,
-  ShieldCheck,
   UserCheck,
   User,
   MapPin,
@@ -41,7 +40,6 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
   onOpenManageAdmission,
   onOpenChangeBatch,
   onOpenFeeDetails,
-  onOpenDocs,
   onCopyAdmNo,
   renderAdmissionStatusBadge,
   basePath,
@@ -56,13 +54,6 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
         !admission.batchCode.toLowerCase().includes("pending") &&
         admission.batchCode !== "—")
   );
-
-  const docStats = {
-    total: admission.documents.length,
-    verified: admission.documents.filter((d) => d.verified).length,
-    pending: admission.documents.filter((d) => !d.verified).length,
-    submitted: admission.documents.length,
-  };
 
   const handleNavigateToStudent360 = () => {
     if (admission.studentId) {
@@ -409,45 +400,6 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
                     {admission.amountDue === 0 ? "Paid in Full" : "Installment Due"}
                   </Badge>
                 </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SECTION 6: DOCUMENT SUMMARY */}
-        <Card className="bg-card border-border shadow-xs">
-          <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between font-bold text-sm text-foreground">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>Section 6 — Document Summary</span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onOpenDocs}
-              className="h-7 text-xs font-semibold border-border text-foreground hover:bg-muted/50 gap-1 cursor-pointer"
-            >
-              <FileText className="h-3 w-3 text-primary" />
-              <span>View Documents</span>
-            </Button>
-          </div>
-          <CardContent className="p-5 text-xs">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-muted/40 rounded-xl border border-border text-center">
-              <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Documents</span>
-                <span className="text-base font-bold text-foreground mt-0.5 block">{docStats.total}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Submitted</span>
-                <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5 block">{docStats.submitted}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Pending</span>
-                <span className="text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">{docStats.pending}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Verified</span>
-                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{docStats.verified}</span>
               </div>
             </div>
           </CardContent>

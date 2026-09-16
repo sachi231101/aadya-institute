@@ -29,6 +29,8 @@ export const admissionsApi = {
     source?: string;
     status?: string;
     courseId?: string;
+    page?: number;
+    limit?: number;
   }): Promise<ApiResponse<Enquiry[]>> => {
     const response = await api.get<ApiResponse<Enquiry[]>>("/admissions/enquiries", { params });
     return response.data;

@@ -22,6 +22,7 @@ import {
 import { useAuthStore } from "../../../store/auth.store";
 import type { Incentive, IncentiveStatus } from "../../../types/target.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { Input } from "@/components/ui/input";
 import { PageContainer, PageHeader } from "@/components/layout";
 
 export const IncentiveManagement: React.FC = () => {
@@ -410,7 +411,7 @@ export const IncentiveManagement: React.FC = () => {
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Final Approved Amount (₹) *
                 </label>
-                <input
+                <Input
                   type="number"
                   required
                   min={0}

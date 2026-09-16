@@ -8,29 +8,32 @@ import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+/** Keep the typed digits. Empty stays empty, and a leading 0 is not forced back in. */
+const toNumericInput = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+const toFormNumber = (value: number | null | undefined) =>
+  value == null ? "" : String(value);
+
 const populateFormFromCourse = (
   course: CourseData,
   setters: {
     setName: (v: string) => void;
     setCode: (v: string) => void;
-    setCategory: (v: string) => void;
     setMode: (v: "OFFLINE" | "ONLINE" | "HYBRID") => void;
     setLevel: (v: "BEGINNER" | "INTERMEDIATE" | "ADVANCED") => void;
-    setDurationMonths: (v: number) => void;
-    setTotalHours: (v: number) => void;
-    setFee: (v: number) => void;
+    setDurationMonths: (v: string) => void;
+    setTotalHours: (v: string) => void;
+    setFee: (v: string) => void;
     setStatus: (v: "ACTIVE" | "INACTIVE") => void;
     setDescription: (v: string) => void;
   }
 ) => {
   setters.setName(course.name);
   setters.setCode(course.code);
-  setters.setCategory(course.category || "Web Development");
   setters.setMode((course.mode as "OFFLINE" | "ONLINE" | "HYBRID") || "HYBRID");
   setters.setLevel((course.level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED") || "BEGINNER");
-  setters.setDurationMonths(course.duration ?? course.durationMonths ?? 6);
-  setters.setTotalHours(course.totalHours ?? 200);
-  setters.setFee(course.fee ?? 0);
+  setters.setDurationMonths(toFormNumber(course.duration ?? course.durationMonths));
+  setters.setTotalHours(toFormNumber(course.totalHours));
+  setters.setFee(toFormNumber(course.fee));
   setters.setStatus(course.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
   setters.setDescription(course.description || "");
 };
@@ -49,12 +52,11 @@ export const EditCourse: React.FC = () => {
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [category, setCategory] = useState("Web Development");
   const [mode, setMode] = useState<"OFFLINE" | "ONLINE" | "HYBRID">("HYBRID");
   const [level, setLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">("BEGINNER");
-  const [durationMonths, setDurationMonths] = useState<number>(6);
-  const [totalHours, setTotalHours] = useState<number>(200);
-  const [fee, setFee] = useState<number>(0);
+  const [durationMonths, setDurationMonths] = useState("");
+  const [totalHours, setTotalHours] = useState("");
+  const [fee, setFee] = useState("");
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const [description, setDescription] = useState("");
 
@@ -79,7 +81,6 @@ export const EditCourse: React.FC = () => {
     const setters = {
       setName,
       setCode,
-      setCategory,
       setMode,
       setLevel,
       setDurationMonths,
@@ -118,7 +119,23 @@ export const EditCourse: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !name || !code || fee < 0) return;
+    const durationValue = durationMonths === "" ? undefined : Number(durationMonths);
+    const hoursValue = totalHours === "" ? undefined : Number(totalHours);
+    const feeValue = fee === "" ? undefined : Number(fee);
+
+    if (!id || !name || !code) return;
+    if (feeValue === undefined || Number.isNaN(feeValue) || feeValue < 0) {
+      setError("Enter a valid course fee");
+      return;
+    }
+    if (durationValue !== undefined && (Number.isNaN(durationValue) || durationValue < 1)) {
+      setError("Enter a valid duration in months");
+      return;
+    }
+    if (hoursValue !== undefined && (Number.isNaN(hoursValue) || hoursValue < 1)) {
+      setError("Enter a valid number of teaching hours");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -126,12 +143,11 @@ export const EditCourse: React.FC = () => {
       await coursesApi.update(id, {
         name,
         code,
-        category,
         mode,
         level,
-        duration: durationMonths,
-        totalHours,
-        fee,
+        duration: durationValue,
+        totalHours: hoursValue,
+        fee: feeValue,
         description,
         status,
       });
@@ -238,22 +254,7 @@ export const EditCourse: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Category / Department</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    <option value="Web Development">Web Development</option>
-                    <option value="Backend & Cloud">Backend & Cloud</option>
-                    <option value="AI & Data">AI & Data</option>
-                    <option value="Design">Design</option>
-                    <option value="Cyber Security">Cyber Security</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Delivery Mode</label>
                   <select
@@ -300,11 +301,11 @@ export const EditCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Duration (Months)</label>
                   <Input
-                    type="number"
-                    min={1}
-                    max={24}
+                    type="text"
+                    inputMode="numeric"
                     value={durationMonths}
-                    onChange={(e) => setDurationMonths(Number(e.target.value))}
+                    onChange={(e) => setDurationMonths(toNumericInput(e.target.value))}
+                    placeholder="e.g. 6"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
@@ -312,11 +313,11 @@ export const EditCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Total Teaching Hours</label>
                   <Input
-                    type="number"
-                    min={10}
-                    step={10}
+                    type="text"
+                    inputMode="numeric"
                     value={totalHours}
-                    onChange={(e) => setTotalHours(Number(e.target.value))}
+                    onChange={(e) => setTotalHours(toNumericInput(e.target.value))}
+                    placeholder="e.g. 200"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
@@ -324,12 +325,12 @@ export const EditCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Course Fee (₹) *</label>
                   <Input
-                    type="number"
-                    min={0}
-                    step={500}
+                    type="text"
+                    inputMode="numeric"
                     value={fee}
-                    onChange={(e) => setFee(Number(e.target.value))}
+                    onChange={(e) => setFee(toNumericInput(e.target.value))}
                     required
+                    placeholder="e.g. 35000"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>

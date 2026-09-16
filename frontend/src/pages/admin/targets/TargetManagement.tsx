@@ -48,6 +48,7 @@ import type {
   IncentivePercentageTier,
 } from "../../../types/target.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { Input } from "@/components/ui/input";
 import { PageContainer, PageHeader } from "@/components/layout";
 
 export const TargetManagement: React.FC = () => {
@@ -1021,7 +1022,7 @@ export const TargetManagement: React.FC = () => {
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
                     Target Value ({targetUnit}) *
                   </label>
-                  <input
+                  <Input
                     type="number"
                     required
                     min={1}
@@ -1112,7 +1113,7 @@ export const TargetManagement: React.FC = () => {
                         <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                           Fixed Incentive Amount (₹ upon 100%+ completion)
                         </label>
-                        <input
+                        <Input
                           type="number"
                           min={0}
                           value={fixedAmount}
@@ -1131,7 +1132,7 @@ export const TargetManagement: React.FC = () => {
                         </div>
                         {slabs.map((slab, idx) => (
                           <div key={idx} className="flex items-center gap-2">
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               value={slab.minPercent}
@@ -1143,7 +1144,7 @@ export const TargetManagement: React.FC = () => {
                               className="w-20 px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground text-center"
                             />
                             <span className="text-muted-foreground text-xs">to</span>
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               value={slab.maxPercent}
@@ -1155,7 +1156,7 @@ export const TargetManagement: React.FC = () => {
                               className="w-20 px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground text-center"
                             />
                             <span className="text-muted-foreground text-xs">% = ₹</span>
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               value={slab.amount}
@@ -1196,7 +1197,7 @@ export const TargetManagement: React.FC = () => {
                         </div>
                         {percentages.map((pct, idx) => (
                           <div key={idx} className="flex items-center gap-2">
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               value={pct.minPercent}
@@ -1208,7 +1209,7 @@ export const TargetManagement: React.FC = () => {
                               className="w-20 px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground text-center"
                             />
                             <span className="text-muted-foreground text-xs">to</span>
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               value={pct.maxPercent}
@@ -1220,7 +1221,7 @@ export const TargetManagement: React.FC = () => {
                               className="w-20 px-2 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground text-center"
                             />
                             <span className="text-muted-foreground text-xs">% = </span>
-                            <input
+                            <Input
                               type="number"
                               step="0.01"
                               min={0}

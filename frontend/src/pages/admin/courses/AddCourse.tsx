@@ -8,6 +8,9 @@ import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+/** Keep the typed digits. Empty stays empty, and a leading 0 is not forced back in. */
+const toNumericInput = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+
 export const AddCourse: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,12 +23,11 @@ export const AddCourse: React.FC = () => {
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [category, setCategory] = useState("Web Development");
   const [mode, setMode] = useState<"OFFLINE" | "ONLINE" | "HYBRID">("HYBRID");
   const [level, setLevel] = useState<"BEGINNER" | "INTERMEDIATE" | "ADVANCED">("BEGINNER");
-  const [durationMonths, setDurationMonths] = useState<number>(6);
-  const [totalHours, setTotalHours] = useState<number>(200);
-  const [fee, setFee] = useState<number>(0);
+  const [durationMonths, setDurationMonths] = useState("");
+  const [totalHours, setTotalHours] = useState("");
+  const [fee, setFee] = useState("");
   const [description, setDescription] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +42,23 @@ export const AddCourse: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !code || fee < 0) return;
+    const durationValue = durationMonths === "" ? undefined : Number(durationMonths);
+    const hoursValue = totalHours === "" ? undefined : Number(totalHours);
+    const feeValue = fee === "" ? undefined : Number(fee);
+
+    if (!name || !code) return;
+    if (feeValue === undefined || Number.isNaN(feeValue) || feeValue < 0) {
+      setError("Enter a valid course fee");
+      return;
+    }
+    if (durationValue !== undefined && (Number.isNaN(durationValue) || durationValue < 1)) {
+      setError("Enter a valid duration in months");
+      return;
+    }
+    if (hoursValue !== undefined && (Number.isNaN(hoursValue) || hoursValue < 1)) {
+      setError("Enter a valid number of teaching hours");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -48,12 +66,11 @@ export const AddCourse: React.FC = () => {
       await createCourse({
         name,
         code,
-        category,
         mode,
         level,
-        duration: durationMonths,
-        totalHours,
-        fee,
+        duration: durationValue,
+        totalHours: hoursValue,
+        fee: feeValue,
         description,
       });
 
@@ -153,22 +170,7 @@ export const AddCourse: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Category / Department</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  >
-                    <option value="Web Development">Web Development</option>
-                    <option value="Backend & Cloud">Backend & Cloud</option>
-                    <option value="AI & Data">AI & Data</option>
-                    <option value="Design">Design</option>
-                    <option value="Cyber Security">Cyber Security</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Delivery Mode</label>
                   <select
@@ -204,11 +206,11 @@ export const AddCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Duration (Months)</label>
                   <Input
-                    type="number"
-                    min={1}
-                    max={24}
+                    type="text"
+                    inputMode="numeric"
                     value={durationMonths}
-                    onChange={(e) => setDurationMonths(Number(e.target.value))}
+                    onChange={(e) => setDurationMonths(toNumericInput(e.target.value))}
+                    placeholder="e.g. 6"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
@@ -216,11 +218,11 @@ export const AddCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Total Teaching Hours</label>
                   <Input
-                    type="number"
-                    min={10}
-                    step={10}
+                    type="text"
+                    inputMode="numeric"
                     value={totalHours}
-                    onChange={(e) => setTotalHours(Number(e.target.value))}
+                    onChange={(e) => setTotalHours(toNumericInput(e.target.value))}
+                    placeholder="e.g. 200"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
@@ -228,11 +230,10 @@ export const AddCourse: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Course Fee (₹) *</label>
                   <Input
-                    type="number"
-                    min={0}
-                    step={500}
+                    type="text"
+                    inputMode="numeric"
                     value={fee}
-                    onChange={(e) => setFee(Number(e.target.value))}
+                    onChange={(e) => setFee(toNumericInput(e.target.value))}
                     required
                     placeholder="e.g. 35000"
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"

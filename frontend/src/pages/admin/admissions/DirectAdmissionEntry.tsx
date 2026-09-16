@@ -130,9 +130,15 @@ export interface InstallmentItem {
 
 const toDateInput = (value?: string | Date | null) => {
   if (!value) return "";
+  if (typeof value === "string") {
+    const dateOnly = value.match(/^(\d{4}-\d{2}-\d{2})(?:$|T00:00:00)/);
+    if (dateOnly) return dateOnly[1];
+  }
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 };
 
 const addMonthsIso = (base: Date, months: number) => {
@@ -146,25 +152,63 @@ const resolveCourseFee = (course: { fee?: number | string | null }) => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
-const formatBatchSchedule = (batch: BatchData) => {
-  if (batch.schedules && batch.schedules.length > 0) {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const labels = batch.schedules
-      .map((slot) => `${days[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`)
-      .join(", ");
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const formatSlotLabels = (
+  slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }>
+) =>
+  slots
+    .map((slot) => `${WEEKDAYS[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`)
+    .join(", ");
+
+const courseLineFor = (batch: BatchData, courseId?: string) =>
+  courseId ? batch.batchCourses?.find((line) => line.courseId === courseId) : undefined;
+
+const slotsForCourse = (batch: BatchData, courseId?: string) => {
+  const line = courseLineFor(batch, courseId);
+  if (line?.schedules && line.schedules.length > 0) return line.schedules;
+  const courseSlots = (batch.schedules || []).filter((slot) => {
+    if (!courseId) return true;
+    if (slot.batchCourse?.courseId) return slot.batchCourse.courseId === courseId;
+    if (line?.id && slot.batchCourseId) return slot.batchCourseId === line.id;
+    return !slot.batchCourseId;
+  });
+  return courseSlots;
+};
+
+const formatBatchSchedule = (batch: BatchData, courseId?: string) => {
+  const slots = slotsForCourse(batch, courseId);
+  if (slots.length > 0) {
+    const labels = formatSlotLabels(slots);
     if (labels) return labels;
   }
-  const pattern = batch.schedulePattern || "Custom";
-  return `${pattern} ${batch.timeSlot || ""}`.trim();
+  const line = courseLineFor(batch, courseId);
+  const pattern = line?.schedulePattern || batch.schedulePattern || "Custom";
+  const time = line?.timeSlot || line?.timeslotMaster?.name || batch.timeSlot || "";
+  return `${pattern} ${time}`.trim();
+};
+
+const resolveFacultyName = (batch: BatchData, courseId?: string) => {
+  const line = courseLineFor(batch, courseId);
+  const lineFaculty = line?.faculty?.user?.name;
+  if (lineFaculty) return lineFaculty;
+  const slotFaculty = slotsForCourse(batch, courseId).find(
+    (slot) => (slot as { faculty?: { user?: { name?: string } } }).faculty?.user?.name
+  ) as { faculty?: { user?: { name?: string } } } | undefined;
+  return (
+    slotFaculty?.faculty?.user?.name ||
+    getFacultyForCourseInBatch(batch, courseId || "")?.user?.name ||
+    batch.faculty?.user?.name ||
+    "To be assigned"
+  );
 };
 
 const mapBatchToSelection = (batch: BatchData, courseId?: string) => {
-  const subjectFaculty = courseId ? getFacultyForCourseInBatch(batch, courseId) : null;
-  const facultyName =
-    subjectFaculty?.user?.name ||
-    batch.faculty?.user?.name ||
-    "Faculty to be assigned";
+  const line = courseLineFor(batch, courseId);
+  const facultyName = resolveFacultyName(batch, courseId);
   const subjectsLabel = formatBatchSubjectNames(batch);
+  const enrolled = batch.enrollments?.length ?? batch._count?.enrollments ?? 0;
+  const capacity = typeof batch.capacity === "number" ? batch.capacity : null;
   return {
     batchId: batch.id,
     batchCode: batch.code,
@@ -172,9 +216,11 @@ const mapBatchToSelection = (batch: BatchData, courseId?: string) => {
     subjectsLabel,
     facultyName,
     facultyAvatar: facultyName.charAt(0).toUpperCase(),
-    schedule: formatBatchSchedule(batch),
-    startDate: toDateInput(batch.startDate),
-    endDate: toDateInput((batch as { expectedEndDate?: string }).expectedEndDate || ""),
+    schedule: formatBatchSchedule(batch, courseId),
+    startDate: toDateInput(line?.startDate || batch.startDate),
+    endDate: toDateInput(line?.expectedEndDate || batch.expectedEndDate || ""),
+    availableSeats: capacity == null ? null : Math.max(0, capacity - enrolled),
+    totalCapacity: capacity,
   };
 };
 
@@ -195,6 +241,44 @@ const buildEqualInstallments = (
     amount: idx === 0 ? equalPart + remainder : equalPart,
     status: existing[idx]?.status || "Pending",
   }));
+};
+
+/**
+ * Provision charges the full net payable, then applies pay-now FIFO.
+ * Send pay-now as installment 1 so the remaining schedule is not scaled
+ * back up to the full payable amount.
+ */
+const buildInstallmentsForProvision = (
+  netPayable: number,
+  amountPaid: number,
+  admissionDate: string,
+  remaining: InstallmentItem[]
+): Array<{ installmentNo: number; dueDate: string; amount: number }> => {
+  const paid = Math.max(0, Math.round(amountPaid));
+  const leftover = remaining.filter((item) => Number(item.amount) > 0);
+  if (paid <= 0) {
+    return leftover.map((item, index) => ({
+      installmentNo: index + 1,
+      dueDate: item.dueDate,
+      amount: item.amount,
+    }));
+  }
+  const paidDueDate = admissionDate || leftover[0]?.dueDate || new Date().toISOString().slice(0, 10);
+  const scheduled = leftover.map((item, index) => ({
+    installmentNo: index + 2,
+    dueDate: item.dueDate || paidDueDate,
+    amount: item.amount,
+  }));
+  const submitted = [
+    { installmentNo: 1, dueDate: paidDueDate, amount: paid },
+    ...scheduled,
+  ];
+  const submittedTotal = submitted.reduce((sum, item) => sum + item.amount, 0);
+  const drift = Math.round(netPayable) - submittedTotal;
+  if (drift !== 0 && submitted.length > 0) {
+    submitted[submitted.length - 1].amount += drift;
+  }
+  return submitted;
 };
 
 const mapPaymentMethod = (
@@ -266,8 +350,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [areaMasterId, setAreaMasterId] = useState("");
 
   // Government ID & Guardian details (Optional)
-  const [fatherName, setFatherName] = useState("");
-  const [motherName, setMotherName] = useState("");
+  const [guardianName, setGuardianName] = useState("");
   const [guardianRelationMasterId, setGuardianRelationMasterId] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const { options: parentInfoOptions } = useMasterDropdown("parentinfo");
@@ -293,7 +376,6 @@ export const DirectAdmissionEntry: React.FC = () => {
     isLoading: termsLoading,
     isError: termsError,
   } = useMasterDropdown("termsconditions", branchId || undefined);
-  const [referralSourceMasterId, setReferralSourceMasterId] = useState("");
   const [statusMasterId, setStatusMasterId] = useState("");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
   const [formError, setFormError] = useState<string | null>(null);
@@ -393,8 +475,8 @@ export const DirectAdmissionEntry: React.FC = () => {
     if (rawData.notes) {
       setRemarks(rawData.notes);
     }
-    if (rawData.parentName || rawData.fatherName) {
-      setFatherName(rawData.parentName || rawData.fatherName);
+    if (rawData.parentName || rawData.fatherName || rawData.guardianName || rawData.motherName) {
+      setGuardianName(rawData.guardianName || rawData.parentName || rawData.fatherName || rawData.motherName);
     }
     if (rawData.parentPhone || rawData.emergencyContact) {
       setGuardianPhone(rawData.parentPhone || rawData.emergencyContact);
@@ -525,7 +607,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           durationMonths,
           duration: durationMonths > 0 ? `${durationMonths} Months` : undefined,
           category: c.category || "General",
-          packageProgram: c.name,
+          packageProgram: "",
         };
       });
   }, [dbCoursesRes]);
@@ -644,12 +726,14 @@ export const DirectAdmissionEntry: React.FC = () => {
     setStudentSearch("");
   };
 
-  const getCourseBatches = (courseId: string, courseName: string, courseCode: string) => {
-    const realBatches = allDbBatches.filter(
-      (b) => batchIncludesCourse(b, courseId) && b.status !== "CANCELLED"
-    );
-    if (realBatches.length > 0) {
-      return realBatches.map((batch) => {
+  const getCourseBatches = (courseId: string, _courseName?: string, _courseCode?: string) => {
+    return allDbBatches
+      .filter((batch) => {
+        if (!batchIncludesCourse(batch, courseId) || batch.status === "CANCELLED") return false;
+        if (branchId && batch.branchId && batch.branchId !== branchId) return false;
+        return true;
+      })
+      .map((batch) => {
         const mapped = mapBatchToSelection(batch, courseId);
         return {
           id: mapped.batchId,
@@ -661,14 +745,11 @@ export const DirectAdmissionEntry: React.FC = () => {
           schedule: mapped.schedule,
           startDate: mapped.startDate,
           endDate: mapped.endDate,
-          availableSeats: Math.max(0, (batch.capacity || 35) - (batch._count?.enrollments || 0)),
-          totalCapacity: batch.capacity || 35,
+          availableSeats: mapped.availableSeats,
+          totalCapacity: mapped.totalCapacity,
           isPersisted: true,
         };
       });
-    }
-
-    return [];
   };
 
   const buildSelectedCourseItem = (
@@ -692,6 +773,53 @@ export const DirectAdmissionEntry: React.FC = () => {
       fee: resolveCourseFee(cObj),
     };
   };
+
+  useEffect(() => {
+    if (batchesLoading || selectedCoursesList.length === 0) return;
+    setSelectedCoursesList((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        const batches = getCourseBatches(item.courseId, item.courseName);
+        const matched = batches.find((batch) => batch.id === item.batchId);
+        const selected = matched || (!item.batchId ? batches[0] : undefined);
+        if (!selected) {
+          if (!item.batchId) return item;
+          changed = true;
+          return {
+            ...item,
+            batchId: "",
+            batchCode: "Unassigned",
+            facultyName: "To be assigned",
+            facultyAvatar: undefined,
+            schedule: "Schedule pending",
+          };
+        }
+        const applyingFirstBatch = !item.batchId;
+        const nextStart = applyingFirstBatch ? selected.startDate || item.startDate : item.startDate;
+        const nextEnd = applyingFirstBatch ? selected.endDate || item.endDate : item.endDate;
+        const same =
+          item.batchId === selected.id &&
+          item.batchCode === selected.code &&
+          item.facultyName === selected.facultyName &&
+          item.schedule === selected.schedule &&
+          item.startDate === nextStart &&
+          item.endDate === nextEnd;
+        if (same) return item;
+        changed = true;
+        return {
+          ...item,
+          batchId: selected.id,
+          batchCode: selected.code,
+          facultyName: selected.facultyName,
+          facultyAvatar: selected.facultyAvatar,
+          schedule: selected.schedule,
+          startDate: nextStart,
+          endDate: nextEnd,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [allDbBatches, batchesLoading, branchId, selectedCoursesList.length]);
 
   // Auto-select course from Enquiry/Lead/Application when available courses are ready
   useEffect(() => {
@@ -961,25 +1089,25 @@ export const DirectAdmissionEntry: React.FC = () => {
     setCustomFinalPayable(null);
   }, [totalBaseCourseFee, registrationFee, additionalCharges, discountValue, discountType, scholarshipAmount]);
 
-  // Schedule installments against the FULL net payable; amount paid today is applied FIFO at provision.
+  // Installments cover only what is left after the amount paid today.
   useEffect(() => {
-    if (paymentMode !== "INSTALLMENT" || finalPayableAmount <= 0) {
+    if (paymentMode !== "INSTALLMENT" || balanceToBePaid <= 0) {
       setInstallments([]);
       return;
     }
     setInstallments((prev) =>
-      buildEqualInstallments(finalPayableAmount, prev.length > 0 ? prev.length : 3, prev)
+      buildEqualInstallments(balanceToBePaid, prev.length > 0 ? prev.length : 3, prev)
     );
-  }, [paymentMode, finalPayableAmount]);
+  }, [paymentMode, balanceToBePaid]);
 
   const totalInstallmentAmount = useMemo(() => {
     return installments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   }, [installments]);
 
   const installmentSumOk = useMemo(() => {
-    if (paymentMode !== "INSTALLMENT" || finalPayableAmount <= 0) return true;
-    return Math.abs(totalInstallmentAmount - finalPayableAmount) <= 1;
-  }, [paymentMode, finalPayableAmount, totalInstallmentAmount]);
+    if (paymentMode !== "INSTALLMENT" || balanceToBePaid <= 0) return true;
+    return Math.abs(totalInstallmentAmount - balanceToBePaid) <= 1;
+  }, [paymentMode, balanceToBePaid, totalInstallmentAmount]);
 
   const notifyError = (message: string) => {
     setFormSuccess(null);
@@ -995,10 +1123,10 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   const handleAutoDistributeInstallments = () => {
     if (installments.length === 0) {
-      setInstallments(buildEqualInstallments(finalPayableAmount, 3));
+      setInstallments(buildEqualInstallments(balanceToBePaid, 3));
       return;
     }
-    setInstallments(buildEqualInstallments(finalPayableAmount, installments.length, installments));
+    setInstallments(buildEqualInstallments(balanceToBePaid, installments.length, installments));
   };
 
   const handleAddInstallment = () => {
@@ -1011,13 +1139,13 @@ export const DirectAdmissionEntry: React.FC = () => {
         status: "Pending" as const,
       },
     ];
-    setInstallments(buildEqualInstallments(finalPayableAmount, next.length, next));
+    setInstallments(buildEqualInstallments(balanceToBePaid, next.length, next));
   };
 
   const handleRemoveInstallment = (index: number) => {
     if (installments.length <= 1) return;
     const remaining = installments.filter((_, idx) => idx !== index);
-    setInstallments(buildEqualInstallments(finalPayableAmount, remaining.length, remaining));
+    setInstallments(buildEqualInstallments(balanceToBePaid, remaining.length, remaining));
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1056,15 +1184,15 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please enter the student's Government ID number (e.g. Aadhaar / PAN Card).");
       return false;
     }
-    if (paymentMode === "INSTALLMENT" && finalPayableAmount > 0 && installments.length === 0) {
-      notifyError("Please add at least one installment for the net payable amount.");
+    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0 && installments.length === 0) {
+      notifyError("Please add at least one installment for the remaining balance.");
       return false;
     }
-    if (paymentMode === "INSTALLMENT" && finalPayableAmount > 0) {
+    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0) {
       const installmentTotal = installments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      if (Math.abs(installmentTotal - finalPayableAmount) > 1) {
+      if (Math.abs(installmentTotal - balanceToBePaid) > 1) {
         notifyError(
-          `Installment amounts (₹${installmentTotal.toLocaleString()}) must equal the net payable (₹${finalPayableAmount.toLocaleString()}). Amount paid today will reduce these dues automatically. Use Auto-Balance.`
+          `Installment amounts (₹${installmentTotal.toLocaleString()}) must equal the remaining balance (₹${balanceToBePaid.toLocaleString()}). Use Auto-Balance.`
         );
         return false;
       }
@@ -1094,14 +1222,10 @@ export const DirectAdmissionEntry: React.FC = () => {
       sourceMasterId
         ? `Lead source: ${getMasterLabel(leadSourceOptions, sourceMasterId)}`
         : null,
-      referralSourceMasterId
-        ? `Referral: ${getMasterLabel(leadSourceOptions, referralSourceMasterId)}`
-        : null,
       qualification ? `Highest Qualification: ${qualification}` : null,
       bloodGroup ? `Blood Group: ${bloodGroup}` : null,
       altPhone ? `Alternate mobile: ${altPhone}` : null,
-      fatherName ? `Father's Name: ${fatherName}` : null,
-      motherName ? `Mother's Name: ${motherName}` : null,
+      guardianName ? `Guardian Name: ${guardianName}` : null,
       guardianRelationMasterId
         ? `Guardian Relation: ${getMasterLabel(parentInfoOptions, guardianRelationMasterId)}`
         : null,
@@ -1214,12 +1338,13 @@ export const DirectAdmissionEntry: React.FC = () => {
           totalFee: isPrimary ? finalPayableAmount : undefined,
           amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
           installments:
-            isPrimary && paymentMode === "INSTALLMENT" && finalPayableAmount > 0
-              ? installments.map((item) => ({
-                  installmentNo: item.installmentNo,
-                  dueDate: item.dueDate,
-                  amount: item.amount,
-                }))
+            isPrimary && paymentMode === "INSTALLMENT" && balanceToBePaid > 0
+              ? buildInstallmentsForProvision(
+                  finalPayableAmount,
+                  Number(amountPaidAtAdmission) || 0,
+                  admissionDate,
+                  installments
+                )
               : undefined,
         };
 
@@ -1250,7 +1375,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 bloodGroup: bloodGroup || undefined,
                 gender: gender || undefined,
                 dateOfBirth: dob || undefined,
-                guardianName: fatherName || undefined,
+                guardianName: guardianName || undefined,
                 guardianPhone: guardianPhone || undefined,
                 address: address || undefined,
                 city: city || undefined,
@@ -1624,21 +1749,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Father's / Guardian's Name</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Guardian Name</label>
                     <Input
-                      value={fatherName}
-                      onChange={(e) => setFatherName(e.target.value)}
-                      placeholder="Father / Guardian Name"
-                      className="bg-background border-border text-foreground"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Mother's Name</label>
-                    <Input
-                      value={motherName}
-                      onChange={(e) => setMotherName(e.target.value)}
-                      placeholder="Mother Name"
+                      value={guardianName}
+                      onChange={(e) => setGuardianName(e.target.value)}
+                      placeholder="Guardian name"
                       className="bg-background border-border text-foreground"
                     />
                   </div>
@@ -1831,17 +1946,6 @@ export const DirectAdmissionEntry: React.FC = () => {
                       value={sourceMasterId}
                       onChange={setSourceMasterId}
                       placeholder="Select Lead Source"
-                      className="mt-0 rounded-md"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Referral Source</label>
-                    <MasterSelect
-                      entityType="leadsource"
-                      value={referralSourceMasterId}
-                      onChange={setReferralSourceMasterId}
-                      placeholder="Select Referral Source"
                       className="mt-0 rounded-md"
                     />
                   </div>
@@ -2171,25 +2275,32 @@ export const DirectAdmissionEntry: React.FC = () => {
                               {/* Course Name */}
                               <TableCell className="align-middle">
                                 <span className="font-bold text-foreground block">{item.courseName}</span>
-                                <span className="text-[11px] text-muted-foreground block">{item.packageProgram}</span>
+                                {item.packageProgram && item.packageProgram !== item.courseName && (
+                                  <span className="text-[11px] text-muted-foreground block">{item.packageProgram}</span>
+                                )}
                               </TableCell>
 
                               {/* Select Batch Dropdown */}
                               <TableCell className="align-middle">
                                 <select
-                                  value={item.batchId}
+                                  value={courseBatches.some((batch) => batch.id === item.batchId) ? item.batchId : ""}
                                   onChange={(e) => handleBatchChangeForCourse(item.id, e.target.value)}
                                   className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-background font-medium text-foreground"
                                 >
-                                  {courseBatches.length === 0 && <option value="">No batch available</option>}
+                                  <option value="">Select batch</option>
                                   {courseBatches.map((b) => (
                                     <option key={b.id} value={b.id}>
-                                      {b.code} ({b.availableSeats} seats left)
+                                      {b.code}
+                                      {b.name && b.name !== b.code ? ` · ${b.name}` : ""}
+                                      {b.availableSeats == null ? "" : ` (${b.availableSeats} seats left)`}
                                     </option>
                                   ))}
                                 </select>
                                 {batchesLoading && (
                                   <span className="text-[10px] text-muted-foreground">Loading batches...</span>
+                                )}
+                                {!batchesLoading && courseBatches.length === 0 && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400">No batch for this course</span>
                                 )}
                               </TableCell>
 
@@ -2204,7 +2315,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                               </TableCell>
 
                               {/* Schedule Auto-filled */}
-                              <TableCell className="align-middle">
+                              <TableCell className="align-middle whitespace-normal">
                                 <span className="text-muted-foreground text-[11px] block">{item.schedule}</span>
                               </TableCell>
 
@@ -2428,7 +2539,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                     <span>
-                      ℹ️ Amount paid today reduces installment dues automatically (oldest first). Schedule the full net payable below.
+                      ℹ️ Amount paid today is kept out of the installment plan. Installments are calculated on the remaining balance only.
                     </span>
                     <button
                       type="button"
@@ -2519,14 +2630,22 @@ export const DirectAdmissionEntry: React.FC = () => {
                         <span className="font-bold text-amber-600">₹{balanceToBePaid.toLocaleString()}</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground pt-1">
-                        Installments must sum to net payable. Pay-now amount is applied oldest-first (FIFO) when the admission is confirmed.
+                        Installments must sum to the remaining balance after pay now, not the full net payable.
                       </p>
                     </div>
 
+                    {balanceToBePaid <= 0 ? (
+                      <div className="p-4 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          Nothing left to schedule. Pay now covers the net payable.
+                        </p>
+                      </div>
+                    ) : (
+                    <>
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">
-                        Split net payable of{" "}
-                        <strong className="text-foreground">₹{finalPayableAmount.toLocaleString()}</strong> across
+                        Split remaining balance of{" "}
+                        <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> across
                         installments:
                       </span>
                       <Button
@@ -2630,17 +2749,19 @@ export const DirectAdmissionEntry: React.FC = () => {
                           </strong>
                           <span className="text-muted-foreground font-medium">
                             {" "}
-                            / ₹{finalPayableAmount.toLocaleString()}
+                            / ₹{balanceToBePaid.toLocaleString()}
                           </span>
                         </span>
                         {!installmentSumOk && (
                           <p className="text-[11px] text-red-600 font-semibold mt-0.5">
-                            Must equal net payable. Difference ₹
-                            {Math.abs(totalInstallmentAmount - finalPayableAmount).toLocaleString()}.
+                            Must equal remaining balance. Difference ₹
+                            {Math.abs(totalInstallmentAmount - balanceToBePaid).toLocaleString()}.
                           </p>
                         )}
                       </div>
                     </div>
+                    </>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -2962,7 +3083,9 @@ export const DirectAdmissionEntry: React.FC = () => {
                   <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 bg-card rounded-lg border border-border text-xs">
                     <div className="min-w-0">
                       <span className="font-bold text-foreground block truncate">{c.courseName}</span>
-                      <span className="text-muted-foreground block text-[10px] truncate">{c.packageProgram} • {c.schedule}</span>
+                      <span className="text-muted-foreground block text-[10px] truncate">
+                        {[c.packageProgram !== c.courseName ? c.packageProgram : "", c.facultyName, c.schedule].filter(Boolean).join(" • ")}
+                      </span>
                     </div>
                     <div className="sm:text-right shrink-0 flex sm:flex-col items-center sm:items-end justify-between gap-2 sm:gap-0">
                       <Badge variant="outline" className="font-mono text-[10px] text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30">
@@ -2999,7 +3122,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">
                       {balanceToBePaid > 0
                         ? paymentMode === "INSTALLMENT"
-                          ? `${installments.length} installment(s) · pay-now reduces FIFO`
+                          ? `${installments.length} installment(s) on remaining balance`
                           : "Balance after admission payment"
                         : "Fully Settled"}
                     </span>
@@ -3011,7 +3134,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               {paymentMode === "INSTALLMENT" && installments.length > 0 && (
                 <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Installment schedule (net payable)
+                    Installment schedule (remaining balance)
                   </p>
                   {installments.map((inst) => (
                     <div

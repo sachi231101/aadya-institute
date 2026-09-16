@@ -28,6 +28,11 @@ import {
   User
 } from "lucide-react";
 import { admissionsApi } from "../../../services/admissions.api";
+import type { Enquiry } from "../../../types/admission.types";
+import { useEnquiries } from "../../../hooks/useAdmissions";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { getMasterLabel } from "@/utils/master.utils";
 import { useCourseStore } from "../../../store/course.store";
 import { useAuthStore } from "../../../store/auth.store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,10 +95,67 @@ export interface EnrichedLead {
   lostReason?: string;
 }
 
-import { useLeads, useCreateLead, useUpdateLead } from "../../../hooks/useLeads";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { MasterSelect } from "@/components/common/MasterSelect";
-import { getMasterLabel } from "@/utils/master.utils";
+const enquiryStatusToLabel: Record<string, LeadStatus> = {
+  NEW: "New",
+  IN_PROGRESS: "Contacted",
+  FOLLOW_UP: "Follow-up",
+  CONVERTED: "Converted",
+  REJECTED: "Lost",
+};
+
+const enquirySourceToLabel = (source?: string): EnrichedLead["source"] => {
+  switch ((source || "").toUpperCase()) {
+    case "WEBSITE":
+      return "Website";
+    case "WALK_IN":
+      return "Walk-in";
+    case "REFERRAL":
+      return "Referral";
+    case "SOCIAL_MEDIA":
+      return "Instagram";
+    default:
+      return "Other";
+  }
+};
+
+const mapEnquiryToRow = (enquiry: Enquiry): EnrichedLead => {
+  const created = enquiry.createdAt ? new Date(enquiry.createdAt) : null;
+  return {
+    id: enquiry.id,
+    enquiryNo: enquiry.enquiryNo || `ENQ-${enquiry.id.slice(0, 6)}`,
+    name: enquiry.name || "Anonymous",
+    phone: enquiry.phone || "N/A",
+    email: enquiry.email || "N/A",
+    course: enquiry.course?.name || enquiry.courseName || "—",
+    source: enquirySourceToLabel(enquiry.source),
+    status: enquiryStatusToLabel[enquiry.status] || "New",
+    priority: "Warm",
+    nextFollowUp: "No follow-up set",
+    lastContact: created ? created.toLocaleDateString() : "Recently",
+    enquiryDate: created
+      ? created.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "Recently",
+    assignedCounselor: enquiry.assignedTo?.name || "Unassigned",
+    leadScore: 0,
+    location: "—",
+    qualification: "—",
+    passingYear: "",
+    preferredMode: "Offline",
+    preferredTime: "Morning",
+    notesList: enquiry.counselorNotes
+      ? [
+          {
+            id: `note-${enquiry.id}`,
+            author: enquiry.assignedTo?.name || "Counsellor",
+            date: created ? created.toLocaleDateString() : "Recently",
+            time: "",
+            text: enquiry.counselorNotes,
+          },
+        ]
+      : [],
+    timeline: [],
+  };
+};
 
 export const Enquiries: React.FC = () => {
   const navigate = useNavigate();
@@ -107,81 +169,15 @@ export const Enquiries: React.FC = () => {
       ? "/center"
       : "/admin";
 
-  const { data: leadsResponse, isLoading: isLoadingLeads } = useLeads({ limit: 100 });
-  const createLeadMutation = useCreateLead();
-  const updateLeadMutation = useUpdateLead();
+  const { data: enquiriesResponse } = useEnquiries({ limit: 100 });
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: educationOptions } = useMasterDropdown("education");
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
 
   const apiLeads = useMemo(() => {
-    const rawList = Array.isArray(leadsResponse?.data?.data)
-      ? leadsResponse.data.data
-      : Array.isArray(leadsResponse?.data)
-        ? leadsResponse.data
-        : [];
-    return rawList.map((l: any): EnrichedLead => ({
-      id: l.id,
-      enquiryNo: l.leadCode || `ENQ-${l.id.slice(0, 6)}`,
-      name: l.name || "Anonymous Lead",
-      phone: l.phoneNumber || l.phone || "N/A",
-      email: l.email || "N/A",
-      course: l.course?.name || l.interestedIn || "Full Stack Web Development",
-      altCourse: undefined,
-      source: (l.source as any) || "Website",
-      status: (l.stage === "CONVERTED" || l.status === "CONVERTED"
-        ? "Converted"
-        : l.stage === "LOST" || l.status === "LOST"
-          ? "Lost"
-          : l.stage === "CONTACTED"
-            ? "Contacted"
-            : l.stage === "INTERESTED"
-              ? "Interested"
-              : l.stage === "FOLLOW_UP"
-                ? "Follow-up"
-                : "New") as LeadStatus,
-      priority: (l.priority === "HIGH" ? "Hot" : l.priority === "LOW" ? "Cold" : "Warm") as LeadPriority,
-      nextFollowUp: l.followUps?.[0]?.scheduledAt ? new Date(l.followUps[0].scheduledAt).toLocaleDateString() : "No follow-up set",
-      nextFollowUpType: "Call",
-      lastContact: l.updatedAt ? new Date(l.updatedAt).toLocaleDateString() : "Recently",
-      enquiryDate: l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently",
-      assignedCounselor: l.assignedCounsellor?.name || l.assignedTo?.name || "Unassigned",
-      leadScore: l.score || 75,
-      location: l.city ? `${l.city}, ${l.state || "India"}` : "Bengaluru, Karnataka",
-      qualification: l.qualification || "Graduate",
-      passingYear: l.passingYear || "2024",
-      preferredMode: "Offline",
-      preferredTime: "Morning",
-      notesList: Array.isArray(l.notes)
-        ? l.notes.map((n: any) => ({
-          id: n.id || String(Math.random()),
-          author: n.user?.name || n.author || "Counsellor",
-          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "Recently",
-          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-          text: n.content || n.text || "",
-        }))
-        : typeof l.notes === "string" && l.notes.trim()
-          ? [
-            {
-              id: `note-${l.id}`,
-              author: l.assignedCounsellor?.name || l.assignedTo?.name || "Counsellor",
-              date: l.createdAt ? new Date(l.createdAt).toLocaleDateString() : "Recently",
-              time: "",
-              text: l.notes,
-            },
-          ]
-          : [],
-      timeline: Array.isArray(l.activities)
-        ? l.activities.map((a: any) => ({
-          id: a.id || String(Math.random()),
-          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "Recently",
-          time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-          text: a.description || a.action || "Activity logged",
-          mode: a.type || "System",
-        }))
-        : [],
-    }));
-  }, [leadsResponse]);
+    const rawList = Array.isArray(enquiriesResponse?.data) ? enquiriesResponse.data : [];
+    return rawList.map(mapEnquiryToRow);
+  }, [enquiriesResponse]);
 
   const [leads, setLeads] = useState<EnrichedLead[]>([]);
 

@@ -25,6 +25,20 @@ export const useAdmissionById = (id: string) => {
   });
 };
 
+export const useEnquiries = (params?: {
+  search?: string;
+  source?: string;
+  status?: string;
+  courseId?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  return useQuery({
+    queryKey: ["enquiries", params],
+    queryFn: () => admissionsApi.getEnquiries(params),
+  });
+};
+
 export const useApplications = (params?: {
   search?: string;
   feeStatus?: string;
