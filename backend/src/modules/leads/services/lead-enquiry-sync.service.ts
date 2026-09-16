@@ -22,8 +22,12 @@ export const syncEnquiryAssigneeFromLead = async (params: {
   if (!phone) return { updated: 0 };
 
   const db = params.tx ?? prisma;
+  // Narrow candidates by institute + phone substring, then exact last-10 match.
   const enquiries: Array<{ id: string; phone: string }> = await db.enquiry.findMany({
-    where: { instituteId: params.instituteId },
+    where: {
+      instituteId: params.instituteId,
+      phone: { contains: phone },
+    },
     select: { id: true, phone: true },
   });
 
@@ -54,11 +58,20 @@ export const syncLeadAssigneeFromEnquiry = async (params: {
   if (!phone) return { updated: 0 };
 
   const leads = await prisma.lead.findMany({
-    where: { instituteId: params.instituteId },
-    select: { id: true, phoneNumber: true, stage: true },
+    where: {
+      instituteId: params.instituteId,
+      OR: [
+        { normalizedPhone: phone },
+        { phoneNumber: { contains: phone } },
+      ],
+    },
+    select: { id: true, phoneNumber: true, normalizedPhone: true, stage: true },
   });
 
-  const matching = leads.filter((l) => normalizePhoneDigits(l.phoneNumber) === phone);
+  const matching = leads.filter(
+    (l) =>
+      l.normalizedPhone === phone || normalizePhoneDigits(l.phoneNumber) === phone
+  );
   if (matching.length === 0) return { updated: 0 };
 
   let updated = 0;

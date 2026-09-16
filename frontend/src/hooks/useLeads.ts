@@ -241,6 +241,25 @@ export const useCreateApplicationFromLead = () => {
   });
 };
 
+export const useConvertLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data?: Parameters<typeof leadsApi.convertLead>[1];
+    }) => leadsApi.convertLead(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["admissions"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+};
+
 export const useTriggerLeadCall = () => {
   const queryClient = useQueryClient();
   return useMutation({

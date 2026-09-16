@@ -1,6 +1,6 @@
 ﻿import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Target, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,14 +134,7 @@ export const AddLead: React.FC = () => {
       </Button>
 
       <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <span className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Target className="h-5 w-5 text-primary" />
-            </span>
-            Add New Lead
-          </span>
-        }
+        title="Add New Lead"
         description="Capture a new lead for AI voice qualification"
       />
 
@@ -280,7 +273,6 @@ export const AddLead: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-primary hover:bg-[#F39A16] text-white font-semibold"
                   disabled={createLeadMutation.isPending}
                 >
                   {createLeadMutation.isPending ? "Creating..." : "Create Lead"}

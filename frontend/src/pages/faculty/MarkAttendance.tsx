@@ -24,6 +24,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { classSessionsApi } from "../../services/class-sessions.api";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { PageContainer, PageHeader, MetricGrid, PageSection } from "@/components/layout";
+import { ROUTES } from "@/constants/routes";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
@@ -46,6 +47,7 @@ export const FacultyMarkAttendance: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
+  const forceViewMode = searchParams.get("mode") === "view";
   const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -62,7 +64,15 @@ export const FacultyMarkAttendance: React.FC = () => {
   });
 
   const session = sessionRes?.data;
-  const attendancePayload = sessionAttendanceRes?.data;
+  const attendancePayload = sessionAttendanceRes?.data as
+    | {
+        students?: Array<Record<string, unknown>>;
+        enrolledStudentsCount?: number;
+        attendanceMarkedCount?: number;
+        attendanceDonePercentage?: number;
+        classSession?: typeof session;
+      }
+    | undefined;
   const classMeta = attendancePayload?.classSession || session;
   const sessionLabel = classMeta
     ? getSessionSubjectLabel({ title: classMeta.title, batch: classMeta.batch })
@@ -76,6 +86,13 @@ export const FacultyMarkAttendance: React.FC = () => {
       ? `${classMeta.startTime} – ${classMeta.endTime}`
       : "";
 
+  const enrolledCount = Number(attendancePayload?.enrolledStudentsCount ?? 0);
+  const markedCount = Number(attendancePayload?.attendanceMarkedCount ?? 0);
+  const donePct = Number(attendancePayload?.attendanceDonePercentage ?? 0);
+  const isFullyMarked =
+    enrolledCount > 0 && (markedCount >= enrolledCount || donePct >= 100);
+  const isLocked = forceViewMode || isFullyMarked;
+
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
@@ -84,7 +101,7 @@ export const FacultyMarkAttendance: React.FC = () => {
     if (!sessionId) {
       setStudents([]);
       setSaveError(
-        "Open attendance from Add New or History with a valid session."
+        "Open attendance from Take Attendance or History with a valid scheduled session."
       );
       return;
     }
@@ -147,6 +164,7 @@ export const FacultyMarkAttendance: React.FC = () => {
   }, [students]);
 
   const handleStatusChange = (id: string, newStatus: AttendanceStatus) => {
+    if (isLocked) return;
     setStudents((prev) =>
       prev.map((student) =>
         student.id === id ? { ...student, status: newStatus } : student
@@ -155,6 +173,7 @@ export const FacultyMarkAttendance: React.FC = () => {
   };
 
   const handleRemarkChange = (id: string, remark: string) => {
+    if (isLocked) return;
     setStudents((prev) =>
       prev.map((student) =>
         student.id === id ? { ...student, remarks: remark } : student
@@ -163,10 +182,15 @@ export const FacultyMarkAttendance: React.FC = () => {
   };
 
   const markAll = (status: AttendanceStatus) => {
+    if (isLocked) return;
     setStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
 
   const persistAttendance = async (): Promise<boolean> => {
+    if (isLocked) {
+      setSaveError("Attendance is already submitted for this class and cannot be edited.");
+      return false;
+    }
     if (!sessionId) {
       setSaveError("A class session is required to save attendance.");
       return false;
@@ -188,7 +212,9 @@ export const FacultyMarkAttendance: React.FC = () => {
       await queryClient.invalidateQueries({
         queryKey: ["faculty-my-student-attendance"],
       });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
       await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
       return true;
     } catch (err: any) {
       setSaveError(
@@ -230,25 +256,41 @@ export const FacultyMarkAttendance: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader
-        title="Mark Attendance"
+        title={isLocked ? "View Attendance" : "Mark Attendance"}
         description={
           sessionMetaLoading
             ? "Loading session…"
             : [sessionLabel, batchLabel, dateLabel, timeLabel]
                 .filter(Boolean)
-                .join(" · ") || "Mark Present / Absent / Leave for this class."
+                .join(" · ") ||
+              (isLocked
+                ? "Saved attendance for this class (read-only)."
+                : "Mark Present / Absent / Leave for this class.")
         }
         actions={
-          <Button
-            variant="outline"
-            onClick={() => navigate("/faculty/attendance/history")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
-            History
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/faculty/students/all")}
+            >
+              My Students
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/faculty/attendance/history")}
+            >
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              History
+            </Button>
+          </div>
         }
       />
 
+      {isLocked && !sessionLoading && students.length > 0 ? (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 font-medium">
+          Attendance already submitted for this class. Editing is locked — view only.
+        </div>
+      ) : null}
       <Card className="border border-slate-200 mb-4">
         <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div>
@@ -314,12 +356,16 @@ export const FacultyMarkAttendance: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <Button type="button" variant="outline" size="sm" onClick={() => markAll("PRESENT")}>
-          Mark all Present
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => markAll("ABSENT")}>
-          Mark all Absent
-        </Button>
+        {!isLocked ? (
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={() => markAll("PRESENT")}>
+              Mark all Present
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => markAll("ABSENT")}>
+              Mark all Absent
+            </Button>
+          </>
+        ) : null}
       </div>
 
       <PageSection title="Student roster">
@@ -396,11 +442,14 @@ export const FacultyMarkAttendance: React.FC = () => {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               type="button"
+                              disabled={isLocked}
                               onClick={() => handleStatusChange(student.id, "PRESENT")}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                isLocked ? "cursor-default" : "cursor-pointer"
+                              } ${
                                 student.status === "PRESENT"
                                   ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
-                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent disabled:hover:bg-transparent"
                               }`}
                             >
                               <Check className="w-3.5 h-3.5" />
@@ -408,11 +457,14 @@ export const FacultyMarkAttendance: React.FC = () => {
                             </button>
                             <button
                               type="button"
+                              disabled={isLocked}
                               onClick={() => handleStatusChange(student.id, "ABSENT")}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                isLocked ? "cursor-default" : "cursor-pointer"
+                              } ${
                                 student.status === "ABSENT"
                                   ? "bg-rose-50 text-rose-700 border border-rose-300"
-                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent disabled:hover:bg-transparent"
                               }`}
                             >
                               <X className="w-3.5 h-3.5" />
@@ -420,11 +472,14 @@ export const FacultyMarkAttendance: React.FC = () => {
                             </button>
                             <button
                               type="button"
+                              disabled={isLocked}
                               onClick={() => handleStatusChange(student.id, "LEAVE")}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                isLocked ? "cursor-default" : "cursor-pointer"
+                              } ${
                                 student.status === "LEAVE"
                                   ? "bg-amber-50 text-amber-700 border border-amber-300"
-                                  : "text-muted-foreground hover:bg-muted border border-transparent"
+                                  : "text-muted-foreground hover:bg-muted border border-transparent disabled:hover:bg-transparent"
                               }`}
                             >
                               <Clock className="w-3.5 h-3.5" />
@@ -436,10 +491,12 @@ export const FacultyMarkAttendance: React.FC = () => {
                           <Input
                             type="text"
                             value={student.remarks}
+                            disabled={isLocked}
+                            readOnly={isLocked}
                             onChange={(e) =>
                               handleRemarkChange(student.id, e.target.value)
                             }
-                            placeholder="Optional note…"
+                            placeholder={isLocked ? "—" : "Optional note…"}
                             className="h-8 text-xs rounded-lg"
                           />
                         </td>
@@ -465,24 +522,35 @@ export const FacultyMarkAttendance: React.FC = () => {
               {students.length} students in roster
             </span>
             <span className="text-xs text-muted-foreground mt-0.5 block">
-              Saves Present / Absent / Leave for this class session.
+              {isLocked
+                ? "Attendance is locked after submission."
+                : "Saves Present / Absent / Leave for this class session."}
             </span>
           </div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => navigate("/faculty/attendance/new")}
+              onClick={() => navigate(ROUTES.FACULTY.ATTENDANCE_TAKE)}
             >
               Back
             </Button>
-            <Button
-              onClick={handleSaveAttendance}
-              disabled={isSaving || !sessionId || students.length === 0}
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isSaving ? "Saving…" : "Save"}
-            </Button>
+            {!isLocked ? (
+              <Button
+                onClick={handleSaveAttendance}
+                disabled={isSaving || !sessionId || students.length === 0}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Saving…" : "Save"}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => navigate(ROUTES.FACULTY.ATTENDANCE_HISTORY)}
+              >
+                Attendance History
+              </Button>
+            )}
           </div>
         </div>
       </div>

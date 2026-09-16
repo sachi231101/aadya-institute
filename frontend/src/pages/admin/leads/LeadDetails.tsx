@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation, useSearchParams } from "react-rout
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Phone,
   PhoneCall,
   Bot,
   UserCheck,
@@ -19,6 +18,7 @@ import {
   StickyNote,
   Activity,
   Sparkles,
+  MoreHorizontal,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ import {
   useUpdateLeadTags,
   useUpdateLeadScore,
   useCreateApplicationFromLead,
+  useConvertLead,
   useCreateManualCallLog,
 } from "@/hooks/useLeads";
 import { leadsApi, type CallLog, type LeadActivity } from "@/services/leads.api";
@@ -63,6 +64,7 @@ import {
 } from "@/components/common/LeadStageBadge";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
 import { PageContainer, PageHeader } from "@/components/layout";
 import {
   DropdownMenu,
@@ -71,7 +73,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
 
@@ -106,7 +107,15 @@ export const LeadDetails: React.FC = () => {
   const queryClient = useQueryClient();
   const { canEditItem } = usePermissions();
   const canEditLeads = canEditItem("leads.all");
+  const { user } = useAuthStore();
+  const roles = (user?.roles || []).map((r) => r.toUpperCase());
+  const canBypassAiAssignGate =
+    roles.includes("ADMIN") ||
+    roles.includes("SUPER_ADMIN") ||
+    roles.includes("CENTER_MANAGER");
 
+  const [convertError, setConvertError] = useState<string | null>(null);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const tabFromUrl = searchParams.get("tab") || "profile";
   const allowedTabs = new Set([
     "profile",
@@ -165,6 +174,7 @@ export const LeadDetails: React.FC = () => {
   });
 
   const createAppMutation = useCreateApplicationFromLead();
+  const convertLeadMutation = useConvertLead();
   const createFollowUpMutation = useCreateFollowUp();
   const updateFollowUpMutation = useUpdateFollowUp();
   const triggerCallMutation = useTriggerLeadCall();
@@ -245,13 +255,58 @@ export const LeadDetails: React.FC = () => {
   );
   const isAssigned = Boolean(lead?.assignedCounsellorId);
   const isClosed = lead?.stage === "CONVERTED" || lead?.stage === "LOST";
-  const canAssign = aiReady && !isClosed;
+  const canAssign = (aiReady || canBypassAiAssignGate) && !isClosed;
   const canAct = isAssigned && !isClosed;
 
   const openApplication = () => {
     setAppCourseId(lead?.courseId || "");
     setAppNotes("");
     setShowApplicationDialog(true);
+  };
+
+  const openConvertDialog = () => {
+    setAppCourseId(lead?.courseId || "");
+    setAppNotes("");
+    setConvertError(null);
+    setShowConvertDialog(true);
+  };
+
+  const handleConvertLead = () => {
+    if (!id) return;
+    if (!appCourseId && !lead?.courseId) {
+      setConvertError("Select a course before converting this lead.");
+      return;
+    }
+    setConvertError(null);
+    convertLeadMutation.mutate(
+      {
+        id,
+        data: {
+          courseId: appCourseId || lead?.courseId || undefined,
+          notes: appNotes || undefined,
+          feePlan: "INSTALLMENT",
+          createStudentUser: true,
+        },
+      },
+      {
+        onSuccess: (res) => {
+          setShowConvertDialog(false);
+          const admissionId =
+            res?.data?.admission?.id || res?.data?.lead?.convertedAdmissionId;
+          navigate(`${basePath}/admissions/all`, {
+            state: { admissionId },
+          });
+        },
+        onError: (err: unknown) => {
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data
+              ?.message ||
+            (err as Error)?.message ||
+            "Failed to convert lead";
+          setConvertError(msg);
+        },
+      }
+    );
   };
 
   const handleCreateApplication = () => {
@@ -317,214 +372,240 @@ export const LeadDetails: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <PageContainer className="flex justify-center py-20">
         <div className="text-center">
           <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-text-secondary">Loading lead details...</p>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (!lead) {
     return (
-      <div className="p-6">
+      <PageContainer maxWidth="narrow" className="text-center py-20">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+        <p className="text-text-secondary font-medium mb-4">Lead not found</p>
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={() => navigate(`${basePath}/leads`)}
-          className="gap-2 mb-4"
+          className="gap-2"
         >
           <ArrowLeft size={16} /> Back to Leads
         </Button>
-        <div className="text-center py-20">
-          <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-text-secondary font-medium">Lead not found</p>
-        </div>
-      </div>
+      </PageContainer>
     );
   }
 
   const currentStageIndex = stagePipeline.indexOf(lead.stage);
+  const interestLabel = lead.interestedIn || lead.course?.name || "—";
+  const headerDescription = [
+    lead.phoneNumber,
+    lead.email,
+    interestLabel !== "—" ? `Interest: ${interestLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const primaryAction = (() => {
+    if (lead.stage === "CONVERTED") {
+      return (
+        <Button
+          className="gap-2"
+          onClick={() =>
+            navigate(`${basePath}/admissions/all`, {
+              state: { admissionId: lead.convertedAdmissionId },
+            })
+          }
+        >
+          <CheckCircle2 size={14} /> View Admission
+        </Button>
+      );
+    }
+    if (canAct) {
+      return (
+        <PermissionGate itemKey="leads.all" mode="write">
+          <Button
+            className="gap-2"
+            onClick={openConvertDialog}
+            disabled={convertLeadMutation.isPending}
+          >
+            <GraduationCap size={14} /> Convert to Admission
+          </Button>
+        </PermissionGate>
+      );
+    }
+    if (canAssign && !isAssigned) {
+      return (
+        <PermissionGate itemKey="leads.all" mode="write">
+          <Button
+            className="gap-2"
+            onClick={() => setShowAssignDialog(true)}
+            title={
+              !aiReady
+                ? "Wait for the AI call to finish before assigning"
+                : undefined
+            }
+          >
+            <UserCheck size={14} /> Assign
+          </Button>
+        </PermissionGate>
+      );
+    }
+    return (
+      <PermissionGate itemKey="leads.all" mode="write">
+        <Button
+          className="gap-2"
+          onClick={() => id && triggerCallMutation.mutate(id)}
+          disabled={triggerCallMutation.isPending || isClosed}
+        >
+          <Bot size={14} />
+          {triggerCallMutation.isPending ? "Calling..." : "AI Call"}
+        </Button>
+      </PermissionGate>
+    );
+  })();
 
   return (
     <PageContainer>
       <Button
         variant="ghost"
         onClick={() => navigate(`${basePath}/leads`)}
-        className="gap-2 -ml-2"
+        className="gap-2 -ml-2 w-fit"
       >
         <ArrowLeft size={16} /> Back to Leads
       </Button>
 
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-primary to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-              {lead.name?.charAt(0)?.toUpperCase()}
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold">{lead.name}</h1>
-                <LeadScoreBadge
-                  score={lead.leadScore}
-                  className="bg-white/90 border-white/40"
-                />
-                <LeadStageBadge stage={lead.stage} className="bg-white/90" />
-              </div>
-              <div className="flex items-center gap-3 mt-1 text-blue-100">
-                <span className="flex items-center gap-1">
-                  <Phone size={14} /> {lead.phoneNumber}
-                </span>
-                {lead.email && <span>• {lead.email}</span>}
-              </div>
-              <p className="text-sm text-blue-200 mt-1">
-                Interested in:{" "}
-                <span className="font-semibold text-white">
-                  {lead.interestedIn || lead.course?.name}
-                </span>
-              </p>
-              {lead.nextBestAction && (
-                <p className="mt-2 text-sm bg-white/15 rounded-md px-3 py-1.5 inline-flex items-center gap-1.5 max-w-xl">
-                  <Sparkles size={14} />
-                  <span>
-                    <strong>Next best action:</strong> {lead.nextBestAction}
-                  </span>
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+      <PageHeader
+        title={lead.name}
+        description={headerDescription}
+        actions={
+          <>
+            <LeadScoreBadge score={lead.leadScore} />
+            <LeadStageBadge stage={lead.stage} />
+            {primaryAction}
             <PermissionGate itemKey="leads.all" mode="write">
-              <Button
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={() => id && triggerCallMutation.mutate(id)}
-                disabled={triggerCallMutation.isPending}
-              >
-                <Bot size={14} />
-                {triggerCallMutation.isPending ? "Calling..." : "AI Call"}
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={() => setShowManualCallDialog(true)}
-              >
-                <PhoneCall size={14} /> Log Call
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={() => void handleWhatsApp()}
-              >
-                <MessageCircle size={14} /> Open WhatsApp
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={() => setShowAssignDialog(true)}
-                disabled={!canAssign}
-                title={
-                  !aiReady
-                    ? "Wait for the AI call to finish before assigning"
-                    : undefined
-                }
-              >
-                <UserCheck size={14} /> Assign
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={() => setShowFollowUpDialog(true)}
-                disabled={!canAct}
-              >
-                <Calendar size={14} /> Follow-Up
-              </Button>
-              {canAct && lead.stage !== "CONVERTED" && (
-                <>
-                  <Button
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
-                    onClick={navigateToDirectAdmission}
-                  >
-                    <GraduationCap size={14} /> Continue to Admission
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="More actions">
+                    <MoreHorizontal size={16} />
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                    onClick={openApplication}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {(canAct || (canAssign && !isAssigned)) && !isClosed && (
+                    <DropdownMenuItem
+                      onClick={() => id && triggerCallMutation.mutate(id)}
+                      disabled={triggerCallMutation.isPending}
+                    >
+                      <Bot size={14} className="mr-2" /> AI Call
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => setShowManualCallDialog(true)}>
+                    <PhoneCall size={14} className="mr-2" /> Log Call
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void handleWhatsApp()}>
+                    <MessageCircle size={14} className="mr-2" /> Open WhatsApp
+                  </DropdownMenuItem>
+                  {!(canAssign && !isAssigned && !canAct) && (
+                    <DropdownMenuItem
+                      onClick={() => setShowAssignDialog(true)}
+                      disabled={!canAssign}
+                    >
+                      <UserCheck size={14} className="mr-2" /> Assign
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={() => setShowFollowUpDialog(true)}
+                    disabled={!canAct}
                   >
-                    <FileText size={14} /> Create Application
-                  </Button>
-                </>
-              )}
-              {canAct && (
-                <Button
-                  variant="outline"
-                  className="bg-red-500/20 border-red-300/40 text-red-100 hover:bg-red-500/30 gap-1 text-xs"
-                  onClick={() => setShowLostDialog(true)}
-                >
-                  <XCircle size={14} /> Mark Lost
-                </Button>
-              )}
+                    <Calendar size={14} className="mr-2" /> Follow-Up
+                  </DropdownMenuItem>
+                  {canAct && lead.stage !== "CONVERTED" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={navigateToDirectAdmission}>
+                        <GraduationCap size={14} className="mr-2" /> Continue to Admission Form
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={openApplication}>
+                        <FileText size={14} className="mr-2" /> Create Application
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {canAct && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setShowLostDialog(true)}
+                      >
+                        <XCircle size={14} className="mr-2" /> Mark Lost
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </PermissionGate>
-            {lead.stage === "CONVERTED" && (
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
-                onClick={() =>
-                  navigate(`${basePath}/admissions/all`, {
-                    state: { admissionId: lead.convertedAdmissionId },
-                  })
-                }
+          </>
+        }
+      />
+
+      {lead.nextBestAction && (
+        <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-text-secondary">
+          <Sparkles size={14} className="mt-0.5 shrink-0 text-primary" />
+          <span>
+            <span className="font-medium text-foreground">Next best action:</span>{" "}
+            {lead.nextBestAction}
+          </span>
+        </div>
+      )}
+
+      {!aiReady && !canBypassAiAssignGate && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+          AI call is in progress. Assign a counsellor after the call completes,
+          no-answers, is busy, or fails.
+        </div>
+      )}
+      {!aiReady && canBypassAiAssignGate && !isClosed && (
+        <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-text-secondary">
+          AI call has not finished yet. As Admin/Center Manager you can still assign a counsellor.
+        </div>
+      )}
+      {aiReady && !isAssigned && !isClosed && (
+        <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-text-secondary">
+          AI call finished ({latestCall?.status || "attempted"}). Assign a
+          counsellor to continue follow-up.
+        </div>
+      )}
+
+      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        {stagePipeline.map((stage, idx) => {
+          const masterOpt = leadStageOptions.find((opt) => opt.code === stage);
+          const isCompleted = idx <= currentStageIndex;
+          const isCurrent = stage === lead.stage;
+          return (
+            <div key={stage} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => handleStageChange(stage)}
+                disabled={changeStageMutation.isPending || isClosed || !canEditLeads}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  isCurrent
+                    ? "bg-primary text-primary-foreground"
+                    : isCompleted
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                }`}
               >
-                <CheckCircle2 size={14} /> View Admission
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {!aiReady && (
-          <p className="mt-4 text-sm bg-white/15 rounded-md px-3 py-2">
-            AI call is in progress. Assign a counsellor after the call completes,
-            no-answers, is busy, or fails.
-          </p>
-        )}
-        {aiReady && !isAssigned && !isClosed && (
-          <p className="mt-4 text-sm bg-white/15 rounded-md px-3 py-2">
-            AI call finished ({latestCall?.status || "attempted"}). Assign a
-            counsellor to continue follow-up.
-          </p>
-        )}
-
-        <div className="mt-6 flex items-center gap-1 overflow-x-auto pb-1">
-          {stagePipeline.map((stage, idx) => {
-            const masterOpt = leadStageOptions.find((opt) => opt.code === stage);
-            const isCompleted = idx <= currentStageIndex;
-            const isCurrent = stage === lead.stage;
-            return (
-              <div key={stage} className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => handleStageChange(stage)}
-                  disabled={changeStageMutation.isPending || isClosed || !canEditLeads}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    isCurrent
-                      ? "bg-white text-primary shadow-md"
-                      : isCompleted
-                        ? "bg-white/30 text-white"
-                        : "bg-white/10 text-white/50"
-                  }`}
-                >
-                  {masterOpt?.label || stage.replace(/_/g, " ")}
-                </button>
-                {idx < stagePipeline.length - 1 && (
-                  <div
-                    className={`w-6 h-0.5 ${isCompleted ? "bg-white/50" : "bg-white/15"}`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
+                {masterOpt?.label || stage.replace(/_/g, " ")}
+              </button>
+              {idx < stagePipeline.length - 1 && (
+                <div
+                  className={`w-5 h-px ${isCompleted ? "bg-primary/40" : "bg-border"}`}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <Tabs
@@ -538,7 +619,7 @@ export const LeadDetails: React.FC = () => {
         }}
         className="space-y-4"
       >
-        <TabsList className="bg-slate-100 flex-wrap h-auto gap-1">
+        <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="profile" className="gap-1.5">
             <FileText size={14} /> Profile
           </TabsTrigger>
@@ -1162,6 +1243,66 @@ export const LeadDetails: React.FC = () => {
                 className="bg-primary text-white"
               >
                 {createAppMutation.isPending ? "Creating..." : "Create Application"}
+              </Button>
+            </PermissionGate>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convert to Admission</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-text-secondary">
+              Creates a student and admission from this lead, then marks the lead as converted.
+            </p>
+            {convertError ? (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+                {convertError}
+              </p>
+            ) : null}
+            <div>
+              <Label>Course *</Label>
+              <select
+                value={appCourseId}
+                onChange={(e) => setAppCourseId(e.target.value)}
+                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
+              >
+                <option value="">Select course</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {!lead?.courseId && !appCourseId ? (
+                <p className="text-xs text-amber-700 mt-1">
+                  This lead has no matched course yet — select one to convert.
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={appNotes}
+                onChange={(e) => setAppNotes(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>
+              Cancel
+            </Button>
+            <PermissionGate itemKey="leads.all" mode="write">
+              <Button
+                onClick={handleConvertLead}
+                disabled={(!appCourseId && !lead?.courseId) || convertLeadMutation.isPending}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                {convertLeadMutation.isPending ? "Converting..." : "Convert to Admission"}
               </Button>
             </PermissionGate>
           </DialogFooter>

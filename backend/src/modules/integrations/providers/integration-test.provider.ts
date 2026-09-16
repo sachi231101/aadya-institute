@@ -48,13 +48,123 @@ export const testWhatsappConnection = async (
 export const testAiCallingConnection = async (
   instituteId: string
 ): Promise<TestResult> => {
-  const row = await repo.findByInstituteAndType(instituteId, "AI_CALLING");
-  const creds = decryptCredentials(row?.encryptedCredentials);
-  const apiKey = creds.apiKey || process.env.SARVAM_API_KEY || "";
-  if (!apiKey) {
-    return { success: false, message: "API key is not configured" };
+  const { resolveAiCallingConfig } = await import(
+    "../../ai-calling/ai-calling.config"
+  );
+  const resolved = await resolveAiCallingConfig(instituteId);
+
+  if (!resolved.telephonyApiKey) {
+    return {
+      success: false,
+      message:
+        "API key missing — set SARVAM_API_KEY or TELEPHONY_API_KEY in backend .env",
+    };
   }
-  return { success: true, message: "Connection successful" };
+  const key = resolved.telephonyApiKey.trim();
+  if (
+    (key.startsWith("sk_samvaad_") && key.length < 32) ||
+    key.length < 24
+  ) {
+    return {
+      success: false,
+      message:
+        "API key looks truncated/incomplete. Copy the FULL key from Sarvam Voice Agents → Settings → API Key into backend .env (SARVAM_API_KEY), then restart.",
+    };
+  }
+  if (!resolved.telephonyBaseUrl) {
+    return {
+      success: false,
+      message:
+        "Telephony base URL missing — set TELEPHONY_BASE_URL=https://apps.sarvam.ai/api/outbounds",
+    };
+  }
+  if (!resolved.fromNumber) {
+    return {
+      success: false,
+      message:
+        "From number missing — set TELEPHONY_FROM_NUMBER or From number in this form",
+    };
+  }
+
+  const orgId = process.env.SARVAM_ORG_ID || "";
+  const workspaceId = process.env.SARVAM_WORKSPACE_ID || "";
+  const appId = process.env.SARVAM_APP_ID || "";
+  const connectionId = process.env.SARVAM_CONNECTION_ID || "";
+  const missing: string[] = [];
+  if (!orgId) missing.push("SARVAM_ORG_ID");
+  if (!workspaceId) missing.push("SARVAM_WORKSPACE_ID");
+  if (!appId) missing.push("SARVAM_APP_ID");
+  if (!connectionId) missing.push("SARVAM_CONNECTION_ID");
+  if (missing.length) {
+    return {
+      success: false,
+      message: `Dial config incomplete — set ${missing.join(", ")} in backend .env`,
+    };
+  }
+
+  if (!resolved.isEnabled) {
+    return {
+      success: false,
+      message:
+        "Config looks ready, but AI Calling is OFF — turn Enabled ON and Save first",
+    };
+  }
+
+  // Live auth probe against Instant Outbound (incomplete body → no dial).
+  try {
+    const url = `${resolved.telephonyBaseUrl.replace(/\/$/, "")}/v1/orgs/${orgId}/workspaces/${workspaceId}/outbounds`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": resolved.telephonyApiKey,
+      },
+      body: JSON.stringify({
+        app_config: {
+          app_id: appId,
+          app_version: Number(process.env.SARVAM_APP_VERSION || "1") || 1,
+          connection_config: {
+            connection_id: connectionId,
+            agent_phone_number: resolved.fromNumber,
+          },
+        },
+        user_config: {},
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const text = await res.text();
+
+    if (res.status === 401 || res.status === 403) {
+      const detail =
+        text.includes("Invalid API key format") || text.includes("Unauthorized")
+          ? " Current key is rejected (often an api.sarvam.ai sk_ key). Create an API key in Sarvam Voice Agents → Settings → API Key and set SARVAM_API_KEY / TELEPHONY_API_KEY."
+          : "";
+      return {
+        success: false,
+        message: `Sarvam rejected API key (HTTP ${res.status}).${detail}`,
+      };
+    }
+
+    if (res.status === 422) {
+      return {
+        success: true,
+        message:
+          "Sarvam Instant Outbound auth OK (validation-only probe, no dial). Place an AI Call on a lead to verify a live ring.",
+      };
+    }
+
+    return {
+      success: true,
+      message: `Dial config reachable (HTTP ${res.status}). Place an AI Call on a lead to verify a live ring.`,
+    };
+  } catch (err) {
+    logger.warn({ err, instituteId }, "AI Calling Sarvam auth probe failed");
+    return {
+      success: false,
+      message:
+        "Could not reach Sarvam Instant Outbound API — check network / TELEPHONY_BASE_URL",
+    };
+  }
 };
 
 export const testPaymentConnection = async (

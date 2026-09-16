@@ -440,10 +440,10 @@ describe("Lead Management Module Tests", () => {
       });
     });
 
-    test("Assign before terminal AI call is rejected", async () => {
+    test("Counsellor assign before terminal AI call is rejected", async () => {
       await assert.rejects(
         async () => {
-          await LeadService.assignLead(blockedLeadId, managerAUser, {
+          await LeadService.assignLead(blockedLeadId, counsellorAUser, {
             counsellorId: counsellorAUser.id,
           });
         },
@@ -453,6 +453,42 @@ describe("Lead Management Module Tests", () => {
           return true;
         }
       );
+    });
+
+    test("ADMIN can assign before terminal AI call (bypass gate)", async () => {
+      const result = await LeadService.assignLead(blockedLeadId, adminUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Admin bypass before AI call finished",
+      });
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
+
+      // Reset for following tests that expect unassigned / AI-gated flow
+      await prisma.lead.update({
+        where: { id: blockedLeadId },
+        data: { assignedCounsellorId: null, stage: "NEW" },
+      });
+      await prisma.leadAssignment.updateMany({
+        where: { leadId: blockedLeadId, isCurrent: true },
+        data: { isCurrent: false, unassignedAt: new Date() },
+      });
+      await prisma.callLog.deleteMany({ where: { leadId: blockedLeadId } });
+    });
+
+    test("CENTER_MANAGER can assign before terminal AI call (bypass gate)", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "CM Bypass Lead",
+        phoneNumber: "+919876500915",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      await prisma.callLog.deleteMany({ where: { leadId: lead.id } });
+
+      const result = await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "CM bypass",
+      });
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
     });
 
     test("Manager assigns lead to Counsellor A after AI call", async () => {
@@ -1482,6 +1518,86 @@ describe("Lead Management Module Tests", () => {
       assert.ok(callLogs.length >= 1);
 
       await prisma.enquiry.delete({ where: { id: enquiry.id } });
+    });
+  });
+
+  describe("E2E correctness — master list filters", () => {
+    test("getLeads passes stageMasterId and sourceMasterId to repository filters", async () => {
+      const stageMaster = await prisma.masterRecord.upsert({
+        where: {
+          instituteId_entityType_name: {
+            instituteId,
+            entityType: "leadstage",
+            name: "Contacted E2E Filter",
+          },
+        },
+        update: { code: "CONTACTED", status: "ACTIVE" },
+        create: {
+          instituteId,
+          entityType: "leadstage",
+          code: "CONTACTED",
+          name: "Contacted E2E Filter",
+          status: "ACTIVE",
+          sortOrder: 2,
+        },
+      });
+
+      const sourceMaster = await prisma.masterRecord.upsert({
+        where: {
+          instituteId_entityType_name: {
+            instituteId,
+            entityType: "leadsource",
+            name: "Walk In E2E Filter",
+          },
+        },
+        update: { code: "WALK_IN", status: "ACTIVE" },
+        create: {
+          instituteId,
+          entityType: "leadsource",
+          code: "WALK_IN",
+          name: "Walk In E2E Filter",
+          status: "ACTIVE",
+          sortOrder: 1,
+        },
+      });
+
+      const lead = await LeadService.createLead(adminUser, {
+        name: "Filter Master Lead",
+        phoneNumber: "+919876500916",
+        interestedIn: "Full Stack Development",
+        sourceMasterId: sourceMaster.id,
+        branchId: branchAId,
+      });
+
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          stage: "CONTACTED",
+          stageMasterId: stageMaster.id,
+          sourceMasterId: sourceMaster.id,
+        },
+      });
+
+      const byStage = await LeadService.getLeads(adminUser, {
+        page: 1,
+        limit: 50,
+        stageMasterId: stageMaster.id,
+      });
+      assert.ok(byStage.leads.some((l) => l.id === lead.id));
+
+      const bySource = await LeadService.getLeads(adminUser, {
+        page: 1,
+        limit: 50,
+        sourceMasterId: sourceMaster.id,
+      });
+      assert.ok(bySource.leads.some((l) => l.id === lead.id));
+
+      const miss = await LeadService.getLeads(adminUser, {
+        page: 1,
+        limit: 50,
+        stageMasterId: "nonexistent-stage-master-id",
+      });
+      assert.ok(!miss.leads.some((l) => l.id === lead.id));
     });
   });
 });

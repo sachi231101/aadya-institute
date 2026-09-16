@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -11,8 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Plus,
   ClipboardCheck,
+  Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,9 @@ import { useBatches } from "@/hooks/useBatches";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import { useAuthStore } from "@/store/auth.store";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { toDateKey } from "@/constants/timetable-slots";
 import type { BackendClassSession } from "@/services/class-sessions.api";
+import { ROUTES } from "@/constants/routes";
 
 const monthKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -56,20 +58,23 @@ const statusBadge = (status: string) => {
   return <Badge variant="secondary">{status}</Badge>;
 };
 
-const doneBar = (pct: number) => {
+const markedBar = (marked: number, enrolled: number) => {
+  const pct = enrolled > 0 ? Math.round((marked / enrolled) * 100) : marked > 0 ? 100 : 0;
   const clamped = Math.max(0, Math.min(100, pct));
   const color =
-    clamped >= 100
+    enrolled > 0 && marked >= enrolled
       ? "bg-emerald-500"
-      : clamped > 0
-        ? "bg-rose-500"
+      : marked > 0
+        ? "bg-amber-500"
         : "bg-slate-300";
   return (
-    <div className="flex items-center gap-2 min-w-[120px]">
+    <div className="flex items-center gap-2 min-w-[140px]">
       <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
         <div className={`h-full ${color}`} style={{ width: `${clamped}%` }} />
       </div>
-      <span className="text-xs font-semibold tabular-nums w-10 text-right">{clamped}%</span>
+      <span className="text-xs font-semibold tabular-nums whitespace-nowrap">
+        Marked {marked}/{enrolled || "—"}
+      </span>
     </div>
   );
 };
@@ -88,9 +93,17 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
   const [month, setMonth] = useState(monthKey(new Date()));
   const [batchId, setBatchId] = useState(searchParams.get("batchId") || "ALL");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [studentPage, setStudentPage] = useState(1);
   const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId);
   const [detailOpen, setDetailOpen] = useState(Boolean(initialStudentId));
+
+  useEffect(() => {
+    const sid = searchParams.get("studentId") || "";
+    if (!sid) return;
+    setView("students");
+    setSelectedStudentId(sid);
+    setDetailOpen(true);
+  }, [searchParams]);
 
   const { batches } = useBatches(facultyId ? { facultyId } : undefined);
 
@@ -123,10 +136,13 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
         attendanceDonePercentage?: number;
       }
     >;
+    const active = rows.filter(
+      (s) => String(s.sessionStatus || "").toUpperCase() !== "CANCELLED"
+    );
     const q = search.trim().toLowerCase();
     const filtered = !q
-      ? rows
-      : rows.filter((s) => {
+      ? active
+      : active.filter((s) => {
           const course = getSessionSubjectLabel({ title: s.title, batch: s.batch });
           const batch = s.batch?.code || s.batch?.name || "";
           const module = s.batchModule?.courseModule?.name || "";
@@ -138,8 +154,8 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
           );
         });
     return [...filtered].sort((a, b) => {
-      const da = String(a.scheduledDate).slice(0, 10);
-      const db = String(b.scheduledDate).slice(0, 10);
+      const da = toDateKey(a.scheduledDate);
+      const db = toDateKey(b.scheduledDate);
       if (da !== db) return db.localeCompare(da);
       return String(b.startTime || "").localeCompare(String(a.startTime || ""));
     });
@@ -148,12 +164,11 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
   const queryParams = useMemo(
     () => ({
       month,
-      page,
-      limit: 20,
+      page: 1,
+      limit: 100,
       batchId: batchId !== "ALL" ? batchId : undefined,
-      search: search.trim() || undefined,
     }),
-    [month, page, batchId, search]
+    [month, batchId]
   );
 
   const detailParams = useMemo(
@@ -177,7 +192,6 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
   );
 
   const payload = data?.data;
-  const records = payload?.records ?? [];
   const calendar = payload?.calendar ?? {};
   const summary = payload?.summary ?? {
     present: 0,
@@ -186,7 +200,27 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
     total: 0,
     overallPercentage: 0,
   };
-  const meta = data?.meta;
+
+  const studentRows = useMemo(() => {
+    const rows = payload?.students ?? [];
+    const q = search.trim().toLowerCase();
+    const filtered = !q
+      ? rows
+      : rows.filter(
+          (s) =>
+            s.studentName.toLowerCase().includes(q) ||
+            s.studentCode.toLowerCase().includes(q) ||
+            (s.batchCodes || []).some((c) => c.toLowerCase().includes(q))
+        );
+    return filtered;
+  }, [payload?.students, search]);
+
+  const STUDENTS_PER_PAGE = 20;
+  const studentTotalPages = Math.max(1, Math.ceil(studentRows.length / STUDENTS_PER_PAGE));
+  const pagedStudents = useMemo(() => {
+    const start = (studentPage - 1) * STUDENTS_PER_PAGE;
+    return studentRows.slice(start, start + STUDENTS_PER_PAGE);
+  }, [studentRows, studentPage]);
 
   const daysInMonth = new Date(year, monthNum, 0).getDate();
   const firstWeekday = new Date(year, monthNum - 1, 1).getDay();
@@ -194,7 +228,7 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
   const shiftMonth = (delta: number) => {
     const d = new Date(year, monthNum - 1 + delta, 1);
     setMonth(monthKey(d));
-    setPage(1);
+    setStudentPage(1);
   };
 
   const openStudentDetail = (studentId: string) => {
@@ -225,9 +259,11 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
     (s) => s.studentId === selectedStudentId
   );
 
-  const sessionsDone = sessionRows.filter(
-    (s) => (s.attendanceDonePercentage ?? 0) >= 100
-  ).length;
+  const sessionsDone = sessionRows.filter((s) => {
+    const enrolled = s.enrolledStudentsCount ?? 0;
+    const marked = s.attendanceMarkedCount ?? 0;
+    return enrolled > 0 && marked >= enrolled;
+  }).length;
 
   return (
     <PageContainer>
@@ -236,12 +272,11 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
         description="Class sessions and student attendance for your teaching desk."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/faculty/attendance/take")}>
-              Take Attendance
+            <Button variant="outline" onClick={() => navigate(ROUTES.FACULTY.STUDENTS)}>
+              My Students
             </Button>
-            <Button onClick={() => navigate("/faculty/attendance/new")}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add New
+            <Button variant="outline" onClick={() => navigate(ROUTES.FACULTY.ATTENDANCE_TAKE)}>
+              Take Attendance
             </Button>
           </div>
         }
@@ -250,7 +285,10 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
       <div className="flex items-center gap-1 border-b border-slate-200 mb-1">
         <button
           type="button"
-          onClick={() => setView("sessions")}
+          onClick={() => {
+            setView("sessions");
+            setSearch("");
+          }}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
             view === "sessions"
               ? "border-primary text-primary"
@@ -261,7 +299,11 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
         </button>
         <button
           type="button"
-          onClick={() => setView("students")}
+          onClick={() => {
+            setView("students");
+            setSearch("");
+            setStudentPage(1);
+          }}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
             view === "students"
               ? "border-primary text-primary"
@@ -293,7 +335,7 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
           value={batchId}
           onChange={(e) => {
             setBatchId(e.target.value);
-            setPage(1);
+            setStudentPage(1);
           }}
         >
           <option value="ALL">All batches</option>
@@ -307,11 +349,13 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
             className="pl-9"
-            placeholder={view === "sessions" ? "Search course, batch, room…" : "Search student…"}
+            placeholder={
+              view === "sessions" ? "Search course, batch, room…" : "Search student name or code…"
+            }
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setPage(1);
+              setStudentPage(1);
             }}
           />
         </div>
@@ -362,12 +406,11 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                 </Button>
               </div>
             ) : sessionRows.length === 0 ? (
-              <div className="text-center py-12 space-y-3">
+              <div className="text-center py-12 space-y-2">
                 <p className="text-sm text-slate-500">No class sessions in this month.</p>
-                <Button onClick={() => navigate("/faculty/attendance/new")}>
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add New Attendance
-                </Button>
+                <p className="text-xs text-slate-400">
+                  Sessions come from the batch timetable. Use Take Attendance for today&apos;s classes.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -380,13 +423,13 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                       <th className="py-3 px-3">Room</th>
                       <th className="py-3 px-3">Course / Batch</th>
                       <th className="py-3 px-3">Module</th>
-                      <th className="py-3 px-3">Attendance Done</th>
+                      <th className="py-3 px-3">Marked</th>
                       <th className="py-3 px-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sessionRows.map((s) => {
-                      const dateKey = String(s.scheduledDate).slice(0, 10);
+                      const dateKey = toDateKey(s.scheduledDate);
                       const dayLabel = new Date(`${dateKey}T12:00:00`).toLocaleDateString(
                         "en-IN",
                         { weekday: "long" }
@@ -400,9 +443,9 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                         batch: s.batch,
                       });
                       const batch = s.batch?.code || s.batch?.name || "—";
-                      const pct = s.attendanceDonePercentage ?? 0;
                       const marked = s.attendanceMarkedCount ?? 0;
                       const enrolled = s.enrolledStudentsCount ?? 0;
+                      const fullyMarked = enrolled > 0 && marked >= enrolled;
                       return (
                         <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/80">
                           <td className="py-3 px-3 whitespace-nowrap font-medium">{dateLabel}</td>
@@ -418,23 +461,20 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                           <td className="py-3 px-3">
                             {s.batchModule?.courseModule?.name || "—"}
                           </td>
-                          <td className="py-3 px-3">
-                            {doneBar(pct)}
-                            <div className="text-[10px] text-slate-400 mt-0.5">
-                              {marked}/{enrolled} marked
-                            </div>
-                          </td>
+                          <td className="py-3 px-3">{markedBar(marked, enrolled)}</td>
                           <td className="py-3 px-3 text-right">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() =>
                                 navigate(
-                                  `/faculty/attendance/mark?sessionId=${encodeURIComponent(s.id)}`
+                                  fullyMarked
+                                    ? `${ROUTES.FACULTY.ATTENDANCE_MARK}?sessionId=${encodeURIComponent(s.id)}&mode=view`
+                                    : `${ROUTES.FACULTY.ATTENDANCE_MARK}?sessionId=${encodeURIComponent(s.id)}`
                                 )
                               }
                             >
-                              {pct >= 100 ? "Edit" : "Mark"}
+                              {fullyMarked ? "View" : "Mark"}
                             </Button>
                           </td>
                         </tr>
@@ -454,7 +494,9 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <TrendingUp className="w-3.5 h-3.5" /> Overall %
                 </p>
-                <h3 className="text-xl font-bold mt-0.5">{summary.overallPercentage}%</h3>
+                <h3 className="text-xl font-bold mt-0.5">
+                  {Math.round(summary.overallPercentage)}%
+                </h3>
               </CardContent>
             </Card>
             <Card className="border border-border/80 shadow-2xs">
@@ -526,10 +568,10 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
             </Card>
           </PageSection>
 
-          <PageSection title="Date-wise attendance">
+          <PageSection title={`Students (${studentRows.length})`}>
             {isLoading ? (
               <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-                <Loader2 className="w-5 h-5 animate-spin" /> Loading attendance...
+                <Loader2 className="w-5 h-5 animate-spin" /> Loading students…
               </div>
             ) : isError ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -539,62 +581,93 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                   Retry
                 </Button>
               </div>
-            ) : records.length === 0 ? (
+            ) : studentRows.length === 0 ? (
               <div className="text-center py-12 text-sm text-slate-500">
-                No attendance records for this period.
+                No students in your teaching batches for this filter.
               </div>
             ) : (
               <>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[720px]">
                     <thead>
                       <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
                         <th className="py-3 px-3">Student</th>
-                        <th className="py-3 px-3">Batch</th>
-                        <th className="py-3 px-3">Course</th>
-                        <th className="py-3 px-3">Date</th>
-                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3">Code</th>
+                        <th className="py-3 px-3">Batches</th>
+                        <th className="py-3 px-3">Attendance</th>
+                        <th className="py-3 px-3 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {records.map((r) => (
+                      {pagedStudents.map((s) => (
                         <tr
-                          key={r.id}
+                          key={s.studentId}
                           className="border-b border-slate-100 hover:bg-slate-50/80 cursor-pointer"
-                          onClick={() => openStudentDetail(r.studentId)}
+                          onClick={() => openStudentDetail(s.studentId)}
                         >
+                          <td className="py-3 px-3 font-semibold">{s.studentName}</td>
+                          <td className="py-3 px-3 font-mono text-xs">{s.studentCode}</td>
                           <td className="py-3 px-3">
-                            <div className="font-semibold">{r.studentName}</div>
-                            <div className="text-xs text-slate-500 font-mono">{r.studentCode}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {(s.batchCodes || []).length > 0 ? (
+                                (s.batchCodes || []).map((code) => (
+                                  <Badge key={code} variant="outline" className="text-[10px]">
+                                    {code}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </div>
                           </td>
-                          <td className="py-3 px-3">{r.batchCode || r.batchName || "—"}</td>
-                          <td className="py-3 px-3">{r.courseName || "—"}</td>
-                          <td className="py-3 px-3 whitespace-nowrap">{r.date}</td>
-                          <td className="py-3 px-3">{statusBadge(r.status)}</td>
+                          <td className="py-3 px-3">
+                            {s.total > 0 ? (
+                              <div className="leading-snug">
+                                <span className="font-semibold">
+                                  {Math.round(s.attendancePercentage)}%
+                                </span>
+                                <span className="text-xs text-muted-foreground block">
+                                  {s.present} Present / {s.total} Classes
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No classes yet</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openStudentDetail(s.studentId)}
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              View
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                {meta && meta.totalPages > 1 ? (
+                {studentTotalPages > 1 ? (
                   <div className="flex items-center justify-between mt-4 text-sm">
                     <span className="text-slate-500">
-                      Page {meta.page} of {meta.totalPages}
+                      Page {studentPage} of {studentTotalPages}
                     </span>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={page <= 1}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={studentPage <= 1}
+                        onClick={() => setStudentPage((p) => Math.max(1, p - 1))}
                       >
                         Previous
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={page >= meta.totalPages}
-                        onClick={() => setPage((p) => p + 1)}
+                        disabled={studentPage >= studentTotalPages}
+                        onClick={() => setStudentPage((p) => p + 1)}
                       >
                         Next
                       </Button>
@@ -616,14 +689,14 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
             <DialogDescription>
               Date-wise attendance
               {selectedSummary
-                ? ` · ${selectedSummary.attendancePercentage}% (${selectedSummary.present}/${selectedSummary.total})`
+                ? ` · ${Math.round(selectedSummary.attendancePercentage)}% — ${selectedSummary.present} Present / ${selectedSummary.total} Classes`
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {studentRecords.length === 0 ? (
               <p className="text-sm text-slate-500 py-6 text-center">
-                No records for this student in the selected month.
+                No attendance marks for this student in the selected month.
               </p>
             ) : (
               studentRecords.map((r) => (
@@ -635,6 +708,7 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                     <div className="text-sm font-medium">{r.date}</div>
                     <div className="text-xs text-slate-500 truncate">
                       {r.courseName || "Class"} · {r.batchCode || r.batchName}
+                      {r.startTime ? ` · ${r.startTime}` : ""}
                     </div>
                   </div>
                   {statusBadge(r.status)}

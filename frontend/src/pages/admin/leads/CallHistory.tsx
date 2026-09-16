@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -212,11 +212,10 @@ export const CallHistory: React.FC = () => {
     <PageContainer>
       <PageHeader
         title="Call History"
-        description="Unified AI and manual call logs with recordings, outcomes, and next actions."
+        description="AI and manual call logs with recordings, outcomes, and next actions."
         actions={
           <PermissionGate itemKey="leads.all" mode="write">
             <Button
-              className="bg-primary hover:bg-[#F39A16] text-white"
               onClick={() => {
                 resetLogDialog();
                 setLogDialogOpen(true);
@@ -244,39 +243,39 @@ export const CallHistory: React.FC = () => {
         </TabsList>
       </Tabs>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-              <Input
-                placeholder="Search by lead, caller, outcome, or next action..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="FAILED">Failed</option>
-              <option value="NO_ANSWER">No Answer</option>
-              <option value="BUSY">Busy</option>
-              <option value="CALLBACK_REQUESTED">Callback Requested</option>
-              <option value="INITIATED">Initiated</option>
-              <option value="RINGING">Ringing</option>
-              <option value="ANSWERED">Answered</option>
-            </select>
-          </div>
+      <FilterToolbar className="flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <Input
+            placeholder="Search by lead, caller, outcome, or next action..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 rounded-md"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className="h-9 px-3 border border-border rounded-md text-sm bg-background w-full md:w-auto"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="FAILED">Failed</option>
+          <option value="NO_ANSWER">No Answer</option>
+          <option value="BUSY">Busy</option>
+          <option value="CALLBACK_REQUESTED">Callback Requested</option>
+          <option value="INITIATED">Initiated</option>
+          <option value="RINGING">Ringing</option>
+          <option value="ANSWERED">Answered</option>
+        </select>
+      </FilterToolbar>
 
-          <div className="rounded-md border overflow-x-auto">
+      <Card className="border-border/50 shadow-sm overflow-hidden">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -355,7 +354,7 @@ export const CallHistory: React.FC = () => {
           </div>
 
           {meta.totalPages > 1 && (
-            <div className="flex justify-between items-center text-sm">
+            <div className="flex justify-between items-center text-sm px-4 py-3 border-t border-border">
               <span className="text-text-secondary">
                 Page {meta.page} of {meta.totalPages} · {meta.total} calls
               </span>
@@ -590,7 +589,6 @@ export const CallHistory: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={createManualCall.isPending}
-                  className="bg-primary hover:bg-[#F39A16] text-white"
                 >
                   {createManualCall.isPending ? (
                     <>

@@ -538,9 +538,11 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
         await classSessionsApi.saveAttendance(session.id, payload);
         await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", session.id] });
         await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
         await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
         await queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
         await queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
+        await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
       }
       setAttendanceSaveSuccess(true);
       setTimeout(() => setAttendanceSaveSuccess(false), 2000);
@@ -567,9 +569,11 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
           );
           await queryClient.invalidateQueries({ queryKey: ["class-session-attendance", session.id] });
           await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
+          await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
           await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
           await queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
           await queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
+          await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
         } catch {
           // Continue — ending class is more important than a flaky attendance save
         }

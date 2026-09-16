@@ -4,6 +4,7 @@ import {
   maskSecret,
   pickPrimarySecret,
 } from "../../utils/integration-credentials.util";
+import { envTelephonyConfigured } from "../ai-calling/ai-calling.config";
 import {
   INTEGRATION_CATALOG,
   type IntegrationCardDto,
@@ -17,7 +18,15 @@ const asConfig = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
-export const computeIsConfigured = (row: Integration | null): boolean => {
+export const computeIsConfigured = (
+  row: Integration | null,
+  type?: IntegrationType
+): boolean => {
+  const resolvedType = type ?? row?.type;
+  // Dial-only AI Calling: backend TELEPHONY_*/SARVAM_* env is enough (no Integration secrets).
+  if (resolvedType === "AI_CALLING" && envTelephonyConfigured()) {
+    return true;
+  }
   if (!row) return false;
   if (row.type === "GOOGLE_WORKSPACE" || row.type === "GOOGLE_SHEETS") {
     return row.status === "CONNECTED" || Boolean(row.configuration);
@@ -35,7 +44,7 @@ export const toCardDto = (
   row: Integration | null
 ): IntegrationCardDto => {
   const meta = INTEGRATION_CATALOG[type];
-  const isConfigured = computeIsConfigured(row);
+  const isConfigured = computeIsConfigured(row, type);
   let maskedCredential: string | null = null;
 
   if (row?.encryptedCredentials) {

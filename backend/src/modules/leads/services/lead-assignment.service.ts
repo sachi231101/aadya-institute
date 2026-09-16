@@ -32,9 +32,15 @@ export const LeadAssignmentService = {
       throw new AppError("Cannot assign a converted lead", 400);
     }
 
+    const roles = currentUser.roles.map((r) => r.toUpperCase());
+    const canBypassAiCallGate =
+      roles.includes("ADMIN") ||
+      roles.includes("SUPER_ADMIN") ||
+      roles.includes("CENTER_MANAGER");
+
     const { hasTerminalAiCall } = await import("./lead-ai-call.service");
     const aiCallReady = await hasTerminalAiCall(leadId);
-    if (!aiCallReady) {
+    if (!aiCallReady && !canBypassAiCallGate) {
       throw new AppError(
         "Lead cannot be assigned until the AI call has finished (completed, no-answer, busy, or failed)",
         400
@@ -143,7 +149,13 @@ export const LeadAssignmentService = {
         {
           userId: currentUser.userId,
           description: notes ?? `Assigned by ${currentUser.name ?? currentUser.userId}`,
-          metadata: { counsellorId, counsellorName: counsellor.name },
+          metadata: {
+            counsellorId,
+            counsellorName: counsellor.name,
+            ...(canBypassAiCallGate && !aiCallReady
+              ? { aiCallGateBypassed: true, bypassedByRoles: roles }
+              : {}),
+          },
           tx,
         }
       );

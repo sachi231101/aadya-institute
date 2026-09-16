@@ -26,7 +26,6 @@ import {
   useUpsertIntegration,
 } from "@/hooks/useIntegrations";
 import {
-  useAiCallingAgents,
   useAiCallingConfig,
   useUpdateAiCallingConfig,
 } from "@/hooks/useAiCalling";
@@ -34,7 +33,6 @@ import type { IntegrationType } from "@/services/integrations.api";
 import { ROUTES } from "@/constants/routes";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { Textarea } from "@/components/ui/textarea";
 
 const CALLING_DAY_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Sun" },
@@ -142,9 +140,7 @@ export const IntegrationDetail: React.FC = () => {
 
   const isAiCalling = type === "AI_CALLING";
   const { data: aiConfigRes, refetch: refetchAiConfig } = useAiCallingConfig(isAiCalling);
-  const { data: agentsRes } = useAiCallingAgents(isAiCalling);
   const updateAiConfig = useUpdateAiCallingConfig();
-  const agents = agentsRes?.data || [];
 
   const [isEnabled, setIsEnabled] = useState(true);
   const [config, setConfig] = useState<Record<string, string | number | boolean>>({});
@@ -153,9 +149,7 @@ export const IntegrationDetail: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [aiAgentId, setAiAgentId] = useState("");
   const [aiFromNumber, setAiFromNumber] = useState("");
-  const [aiScript, setAiScript] = useState("");
   const [aiHoursStart, setAiHoursStart] = useState("09:00");
   const [aiHoursEnd, setAiHoursEnd] = useState("20:00");
   const [aiCallingDays, setAiCallingDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
@@ -204,9 +198,7 @@ export const IntegrationDetail: React.FC = () => {
   useEffect(() => {
     const cfg = aiConfigRes?.data;
     if (!cfg) return;
-    setAiAgentId(cfg.agentId || "");
-    setAiFromNumber(cfg.fromNumber || "");
-    setAiScript(cfg.callingScript || "");
+    setAiFromNumber(cfg.fromNumber || cfg.resolved?.fromNumber || "");
     setAiHoursStart(cfg.callingHoursStart || "09:00");
     setAiHoursEnd(cfg.callingHoursEnd || "20:00");
     const days = Array.isArray(cfg.callingDays)
@@ -290,23 +282,10 @@ export const IntegrationDetail: React.FC = () => {
         replaceCredentials = true;
       }
 
-      await upsert.mutateAsync({
-        isEnabled: isAiCalling ? aiEnabled : isEnabled,
-        configuration: isAiCalling
-          ? {
-              ...config,
-              fromNumber: aiFromNumber || config.fromNumber,
-            }
-          : config,
-        ...(Object.keys(credentials).length ? { credentials } : {}),
-        ...(replaceCredentials ? { replaceCredentials: true } : {}),
-      });
-
       if (isAiCalling) {
+        // Dial-only: institute rate/hours + enable flag. Secrets come from backend .env.
         await updateAiConfig.mutateAsync({
-          agentId: aiAgentId || null,
           fromNumber: aiFromNumber.trim() || null,
-          callingScript: aiScript.trim() || null,
           callingHoursStart: aiHoursStart || null,
           callingHoursEnd: aiHoursEnd || null,
           callingDays: aiCallingDays.length ? aiCallingDays : null,
@@ -315,12 +294,25 @@ export const IntegrationDetail: React.FC = () => {
           retryDelayMinutes: Number(aiRetryDelay) || 60,
           isEnabled: aiEnabled,
         });
+        await upsert.mutateAsync({
+          isEnabled: aiEnabled,
+          configuration: {
+            fromNumber: aiFromNumber || undefined,
+          },
+        });
         await refetchAiConfig();
+        setMessage("Dialer settings saved. Voice Agent is managed in the Sarvam dashboard.");
+      } else {
+        await upsert.mutateAsync({
+          isEnabled,
+          configuration: config,
+          ...(Object.keys(credentials).length ? { credentials } : {}),
+          ...(replaceCredentials ? { replaceCredentials: true } : {}),
+        });
+        setMessage("Integration saved.");
+        setSecrets({});
+        setReplaceSecrets({});
       }
-
-      setMessage(isAiCalling ? "AI Calling config and credentials saved." : "Integration saved.");
-      setSecrets({});
-      setReplaceSecrets({});
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -686,54 +678,50 @@ export const IntegrationDetail: React.FC = () => {
               {type === "AI_CALLING" && (
                 <>
                   <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-slate-800">Institute dialer settings</p>
+                    <p className="text-sm font-semibold text-slate-800">Dial-only AI Calling</p>
                     <p className="text-xs text-text-secondary">
-                      Saved to AI Calling config. Credential overrides below are optional when using
-                      shared platform keys.
+                      Create, configure, and deploy the Voice Agent in the{" "}
+                      <strong>Sarvam Voice Agents dashboard</strong>. Aadya only enables dialing and
+                      triggers Instant Outbound calls. Put credentials in backend{" "}
+                      <code className="text-[11px]">.env</code>, not in this form.
+                    </p>
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
+                      <strong>API key:</strong> use the key from{" "}
+                      <strong>Sarvam Voice Agents → Settings → API Key</strong> (
+                      <code className="text-[11px]">X-API-Key</code>). An{" "}
+                      <code className="text-[11px]">api.sarvam.ai</code>{" "}
+                      <code className="text-[11px]">sk_…</code> subscription key works for STT/TTS
+                      only and will fail dials with &quot;Invalid API key format&quot;. Click{" "}
+                      <strong>Test connection</strong> to verify.
                     </p>
                     {aiConfigRes?.data?.resolved && (
                       <p className="text-xs text-slate-600">
-                        Resolved source: <strong>{aiConfigRes.data.resolved.source}</strong>
+                        Credentials: <strong>{aiConfigRes.data.resolved.source}</strong>
                         {aiConfigRes.data.resolved.hasTelephony
-                          ? " · telephony ready"
-                          : " · telephony not configured"}
+                          ? " · env dial IDs present (org/workspace/app/connection)"
+                          : " · telephony not configured — set TELEPHONY_BASE_URL, SARVAM_ORG_ID, SARVAM_WORKSPACE_ID, SARVAM_APP_ID, SARVAM_CONNECTION_ID, and Voice Agents API key in backend .env"}
                       </p>
                     )}
-                    <div className="flex items-center justify-between">
-                      <Label>AI Calling enabled</Label>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label>AI Calling enabled</Label>
+                        <p className="text-xs text-text-secondary">
+                          OFF stops all outbound AI calls for this institute. Turn ON to allow dialing.
+                        </p>
+                      </div>
                       <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
-                    </div>
-                    <div>
-                      <Label>Voice agent</Label>
-                      <select
-                        value={aiAgentId}
-                        onChange={(e) => setAiAgentId(e.target.value)}
-                        className="w-full h-10 px-3 border rounded-md text-sm bg-background"
-                      >
-                        <option value="">Select agent…</option>
-                        {agents.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} ({a.provider})
-                          </option>
-                        ))}
-                      </select>
                     </div>
                     <div>
                       <Label>From number</Label>
                       <Input
                         value={aiFromNumber}
                         onChange={(e) => setAiFromNumber(e.target.value)}
-                        placeholder="+91…"
+                        placeholder="Must match Sarvam-deployed caller ID"
                       />
-                    </div>
-                    <div>
-                      <Label>Calling script</Label>
-                      <Textarea
-                        value={aiScript}
-                        onChange={(e) => setAiScript(e.target.value)}
-                        rows={4}
-                        placeholder="Script / prompt for the voice agent"
-                      />
+                      <p className="text-xs text-text-secondary mt-1">
+                        Optional if <code className="text-[11px]">TELEPHONY_FROM_NUMBER</code> is set
+                        in backend .env.
+                      </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -807,29 +795,6 @@ export const IntegrationDetail: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <Label>Base URL override (optional)</Label>
-                    <Input
-                      value={String(config.baseUrl ?? "")}
-                      onChange={setConfigField("baseUrl")}
-                    />
-                  </div>
-                  <SecretField
-                    label="Sarvam API Key (institute override)"
-                    configured={hasCredential && !replaceSecrets.apiKey}
-                    value={secrets.apiKey ?? ""}
-                    onChange={setSecret("apiKey")}
-                    onReplace={() => markReplace("apiKey")}
-                    replacing={Boolean(replaceSecrets.apiKey)}
-                  />
-                  <SecretField
-                    label="Telephony API Key (institute override)"
-                    configured={Boolean(data.maskedCredential) && !replaceSecrets.telephonyApiKey}
-                    value={secrets.telephonyApiKey ?? ""}
-                    onChange={setSecret("telephonyApiKey")}
-                    onReplace={() => markReplace("telephonyApiKey")}
-                    replacing={Boolean(replaceSecrets.telephonyApiKey)}
-                  />
                 </>
               )}
 

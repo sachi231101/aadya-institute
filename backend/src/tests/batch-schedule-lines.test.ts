@@ -68,6 +68,28 @@ describe("derivePatternFromDays", () => {
   });
 });
 
+describe("UTC calendar helpers for session generation", () => {
+  test("date keys stay stable across IST midnight and UTC noon", async () => {
+    const {
+      formatDateKey,
+      utcNoonFromDateKey,
+      dayOfWeekFromDateKey,
+      eachDateKeyInRange,
+    } = await import("../modules/batches/batch-schedule.util");
+
+    assert.strictEqual(formatDateKey("2026-09-15"), "2026-09-15");
+    assert.strictEqual(formatDateKey("2026-09-15T12:00:00.000Z"), "2026-09-15");
+    assert.strictEqual(utcNoonFromDateKey("2026-09-15").toISOString(), "2026-09-15T12:00:00.000Z");
+    // Tuesday
+    assert.strictEqual(dayOfWeekFromDateKey("2026-09-15"), 2);
+    assert.deepStrictEqual(eachDateKeyInRange("2026-09-14", "2026-09-16"), [
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+    ]);
+  });
+});
+
 describe("Available faculty conflict key logic", () => {
   test("busy faculty set excludes matching day/slot", () => {
     const busy = [

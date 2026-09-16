@@ -4,7 +4,6 @@ import {
   ClipboardCheck,
   Loader2,
   AlertCircle,
-  Plus,
   History,
   Users,
 } from "lucide-react";
@@ -22,6 +21,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type { BackendClassSession } from "@/services/class-sessions.api";
+import { ROUTES } from "@/constants/routes";
 
 const todayKey = () => {
   const d = new Date();
@@ -42,38 +42,44 @@ export const FacultyTakeAttendance: React.FC = () => {
     ...(facultyId ? { facultyId } : {}),
   });
 
-  const sessions = useMemo(
-    () =>
-      (data?.data ?? []) as Array<
-        BackendClassSession & {
-          attendanceMarkedCount?: number;
-          attendanceDonePercentage?: number;
-        }
-      >,
-    [data?.data]
-  );
+  const sessions = useMemo(() => {
+    const rows = (data?.data ?? []) as Array<
+      BackendClassSession & {
+        attendanceMarkedCount?: number;
+        attendanceDonePercentage?: number;
+      }
+    >;
+    return rows.filter(
+      (s) => String(s.sessionStatus || "").toUpperCase() !== "CANCELLED"
+    );
+  }, [data?.data]);
 
-  const pendingCount = sessions.filter(
-    (s) => (s.attendanceDonePercentage ?? 0) < 100
-  ).length;
+  const pendingCount = sessions.filter((s) => {
+    const enrolled = s.enrolledStudentsCount ?? 0;
+    const marked = s.attendanceMarkedCount ?? 0;
+    return enrolled === 0 || marked < enrolled;
+  }).length;
 
   return (
     <PageContainer>
       <PageHeader
         title="Take Attendance"
-        description="Mark student attendance for your scheduled classes."
+        description="Mark Present / Absent / Leave for today’s scheduled classes."
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate("/faculty/attendance/history")}
+              onClick={() => navigate(ROUTES.FACULTY.STUDENTS)}
+            >
+              <Users className="w-4 h-4 mr-1.5" />
+              My Students
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(ROUTES.FACULTY.ATTENDANCE_HISTORY)}
             >
               <History className="w-4 h-4 mr-1.5" />
               History
-            </Button>
-            <Button onClick={() => navigate("/faculty/attendance/new")}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add New Attendance
             </Button>
           </div>
         }
@@ -112,12 +118,20 @@ export const FacultyTakeAttendance: React.FC = () => {
             </Button>
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
+          <div className="text-center py-12 space-y-2">
             <ClipboardCheck className="w-10 h-10 mx-auto text-slate-300" />
-            <p className="text-sm text-slate-500">No classes scheduled for today.</p>
-            <Button onClick={() => navigate("/faculty/attendance/new")}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add New Attendance
+            <p className="text-sm text-slate-600 font-medium">No classes scheduled for today.</p>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              Attendance is only available for scheduled class sessions. Check My Schedule, or mark
+              pending past sessions from Attendance History.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-2"
+              onClick={() => navigate(ROUTES.FACULTY.ATTENDANCE_HISTORY)}
+            >
+              <History className="w-4 h-4 mr-1.5" />
+              Open Attendance History
             </Button>
           </div>
         ) : (
@@ -128,8 +142,9 @@ export const FacultyTakeAttendance: React.FC = () => {
                 batch: session.batch,
               });
               const batch = session.batch?.code || session.batch?.name || "—";
-              const pct = session.attendanceDonePercentage ?? 0;
               const enrolled = session.enrolledStudentsCount ?? 0;
+              const marked = session.attendanceMarkedCount ?? 0;
+              const done = enrolled > 0 && marked >= enrolled;
               return (
                 <Card key={session.id} className="border border-slate-200">
                   <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -137,13 +152,13 @@ export const FacultyTakeAttendance: React.FC = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-slate-900">{course}</h3>
                         <Badge variant="secondary">{session.sessionStatus || "UPCOMING"}</Badge>
-                        {pct >= 100 ? (
+                        {done ? (
                           <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
                             Done
                           </Badge>
                         ) : (
                           <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-                            {pct}% marked
+                            Pending
                           </Badge>
                         )}
                       </div>
@@ -151,20 +166,22 @@ export const FacultyTakeAttendance: React.FC = () => {
                         Batch {batch} · {session.startTime} – {session.endTime}
                         {session.roomNo ? ` · ${session.roomNo}` : ""}
                       </p>
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />
-                        {enrolled} students ·{" "}
-                        {session.attendanceMarkedCount ?? 0} marked
+                        Marked {marked}/{enrolled || "—"}
                       </p>
                     </div>
                     <Button
+                      variant={done ? "outline" : "default"}
                       onClick={() =>
                         navigate(
-                          `/faculty/attendance/mark?sessionId=${encodeURIComponent(session.id)}`
+                          done
+                            ? `${ROUTES.FACULTY.ATTENDANCE_MARK}?sessionId=${encodeURIComponent(session.id)}&mode=view`
+                            : `${ROUTES.FACULTY.ATTENDANCE_MARK}?sessionId=${encodeURIComponent(session.id)}`
                         )
                       }
                     >
-                      Mark Attendance
+                      {done ? "View" : "Mark Attendance"}
                     </Button>
                   </CardContent>
                 </Card>

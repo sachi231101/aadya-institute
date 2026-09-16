@@ -546,72 +546,41 @@ export const AllLeadsList: React.FC = () => {
         title="All Leads"
         description="Lead pipeline, assignment, and follow-up."
         actions={
-          <>
-            <div className="flex rounded-xl border border-border bg-muted/40 p-0.5 overflow-hidden shadow-xs">
-              <Button
-                type="button"
-                variant={view === "list" ? "default" : "ghost"}
-                size="sm"
-                className={`rounded-lg text-xs font-semibold h-8 px-3 transition-all ${
-                  view === "list"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setView("list")}
-              >
-                <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
-              </Button>
-              <Button
-                type="button"
-                variant={view === "kanban" ? "default" : "ghost"}
-                size="sm"
-                className={`rounded-lg text-xs font-semibold h-8 px-3 transition-all ${
-                  view === "kanban"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setView("kanban")}
-              >
-                <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
-              </Button>
-            </div>
-            <PermissionGate itemKey="leads.all" mode="write">
-              <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
-                onClick={() =>
-                  navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
-                }
-              >
-                <Plus className="h-4 w-4" />
-                Create
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 px-2.5 rounded-xl">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setImportJobs([]);
-                      setShowImportModal(true);
-                    }}
-                  >
-                    <Upload className="h-4 w-4 mr-2" /> Import
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
-                    {exportMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    Export
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </PermissionGate>
-          </>
+          <PermissionGate itemKey="leads.all" mode="write">
+            <Button
+              onClick={() =>
+                navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
+              }
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Create
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setImportJobs([]);
+                    setShowImportModal(true);
+                  }}
+                >
+                  <Upload className="h-4 w-4 mr-2" /> Import
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+                  {exportMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Export
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </PermissionGate>
         }
       />
       <LeadModuleNavLinks className="mt-1" />
@@ -625,8 +594,28 @@ export const AllLeadsList: React.FC = () => {
 
       <FilterToolbar className="flex flex-col gap-3">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            <div className="flex rounded-md border border-border bg-muted/40 p-0.5 shrink-0">
+              <Button
+                type="button"
+                variant={view === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-sm text-xs font-semibold h-8 px-3"
+                onClick={() => setView("list")}
+              >
+                <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
+              </Button>
+              <Button
+                type="button"
+                variant={view === "kanban" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-sm text-xs font-semibold h-8 px-3"
+                onClick={() => setView("kanban")}
+              >
+                <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
+              </Button>
+            </div>
             <div className="relative flex-1 w-full min-w-[200px]">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, phone, email..."
                 value={searchTerm}
@@ -634,7 +623,7 @@ export const AllLeadsList: React.FC = () => {
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="pl-9 h-10 rounded-xl bg-background border-border"
+                className="pl-9 h-9 rounded-md bg-background border-border"
               />
             </div>
             <div className="w-full sm:w-[170px]">
@@ -672,7 +661,7 @@ export const AllLeadsList: React.FC = () => {
                 else next.set("assignedCounsellorId", value);
                 setSearchParams(next, { replace: true });
               }}
-              className="h-10 px-3 border border-border rounded-xl text-xs sm:text-sm bg-card font-medium text-foreground cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+              className="h-9 px-3 border border-border rounded-md text-sm bg-background font-medium text-foreground w-full sm:w-auto"
             >
               <option value="ALL">All Counsellors</option>
               {counsellors.map((c) => (
@@ -688,7 +677,7 @@ export const AllLeadsList: React.FC = () => {
                   setBranchFilter(e.target.value);
                   setPage(1);
                 }}
-                className="h-10 px-3 border border-border rounded-xl text-xs sm:text-sm bg-card font-medium text-foreground cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+                className="h-9 px-3 border border-border rounded-md text-sm bg-background font-medium text-foreground w-full sm:w-auto"
               >
                 <option value="ALL">All Branches</option>
                 {branches.map((b: { id: string; name: string }) => (
@@ -701,7 +690,7 @@ export const AllLeadsList: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-1.5 rounded-xl relative"
+              className="h-9 gap-1.5 rounded-md relative"
               onClick={() => {
                 setAdvancedDraft(advancedApplied);
                 setAdvancedOpen(true);
@@ -756,15 +745,15 @@ export const AllLeadsList: React.FC = () => {
             </div>
           )}
 
-          <Card className="border-border/60 shadow-xs rounded-xl">
-            <CardContent className="p-4 space-y-4">
+          <Card className="border-border/60 shadow-xs rounded-xl overflow-hidden">
+            <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground px-4">
               <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
               Loading leads...
             </div>
           ) : isError ? (
-            <div className="text-center py-12 text-red-600">
+            <div className="text-center py-12 text-red-600 px-4">
               <AlertCircle className="w-5 h-5 inline mr-2" />
               Failed to load leads.
               <Button variant="link" onClick={() => refetch()}>
@@ -772,7 +761,7 @@ export const AllLeadsList: React.FC = () => {
               </Button>
             </div>
           ) : view === "kanban" ? (
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-3 overflow-x-auto p-4 pb-2">
               {stagePipeline.map(({ key: stage, label }) => {
                 const columnLeads = leads.filter((l) => l.stage === stage);
                 return (
@@ -824,7 +813,7 @@ export const AllLeadsList: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="rounded-md border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1045,7 +1034,7 @@ export const AllLeadsList: React.FC = () => {
                 </Table>
               </div>
               {meta.totalPages > 1 && (
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm px-4 py-3 border-t border-border">
                   <span>
                     Page {meta.page} of {meta.totalPages}
                   </span>

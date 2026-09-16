@@ -112,20 +112,15 @@ const facultyNavItems: NavItem[] = [
     icon: BookOpen,
   },
   {
-    title: "Students",
+    title: "Students & Attendance",
     url: "/faculty/students/all",
     icon: GraduationCap,
-  },
-  {
-    title: "Feedback",
-    url: "/faculty/feedback",
-    icon: Star,
-  },
-  {
-    title: "Attendance",
-    url: "/faculty/attendance/take",
-    icon: UserCheck,
     items: [
+      {
+        title: "My Students",
+        url: "/faculty/students/all",
+        icon: GraduationCap,
+      },
       {
         title: "Take Attendance",
         url: "/faculty/attendance/take",
@@ -137,6 +132,11 @@ const facultyNavItems: NavItem[] = [
         icon: Clock,
       },
     ],
+  },
+  {
+    title: "Feedback",
+    url: "/faculty/feedback",
+    icon: Star,
   },
   {
     title: "Student Performance",
@@ -183,10 +183,20 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         <SidebarGroup>
           <SidebarMenu>
             {facultyNavItems.map((item) => {
-              const isSubItemActive = item.items?.some(
-                (subItem) => location.pathname === subItem.url || location.pathname.startsWith(subItem.url + "/")
-              )
-              const isDirectActive = location.pathname === item.url || (item.url === "/faculty/classes" && location.pathname === "/faculty/schedule/classes")
+              const isStudentsAttendanceGroup = item.title === "Students & Attendance"
+              const isSubItemActive =
+                item.items?.some(
+                  (subItem) =>
+                    location.pathname === subItem.url ||
+                    location.pathname.startsWith(subItem.url + "/")
+                ) ||
+                (isStudentsAttendanceGroup &&
+                  (location.pathname.startsWith("/faculty/students") ||
+                    location.pathname.startsWith("/faculty/attendance")))
+              const isDirectActive =
+                location.pathname === item.url ||
+                (item.url === "/faculty/classes" &&
+                  location.pathname === "/faculty/schedule/classes")
               const isExpanded = isSubItemActive || isDirectActive
 
               if (!item.items) {
@@ -217,7 +227,7 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={isSubItemActive || isDirectActive}
+                        isActive={Boolean(isSubItemActive || isDirectActive)}
                         className="w-full justify-between"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -230,13 +240,21 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                     <CollapsibleContent>
                       <SidebarMenuSub className="my-1 ml-3.5 pl-2.5 border-l border-border/60 gap-0.5">
                         {item.items.map((subItem) => {
+                          const isTakeAttendance = subItem.url === "/faculty/attendance/take"
+                          const isHistory = subItem.url === "/faculty/attendance/history"
                           const isSubActive =
                             location.pathname === subItem.url ||
                             (subItem.url === "/faculty/classes" &&
                               (location.pathname === "/faculty/schedule/classes" ||
                                 location.pathname === "/faculty/classes")) ||
                             (subItem.url === "/faculty/assignments" &&
-                              location.pathname === "/faculty/assignments")
+                              location.pathname === "/faculty/assignments") ||
+                            (isTakeAttendance &&
+                              (location.pathname === "/faculty/attendance/new" ||
+                                location.pathname === "/faculty/attendance/mark" ||
+                                location.pathname.startsWith("/faculty/attendance/mark"))) ||
+                            (isHistory &&
+                              location.pathname.startsWith("/faculty/attendance/history"))
 
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
