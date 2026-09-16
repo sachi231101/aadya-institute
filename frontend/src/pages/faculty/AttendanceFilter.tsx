@@ -59,9 +59,20 @@ export const FacultyAttendanceFilter: React.FC = () => {
         title="Student Attendance"
         description="Select date and class session, then mark attendance."
         actions={
-          <Button variant="outline" onClick={() => navigate("/faculty/attendance/history")}>
-            Cancel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/faculty/students/all")}
+            >
+              My Students
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/faculty/attendance/history")}
+            >
+              Cancel
+            </Button>
+          </div>
         }
       />
 

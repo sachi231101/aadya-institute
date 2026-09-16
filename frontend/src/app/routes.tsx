@@ -139,7 +139,6 @@ import { FacultyMySchedule } from "../pages/faculty/FacultyMySchedule";
 import { FacultyAttendance as FacultyPortalAttendance } from "../pages/faculty/FacultyAttendance";
 import { FacultyTakeAttendance } from "../pages/faculty/TakeAttendance";
 import { FacultyStudentAttendanceHistory } from "../pages/faculty/StudentAttendanceHistory";
-import { FacultyAttendanceFilter } from "../pages/faculty/AttendanceFilter";
 import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 
 // Student Portal Expansion
@@ -498,7 +497,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<Navigate to="take" replace />} />
           <Route path="take" element={<FacultyTakeAttendance />} />
           <Route path="history" element={<FacultyStudentAttendanceHistory />} />
-          <Route path="new" element={<FacultyAttendanceFilter />} />
+          <Route path="new" element={<Navigate to="/faculty/attendance/take" replace />} />
           <Route path="mark" element={<FacultyMarkAttendance />} />
         </Route>
         <Route path="my-attendance" element={<FacultyPortalAttendance />} />

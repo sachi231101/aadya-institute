@@ -186,6 +186,9 @@ export interface FacultyMyStudent {
   user: { id: string; name: string; email: string | null; phone: string | null } | null;
   branch: FacultyBranch | null;
   batches: { id: string; name: string; code: string; courseName: string | null }[];
+  presentCount?: number;
+  conductedCount?: number;
+  attendancePercentage?: number;
 }
 
 // ─── API Payloads ───────────────────────────────────────────────────────
@@ -283,6 +286,7 @@ export interface FacultyStudentAttendanceStudentSummary {
   leave: number;
   total: number;
   attendancePercentage: number;
+  batchCodes?: string[];
 }
 
 export interface FacultyStudentAttendanceData {

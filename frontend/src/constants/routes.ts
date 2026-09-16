@@ -163,9 +163,12 @@ export const ROUTES = {
   FACULTY: {
     DASHBOARD: "/faculty/dashboard",
     CLASSES: "/faculty/classes",
+    STUDENTS: "/faculty/students/all",
     ATTENDANCE: "/faculty/attendance/take",
     ATTENDANCE_TAKE: "/faculty/attendance/take",
     ATTENDANCE_HISTORY: "/faculty/attendance/history",
+    ATTENDANCE_NEW: "/faculty/attendance/new",
+    ATTENDANCE_MARK: "/faculty/attendance/mark",
     MY_ATTENDANCE: "/faculty/my-attendance",
     ASSIGNMENTS: {
       ALL: "/faculty/assignments",

@@ -566,20 +566,17 @@ export const getStudentPerformance = async (studentId: string, currentUser: Auth
   // Verify student exists and faculty may access
   await getStudentById(studentId, currentUser);
 
-  const [attendanceRecords, submissions, enrollments] = await Promise.all([
+  const [attendanceSummary, attendanceRecords, submissions, enrollments] = await Promise.all([
+    (await import("../attendance/attendance-stats.util")).computeStudentAttendanceSummary(studentId),
     repo.findStudentAttendanceRecords(studentId),
     repo.findStudentAssignmentSubmissions(studentId),
     repo.findStudentEnrollments(studentId),
   ]);
 
-  // ΓöÇΓöÇ Attendance calculation ΓöÇΓöÇ
-  const totalClasses = attendanceRecords.length;
-  const presentCount = attendanceRecords.filter(
-    (r) => r.status === "PRESENT" || r.status === "LATE"
-  ).length;
-  const overallAttendancePercent = totalClasses > 0
-    ? Math.round((presentCount / totalClasses) * 100)
-    : 0;
+  // Present ÷ Conducted (shared formula)
+  const totalClasses = attendanceSummary.conductedCount;
+  const presentCount = attendanceSummary.presentCount;
+  const overallAttendancePercent = attendanceSummary.attendancePercentage;
 
   // ΓöÇΓöÇ 3 Consecutive Absence Check (AGENTS.md Rule 28) ΓöÇΓöÇ
   // Approved LEAVE does not count as ABSENT

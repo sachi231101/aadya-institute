@@ -39,22 +39,49 @@ export function buildDefaultSchedules(
   }));
 }
 
-export function eachDateInRange(start: Date, end: Date): Date[] {
-  const dates: Date[] = [];
-  const cursor = new Date(start);
-  cursor.setHours(0, 0, 0, 0);
-  const endDate = new Date(end);
-  endDate.setHours(23, 59, 59, 999);
-
-  while (cursor <= endDate) {
-    dates.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+/** Normalize to YYYY-MM-DD using UTC calendar parts (matches ClassSession UTC-noon storage). */
+export function formatDateKey(date: Date | string): string {
+  if (typeof date === "string") {
+    const match = date.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+    const parsed = new Date(date);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+    }
+    return date.slice(0, 10);
   }
-  return dates;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
-export function formatDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+/** Store/compare calendar days at UTC noon so IST/local never shifts the day. */
+export function utcNoonFromDateKey(dateKey: string): Date {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return new Date(`${dateKey}T12:00:00.000Z`);
+  return new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0)
+  );
+}
+
+export function dayOfWeekFromDateKey(dateKey: string): number {
+  return utcNoonFromDateKey(dateKey).getUTCDay();
+}
+
+export function eachDateKeyInRange(start: Date | string, end: Date | string): string[] {
+  const startKey = formatDateKey(start);
+  const endKey = formatDateKey(end);
+  const keys: string[] = [];
+  let cursor = utcNoonFromDateKey(startKey);
+  const endDt = utcNoonFromDateKey(endKey);
+  while (cursor.getTime() <= endDt.getTime()) {
+    keys.push(formatDateKey(cursor));
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return keys;
+}
+
+/** @deprecated Prefer eachDateKeyInRange + utcNoonFromDateKey for session generation. */
+export function eachDateInRange(start: Date, end: Date): Date[] {
+  return eachDateKeyInRange(start, end).map((key) => utcNoonFromDateKey(key));
 }
 
 /** Infer MWF/TTS/WEEKEND/CUSTOM from a set of dayOfWeek values (0=Sun .. 6=Sat). */
@@ -66,4 +93,3 @@ export function derivePatternFromDays(days: number[]): "MWF" | "TTS" | "WEEKEND"
   if (unique.every((d) => d === 0 || d === 6) && unique.length > 0) return "WEEKEND";
   return "CUSTOM";
 }
-

@@ -56,6 +56,7 @@ import { classSessionsApi } from "@/services/class-sessions.api";
 import {
   periodFromStartTime,
   periodToTimes,
+  findSlotByMasterId,
   toDateKey,
   addDaysToDateKey,
   formatDateKeyLabel,
@@ -410,8 +411,14 @@ export const Timetable: React.FC = () => {
           if (toDateKey(raw.scheduledDate) !== dayKeyStr) return;
           if (raw.sessionStatus === "CANCELLED") return;
 
-          const period = periodFromStartTime(raw.startTime, timeSlotColumns) ?? timeSlotColumns[0]?.period ?? 1;
-          if (!slots[period]) return;
+          const masterSlot = findSlotByMasterId(
+            (raw as BackendClassSession & { timeslotMasterId?: string | null }).timeslotMasterId,
+            timeSlotColumns
+          );
+          const period =
+            masterSlot?.period ??
+            periodFromStartTime(raw.startTime, timeSlotColumns);
+          if (!period || !slots[period]) return;
           slots[period] = mapSessionToCell(raw, period);
         });
 
