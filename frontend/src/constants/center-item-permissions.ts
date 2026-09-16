@@ -59,6 +59,7 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "reports.examinations": ["report.read", "exam.read"],
   "reports.financial": ["report.read", "fee.read"],
   "communication.notifications": ["notification.read"],
+  "communication.announcements": ["announcement.read"],
   "communication.whatsapp": ["whatsapp.automation.read", "whatsapp.history.read", "whatsapp.template.read"],
   "communication.email": ["email.read"],
   "placement.eligible": ["placement.read"],
@@ -133,6 +134,7 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "reports.examinations": [],
   "reports.financial": [],
   "communication.notifications": ["notification.manage"],
+  "communication.announcements": ["announcement.create"],
   "communication.whatsapp": [
     "notification.resend",
     "notification.manage",

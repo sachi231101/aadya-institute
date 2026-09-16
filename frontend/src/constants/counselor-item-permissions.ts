@@ -45,6 +45,7 @@ export const COUNSELOR_CATALOG_ITEM_KEYS = [
   "targets.all",
   "targets.leaderboard",
   "targets.incentives",
+  "communication.announcements",
 ] as const;
 
 type CounselorItemKey = (typeof COUNSELOR_CATALOG_ITEM_KEYS)[number];

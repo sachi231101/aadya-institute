@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -26,7 +26,6 @@ import {
   BookOpen,
   Loader2,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,14 +38,13 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
+import { useFeedbackByStudent, useSubmitFeedback } from "@/hooks/useFeedback";
 import { useSessionStore } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { useRecordings } from "@/hooks/useRecordings";
-import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
-import { periodFromStartTime } from "@/constants/timetable-slots";
 
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
@@ -106,6 +104,7 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }) || raw.courseName || title,
     batchCode: raw.batch?.code,
     facultyName: raw.faculty?.user?.name || "Faculty",
+    facultyId: raw.facultyId || raw.faculty?.id || "",
     date: raw.scheduledDate
       ? toLocalDateString(new Date(raw.scheduledDate))
       : "",
@@ -125,7 +124,6 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
     avatarColor: "text-blue-500",
     meetingUrl: raw.meetingUrl,
-    timeslotMasterId: raw.timeslotMasterId,
   };
 };
 
@@ -138,6 +136,7 @@ interface StudentClassSession {
   courseName?: string;
   batchCode?: string;
   facultyName: string;
+  facultyId: string;
   date: string; // YYYY-MM-DD
   startTime: string; // e.g. "02:00 PM"
   endTime: string; // e.g. "04:00 PM"
@@ -157,7 +156,6 @@ interface StudentClassSession {
   attendanceStatus?: "PRESENT" | "ABSENT" | "LATE";
   attendanceMarkedTime?: string;
   meetingUrl?: string;
-  timeslotMasterId?: string;
   submittedRating?: number;
   submittedAtFormatted?: string;
 }
@@ -227,6 +225,7 @@ export const StudentSchedule: React.FC = () => {
   const { user } = useAuthStore();
   const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
+  const submitFeedbackMutation = useSubmitFeedback();
   const { activeLiveClass } = useSessionStore();
   const { data: recordingsRes } = useRecordings({ limit: 100, recordingStatus: "AVAILABLE" });
   const [recordingsNow] = useState(() => Date.now());
@@ -244,12 +243,9 @@ export const StudentSchedule: React.FC = () => {
   );
 
   const studentId = academic.studentId || user?.studentId || user?.id || "";
+  const apiStudentId = academic.studentId || user?.studentId || "";
   const studentName = academic.studentName || user?.name || "Student";
-  const {
-    slots: timeSlotColumns,
-    isLoading: slotsLoading,
-    isEmpty: slotsEmpty,
-  } = useTimetableSlotColumns(user?.branchId || undefined);
+  const { data: myFeedbackRes } = useFeedbackByStudent(apiStudentId);
   const [apiSessions, setApiSessions] = useState<StudentClassSession[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
@@ -340,6 +336,9 @@ export const StudentSchedule: React.FC = () => {
 
   // Success Notification
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [justSubmittedIds, setJustSubmittedIds] = useState<string[]>([]);
+  const syncedSessionIds = useRef(new Set<string>());
 
   // Modals
   const [liveJoiningSession, setLiveJoiningSession] = useState<StudentClassSession | null>(null);
@@ -353,16 +352,43 @@ export const StudentSchedule: React.FC = () => {
 
   // Determine real-time lifecycle status of a session
   const getSessionLifecycle = (session: StudentClassSession) => {
-    // 1. Check if feedback has already been submitted in the store
-    const storedFeedback = getFeedbackForSession(session.id, studentId);
-    if (storedFeedback) {
+    const serverFeedback = submittedBySession.get(session.id);
+    const storedFeedback =
+      getFeedbackForSession(session.id, apiStudentId) ||
+      getFeedbackForSession(session.id, studentId);
+    if (serverFeedback || justSubmittedIds.includes(session.id)) {
+      const submittedAt = serverFeedback?.submittedAt
+        ? new Date(serverFeedback.submittedAt).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : storedFeedback?.submittedAt;
       return {
         stage: "FEEDBACK_SUBMITTED" as const,
         statusText: "COMPLETED",
         subText: "Feedback Submitted • Thank you for your feedback.",
         badgeColor: "emerald",
-        feedback: storedFeedback,
-        submittedAt: storedFeedback.submittedAt,
+        feedback:
+          storedFeedback ||
+          (serverFeedback
+            ? {
+                id: session.id,
+                sessionId: session.id,
+                courseName: session.title,
+                batchCode: session.courseCode,
+                facultyName: session.facultyName,
+                classDate: session.date,
+                classTime: `${session.startTime} – ${session.endTime}`,
+                studentId: apiStudentId,
+                studentName,
+                rating: serverFeedback.rating,
+                ratingLabel: RATING_LABELS[Math.round(serverFeedback.rating)] || "Excellent",
+                comments: serverFeedback.comment,
+                submittedAt: submittedAt || "",
+              }
+            : undefined),
+        submittedAt,
       };
     }
 
@@ -454,25 +480,116 @@ export const StudentSchedule: React.FC = () => {
   };
 
   // Open Feedback Modal for a specific completed session
+  const submittedBySession = useMemo(() => {
+    const map = new Map<string, { rating: number; comment?: string; submittedAt: string }>();
+    for (const item of myFeedbackRes?.data ?? []) {
+      if (!item?.classSessionId) continue;
+      map.set(item.classSessionId, {
+        rating: item.rating,
+        comment: item.comment,
+        submittedAt: item.submittedAt,
+      });
+    }
+    return map;
+  }, [myFeedbackRes]);
+
+  useEffect(() => {
+    if (!apiStudentId || !myFeedbackRes) return;
+    const pending = feedbacks.filter((item) => {
+      if (syncedSessionIds.current.has(item.sessionId)) return false;
+      if (submittedBySession.has(item.sessionId)) return false;
+      if (!item.sessionId || item.sessionId.length < 20) return false;
+      return item.studentId === apiStudentId || item.studentId === user?.id;
+    });
+    if (pending.length === 0) return;
+
+    for (const item of pending) {
+      syncedSessionIds.current.add(item.sessionId);
+      const rating = Math.min(
+        5,
+        Math.max(1, Math.round(Number(item.rating) || item.teachingRating || 5))
+      );
+      const session = apiSessions.find((row) => row.id === item.sessionId);
+      submitFeedbackMutation.mutate(
+        {
+          classSessionId: item.sessionId,
+          studentId: apiStudentId,
+          facultyId: session?.facultyId || undefined,
+          rating,
+          comment: item.comments,
+        },
+        {
+          onSuccess: () => {
+            setJustSubmittedIds((current) =>
+              current.includes(item.sessionId) ? current : [...current, item.sessionId]
+            );
+          },
+        }
+      );
+    }
+  }, [
+    apiStudentId,
+    apiSessions,
+    feedbacks,
+    myFeedbackRes,
+    submittedBySession,
+    submitFeedbackMutation,
+    user?.id,
+  ]);
+
   const handleOpenFeedbackModal = (session: StudentClassSession) => {
     setActiveFeedbackModalSession(session);
     setTeachingRating(5);
     setUnderstandingRating(5);
     setOverallExperienceRating(5);
     setFeedbackComment("");
+    setFeedbackError(null);
     setHoverTeaching(null);
     setHoverUnderstanding(null);
     setHoverOverall(null);
   };
 
   // Submit Feedback Handler
-  const handleSubmitFeedback = () => {
+  const handleSubmitFeedback = async () => {
     if (!activeFeedbackModalSession) return;
     if (teachingRating === 0 || understandingRating === 0 || overallExperienceRating === 0) return;
+    if (submitFeedbackMutation.isPending) return;
+
+    if (!apiStudentId) {
+      setFeedbackError("Student profile is not linked. Log out and log in again, then retry.");
+      return;
+    }
 
     const avgRating =
       Math.round(((teachingRating + understandingRating + overallExperienceRating) / 3) * 10) / 10;
-    const ratingLabel = RATING_LABELS[Math.round(avgRating)] || "Excellent";
+    const rating = Math.min(5, Math.max(1, Math.round(avgRating)));
+    const ratingLabel = RATING_LABELS[rating] || "Excellent";
+    const breakdown = `Teaching ${teachingRating}/5 · Understanding ${understandingRating}/5 · Overall ${overallExperienceRating}/5`;
+    const comment = feedbackComment.trim()
+      ? `${feedbackComment.trim()}\n${breakdown}`
+      : breakdown;
+
+    setFeedbackError(null);
+    try {
+      await submitFeedbackMutation.mutateAsync({
+        classSessionId: activeFeedbackModalSession.id,
+        studentId: apiStudentId,
+        facultyId: activeFeedbackModalSession.facultyId || undefined,
+        rating,
+        comment,
+      });
+      setJustSubmittedIds((current) =>
+        current.includes(activeFeedbackModalSession.id)
+          ? current
+          : [...current, activeFeedbackModalSession.id]
+      );
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Could not save feedback. Please try again.";
+      setFeedbackError(message);
+      return;
+    }
 
     submitFeedback({
       sessionId: activeFeedbackModalSession.id,
@@ -481,15 +598,15 @@ export const StudentSchedule: React.FC = () => {
       facultyName: activeFeedbackModalSession.facultyName,
       classDate: activeFeedbackModalSession.date,
       classTime: `${activeFeedbackModalSession.startTime} – ${activeFeedbackModalSession.endTime}`,
-      studentId,
+      studentId: apiStudentId,
       studentName,
-      rating: avgRating,
+      rating,
       ratingLabel,
       teachingRating,
       understandingRating,
       overallExperienceRating,
       teachingQuality: "Excellent",
-      comments: feedbackComment.trim() || "Great class session and clear explanations.",
+      comments: comment,
     });
 
     setSuccessToast(`Feedback submitted for ${activeFeedbackModalSession.title}! Thank you for your feedback.`);
@@ -550,7 +667,7 @@ export const StudentSchedule: React.FC = () => {
                   {day.dateNumber} <span className="text-[10px] uppercase font-bold">{day.monthName}</span>
                 </span>
 
-                {day.isToday ? (
+                {day.isToday && (
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[8.5px] font-semibold uppercase tracking-wider ${
                       isSelected
@@ -560,8 +677,6 @@ export const StudentSchedule: React.FC = () => {
                   >
                     TODAY
                   </span>
-                ) : (
-                  <span className="h-1 w-1 rounded-full my-0.5 bg-slate-300 dark:bg-slate-700" />
                 )}
 
                 <span className={`text-[9px] font-bold ${isSelected ? "text-indigo-100" : "text-slate-400 dark:text-slate-500"}`}>
@@ -587,67 +702,6 @@ export const StudentSchedule: React.FC = () => {
         description={`${daySessions.length} ${daySessions.length === 1 ? "class" : "classes"} scheduled`}
       >
       <div className="space-y-3">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Times synchronized with scheduled faculty sessions</span>
-        </div>
-
-        {/* Master Time Slot day grid */}
-        {slotsLoading ? (
-          <div className="flex items-center gap-2 text-xs text-slate-500 py-4">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading time slots…
-          </div>
-        ) : slotsEmpty ? (
-          <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-6 text-center text-xs text-slate-500">
-            Time slots are not configured yet. Your institute admin should add Time Slots in Master Setup.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-card">
-            <table className="w-full border-collapse min-w-[640px] text-left">
-              <thead>
-                <tr className="bg-slate-50/90 dark:bg-slate-800/50 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                  <th className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-28">Time Slot</th>
-                  <th className="p-2.5">Class</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                {timeSlotColumns.map((slot) => {
-                  const session = daySessions.find((s) => {
-                    if (s.timeslotMasterId && slot.timeslotMasterId) {
-                      return s.timeslotMasterId === slot.timeslotMasterId;
-                    }
-                    return periodFromStartTime(s.startTime, timeSlotColumns) === slot.period;
-                  });
-                  return (
-                    <tr key={slot.timeslotMasterId || slot.period} className="h-14">
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 font-mono font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-                        {slot.label}
-                      </td>
-                      <td className="p-2">
-                        {session ? (
-                          <div className="rounded-xl border border-blue-100 bg-blue-50/70 dark:bg-blue-950/30 dark:border-blue-900 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-slate-900 dark:text-white truncate">{session.title}</p>
-                              <p className="text-[10px] text-slate-500">
-                                {session.facultyName} · {session.batchCode || session.courseCode} · {session.mode}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-[10px] shrink-0">
-                              {session.forceStatus || "UPCOMING"}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className="text-slate-300 dark:text-slate-600 font-bold px-2">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
         {/* ─── 4. CLASS CARDS WITH AUTOMATIC LIFECYCLE ────────────────────────── */}
         <div className="space-y-3">
           {isLoading ? (
@@ -1058,6 +1112,11 @@ export const StudentSchedule: React.FC = () => {
                     className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B1325] text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#0B1325] focus:border-[#5B50EC] outline-none resize-none transition-all"
                   />
                 </div>
+                {feedbackError && (
+                  <p className="text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-lg px-3 py-2">
+                    {feedbackError}
+                  </p>
+                )}
               </div>
 
               <DialogFooter className="pt-3 flex gap-2">
@@ -1071,11 +1130,23 @@ export const StudentSchedule: React.FC = () => {
                 </Button>
                 <Button
                   type="button"
-                  disabled={teachingRating === 0 || understandingRating === 0 || overallExperienceRating === 0}
+                  disabled={
+                    teachingRating === 0 ||
+                    understandingRating === 0 ||
+                    overallExperienceRating === 0 ||
+                    submitFeedbackMutation.isPending
+                  }
                   onClick={handleSubmitFeedback}
                   className="h-10 flex-1 bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Submit Feedback
+                  {submitFeedbackMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Submit Feedback"
+                  )}
                 </Button>
               </DialogFooter>
             </>

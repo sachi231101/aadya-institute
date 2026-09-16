@@ -50,6 +50,25 @@ export interface StudentDashboardData {
     totalClasses: number;
     presentCount: number;
   };
+  fees?: {
+    pendingAmount: number;
+    paidAmount: number;
+    pending: Array<{
+      id: string;
+      feeHead: string;
+      dueAmount: number;
+      amountPaid: number;
+      dueDate: string;
+      status: string;
+    }>;
+    paid: Array<{
+      id: string;
+      receiptNo: string;
+      amount: number;
+      method: string;
+      date: string;
+    }>;
+  };
   todaySessions: Array<{
     id: string;
     title: string | null;

@@ -23,6 +23,32 @@ import {
   requireFacultyIdIfPureFaculty,
 } from "../../utils/auth-user.util";
 
+const parseLocalDateParts = (isoDate: string): { year: number; month: number; day: number } | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+};
+
+const startOfLocalDay = (isoDate: string): Date => {
+  const parts = parseLocalDateParts(isoDate);
+  if (parts) return new Date(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0);
+  const fallback = new Date(isoDate);
+  fallback.setHours(0, 0, 0, 0);
+  return fallback;
+};
+
+const endOfLocalDay = (isoDate: string): Date => {
+  const parts = parseLocalDateParts(isoDate);
+  if (parts) return new Date(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999);
+  const fallback = new Date(isoDate);
+  fallback.setHours(23, 59, 59, 999);
+  return fallback;
+};
+
 const triggerLeaveNotification = async (studentId: string, classSessionId: string) => {
   try {
     const student = await prisma.student.findUnique({
@@ -390,13 +416,14 @@ export const getStudentAttendance = async (
   }
 
   const page = Number(query.page) || 1;
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const limit = Math.min(200, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
   const { records, total } = await repo.findStudentAttendanceHistory({
     studentId: targetStudentId,
-    fromDate: query.fromDate ? new Date(query.fromDate) : undefined,
-    toDate: query.toDate ? new Date(query.toDate) : undefined,
+    fromDate: query.fromDate ? startOfLocalDay(query.fromDate) : undefined,
+    toDate: query.toDate ? endOfLocalDay(query.toDate) : undefined,
+    courseId: query.courseId,
     skip,
     take: limit,
   });

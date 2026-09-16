@@ -105,6 +105,9 @@ export const submitFeedback = async (currentUser: AuthUser, dto: SubmitFeedbackD
   }
 
   const facultyId = dto.facultyId || session.facultyId;
+  if (!facultyId) {
+    throw new AppError("This class session has no faculty assigned", 400);
+  }
   return repo.createFeedback({
     classSessionId: dto.classSessionId,
     studentId: dto.studentId,

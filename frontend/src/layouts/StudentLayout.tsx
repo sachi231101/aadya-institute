@@ -14,13 +14,11 @@ import {
   LogOut,
   Menu,
   X,
-  Megaphone,
   MessageSquareQuote,
   Briefcase,
   Award,
   ExternalLink,
   MoreHorizontal,
-  Wallet,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { useOrganization } from "@/hooks/useOrganizationContext";
@@ -107,9 +105,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
-    { label: "My Fees", icon: Wallet, path: "/student/fees" },
     { label: "Online Exams", icon: ShieldCheck, path: "/student/exams", badge: "PROCTORED" },
-    { label: "Announcements", icon: Megaphone, path: "/student/announcements", dot: true },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
@@ -338,20 +334,6 @@ export const StudentLayout: React.FC = () => {
                 <div>
                   <span className="block">Recordings</span>
                   <span className="text-[10px] text-muted-foreground font-medium">Video Vault</span>
-                </div>
-              </Link>
-
-              <Link
-                to="/student/announcements"
-                onClick={() => setMobileMoreOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
-              >
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Megaphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="block">Announcements</span>
-                  <span className="text-[10px] text-muted-foreground font-medium">Notices &amp; Alerts</span>
                 </div>
               </Link>
 

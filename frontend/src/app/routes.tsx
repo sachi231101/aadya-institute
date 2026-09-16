@@ -116,6 +116,7 @@ import {
   PaymentsEntry,
 } from "../pages/admin/fees/FeeNavRedirects";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
+import { CommunicationAnnouncements } from "../pages/admin/communication/Announcements";
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
 import { Jobs } from "../pages/admin/placement/Jobs";
@@ -148,7 +149,6 @@ import { StudentFeedback } from "../pages/student/Feedback";
 import { StudentSchedule } from "../pages/student/Schedule";
 import { StudentProfile } from "../pages/student/Profile";
 import { StudentStudyMaterials } from "../pages/student/StudyMaterials";
-import { StudentAnnouncements } from "../pages/student/Announcements";
 import { StudentCertificates } from "../pages/student/Certificates";
 
 
@@ -157,7 +157,6 @@ import { CenterDashboard } from "../pages/center/Dashboard";
 import { CounselorDashboard } from "../pages/counselor/Dashboard";
 import { FacultyDashboard } from "../pages/faculty/Dashboard";
 import { StudentDashboard } from "../pages/student/Dashboard";
-import { MyFees } from "../pages/student/MyFees";
 import { StudentAttendance as PortalStudentAttendance } from "../pages/student/Attendance";
 
 /** Redirect while preserving query string (e.g. courseId on batches). */
@@ -313,6 +312,7 @@ export const AppRoutes: React.FC = () => {
         </Route>
 
         <Route path="communication">
+          <Route path="announcements" element={<CommunicationAnnouncements />} />
           <Route path="email" element={<EmailManagement />} />
           <Route path="whatsapp" element={<WhatsAppHub />}>
             <Route index element={<Navigate to="automations" replace />} />
@@ -447,6 +447,7 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="communication/announcements" element={<CommunicationAnnouncements />} />
 
         <Route path="leads">
           <Route index element={<AllLeadsList />} />
@@ -538,10 +539,10 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="home" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="dashboard" element={<StudentDashboard />} />
-        <Route path="fees" element={<MyFees />} />
+        <Route path="fees" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="ask-me" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
-        <Route path="announcements" element={<StudentAnnouncements />} />
+        <Route path="announcements" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="schedule" element={<StudentSchedule />} />
         <Route path="study-materials" element={<StudentStudyMaterials />} />
         <Route path="recordings" element={<StudentRecordings />} />

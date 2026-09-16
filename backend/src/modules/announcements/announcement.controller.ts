@@ -42,3 +42,29 @@ export const deleteAnnouncement = async (
     next(error);
   }
 };
+
+export const markAnnouncementRead = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const data = await AnnouncementService.markRead(toAuthUser(req), req.params.id as string);
+    sendSuccess(res, data, 200, "Announcement marked as read");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markAllAnnouncementsRead = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const data = await AnnouncementService.markAllRead(toAuthUser(req), req.body ?? {});
+    sendSuccess(res, data, 200, "Announcements marked as read");
+  } catch (error) {
+    next(error);
+  }
+};

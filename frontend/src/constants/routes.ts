@@ -123,6 +123,7 @@ export const ROUTES = {
       WHATSAPP_AUTOMATIONS: "/admin/communication/whatsapp/automations",
       WHATSAPP_TEMPLATES: "/admin/communication/whatsapp/templates",
       WHATSAPP_HISTORY: "/admin/communication/whatsapp/history",
+      ANNOUNCEMENTS: "/admin/communication/announcements",
       EMAIL: "/admin/communication/email",
       AUTOMATION: "/admin/communication/whatsapp/automations",
     },

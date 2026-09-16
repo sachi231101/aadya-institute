@@ -32,3 +32,23 @@ export const useDeleteAnnouncement = () => {
     },
   });
 };
+
+export const useMarkAnnouncementRead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => announcementsApi.markRead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [KEY] });
+    },
+  });
+};
+
+export const useMarkAllAnnouncementsRead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId?: string) => announcementsApi.markAllRead(batchId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [KEY] });
+    },
+  });
+};

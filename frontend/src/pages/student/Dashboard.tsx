@@ -12,10 +12,11 @@ import {
   Loader2,
   BarChart3,
   UserCircle,
-  ChevronRight,
   ChevronDown,
   Check,
   Play,
+  Megaphone,
+  CheckCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +25,13 @@ import { useAuthStore } from "../../store/auth.store";
 import { useSessionStore } from "../../store/session.store";
 import { useStudentDashboard } from "../../hooks/useStudentDashboard";
 import { useStudentAcademicAccess } from "../../hooks/useStudentAcademicAccess";
+import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import { PageContainer, PageHeader, MetricGrid } from "@/components/layout";
 import { useRecordingAccess, useRecordings } from "@/hooks/useRecordings";
 import { classSessionsApi } from "@/services/class-sessions.api";
+import { StudentAskLeaveCard } from "@/components/leave/StudentAskLeaveCard";
+import { useAnnouncements, useMarkAnnouncementRead, useMarkAllAnnouncementsRead } from "@/hooks/useAnnouncements";
 
 interface EnrolledCourseItem {
   id: string;
@@ -48,8 +52,19 @@ export const StudentDashboard: React.FC = () => {
   const academic = useStudentAcademicAccess();
   const { activeLiveClass } = useSessionStore();
   const { data: dashRes, isLoading } = useStudentDashboard();
+  const formatMoney = useFormatCurrency();
   const { data: recordingsRes } = useRecordings({ limit: 5, recordingStatus: "AVAILABLE" });
   const recordingAccess = useRecordingAccess();
+  const { data: announcementsRes, isLoading: announcementsLoading } = useAnnouncements({
+    status: "PUBLISHED",
+    view: "inbox",
+    limit: 8,
+  });
+  const markAnnouncementRead = useMarkAnnouncementRead();
+  const markAllAnnouncementsRead = useMarkAllAnnouncementsRead();
+  const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
+  const announcements = announcementsRes?.data || [];
+  const unreadCount = announcements.filter((item) => !item.isRead).length;
   const [recordingsNow] = React.useState(() => Date.now());
 
   const dashboard = dashRes?.data;
@@ -697,35 +712,191 @@ export const StudentDashboard: React.FC = () => {
         </Card>
       </MetricGrid>
 
-      {/* ─── 4. LOWER CONTENT: FEES & PAYMENTS + ASSIGNED INSTRUCTOR ─── */}
+      <Card className="bg-card rounded-xl border border-border p-4 shadow-2xs">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Megaphone className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Announcements</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Notices from faculty, counsellor, and admin</p>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-[11px] shrink-0"
+              onClick={() => markAllAnnouncementsRead.mutate(undefined)}
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              Mark all read
+            </Button>
+          )}
+        </div>
+
+        {announcementsLoading ? (
+          <p className="text-xs text-slate-500">Loading announcements...</p>
+        ) : announcements.length === 0 ? (
+          <p className="text-xs text-slate-500">No announcements yet. You're all caught up.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {announcements.map((item) => {
+              const isOpen = openAnnouncementId === item.id;
+              const author = item.createdBy?.name || item.faculty?.user?.name || "Institute";
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setOpenAnnouncementId(isOpen ? null : item.id);
+                    if (!item.isRead) markAnnouncementRead.mutate(item.id);
+                  }}
+                  className="w-full text-left py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {item.title}
+                        {!item.isRead && (
+                          <span className="ml-2 inline-block align-middle h-1.5 w-1.5 rounded-full bg-rose-500" />
+                        )}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {item.authorRole || "Staff"} · {author}
+                        {item.batch?.name ? ` · ${item.batch.name}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {item.publishedAt
+                        ? new Date(item.publishedAt).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                          })
+                        : ""}
+                    </span>
+                  </div>
+                  <p className={`text-[11px] text-slate-600 dark:text-slate-300 mt-1 ${isOpen ? "whitespace-pre-line" : "line-clamp-2"}`}>
+                    {item.body}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <StudentAskLeaveCard />
+
+      {/* ─── 4. LOWER CONTENT: FEES + ASSIGNED INSTRUCTOR ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch">
-        {/* LEFT / LARGE SECTION: Fees & Payments (8 cols) */}
-        <Card
-          onClick={() => navigate("/student/profile")}
-          className="lg:col-span-8 bg-card rounded-xl border border-border p-4 shadow-2xs hover:border-primary/30 transition-all flex items-center justify-between gap-3 cursor-pointer"
-        >
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
-              <CreditCard className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2]" />
+        <Card className="lg:col-span-8 bg-card rounded-xl border border-border p-4 shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <CreditCard className="w-4 h-4 stroke-[2]" />
             </div>
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight truncate">
-                Fees &amp; Payments
+                Fees
               </h3>
               <p className="text-[9.5px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate">
-                Track payments and receipts for {activeCourse?.name || "your course"}
+                Your pending dues and payments for {activeCourse?.name || "your course"}
               </p>
             </div>
           </div>
 
-          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 flex items-center justify-center shrink-0">
-            <ChevronRight className="w-3.5 h-3.5" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-amber-200/80 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                Pending
+              </p>
+              <p className="text-base font-black text-amber-800 dark:text-amber-200">
+                {formatMoney(dashboard?.fees?.pendingAmount ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-emerald-200/80 dark:border-emerald-900 bg-emerald-50/70 dark:bg-emerald-950/30 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                Paid
+              </p>
+              <p className="text-base font-black text-emerald-800 dark:text-emerald-200">
+                {formatMoney(dashboard?.fees?.paidAmount ?? 0)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                Pending fees
+              </p>
+              {(dashboard?.fees?.pending.length ?? 0) === 0 ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">No pending fees.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {dashboard?.fees?.pending.map((fee) => (
+                    <li
+                      key={fee.id}
+                      className="flex items-start justify-between gap-2 rounded-lg border border-border px-2.5 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-slate-900 dark:text-white truncate">
+                          {fee.feeHead}
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Due {new Date(fee.dueDate).toLocaleDateString("en-IN")}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                          {formatMoney(fee.dueAmount)}
+                        </p>
+                        <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">
+                          {fee.status}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                Paid fees
+              </p>
+              {(dashboard?.fees?.paid.length ?? 0) === 0 ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">No payments yet.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {dashboard?.fees?.paid.map((payment) => (
+                    <li
+                      key={payment.id}
+                      className="flex items-start justify-between gap-2 rounded-lg border border-border px-2.5 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-slate-900 dark:text-white truncate">
+                          {payment.receiptNo}
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {new Date(payment.date).toLocaleDateString("en-IN")} · {payment.method}
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">
+                        {formatMoney(payment.amount)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </Card>
 
         {/* RIGHT / SMALL SECTION: Assigned Instructor (4 cols) */}
-        <Card className="lg:col-span-4 bg-card rounded-xl border border-border p-4 shadow-2xs hover:border-primary/30 transition-all flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-slate-900 dark:text-white font-extrabold text-[10.5px] sm:text-[11px] mb-1.5">
+        <Card className="lg:col-span-4 self-start h-fit bg-card rounded-xl border border-border p-4 shadow-2xs hover:border-primary/30 transition-all">
+        <div className="flex items-center gap-1.5 text-slate-900 dark:text-white font-extrabold text-[10.5px] sm:text-[11px] mb-2.5">
             <UserCircle className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Assigned Instructor</span>
           </div>

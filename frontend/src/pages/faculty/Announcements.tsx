@@ -19,7 +19,6 @@ import {
   BookOpen,
   Layers,
   X,
-  Upload,
   AlertCircle,
   Eye,
   CheckCheck,
@@ -51,7 +50,7 @@ import type {
   AnnouncementItem,
   AnnouncementType,
   AnnouncementStatus,
-} from "@/store/announcement.store";
+} from "@/types/announcement-item";
 
 type FacultyCourseGroup = {
   id: string;
@@ -79,12 +78,18 @@ const mapApiAnnouncement = (
       : a.type === "ASSIGNMENT"
         ? "Assignment Reminder"
         : "General Announcement") as AnnouncementType,
-    authorRole: "Faculty",
+    authorRole: a.authorRole === "COUNSELLOR"
+      ? "Counsellor"
+      : a.authorRole === "ADMIN"
+        ? "Admin"
+        : a.authorRole === "CENTER_MANAGER"
+          ? "Center Manager"
+          : "Faculty",
     courseName: a.course?.name || "Course",
     batchCode: a.batch?.code || "—",
-    batchName: a.batch?.name || "—",
-    facultyName: a.faculty?.user?.name || facultyName,
-    facultyDesignation,
+    batchName: a.batch?.name || a.branch?.name || (a.targetRole === "FACULTY" ? "Faculty" : "—"),
+    facultyName: a.createdBy?.name || a.faculty?.user?.name || facultyName,
+    facultyDesignation: a.faculty?.designation || facultyDesignation,
     studentCount: 0,
     status: (isPublished ? "Published" : "Draft") as AnnouncementStatus,
     createdAt: new Date(a.createdAt).toLocaleDateString("en-GB", {
@@ -103,8 +108,8 @@ const mapApiAnnouncement = (
           minute: "2-digit",
         })
       : undefined,
-    sentCount: isPublished ? 0 : 0,
-    readCount: 0,
+    sentCount: a.sentCount ?? 0,
+    readCount: a.readCount ?? 0,
     isImportant: a.type === "URGENT",
     iconBg: "bg-blue-50",
     iconColor: "text-primary",
@@ -119,9 +124,11 @@ export const FacultyAnnouncements: React.FC = () => {
   const { batches: assignedBatches, loading: batchesLoading } = useBatches(
     facultyId ? { facultyId } : undefined
   );
+  const [listView, setListView] = useState<"sent" | "inbox">("sent");
   const { data: announcementsRes, refetch: refetchAnnouncements } = useAnnouncements({
     limit: 100,
-    status: "ALL",
+    status: listView === "inbox" ? "PUBLISHED" : "ALL",
+    view: listView,
   });
   const createAnnouncementMutation = useCreateAnnouncement();
   const { data: facultyCoursesRes, isLoading: loadingFacultyCourses } = useFacultyCourses({
@@ -182,14 +189,11 @@ export const FacultyAnnouncements: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string } | null>(null);
 
-  // Modals & Feedback
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementItem | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ title: string; subtitle?: string } | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const createPanelRef = useRef<HTMLDivElement>(null);
 
   // Available batches for current course
@@ -289,18 +293,6 @@ export const FacultyAnnouncements: React.FC = () => {
     if (tag === "link") setMessage((prev) => prev + " [Link](https://) ");
   };
 
-  // Handle Mock File Upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAttachedFile({
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      });
-    }
-  };
-
-  // Publish Announcement
   const handlePublish = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -336,11 +328,10 @@ export const FacultyAnnouncements: React.FC = () => {
 
       setTitle("");
       setMessage("");
-      setAttachedFile(null);
 
       showToast(
         "✓ Announcement Published Successfully",
-        `${currentBatchObj.studentCount} Students Notified in ${currentBatchObj.name}`
+        "Published to " + currentBatchObj.name
       );
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to publish announcement");
@@ -377,7 +368,6 @@ export const FacultyAnnouncements: React.FC = () => {
 
       setTitle("");
       setMessage("");
-      setAttachedFile(null);
 
       showToast("✓ Announcement Saved as Draft", "You can edit and publish it anytime.");
     } catch (err: unknown) {
@@ -448,9 +438,27 @@ export const FacultyAnnouncements: React.FC = () => {
       {/* ─── 3. MAIN TWO-COLUMN WORKSPACE ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* ─── LEFT COLUMN: ANNOUNCEMENT LIST (7 cols) ─── */}
-        <PageSection title="Your Announcements" className="lg:col-span-7">
+        <PageSection title={listView === "inbox" ? "For me" : "Sent to students"} className="lg:col-span-7">
           <Card className="border border-border/80 bg-card rounded-xl shadow-xs overflow-hidden">
             <CardContent className="p-5 space-y-4">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={listView === "sent" ? "default" : "outline"}
+                  className="h-8 text-xs"
+                  onClick={() => setListView("sent")}
+                >
+                  Sent to students
+                </Button>
+                <Button
+                  type="button"
+                  variant={listView === "inbox" ? "default" : "outline"}
+                  className="h-8 text-xs"
+                  onClick={() => setListView("inbox")}
+                >
+                  For me
+                </Button>
+              </div>
               <FilterToolbar>
                   <div className="relative flex-1 min-w-[160px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -765,54 +773,6 @@ export const FacultyAnnouncements: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                </div>
-
-                {/* 5. Attach File */}
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                    Attach File <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx"
-                  />
-
-                  {attachedFile ? (
-                    <div className="p-2 px-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-primary truncate">
-                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{attachedFile.name}</span>
-                        <span className="text-[10px] text-slate-400 font-normal">
-                          ({attachedFile.size})
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAttachedFile(null)}
-                        className="text-slate-400 hover:text-rose-600 p-1"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="h-9 px-3 text-xs font-bold text-slate-700 rounded-xl border-slate-200 gap-1.5 hover:bg-slate-50"
-                      >
-                        <Upload className="h-3.5 w-3.5 text-slate-500" />
-                        <span>Upload File</span>
-                      </Button>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        PDF, DOC, DOCX, PPT, PPTX (Max 10MB)
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* 6. Student Visibility Rule Info Box */}
