@@ -6,7 +6,6 @@ import {
   Clock,
   AlertTriangle,
   Flame,
-  ShieldAlert,
   Loader2,
   AlertCircle,
   Plus,
@@ -48,7 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
 import { leadsApi, type Lead, type LeadFollowUp } from "@/services/leads.api";
 import {
   FollowUpActionMenu,
@@ -456,36 +455,26 @@ export const FollowUps: React.FC = () => {
     key: NonNullable<HighlightKey>;
     label: string;
     count: number;
-    icon: React.ReactNode;
-    activeClass: string;
   }[] = [
     {
       key: "overdue",
       label: "Overdue",
       count: highlights.overdue ?? 0,
-      icon: <AlertTriangle className="w-3.5 h-3.5" />,
-      activeClass: "bg-red-50 border-red-300 text-red-800 ring-red-400",
     },
     {
       key: "hot",
       label: "Hot",
       count: highlights.hot ?? 0,
-      icon: <Flame className="w-3.5 h-3.5" />,
-      activeClass: "bg-orange-50 border-orange-300 text-orange-800 ring-orange-400",
     },
     {
       key: "highRisk",
       label: "High-risk",
       count: highlights.highRisk ?? 0,
-      icon: <ShieldAlert className="w-3.5 h-3.5" />,
-      activeClass: "bg-rose-50 border-rose-300 text-rose-800 ring-rose-400",
     },
     {
       key: "today",
       label: "Today",
       count: highlights.today ?? 0,
-      icon: <Clock className="w-3.5 h-3.5" />,
-      activeClass: "bg-amber-50 border-amber-300 text-amber-800 ring-amber-400",
     },
   ];
 
@@ -541,7 +530,7 @@ export const FollowUps: React.FC = () => {
           <PermissionGate itemKey="leads.followups" mode="write">
             <Button
               type="button"
-              className="bg-primary text-white gap-2"
+              className="gap-2"
               onClick={() => setCreateOpen(true)}
             >
               <Plus className="w-4 h-4" />
@@ -552,7 +541,7 @@ export const FollowUps: React.FC = () => {
       />
       <LeadModuleNavLinks className="mt-1" />
 
-      <div className="flex flex-wrap gap-2">
+      <MetricGrid density="compact" columns={METRIC_GRID_COLUMNS[4]}>
         {highlightChips.map((chip) => {
           const active = highlight === chip.key;
           return (
@@ -560,19 +549,20 @@ export const FollowUps: React.FC = () => {
               key={chip.key}
               type="button"
               onClick={() => handleHighlightClick(chip.key)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
-                active
-                  ? `${chip.activeClass} ring-2`
-                  : "bg-background border-border text-text-secondary hover:bg-bg-secondary"
+              className={`rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-xs transition-colors cursor-pointer hover:border-primary/40 ${
+                active ? "ring-2 ring-primary border-primary bg-primary/5" : ""
               }`}
             >
-              {chip.icon}
-              {chip.label}
-              <span className="tabular-nums font-bold">{chip.count}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground truncate block">
+                {chip.label}
+              </span>
+              <p className="text-xl font-semibold tracking-tight text-foreground mt-1">
+                {chip.count}
+              </p>
             </button>
           );
         })}
-      </div>
+      </MetricGrid>
 
       {recommended.length > 0 && activeTab !== "completed" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-bg-secondary/40 px-3 py-2.5">
@@ -617,9 +607,9 @@ export const FollowUps: React.FC = () => {
 
         {tabs.map((tab) => (
           <TabsContent key={tab.key} value={tab.key} className="mt-4">
-            <Card className="border-border/50 shadow-sm">
-              <CardContent className="p-4">
-                <div className="rounded-md border overflow-x-auto">
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

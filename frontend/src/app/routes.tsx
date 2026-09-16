@@ -351,6 +351,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />
+          <Route path="new" element={<Navigate to="/center/leads/add" replace />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
 
@@ -455,6 +456,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="call-history" element={<CallHistory />} />
           <Route path="add" element={<AddLead />} />
+          <Route path="new" element={<Navigate to="/counselor/leads/add" replace />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
 

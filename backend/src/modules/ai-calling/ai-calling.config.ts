@@ -14,9 +14,25 @@ function asCallingDays(value: unknown): number[] | null {
   return days.length ? days : null;
 }
 
+/** True when Instant Outbound dial env is complete (dial-only mode). */
+export function envTelephonyConfigured(): boolean {
+  const baseUrl =
+    process.env.TELEPHONY_BASE_URL || "https://apps.sarvam.ai/api/outbounds";
+  const apiKey =
+    process.env.TELEPHONY_API_KEY || process.env.SARVAM_API_KEY || "";
+  const orgId = process.env.SARVAM_ORG_ID || "";
+  const workspaceId = process.env.SARVAM_WORKSPACE_ID || "";
+  const appId = process.env.SARVAM_APP_ID || "";
+  const connectionId = process.env.SARVAM_CONNECTION_ID || "";
+  return Boolean(baseUrl && apiKey && orgId && workspaceId && appId && connectionId);
+}
+
 /**
- * Resolve dialer config for an institute.
+ * Resolve dialer config for an institute (dial-only mode).
  * Priority: Integration AI_CALLING override → AiCallingPlatformSettings → env.
+ *
+ * Voice Agent create/commit/deploy is NOT done here — that lives in the Sarvam dashboard.
+ * Backend .env TELEPHONY_* / SARVAM_API_KEY is enough for local/testing dialing.
  */
 export async function resolveAiCallingConfig(
   instituteId: string
@@ -43,12 +59,14 @@ export async function resolveAiCallingConfig(
     platformCreds.telephonyApiKey ||
     platformCreds.apiKey ||
     process.env.TELEPHONY_API_KEY ||
+    process.env.SARVAM_API_KEY ||
     "";
 
   const telephonyBaseUrl =
     integrationConfig.baseUrl ||
     platform.telephonyBaseUrl ||
     process.env.TELEPHONY_BASE_URL ||
+    process.env.SARVAM_API_BASE_URL ||
     "";
 
   const fromNumber =
@@ -70,14 +88,22 @@ export async function resolveAiCallingConfig(
     source = platform.telephonyBaseUrl || platformCreds.apiKey ? "mixed" : "integration";
   } else if (platform.telephonyBaseUrl || platformCreds.apiKey || platformCreds.telephonyApiKey) {
     source = "platform";
+  } else if (envTelephonyConfigured() || telephonyBaseUrl || telephonyApiKey) {
+    source = "env";
   }
 
   const hasInstituteConfigRow = Boolean(instituteConfig);
+  /**
+   * Enablement:
+   * - If institute config row exists → respect isEnabled (OFF stops dialing).
+   * - If no row yet → auto-enable when backend env/platform telephony is configured
+   *   so first-time testers can dial after only setting .env.
+   */
   const isEnabled = hasInstituteConfigRow
     ? Boolean(instituteConfig?.isEnabled)
-    : Boolean(integration?.isEnabled) ||
-      Boolean(
-        (process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY) ||
+    : Boolean(
+        integration?.isEnabled ||
+          envTelephonyConfigured() ||
           platform.telephonyBaseUrl ||
           platformCreds.apiKey ||
           platformCreds.telephonyApiKey
@@ -104,7 +130,7 @@ export async function resolveAiCallingConfig(
     webhookSecret,
     providerAppId: instituteConfig?.agent?.providerAppId ?? null,
     agentName: instituteConfig?.agent?.name ?? null,
-    hasTelephony: Boolean(telephonyBaseUrl && telephonyApiKey),
+    hasTelephony: envTelephonyConfigured(),
     source,
   };
 }
@@ -153,7 +179,8 @@ export function toSafeInstituteConfigDto(
     dailyCallLimit: row?.dailyCallLimit ?? null,
     maxAttemptsPerLead: row?.maxAttemptsPerLead ?? 3,
     retryDelayMinutes: row?.retryDelayMinutes ?? 60,
-    isEnabled: row?.isEnabled ?? false,
+    // When no institute row, surface resolved enablement so Admin UI can default correctly.
+    isEnabled: row ? Boolean(row.isEnabled) : Boolean(resolved?.isEnabled),
     resolved: resolved
       ? {
           hasTelephony: resolved.hasTelephony,
