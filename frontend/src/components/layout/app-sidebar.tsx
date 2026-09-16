@@ -205,6 +205,7 @@ const data = {
       icon: MessageSquare,
       items: [
         { title: "Notifications", url: A.COMMUNICATION.NOTIFICATIONS },
+        { title: "Announcements", url: A.COMMUNICATION.ANNOUNCEMENTS },
         { title: "WhatsApp", url: A.COMMUNICATION.WHATSAPP },
         { title: "Email", url: A.COMMUNICATION.EMAIL },
       ],

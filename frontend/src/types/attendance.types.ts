@@ -1,13 +1,66 @@
 import type { AttendanceStatus } from "../constants/status";
 
+export type StudentAttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
+
 export interface AttendanceRecord {
   id: string;
   classSessionId: string;
   studentId: string;
-  status: AttendanceStatus;
+  status: AttendanceStatus | StudentAttendanceStatus;
   markedAt: string;
   markedBy?: string;
   remarks?: string;
+}
+
+export interface StudentAttendanceHistoryItem {
+  id: string;
+  classSessionId: string;
+  studentId: string;
+  status: StudentAttendanceStatus | string;
+  markedAt: string;
+  markedBy?: string | null;
+  remarks?: string | null;
+  classSession?: {
+    id: string;
+    title?: string | null;
+    scheduledDate?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    faculty?: {
+      id?: string;
+      user?: { id?: string; name?: string | null } | null;
+    } | null;
+    batch?: {
+      id: string;
+      name: string;
+      code: string;
+      courseId?: string;
+      course?: { id: string; name: string; code?: string | null } | null;
+      batchCourses?: Array<{
+        courseId: string;
+        course?: { id: string; name: string; code?: string | null } | null;
+      }>;
+    } | null;
+    batchCourse?: {
+      courseId: string;
+      course?: { id: string; name: string; code?: string | null } | null;
+    } | null;
+    batchModule?: {
+      id: string;
+      courseModule?: { id?: string; name?: string; code?: string | null } | null;
+    } | null;
+  } | null;
+}
+
+export interface StudentAttendanceSummary {
+  studentId: string;
+  studentCode?: string;
+  studentName?: string;
+  totalClasses: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  attendancePercentage: number;
 }
 
 // Daily roster item containing student information and attendance status for a given date

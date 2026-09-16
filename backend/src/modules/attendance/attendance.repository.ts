@@ -138,21 +138,33 @@ export const findStudentAttendanceHistory = async (params: {
   studentId: string;
   fromDate?: Date;
   toDate?: Date;
+  courseId?: string;
   skip: number;
   take: number;
 }) => {
-  const where: any = {
-    studentId: params.studentId,
-  };
+  const classSessionFilter: Record<string, unknown> = {};
 
   if (params.fromDate || params.toDate) {
-    where.classSession = {
-      scheduledDate: {
-        ...(params.fromDate ? { gte: params.fromDate } : {}),
-        ...(params.toDate ? { lte: params.toDate } : {}),
-      },
+    classSessionFilter.scheduledDate = {
+      ...(params.fromDate ? { gte: params.fromDate } : {}),
+      ...(params.toDate ? { lte: params.toDate } : {}),
     };
   }
+
+  if (params.courseId) {
+    classSessionFilter.OR = [
+      { batchCourse: { courseId: params.courseId } },
+      { batch: { courseId: params.courseId } },
+      { batch: { batchCourses: { some: { courseId: params.courseId } } } },
+    ];
+  }
+
+  const where = {
+    studentId: params.studentId,
+    ...(Object.keys(classSessionFilter).length > 0
+      ? { classSession: classSessionFilter }
+      : {}),
+  };
 
   const [records, total] = await Promise.all([
     prisma.studentAttendance.findMany({
@@ -163,8 +175,38 @@ export const findStudentAttendanceHistory = async (params: {
       include: {
         classSession: {
           include: {
-            batch: { select: { id: true, name: true, code: true } },
-            batchModule: { select: { id: true, courseModule: { select: { name: true } } } },
+            faculty: {
+              include: {
+                user: { select: { id: true, name: true } },
+              },
+            },
+            batch: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                courseId: true,
+                course: { select: { id: true, name: true, code: true } },
+                batchCourses: {
+                  select: {
+                    courseId: true,
+                    course: { select: { id: true, name: true, code: true } },
+                  },
+                },
+              },
+            },
+            batchCourse: {
+              select: {
+                courseId: true,
+                course: { select: { id: true, name: true, code: true } },
+              },
+            },
+            batchModule: {
+              select: {
+                id: true,
+                courseModule: { select: { id: true, name: true, code: true } },
+              },
+            },
           },
         },
       },

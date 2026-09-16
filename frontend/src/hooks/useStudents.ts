@@ -97,6 +97,8 @@ export const useMarkAttendance = () => {
     mutationFn: (data: MarkAttendancePayload) => attendanceApi.mark(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ATTENDANCE_ROSTER_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
     },
   });
 };
@@ -107,6 +109,8 @@ export const useBulkMarkAttendance = () => {
     mutationFn: (data: BulkMarkAttendancePayload) => attendanceApi.bulkMark(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ATTENDANCE_ROSTER_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
     },
   });
 };

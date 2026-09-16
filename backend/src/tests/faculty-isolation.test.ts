@@ -257,6 +257,163 @@ describe("Faculty A vs B data isolation", () => {
     await AnnouncementService.remove(userA, created.id);
   });
 
+  test("student inbox is enrollment scoped and hides drafts and faculty-targeted notices", async () => {
+    if (!ctx) {
+      console.log("Skipping — seed faculty not found");
+      return;
+    }
+
+    const enrollment = await prisma.batchEnrollment.findFirst({
+      where: {
+        status: "ACTIVE",
+        student: { userId: { not: null }, instituteId: ctx.instituteId },
+        batch: {
+          instituteId: ctx.instituteId,
+          ...facultyTeachingBatchWhere(ctx.facultyAId),
+        },
+      },
+      select: {
+        batchId: true,
+        student: { select: { id: true, userId: true, branchId: true } },
+      },
+    });
+    if (!enrollment?.student.userId) {
+      console.log("Skipping — no enrolled student with a login for announcement audience");
+      return;
+    }
+
+    const studentUser: AuthUser = {
+      id: enrollment.student.userId,
+      userId: enrollment.student.userId,
+      name: "Student",
+      instituteId: ctx.instituteId,
+      branchId: enrollment.student.branchId,
+      roles: ["STUDENT"],
+      permissions: [],
+    };
+    const facultyA = asFacultyUser(ctx.facultyAUserId, ctx.instituteId);
+    const adminUser: AuthUser = {
+      id: ctx.facultyAUserId,
+      userId: ctx.facultyAUserId,
+      name: "Admin",
+      instituteId: ctx.instituteId,
+      roles: ["ADMIN"],
+      permissions: [],
+    };
+
+    const published = await AnnouncementService.create(facultyA, {
+      title: `Student Visible ${Date.now()}`,
+      body: "Visible to enrolled students",
+      type: "GENERAL",
+      status: "PUBLISHED",
+      batchId: enrollment.batchId,
+    });
+    const draft = await AnnouncementService.create(facultyA, {
+      title: `Student Hidden Draft ${Date.now()}`,
+      body: "Draft must stay hidden",
+      type: "GENERAL",
+      status: "DRAFT",
+      batchId: enrollment.batchId,
+    });
+    const forFaculty = await AnnouncementService.create(adminUser, {
+      title: `Faculty Only ${Date.now()}`,
+      body: "Students must not see this",
+      type: "GENERAL",
+      status: "PUBLISHED",
+      targetRole: "FACULTY",
+    });
+
+    const inbox = await AnnouncementService.list(studentUser, {
+      page: 1,
+      limit: 100,
+      status: "ALL",
+      view: "inbox",
+    });
+    const ids = inbox.data.map((item) => item.id);
+    assert.ok(ids.includes(published.id));
+    assert.ok(!ids.includes(draft.id));
+    assert.ok(!ids.includes(forFaculty.id));
+
+    const facultyInbox = await AnnouncementService.list(facultyA, {
+      page: 1,
+      limit: 100,
+      status: "PUBLISHED",
+      view: "inbox",
+    });
+    assert.ok(facultyInbox.data.some((item) => item.id === forFaculty.id));
+
+    const outsider = await prisma.batchEnrollment.findFirst({
+      where: {
+        status: "ACTIVE",
+        batchId: { not: enrollment.batchId },
+        student: { userId: { not: null }, instituteId: ctx.instituteId },
+        NOT: { studentId: enrollment.student.id },
+      },
+      select: { student: { select: { userId: true, branchId: true } } },
+    });
+    if (outsider?.student.userId) {
+      const stillEnrolled = await prisma.batchEnrollment.findFirst({
+        where: {
+          student: { userId: outsider.student.userId },
+          batchId: enrollment.batchId,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      if (!stillEnrolled) {
+        const outsiderUser: AuthUser = {
+          id: outsider.student.userId,
+          userId: outsider.student.userId,
+          name: "Other student",
+          instituteId: ctx.instituteId,
+          branchId: outsider.student.branchId,
+          roles: ["STUDENT"],
+          permissions: [],
+        };
+        const otherInbox = await AnnouncementService.list(outsiderUser, {
+          page: 1,
+          limit: 100,
+          status: "PUBLISHED",
+          view: "inbox",
+        });
+        assert.ok(!otherInbox.data.some((item) => item.id === published.id));
+        await assert.rejects(
+          () => AnnouncementService.markRead(outsiderUser, published.id),
+          (err: unknown) => err instanceof AppError && err.statusCode === 404
+        );
+      }
+    }
+
+    await AnnouncementService.remove(facultyA, published.id);
+    await AnnouncementService.remove(facultyA, draft.id);
+    await AnnouncementService.remove(adminUser, forFaculty.id);
+  });
+
+  test("counsellor cannot announce to faculty", async () => {
+    await assert.rejects(
+      () =>
+        AnnouncementService.create(
+          {
+            id: "counsellor-user",
+            userId: "counsellor-user",
+            name: "Counsellor",
+            instituteId: "institute",
+            branchId: "branch",
+            roles: ["COUNSELLOR"],
+            permissions: [],
+          },
+          {
+            title: "Not allowed",
+            body: "Faculty audience",
+            type: "GENERAL",
+            status: "PUBLISHED",
+            targetRole: "FACULTY",
+          }
+        ),
+      (err: unknown) => err instanceof AppError && err.statusCode === 403
+    );
+  });
+
   test("faculty B cannot delete faculty A study material", async () => {
     if (!ctx?.batchAId) {
       console.log("Skipping — no faculty A batch");

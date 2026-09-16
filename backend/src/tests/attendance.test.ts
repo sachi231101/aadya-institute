@@ -49,6 +49,16 @@ describe("Attendance Validation Schemas", () => {
     assert.strictEqual(parsed.fromDate, "2026-08-01");
     assert.strictEqual(parsed.limit, "20");
   });
+
+  test("studentAttendanceQuerySchema should accept optional courseId filter", () => {
+    const parsed = studentAttendanceQuerySchema.parse({
+      fromDate: "2026-08-01",
+      courseId: "course-dbms",
+      limit: "200",
+    });
+    assert.strictEqual(parsed.courseId, "course-dbms");
+    assert.strictEqual(parsed.limit, "200");
+  });
 });
 
 describe("Attendance Summary Logic Unit Tests", () => {

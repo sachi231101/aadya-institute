@@ -20,6 +20,8 @@ import {
   Users
 } from "lucide-react";
 import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "../../../hooks/useFaculty";
+import { feedbackApi, type Feedback } from "@/services/feedback.api";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -104,6 +106,12 @@ export const FacultyDetails: React.FC = () => {
     { facultyId: id },
     !!id
   );
+  const { data: facultyReviewsRes, isLoading: isReviewsLoading } = useQuery({
+    queryKey: ["faculty-reviews", id],
+    queryFn: () => feedbackApi.getFeedbackByFaculty(id!),
+    enabled: Boolean(id),
+  });
+  const facultyReviews: Feedback[] = facultyReviewsRes?.data || [];
 
   const backendFaculty = facultyResponse?.data;
   const facultyAssignments = coursesResponse?.data ?? [];
@@ -161,7 +169,6 @@ export const FacultyDetails: React.FC = () => {
     studentsCount: assignedStudentsCount,
     workloadHrs: facultyAssignments.length * 6,
     attendance: attendanceRate,
-    feedback: [],
     batches: facultyAssignments.map((a: any) => ({
       id: a.code || a.id,
       name: a.course?.name || a.name || "Assigned Batch",
@@ -358,7 +365,7 @@ export const FacultyDetails: React.FC = () => {
             { id: "batches", label: `Batches (${faculty.batches.length})` },
             { id: "performance", label: "Progress & Analytics" },
             { id: "schedule", label: "Schedule" },
-            { id: "feedback", label: `Reviews (${faculty.feedback.length})` },
+            { id: "feedback", label: `Reviews (${facultyReviews.length})` },
             { id: "attendance", label: `Attendance (${facultyDailyAttendance.length})` },
           ].map((tab) => (
             <button
@@ -629,27 +636,59 @@ export const FacultyDetails: React.FC = () => {
         {/* ─── TAB 5: STUDENT FEEDBACK & REVIEWS ───────────────────────── */}
         {activeTab === "feedback" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {faculty.feedback.map((item: any, i: number) => (
-                <Card key={i} className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, starIdx) => (
-                          <Star
-                            key={starIdx}
-                            className={`h-3.5 w-3.5 ${starIdx < item.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`}
-                          />
-                        ))}
+            {isReviewsLoading ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground text-xs">
+                <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+                Loading student reviews...
+              </div>
+            ) : facultyReviews.length === 0 ? (
+              <Card className="border border-border shadow-xs bg-card rounded-xl">
+                <CardContent className="py-14 text-center">
+                  <Star className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-foreground">No student feedback yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Reviews appear here after students submit class feedback.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {facultyReviews.map((item) => (
+                  <Card key={item.id} className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, starIdx) => (
+                            <Star
+                              key={starIdx}
+                              className={`h-3.5 w-3.5 ${starIdx < item.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          {item.submittedAt
+                            ? new Date(item.submittedAt).toLocaleDateString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : ""}
+                        </span>
                       </div>
-                      <span className="text-[11px] text-muted-foreground">{item.date}</span>
-                    </div>
-                    <p className="text-xs text-foreground font-medium italic">"{item.text}"</p>
-                    <p className="text-xs font-bold text-foreground">— {item.student}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <p className="text-xs text-foreground font-medium italic">
+                        "{item.comment || "No written comment"}"
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-foreground">— {item.student?.user?.name || "Student"}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {item.classSession?.title || item.classSession?.batch?.name || "Class session"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

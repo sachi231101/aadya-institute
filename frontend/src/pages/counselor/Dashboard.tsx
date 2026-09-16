@@ -55,6 +55,7 @@ import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DashboardBaselineView } from "@/components/dashboard/DashboardBaselineView";
+import { LeaveRequestReviewPanel } from "@/components/leave/LeaveRequestReviewPanel";
 import type { UnifiedLead, AiCallOutcome, LeadTranscriptMessage } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
@@ -1216,6 +1217,8 @@ export const CounselorDashboard: React.FC = () => {
       />
 
       <InstallDashboardBanner />
+
+      <LeaveRequestReviewPanel />
 
       {!hasAnyModuleAccess ? (
         <DashboardBaselineView role="COUNSELLOR" userName={user?.name} />

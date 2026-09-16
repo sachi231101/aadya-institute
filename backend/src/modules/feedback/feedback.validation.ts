@@ -3,7 +3,7 @@ import { z } from "zod";
 export const submitFeedbackSchema = z.object({
   classSessionId: z.string().min(1),
   studentId: z.string().min(1),
-  facultyId: z.string().min(1),
+  facultyId: z.string().min(1).optional(),
   rating: z.coerce.number().int().min(1).max(5),
   comment: z.string().max(2000).optional(),
 });

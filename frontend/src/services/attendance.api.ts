@@ -7,6 +7,8 @@ import type {
   RosterQuery,
   PaginatedResponse,
   SingleResponse,
+  StudentAttendanceHistoryItem,
+  StudentAttendanceSummary,
 } from "../types/attendance.types";
 
 export const attendanceApi = {
@@ -28,14 +30,21 @@ export const attendanceApi = {
 
   getStudentHistory: async (
     studentId: string,
-    params?: { page?: number; limit?: number; fromDate?: string; toDate?: string }
-  ) => {
-    const response = await api.get(`/students/${studentId}/attendance`, { params });
+    params?: { page?: number; limit?: number; fromDate?: string; toDate?: string; courseId?: string }
+  ): Promise<PaginatedResponse<StudentAttendanceHistoryItem>> => {
+    const response = await api.get<PaginatedResponse<StudentAttendanceHistoryItem>>(
+      `/students/${studentId}/attendance`,
+      { params }
+    );
     return response.data;
   },
 
-  getStudentSummary: async (studentId: string) => {
-    const response = await api.get(`/students/${studentId}/attendance/summary`);
+  getStudentSummary: async (
+    studentId: string
+  ): Promise<SingleResponse<StudentAttendanceSummary>> => {
+    const response = await api.get<SingleResponse<StudentAttendanceSummary>>(
+      `/students/${studentId}/attendance/summary`
+    );
     return response.data;
   },
 

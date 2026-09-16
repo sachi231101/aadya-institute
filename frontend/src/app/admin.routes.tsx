@@ -91,6 +91,7 @@ import { AttendanceReports } from "../pages/admin/reports/AttendanceReports";
 import { ExaminationReports } from "../pages/admin/reports/ExaminationReports";
 
 import { NotificationsHub } from "../pages/admin/communication/NotificationsHub";
+import { CommunicationAnnouncements } from "../pages/admin/communication/Announcements";
 import { WhatsAppHub } from "../pages/admin/communication/WhatsAppHub";
 import { WhatsAppAutomations } from "../pages/admin/communication/WhatsAppAutomations";
 import { WhatsAppTemplates } from "../pages/admin/communication/WhatsAppTemplates";
@@ -299,6 +300,7 @@ export const adminChildRoutes = (
     {/* Communication Management */}
     <Route path="communication">
       <Route path="notifications" element={<NotificationsHub />} />
+      <Route path="announcements" element={<CommunicationAnnouncements />} />
       <Route path="whatsapp" element={<WhatsAppHub />}>
         <Route index element={<Navigate to="automations" replace />} />
         <Route path="automations" element={<WhatsAppAutomations />} />

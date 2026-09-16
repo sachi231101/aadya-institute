@@ -46,6 +46,7 @@ export const patchAttendanceSchema = z.object({
 export const studentAttendanceQuerySchema = z.object({
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
+  courseId: z.string().optional(),
   page: z.string().optional(),
   limit: z.string().optional(),
 });

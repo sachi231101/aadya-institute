@@ -63,6 +63,7 @@ const CENTER_NAV_ITEM_KEYS = [
   "reports.examinations",
   "reports.financial",
   "communication.notifications",
+  "communication.announcements",
   "communication.whatsapp",
   "communication.email",
   "placement.eligible",
@@ -297,6 +298,7 @@ const COUNSELLOR_NAV_ITEM_KEYS = [
   "targets.all",
   "targets.leaderboard",
   "targets.incentives",
+  "communication.announcements",
 ] as const;
 
 const EXCLUDED_FROM_COUNSELLOR_CATALOG = [
@@ -332,6 +334,7 @@ describe("COUNSELLOR permission catalog", () => {
       "Fee Management",
       "Report Management",
       "Target & Incentive",
+      "Communication",
     ]);
   });
 
@@ -342,6 +345,10 @@ describe("COUNSELLOR permission catalog", () => {
     for (const mod of getPermissionCatalog("COUNSELLOR")) {
       const cm = cmByKey.get(mod.key);
       assert.ok(cm, `missing CM module ${mod.key}`);
+      const cmItems =
+        mod.key === "communication"
+          ? cm.items.filter((item) => item.key === "communication.announcements")
+          : cm.items;
       assert.deepStrictEqual(
         mod.items.map((i) => ({
           key: i.key,
@@ -349,7 +356,7 @@ describe("COUNSELLOR permission catalog", () => {
           readPermissions: i.readPermissions,
           writePermissions: i.writePermissions,
         })),
-        cm.items.map((i) => ({
+        cmItems.map((i) => ({
           key: i.key,
           label: i.label,
           readPermissions: i.readPermissions,

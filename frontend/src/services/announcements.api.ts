@@ -1,22 +1,39 @@
 import { api } from "./api";
 import type { PaginatedResponse, SingleResponse } from "@/types/faculty.types";
 
+export type AnnouncementTargetRole =
+  | "STUDENT"
+  | "FACULTY"
+  | "COUNSELLOR"
+  | "CENTER_MANAGER"
+  | "ALL";
+
 export interface Announcement {
   id: string;
   title: string;
   body: string;
   type: string;
   status: string;
+  targetRole: AnnouncementTargetRole | string;
+  authorRole: string;
   batchId?: string | null;
   courseId?: string | null;
+  branchId?: string | null;
   publishedAt: string;
   createdAt: string;
-  batch?: { id: string; name: string; code: string } | null;
+  isRead?: boolean;
+  readAt?: string | null;
+  readCount?: number;
+  sentCount?: number;
+  batch?: { id: string; name: string; code: string; branchId?: string } | null;
   course?: { id: string; name: string; code: string } | null;
+  branch?: { id: string; name: string; code: string } | null;
   faculty?: {
     id: string;
+    designation?: string | null;
     user?: { id: string; name: string } | null;
   } | null;
+  createdBy?: { id: string; name: string } | null;
 }
 
 export interface AnnouncementListParams {
@@ -26,6 +43,7 @@ export interface AnnouncementListParams {
   courseId?: string;
   search?: string;
   status?: "PUBLISHED" | "DRAFT" | "ALL";
+  view?: "inbox" | "sent";
 }
 
 export interface CreateAnnouncementPayload {
@@ -33,6 +51,8 @@ export interface CreateAnnouncementPayload {
   body: string;
   type?: "GENERAL" | "CLASS" | "ASSIGNMENT" | "URGENT";
   status?: "PUBLISHED" | "DRAFT";
+  targetRole?: AnnouncementTargetRole;
+  branchId?: string;
   batchId?: string;
   courseId?: string;
 }
@@ -52,6 +72,18 @@ export const announcementsApi = {
 
   remove: async (id: string) => {
     const response = await api.delete<SingleResponse<null>>(`/announcements/${id}`);
+    return response.data;
+  },
+
+  markRead: async (id: string) => {
+    const response = await api.post<SingleResponse<{ readAt: string }>>(`/announcements/${id}/read`);
+    return response.data;
+  },
+
+  markAllRead: async (batchId?: string) => {
+    const response = await api.post<SingleResponse<{ marked: number }>>("/announcements/read-all", {
+      batchId,
+    });
     return response.data;
   },
 };

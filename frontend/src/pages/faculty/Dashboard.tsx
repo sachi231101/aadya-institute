@@ -25,6 +25,7 @@ import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import type { FacultyDashboardSession } from "@/types/faculty.types";
+import { LeaveRequestReviewPanel } from "@/components/leave/LeaveRequestReviewPanel";
 
 type SessionCard = FacultyDashboardSession & {
   isToday: boolean;
@@ -242,6 +243,9 @@ export const FacultyDashboard: React.FC = () => {
         <Button onClick={() => refetch()} className="bg-[#2563EB] text-white">
           Retry
         </Button>
+        <div className="text-left pt-2">
+          <LeaveRequestReviewPanel />
+        </div>
       </div>
     );
   }
@@ -313,6 +317,8 @@ export const FacultyDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </MetricGrid>
+
+      <LeaveRequestReviewPanel />
 
       {(dashboard.pendingGrading?.length > 0 || dashboard.recentFeedback?.length > 0) && (
         <div

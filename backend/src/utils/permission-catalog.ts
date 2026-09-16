@@ -218,6 +218,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "communication.notifications", label: "Notifications", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
+      { key: "communication.announcements", label: "Announcements", readPermissions: ["announcement.read"], writePermissions: ["announcement.create"] },
       { key: "communication.whatsapp", label: "WhatsApp", readPermissions: ["whatsapp.automation.read", "whatsapp.history.read", "whatsapp.template.read"], writePermissions: ["whatsapp.automation.manage", "whatsapp.test.send", "whatsapp.template.create", "whatsapp.template.update", "notification.resend", "notification.manage"] },
       { key: "communication.email", label: "Email", readPermissions: ["email.read"], writePermissions: ["email.manage"] },
     ],
@@ -265,6 +266,7 @@ const COUNSELLOR_MODULE_ORDER = [
   "fee_management",
   "report_management",
   "target_incentive",
+  "communication",
 ] as const;
 
 const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = COUNSELLOR_MODULE_ORDER.map((key) => {
@@ -272,9 +274,13 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = COUNSELLOR_MODULE_ORDER
   if (!mod) {
     throw new Error(`COUNSELLOR catalog missing CM module: ${key}`);
   }
+  const items =
+    key === "communication"
+      ? mod.items.filter((item) => item.key === "communication.announcements")
+      : mod.items;
   return {
     ...mod,
-    items: mod.items.map((item) => ({
+    items: items.map((item) => ({
       ...item,
       readPermissions: [...item.readPermissions],
       writePermissions: [...item.writePermissions],

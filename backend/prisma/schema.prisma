@@ -27,6 +27,13 @@ enum StudentStatus {
   CANCELLED
 }
 
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum FacultyStatus {
   ACTIVE
   INACTIVE
@@ -247,6 +254,7 @@ model Institute {
   notificationRules        NotificationRule[]
   studyMaterials           StudyMaterial[]
   announcements            Announcement[]
+  leaveRequests            LeaveRequest[]
 }
 
 model Branch {
@@ -299,6 +307,8 @@ model Branch {
   invitations           UserInvitation[]
   activityLogs          ActivityLog[]
   callLogs              CallLog[]
+  leaveRequests         LeaveRequest[]
+  announcements         Announcement[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -389,6 +399,9 @@ model User {
   loginHistories       LoginHistory[]
   dataImportJobs       DataImportJob[]            @relation("DataImportCreatedBy")
   dataExportJobs       DataExportJob[]            @relation("DataExportCreatedBy")
+  reviewedLeaveRequests LeaveRequest[]            @relation("LeaveRequestReviewedBy")
+  announcementsCreated  Announcement[]             @relation("AnnouncementCreatedBy")
+  announcementReads     AnnouncementRead[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -477,6 +490,7 @@ model Student {
   examAssignments       ExamStudent[]
   placementApplications PlacementApplication[]
   placementRecords      PlacementRecord[]
+  leaveRequests         LeaveRequest[]
 
   @@unique([instituteId, studentCode])
   @@index([instituteId])
@@ -898,6 +912,31 @@ model StudentAttendance {
   @@unique([classSessionId, studentId])
   @@index([studentId])
   @@index([classSessionId])
+}
+
+model LeaveRequest {
+  id           String             @id @default(cuid())
+  instituteId  String
+  branchId     String
+  studentId    String
+  startDate    DateTime
+  endDate      DateTime
+  reason       String
+  status       LeaveRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  institute  Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedBy User?     @relation("LeaveRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([branchId, status])
+  @@index([instituteId, branchId, status])
 }
 
 model FacultyAttendance {
@@ -3249,7 +3288,11 @@ model StudyMaterial {
 model Announcement {
   id          String   @id @default(cuid())
   instituteId String
-  facultyId   String
+  facultyId   String?
+  createdById String?
+  authorRole  String   @default("FACULTY")
+  targetRole  String   @default("STUDENT")
+  branchId    String?
   batchId     String?
   courseId    String?
   title       String
@@ -3260,14 +3303,33 @@ model Announcement {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  faculty   Faculty   @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  batch     Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  course    Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  institute Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  faculty   Faculty?           @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  createdBy User?              @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  branch    Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  batch     Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  course    Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  reads     AnnouncementRead[]
 
   @@index([instituteId])
   @@index([facultyId])
+  @@index([createdById])
+  @@index([branchId])
   @@index([batchId])
   @@index([courseId])
   @@index([status])
+  @@index([targetRole])
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
 }

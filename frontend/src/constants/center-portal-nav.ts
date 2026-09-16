@@ -206,6 +206,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "notifications",
     items: [
       { title: "Notifications", url: "/center/notifications", itemKey: "communication.notifications" },
+      { title: "Announcements", url: "/center/communication/announcements", itemKey: "communication.announcements" },
       { title: "WhatsApp", url: "/center/communication/whatsapp", itemKey: "communication.whatsapp" },
       { title: "Email", url: "/center/communication/email", itemKey: "communication.email" },
     ],

@@ -10,6 +10,7 @@ import leadRoutes from "../modules/leads/lead.routes";
 import facultyRoutes from "../modules/faculty/faculty.routes";
 import studentRoutes from "../modules/students/student.routes";
 import attendanceRoutes from "../modules/attendance/attendance.routes";
+import leaveRequestRoutes from "../modules/leave-requests/leave-request.routes";
 import { whatsappWebhookVerify, whatsappWebhookHandler } from "../modules/whatsapp/whatsapp.webhook";
 import { sarvamWebhookHandler } from "../webhooks/ai-calling/ai-calling.webhook";
 
@@ -89,6 +90,7 @@ router.use("/batches", batchRoutes);
 
 // Attendance
 router.use("/attendance", attendanceRoutes);
+router.use("/leave-requests", leaveRequestRoutes);
 
 // Class Sessions & Schedule
 router.use("/class-sessions", classSessionRoutes);

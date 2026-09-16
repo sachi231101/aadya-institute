@@ -12,6 +12,7 @@ import {
   BarChart3,
   Award,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 
 import { NAV_ITEM_LABELS } from "./nav-labels";
@@ -148,6 +149,15 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
       { title: "My Targets & Goals", url: "/counselor/targets", itemKey: "targets.all" },
       { title: L["targets.leaderboard"] ?? "Leaderboard", url: "/counselor/targets/leaderboard", itemKey: "targets.leaderboard" },
       { title: "My Incentives & Rewards", url: "/counselor/incentives", itemKey: "targets.incentives" },
+    ],
+  },
+  {
+    title: "Communication",
+    url: "/counselor/communication/announcements",
+    icon: MessageSquare,
+    moduleKey: "notifications",
+    items: [
+      { title: "Announcements", url: "/counselor/communication/announcements", itemKey: "communication.announcements" },
     ],
   },
   {

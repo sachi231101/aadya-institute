@@ -540,6 +540,8 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
         await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
         await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
         await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+        await queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
+        await queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
         await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
       }
       setAttendanceSaveSuccess(true);
@@ -569,6 +571,8 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
           await queryClient.invalidateQueries({ queryKey: ["faculty-my-student-attendance"] });
           await queryClient.invalidateQueries({ queryKey: ["faculty-my-students"] });
           await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+          await queryClient.invalidateQueries({ queryKey: ["student-attendance"] });
+          await queryClient.invalidateQueries({ queryKey: ["student-attendance-summary"] });
           await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
         } catch {
           // Continue — ending class is more important than a flaky attendance save

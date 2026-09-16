@@ -30,7 +30,7 @@ export const feedbackApi = {
   submitFeedback: async (data: {
     classSessionId: string;
     studentId: string;
-    facultyId: string;
+    facultyId?: string;
     rating: number;
     comment?: string;
   }) => {
@@ -44,12 +44,12 @@ export const feedbackApi = {
   },
 
   getFeedbackByStudent: async (studentId: string) => {
-    const response = await api.get(`/feedback`, { params: { studentId } });
+    const response = await api.get(`/feedback`, { params: { studentId, limit: 100 } });
     return response.data;
   },
 
   getFeedbackByFaculty: async (facultyId: string) => {
-    const response = await api.get(`/feedback`, { params: { facultyId, limit: 50 } });
+    const response = await api.get(`/feedback`, { params: { facultyId, limit: 100 } });
     return response.data;
   },
 

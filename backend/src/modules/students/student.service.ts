@@ -354,6 +354,7 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
 };
 
 import { prisma } from "../../config/database";
+import { FeeRepository } from "../fees/fee.repository";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import * as studentAllocationService from "./student-allocation.service";
@@ -723,6 +724,42 @@ export const sendStudentCredentialsWhatsAppService = async (
 /**
  * Get Student Dashboard.
  */
+const asMoney = (value: unknown) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+/** Own pending charges and successful receipts for the student dashboard. */
+const buildStudentDashboardFees = (
+  pendingFees: Array<Record<string, unknown>>,
+  payments: Array<Record<string, unknown>>
+) => {
+  const openPending = pendingFees.filter((fee) => asMoney(fee.dueAmount) > 0);
+  const paid = payments.filter((payment) => payment.status === "SUCCESS");
+  const pendingAmount = openPending.reduce((sum, fee) => sum + asMoney(fee.dueAmount), 0);
+  const paidAmount = paid.reduce((sum, payment) => sum + asMoney(payment.amount), 0);
+
+  return {
+    pendingAmount: Math.round((pendingAmount + Number.EPSILON) * 100) / 100,
+    paidAmount: Math.round((paidAmount + Number.EPSILON) * 100) / 100,
+    pending: openPending.map((fee) => ({
+      id: String(fee.id),
+      feeHead: typeof fee.feeHead === "string" && fee.feeHead ? fee.feeHead : "Fee",
+      dueAmount: asMoney(fee.dueAmount),
+      amountPaid: asMoney(fee.amountPaid),
+      dueDate: new Date(String(fee.dueDate)).toISOString(),
+      status: String(fee.status),
+    })),
+    paid: paid.map((payment) => ({
+      id: String(payment.id),
+      receiptNo: String(payment.receiptNo),
+      amount: asMoney(payment.amount),
+      method: String(payment.method),
+      date: new Date(String(payment.date)).toISOString(),
+    })),
+  };
+};
+
 export const getMyDashboard = async (
   currentUser: AuthUser
 ) => {
@@ -859,6 +896,8 @@ export const getMyDashboard = async (
     pendingAssignmentsCount,
     pendingAssignmentItems,
     availableRecordings,
+    pendingFeeRows,
+    paymentRows,
   ] = await Promise.all([
     batchIds.length
       ? prisma.classSession.findMany({
@@ -1037,6 +1076,9 @@ export const getMyDashboard = async (
           },
         })
       : Promise.resolve(0),
+
+    FeeRepository.findPendingFeesByStudent(currentUser.instituteId, student.id),
+    FeeRepository.findPaymentsByStudent(currentUser.instituteId, student.id),
   ]);
 
   const attendanceSummary =
@@ -1197,6 +1239,11 @@ export const getMyDashboard = async (
     todaySessions: todaySessions.map(mapStudentDashboardSession),
 
     upcomingSessions: upcomingSessions.map(mapStudentDashboardSession),
+
+    fees: buildStudentDashboardFees(
+      pendingFeeRows as Array<Record<string, unknown>>,
+      paymentRows as Array<Record<string, unknown>>
+    ),
 
     activeLiveSessions: activeLiveSessions.map((session) => ({
       id: session.id,

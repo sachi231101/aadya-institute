@@ -209,6 +209,8 @@ async function main() {
     { name: "master.update", description: "Update master record" },
     { name: "master.delete", description: "Delete master record" },
     { name: "notification.read", description: "View notifications" },
+    { name: "announcement.read", description: "View announcements" },
+    { name: "announcement.create", description: "Create and delete announcements" },
     { name: "notification.resend", description: "Resend WhatsApp notification" },
     { name: "notification.manage", description: "Manage notification templates & rules" },
     { name: "whatsapp.automation.read", description: "View WhatsApp system automations" },

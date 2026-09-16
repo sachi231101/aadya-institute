@@ -1,478 +1,246 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Megaphone,
-  Bell,
   Search,
   CheckCheck,
   Calendar,
-  Clock,
-  User,
-  Paperclip,
-  Eye,
-  Download,
-  AlertCircle,
-  BookOpen,
-  Filter,
-  Layers,
-  ChevronRight,
-  Sparkles,
-  CheckCircle2,
-  FileText,
-  X,
   Briefcase,
-  GraduationCap,
-  Award,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuthStore } from "@/store/auth.store";
-import { useAnnouncementStore } from "@/store/announcement.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
-import type { AnnouncementItem, AuthorRole } from "@/store/announcement.store";
+import {
+  useAnnouncements,
+  useMarkAnnouncementRead,
+  useMarkAllAnnouncementsRead,
+} from "@/hooks/useAnnouncements";
+import type { Announcement } from "@/services/announcements.api";
 import { PageContainer, PageHeader, FilterToolbar, PageSection } from "@/components/layout";
 
+const formatWhen = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const authorName = (item: Announcement) =>
+  item.createdBy?.name || item.faculty?.user?.name || "Institute";
+
+const authorTitle = (item: Announcement) =>
+  item.faculty?.designation || item.authorRole || "Staff";
+
 export const StudentAnnouncements: React.FC = () => {
-  const { user } = useAuthStore();
   const academic = useStudentAcademicAccess();
-  const { announcements, markAsRead, markAllAsRead } = useAnnouncementStore();
-
-  const studentId = academic.studentId || user?.id || "std-current";
-  const studentName = academic.studentName || user?.name || "Student";
-  const enrolledCourse = academic.primaryCourse?.name || "Enrolled Program";
-  const enrolledBatch = academic.primaryBatch?.name || "Assigned Batch";
-
-  // Filter States
-  const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>("ALL");
+  const [selectedBatchId, setSelectedBatchId] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string>("");
-  const [bannerNotice, setBannerNotice] = useState<AnnouncementItem | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState("");
 
-  // Filter announcements strictly by student's enrolled course/batch and Published status
-  const studentAnnouncements = useMemo(() => {
-    return announcements.filter((a) => {
-      // Must be Published (students never see drafts)
-      if (a.status !== "Published") return false;
-
-      // Strict course & batch isolation (or matches student's enrolled batch)
-      const matchesBatch =
-        (a.batchName && academic.isAuthorizedForBatch(a.batchName)) ||
-        (a.batchCode && academic.isAuthorizedForBatch(a.batchCode)) ||
-        ((a as any).targetRole === "ALL" || (a as any).targetRole === "STUDENT" || !(a as any).targetRole);
-
-      if (!matchesBatch) return false;
-
-      // Search query
-      const matchesSearch =
-        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.facultyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.facultyDesignation.toLowerCase().includes(searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      // Batch filter
-      if (selectedBatchFilter !== "ALL" && a.batchName !== selectedBatchFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [
-    announcements,
-    enrolledBatch,
-    enrolledCourse,
-    searchQuery,
-    selectedBatchFilter,
-    academic,
-  ]);
-
-  // Set default selected announcement
   useEffect(() => {
-    if (studentAnnouncements.length > 0) {
-      if (
-        !selectedAnnouncementId ||
-        !studentAnnouncements.some((a) => a.id === selectedAnnouncementId)
-      ) {
-        setSelectedAnnouncementId(studentAnnouncements[0].id);
-      }
-    }
-  }, [studentAnnouncements, selectedAnnouncementId]);
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-  // Currently selected announcement
-  const selectedAnnouncement = useMemo(() => {
-    return (
-      studentAnnouncements.find((a) => a.id === selectedAnnouncementId) ||
-      studentAnnouncements[0] ||
-      null
-    );
-  }, [studentAnnouncements, selectedAnnouncementId]);
+  const { data, isLoading, isError } = useAnnouncements({
+    status: "PUBLISHED",
+    view: "inbox",
+    limit: 50,
+    search: debouncedSearch || undefined,
+    batchId: selectedBatchId === "ALL" ? undefined : selectedBatchId,
+  });
+  const markRead = useMarkAnnouncementRead();
+  const markAllRead = useMarkAllAnnouncementsRead();
 
-  // Automatically mark as read when selecting
+  const items = data?.data || [];
+
   useEffect(() => {
-    if (selectedAnnouncement) {
-      const isReadByMe = selectedAnnouncement.readBy.some(
-        (r) => r.studentId === studentId
-      );
-      if (!isReadByMe) {
-        markAsRead(selectedAnnouncement.id, studentId, studentName);
-      }
+    if (items.length === 0) {
+      setSelectedAnnouncementId("");
+      return;
     }
-  }, [selectedAnnouncement?.id, studentId, studentName, markAsRead]);
+    if (!items.some((item) => item.id === selectedAnnouncementId)) {
+      setSelectedAnnouncementId(items[0].id);
+    }
+  }, [items, selectedAnnouncementId]);
 
-  // Check student's read status on selected item
-  const myReadRecord = useMemo(() => {
-    if (!selectedAnnouncement) return null;
-    return selectedAnnouncement.readBy.find((r) => r.studentId === studentId);
-  }, [selectedAnnouncement, studentId]);
+  const selected = items.find((item) => item.id === selectedAnnouncementId) || null;
 
-  // Handle Mark All As Read
-  const handleMarkAllRead = () => {
-    markAllAsRead(studentId, studentName, selectedBatchFilter !== "ALL" ? selectedBatchFilter : undefined);
-  };
+  useEffect(() => {
+    if (selected && !selected.isRead && !markRead.isPending) {
+      markRead.mutate(selected.id);
+    }
+  }, [selected?.id, selected?.isRead]);
 
   return (
     <PageContainer className="animate-in fade-in duration-300">
-      {/* ─── LIVE NOTIFICATION BANNER (When newest announcement is present) ─── */}
-      {bannerNotice && (
-        <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl shadow-lg flex items-center justify-between gap-4 animate-in slide-in-from-top-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
-              <Megaphone className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold tracking-wider uppercase bg-white/20 px-2 py-0.5 rounded-full">
-                New Announcement
-              </span>
-              <h4 className="text-sm font-semibold mt-0.5">{bannerNotice.title}</h4>
-              <p className="text-xs text-blue-100 line-clamp-1">{bannerNotice.message}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => {
-                setSelectedAnnouncementId(bannerNotice.id);
-                setBannerNotice(null);
-              }}
-            className="h-9 px-3.5 bg-white text-primary hover:bg-blue-50 text-xs font-bold rounded-xl"
-            >
-              View Announcement
-            </Button>
-            <button
-              onClick={() => setBannerNotice(null)}
-              className="p-1.5 text-white/70 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       <PageHeader
         title="Announcements"
-        description="Stay updated with important announcements from your Faculty and Counsellor."
+        description="Stay updated with important announcements from your Faculty, Counsellor, and Admin."
         actions={
           <Button
             variant="outline"
-            onClick={handleMarkAllRead}
-            className="h-9 px-3.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-xl border-slate-200 gap-1.5 shadow-2xs cursor-pointer"
+            onClick={() =>
+              markAllRead.mutate(selectedBatchId === "ALL" ? undefined : selectedBatchId)
+            }
+            className="h-9 px-3.5 text-xs font-bold gap-1.5"
           >
             <CheckCheck className="h-3.5 w-3.5 text-primary" />
-            <span>Mark all as read</span>
+            Mark all as read
           </Button>
         }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[760px] items-start">
         <PageSection title="Inbox" className="lg:col-span-5 h-full min-h-0 flex flex-col">
-        <div className="bg-card border border-border/80 rounded-xl shadow-xs flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="p-5 border-b border-border/80 bg-card">
-            <FilterToolbar>
-              <div className="relative flex-1 min-w-[140px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search announcements..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9 pr-3 text-xs bg-muted/30 border-border rounded-lg font-medium focus:bg-background"
-                />
-              </div>
+          <div className="bg-card border border-border/80 rounded-xl shadow-xs flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="p-5 border-b border-border/80 bg-card">
+              <FilterToolbar>
+                <div className="relative flex-1 min-w-[140px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search announcements..."
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    className="h-9 pl-9 pr-3 text-xs"
+                  />
+                </div>
+                <select
+                  value={selectedBatchId}
+                  onChange={(event) => setSelectedBatchId(event.target.value)}
+                  className="h-9 px-3 text-xs font-semibold bg-muted/30 border border-border rounded-lg outline-none cursor-pointer shrink-0"
+                >
+                  <option value="ALL">All My Batches</option>
+                  {academic.assignedBatches.map((batch) => (
+                    <option key={batch.id} value={batch.id}>
+                      {batch.name}
+                    </option>
+                  ))}
+                </select>
+              </FilterToolbar>
+            </div>
 
-              <select
-                value={selectedBatchFilter}
-                onChange={(e) => setSelectedBatchFilter(e.target.value)}
-                className="h-9 px-3 text-xs font-semibold text-foreground bg-muted/30 border border-border rounded-lg outline-none cursor-pointer shrink-0"
-              >
-                <option value="ALL">All My Batches</option>
-                <option value={enrolledBatch}>{enrolledBatch}</option>
-              </select>
-            </FilterToolbar>
-          </div>
-
-          {/* List Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-border/80">
-            {studentAnnouncements.length === 0 ? (
-              <div className="p-8 text-center flex flex-col items-center justify-center h-64">
-                <Megaphone className="h-10 w-10 text-slate-300 mb-2" />
-                <p className="text-xs font-bold text-slate-600">No announcements found</p>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  You're all caught up with your updates!
-                </p>
-              </div>
-            ) : (
-              studentAnnouncements.map((item) => {
-                const isSelected = item.id === selectedAnnouncement?.id;
-                const isRead = item.readBy.some((r) => r.studentId === studentId);
-                const isCounsellor = item.authorRole === "Counsellor";
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedAnnouncementId(item.id)}
-                    className={`p-4 flex items-start gap-3 cursor-pointer transition-all ${
-                      isSelected
-                        ? "bg-blue-50/70 border-l-4 border-l-[#1D4ED8]"
-                        : "hover:bg-slate-50/70 border-l-4 border-l-transparent"
-                    }`}
-                  >
-                    {/* Unread Red Dot or Icon */}
-                    <div className="relative shrink-0 mt-0.5">
-                      <div
-                        className={`h-9 w-9 rounded-xl ${
-                          isCounsellor ? "bg-emerald-50 text-emerald-700" : item.iconBg
-                        } ${isCounsellor ? "" : item.iconColor} flex items-center justify-center`}
-                      >
-                        {isCounsellor ? (
-                          <Briefcase className="h-4 w-4 text-emerald-700" />
-                        ) : (
-                          <Megaphone className="h-4 w-4" />
+            <div className="flex-1 overflow-y-auto divide-y divide-border/80">
+              {isLoading ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">Loading announcements...</div>
+              ) : isError ? (
+                <div className="p-8 text-center text-xs text-destructive">Could not load announcements.</div>
+              ) : items.length === 0 ? (
+                <div className="p-8 text-center flex flex-col items-center justify-center h-64">
+                  <Megaphone className="h-10 w-10 text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-600">No announcements found</p>
+                  <p className="text-[11px] text-slate-400 mt-1">You're all caught up with your updates!</p>
+                </div>
+              ) : (
+                items.map((item) => {
+                  const isSelected = item.id === selected?.id;
+                  const isCounsellor = item.authorRole === "COUNSELLOR";
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedAnnouncementId(item.id)}
+                      className={`p-4 flex items-start gap-3 cursor-pointer ${
+                        isSelected ? "bg-blue-50/70 border-l-4 border-l-[#1D4ED8]" : "border-l-4 border-l-transparent hover:bg-slate-50/70"
+                      }`}
+                    >
+                      <div className="relative shrink-0 mt-0.5">
+                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${isCounsellor ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-primary"}`}>
+                          {isCounsellor ? <Briefcase className="h-4 w-4" /> : <Megaphone className="h-4 w-4" />}
+                        </div>
+                        {!item.isRead && (
+                          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white" />
                         )}
                       </div>
-                      {!isRead && (
-                        <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white" />
-                      )}
-                    </div>
-
-                    {/* Middle Info */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <h3
-                            className={`text-xs truncate ${
-                              !isRead
-                                ? "font-semibold text-slate-900"
-                                : "font-bold text-slate-800"
-                            }`}
-                          >
-                            {item.title}
-                          </h3>
-                          {!isRead && (
-                            <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 text-[9px] font-semibold uppercase shrink-0">
-                              New
-                            </span>
-                          )}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <h3 className="text-xs font-semibold truncate">{item.title}</h3>
+                          <span className="text-[10px] text-slate-400 shrink-0">{formatWhen(item.publishedAt).split(",")[1]}</span>
                         </div>
-                        <span className="text-[10px] font-semibold text-slate-400 shrink-0">
-                          {item.publishedAt?.split(",")[1] || "10:30 AM"}
-                        </span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-500 line-clamp-1 font-medium">
-                        {item.message}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5 text-[10px]">
-                        {/* Author Role Badge */}
-                        <span
-                          className={`px-1.5 py-0.2 rounded-md text-[9px] font-semibold ${
-                            isCounsellor
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-indigo-100 text-indigo-800"
-                          }`}
-                        >
-                          {item.authorRole || "Faculty"}
-                        </span>
-                        <span className="font-bold text-slate-700">{item.facultyName}</span>
-                        <span className="text-slate-400">•</span>
-                        <span className="text-slate-500">{item.facultyDesignation}</span>
-                        <span className="text-slate-400">•</span>
-                        <span className="text-primary font-bold">{item.batchName}</span>
+                        <p className="text-[11px] text-slate-500 line-clamp-1">{item.body}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                          <span className={`px-1.5 rounded-md text-[9px] font-semibold ${isCounsellor ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"}`}>
+                            {item.authorRole || "Faculty"}
+                          </span>
+                          <span className="font-bold text-slate-700">{authorName(item)}</span>
+                          <span className="text-primary font-bold">{item.batch?.name || item.branch?.name || "Institute"}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <div className="p-3 border-t border-border/80 bg-muted/30 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>
-              Showing {studentAnnouncements.length} of {studentAnnouncements.length} announcements
-            </span>
-            <div className="flex items-center gap-1 font-semibold text-foreground">
-              <span className="px-2 py-0.5 rounded bg-card border border-border shadow-2xs">
-                Page 1
-              </span>
+                  );
+                })
+              )}
+            </div>
+            <div className="p-3 border-t border-border/80 bg-muted/30 text-[11px] text-muted-foreground">
+              Showing {items.length} announcement{items.length === 1 ? "" : "s"}
             </div>
           </div>
-        </div>
         </PageSection>
 
         <PageSection title="Details" className="lg:col-span-7 h-full min-h-0 flex flex-col">
-        <div className="bg-card border border-border/80 rounded-xl shadow-xs p-5 flex flex-col justify-between flex-1 min-h-0 overflow-y-auto">
-          {selectedAnnouncement ? (
-            <div className="space-y-6">
-              {/* Top Meta Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/80">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                      selectedAnnouncement.authorRole === "Counsellor"
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-blue-50 text-primary border border-blue-200"
-                    }`}
-                  >
-                    {selectedAnnouncement.type}
-                  </span>
-                  {selectedAnnouncement.isImportant && (
-                    <Badge className="text-[10px] font-bold bg-rose-50 text-rose-700 border-rose-200">
-                      Important
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{selectedAnnouncement.publishedAt || selectedAnnouncement.createdAt}</span>
-                </div>
-              </div>
-
-              {/* Title & Author Info */}
-              <div className="space-y-3">
-                <h2 className="text-xl font-semibold text-slate-900 leading-tight">
-                  📢 {selectedAnnouncement.title}
-                </h2>
-
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/60">
-                  <div
-                    className={`h-11 w-11 rounded-xl text-white font-semibold text-sm flex items-center justify-center shadow-xs ${
-                      selectedAnnouncement.authorRole === "Counsellor"
-                        ? "bg-gradient-to-tr from-emerald-600 to-teal-600"
-                        : "bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6]"
-                    }`}
-                  >
-                    {selectedAnnouncement.facultyName.slice(0, 2).toUpperCase()}
+          <div className="bg-card border border-border/80 rounded-xl shadow-xs p-5 flex-1 min-h-0 overflow-y-auto">
+            {selected ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-3 pb-4 border-b border-border/80">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-blue-50 text-primary border border-blue-200">
+                      {selected.type}
+                    </span>
+                    {selected.type === "URGENT" && (
+                      <Badge className="text-[10px] bg-rose-50 text-rose-700 border-rose-200">Important</Badge>
+                    )}
                   </div>
-                  <div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{formatWhen(selected.publishedAt)}</span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h2 className="text-xl font-semibold leading-tight">{selected.title}</h2>
+                  <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/60">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Posted By {selectedAnnouncement.authorRole || "Faculty"}
+                      Posted by {selected.authorRole || "Staff"}
                     </span>
-                    <h4 className="text-xs font-semibold text-slate-900">
-                      {selectedAnnouncement.facultyName}
-                    </h4>
-                    <span
-                      className={`text-[11px] font-bold ${
-                        selectedAnnouncement.authorRole === "Counsellor"
-                          ? "text-emerald-700"
-                          : "text-indigo-600"
-                      }`}
-                    >
-                      {selectedAnnouncement.facultyDesignation}
-                    </span>
+                    <h4 className="text-xs font-semibold">{authorName(selected)}</h4>
+                    <span className="text-[11px] font-bold text-indigo-600">{authorTitle(selected)}</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Main Message Content */}
-              <div className="p-5 rounded-xl bg-slate-50/50 border border-slate-200/70 text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-line">
-                {selectedAnnouncement.message}
-              </div>
-
-              {/* Batch & Targeting Metadata */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                    Targeted Batch
-                  </span>
-                  <span className="font-bold text-slate-800 text-xs mt-0.5 block">
-                    {selectedAnnouncement.batchName}
-                  </span>
+                <div className="p-5 rounded-xl bg-slate-50/50 border border-slate-200/70 text-xs leading-relaxed whitespace-pre-line">
+                  {selected.body}
                 </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                    Date & Time
-                  </span>
-                  <span className="font-bold text-slate-800 text-xs mt-0.5 block">
-                    {selectedAnnouncement.publishedAt || selectedAnnouncement.createdAt}
-                  </span>
-                </div>
-              </div>
-
-              {/* Attachment if present */}
-              {selectedAnnouncement.attachmentName && (
-                <div className="p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2.5 font-bold text-primary">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center">
-                      <Paperclip className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-slate-900 font-bold">
-                        {selectedAnnouncement.attachmentName}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-normal">
-                        {selectedAnnouncement.attachmentSize || "245 KB"}
-                      </span>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Audience</span>
+                    <span className="font-bold text-xs mt-0.5 block">
+                      {selected.batch?.name || selected.branch?.name || "All students"}
+                    </span>
                   </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs font-bold text-primary bg-white border-blue-200 hover:bg-blue-50 rounded-xl gap-1.5"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>View / Download</span>
-                  </Button>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Date and time</span>
+                    <span className="font-bold text-xs mt-0.5 block">{formatWhen(selected.publishedAt)}</span>
+                  </div>
                 </div>
-              )}
-
-              {/* Read & Sent Stats & Personal Read Timestamp */}
-              <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
-                  <span>
-                    <strong className="text-slate-900 font-semibold">
-                      {selectedAnnouncement.sentCount}
-                    </strong>{" "}
-                    Sent
-                  </span>
-                  <span>•</span>
-                  <span>
-                    <strong className="text-slate-900 font-semibold">
-                      {selectedAnnouncement.readCount}
-                    </strong>{" "}
-                    Read
-                  </span>
-                </div>
-
-                {myReadRecord && (
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                {selected.isRead && selected.readAt && (
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 w-fit">
                     <CheckCheck className="h-3.5 w-3.5" />
-                    <span>You read this at {myReadRecord.readAt}</span>
+                    <span>You read this at {formatWhen(selected.readAt)}</span>
                   </div>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
-              <Megaphone className="h-12 w-12 text-slate-200 mb-2" />
-              <p className="text-sm font-bold text-slate-600">Select an announcement to read</p>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                <Megaphone className="h-12 w-12 text-slate-200 mb-2" />
+                <p className="text-sm font-bold text-slate-600">Select an announcement to read</p>
+              </div>
+            )}
+          </div>
         </PageSection>
       </div>
     </PageContainer>
