@@ -29,7 +29,6 @@ export const ROUTES = {
     STUDENTS: {
       ALL: "/admin/students/all",
       DETAIL: (id: string) => `/admin/students/${id}`,
-      DOCUMENTS: "/admin/students/documents",
       STUDENT_ALLOCATION: "/admin/students/student-allocation",
       /** @deprecated Use STUDENT_ALLOCATION */
       BATCH_ALLOCATION: "/admin/students/student-allocation",

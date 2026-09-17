@@ -1,4 +1,5 @@
-﻿import { AppError } from "../../middlewares/error.middleware";
+﻿import crypto from "crypto";
+import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.util";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
@@ -190,6 +191,10 @@ const mapStudentSummary = (s: any) => {
     (s.admissions || []).map((a: any) => a.application?.enquiry?.assignedTo?.name).find((n: string | undefined) => !!n) ||
     extractFromNotes(/Counsellor:\s*([^|\n]+)/i) ||
     null;
+  const leadSource =
+    (s.convertedFromLeads || []).find((lead: any) => lead.source)?.source ||
+    extractFromNotes(/(?:Lead source|Source):\s*([^|\n]+)/i) ||
+    null;
 
   return {
     id: s.id,
@@ -204,9 +209,18 @@ const mapStudentSummary = (s: any) => {
     counsellorName,
     bloodGroup,
     guardian: guardianName || guardianPhone ? { name: guardianName, phone: guardianPhone, relation: "Parent / Guardian" } : null,
-    address: addressStr ? { street: addressStr, city: s.address?.city || "Bengaluru", pincode: s.address?.pincode || "" } : null,
+    address: addressStr
+      ? {
+          street: addressStr,
+          city: typeof s.address === "object" ? s.address?.city || null : null,
+          pincode: typeof s.address === "object" ? s.address?.pincode || null : null,
+        }
+      : null,
+    leadSource,
     status: isDraft ? "DRAFT" : s.status,
     admissionStatus: admission?.status ?? null,
+    admissionNo: admission?.admissionNo ?? null,
+    admissionDate: admission?.admissionDate ?? null,
     isDraft,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
@@ -350,6 +364,20 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
       transactionRef: p.transactionRef,
     })),
     pendingFees: student.pendingFees || [],
+    whatsappNotifications: await prisma.notification.findMany({
+      where: { studentId: id, instituteId: currentUser.instituteId, channel: "WHATSAPP" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        event: true,
+        status: true,
+        createdAt: true,
+        sentAt: true,
+        skipReason: true,
+        errorMessage: true,
+      },
+    }),
   };
 };
 
@@ -685,10 +713,21 @@ export const sendStudentCredentialsWhatsAppService = async (
     throw new AppError("Student has no registered mobile number on record from admission.", 400);
   }
 
-  const initialPassword = "Aadya@123";
+  if (!student.userId) {
+    throw new AppError("This student has no login account.", 400);
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  await assertPasswordMeetsInstitutePolicy(currentUser.instituteId, temporaryPassword);
+  const passwordHash = await hashPassword(temporaryPassword);
+  await prisma.user.update({
+    where: { id: student.userId },
+    data: { passwordHash },
+  });
+
   const portalHost = process.env.CLIENT_URL || "http://localhost:5173";
   const loginUrl = `${portalHost.replace(/\/+$/, "")}/login`;
-  const stamp = new Date().toISOString().slice(0, 13);
+  const stamp = new Date().toISOString().slice(0, 16);
 
   const notification = await triggerNotification({
     instituteId: currentUser.instituteId,
@@ -698,7 +737,7 @@ export const sendStudentCredentialsWhatsAppService = async (
     templateParams: {
       student_name: studentName,
       student_code: studentCode,
-      password: initialPassword,
+      password: temporaryPassword,
       portal_url: loginUrl,
     },
     metadata: {
@@ -707,18 +746,39 @@ export const sendStudentCredentialsWhatsAppService = async (
     },
   });
 
+  const queued = Boolean(notification && notification.status !== "SKIPPED");
+
   return {
-    success: true,
-    queued: Boolean(notification && notification.status !== "SKIPPED"),
+    success: queued,
+    queued,
     notificationId: notification?.id ?? null,
     status: notification?.status ?? "SKIPPED",
-    skipReason: notification?.skipReason ?? null,
+    skipReason: notification?.skipReason ?? (queued ? null : "WhatsApp is not connected"),
+    temporaryPassword,
     recipient: {
       name: studentName,
       phone: rawPhone,
       studentCode,
     },
   };
+};
+
+const generateTemporaryPassword = () => {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$%";
+  const all = upper + lower + digits + special;
+  const pick = (chars: string) => chars[crypto.randomInt(chars.length)] ?? "A";
+  const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
+  while (chars.length < 12) chars.push(pick(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = crypto.randomInt(i + 1);
+    const current = chars[i] ?? "A";
+    chars[i] = chars[j] ?? "a";
+    chars[j] = current;
+  }
+  return chars.join("");
 };
 
 /**

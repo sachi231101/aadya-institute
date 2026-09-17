@@ -10,7 +10,6 @@ import {
   Loader2,
   AlertCircle,
   Building2,
-  ArrowRight
 } from "lucide-react";
 import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
 import { useBatches } from "../../../hooks/useBatches";
@@ -391,26 +390,6 @@ export const CourseAssignment: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                </div>
-
-                {/* Card Actions */}
-                <div className="p-4 bg-muted/30 border-t border-border flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(isFacultyOnly ? `/faculty/batches` : `${basePath}/batches`)}
-                    className="flex-1 text-xs font-bold h-8.5 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
-                  >
-                    View Batch
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(isFacultyOnly ? `/faculty/schedule/classes` : `${basePath}/schedule/classes`)}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold h-8.5 rounded-xl shadow-2xs gap-1 cursor-pointer"
-                  >
-                    Mark Attendance
-                    <ArrowRight className="h-3 w-3" />
-                  </Button>
                 </div>
               </Card>
             );

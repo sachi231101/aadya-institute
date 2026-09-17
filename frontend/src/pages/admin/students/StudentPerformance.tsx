@@ -1,392 +1,528 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+﻿import React, { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import {
-  BookOpen,
-  User,
-  Calendar,
-  ClipboardList,
-  Download,
-  Star,
-  LayoutGrid,
-  FileEdit,
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  Info,
-  Code2,
-  FileText,
+  BookOpen,
   Building,
+  Calendar,
+  ClipboardList,
+  FileEdit,
+  FileText,
+  LayoutGrid,
   Loader2,
-  AlertCircle,
+  Search,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from "lucide-react";
-import { useStudentList } from "../../../hooks/useStudents";
-import { useStudentReport } from "../../../hooks/useReports";
+import { useStudent, useStudentList, useStudentPerformance } from "@/hooks/useStudents";
+import { useStudentReport } from "@/hooks/useReports";
 import { useBranchStore } from "@/store/branch.store";
 import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 import { CourseChips } from "@/components/common/CourseChips";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import type { Student, StudentAssignmentItem, StudentAttendanceRecord } from "@/types/student.types";
+
+const notRecorded = "—";
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function scorePercent(obtained: number, maxScore: number) {
+  if (maxScore <= 0) return 0;
+  return Math.round((obtained / maxScore) * 100);
+}
+
+function gradeFromPercent(percent: number) {
+  if (percent >= 90) return { label: "A+", className: "bg-emerald-50 text-emerald-700" };
+  if (percent >= 80) return { label: "A", className: "bg-emerald-50 text-emerald-700" };
+  if (percent >= 70) return { label: "B", className: "bg-blue-50 text-blue-700" };
+  if (percent >= 60) return { label: "C", className: "bg-amber-50 text-amber-700" };
+  return { label: "D", className: "bg-red-50 text-red-700" };
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return notRecorded;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return notRecorded;
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function monthLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="h-[180px] flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 text-center">
+      <p className="text-xs text-slate-500">{message}</p>
+    </div>
+  );
+}
+
+function Delta({ current, previous }: { current: number; previous: number | null }) {
+  if (previous === null) return null;
+  const change = current - previous;
+  if (change === 0) return <span className="text-[10px] font-semibold text-slate-400">No change</span>;
+  const up = change > 0;
+  return (
+    <span className={`text-[10px] font-bold flex items-center ${up ? "text-emerald-600" : "text-red-500"}`}>
+      {up ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
+      {Math.abs(change)}% vs previous
+    </span>
+  );
+}
 
 export const StudentPerformance: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryStudentId = searchParams.get("studentId");
+  const [studentSearch, setStudentSearch] = useState("");
 
   const { selectedBranchId } = useBranchStore();
   const branchFilter = selectedBranchId !== "ALL" ? selectedBranchId : undefined;
 
-  // Fetch real students from API
-  const { data: studentListResponse } = useStudentList({ limit: 100 });
+  const { data: studentListResponse, isLoading: studentsLoading, isError: studentsError } = useStudentList({
+    limit: 100,
+    branchId: branchFilter,
+  });
+  const { data: reportData } = useStudentReport(branchFilter);
   const apiStudents = studentListResponse?.data ?? [];
-
-  const {
-    data: reportData,
-    isLoading: reportLoading,
-    isError: reportError,
-  } = useStudentReport(branchFilter);
-
   const reportStudents = reportData?.students ?? [];
-  const maxEnrollment = Math.max(
-    ...(reportData?.enrollmentTrend?.map((t) => t.students) ?? [1]),
-    1
-  );
 
-  const instituteAttendanceHistory = useMemo(
-    () =>
-      (reportData?.enrollmentTrend ?? []).map((t) => ({
-        date: t.month,
-        attendance: reportData?.summary?.avgAttendanceRate ?? 0,
-      })),
-    [reportData]
-  );
-
-  const institutePerformanceTrend = useMemo(
-    () =>
-      (reportData?.enrollmentTrend ?? []).map((t) => ({
-        month: t.month,
-        score: Math.min(100, Math.round((t.students / maxEnrollment) * 100)),
-      })),
-    [reportData, maxEnrollment]
-  );
-
-  // Build unified student list strictly from PostgreSQL
-  const allAvailableStudents = useMemo(() => {
-    return apiStudents.map((apiS: any) => {
-      const reportRow = reportStudents.find((r) => r.id === apiS.id);
-      const packageCourses = coursesFromStudent({
-        courses: apiS.courses,
-        courseName:
-          reportRow?.courseName ||
-          (apiS.admissions || []).map((a: any) => a.course?.name).filter(Boolean).join(", ") ||
-          apiS.courseName,
+  const listStudents = useMemo(() => {
+    return apiStudents.map((student: Student) => {
+      const reportRow = reportStudents.find((row) => row.id === student.id);
+      const courses = coursesFromStudent({
+        courses: student.courses,
+        courseName: reportRow?.courseName || student.courseName,
       });
-      const courseName =
-        formatPackageCourseLabel(packageCourses) ||
-        reportRow?.courseName ||
-        apiS.admissions?.[0]?.course?.name ||
-        "Full Stack Web Development";
-      const branchName = reportRow?.branchName || apiS.branch?.name || "Aadya Branch";
-      const attPct =
-        reportRow?.attendancePercentage ??
-        (() => {
-          const totalAttendances = apiS.studentAttendances?.length || 0;
-          const presentCount =
-            apiS.studentAttendances?.filter((a: any) => a.status === "PRESENT")?.length || 0;
-          return totalAttendances > 0 ? Math.round((presentCount / totalAttendances) * 100) : 85;
-        })();
-      const submissionsCount =
-        reportRow?.assignmentsSubmitted ?? apiS.assignmentSubmissions?.length ?? 0;
-      const totalAssignments = reportRow?.totalAssignments ?? 10;
-      const assignmentPct =
-        totalAssignments > 0 ? Math.round((submissionsCount / totalAssignments) * 100) : 75;
-
-      const batchLabel =
-        (apiS.admissions || [])
-          .map((a: any) => a.batch?.name || a.batch?.code)
-          .filter(Boolean)
-          .join(", ") ||
-        apiS.admissions?.[0]?.batch?.name ||
-        "Active Batch";
+      const attendance = student.attendance;
+      const hasAttendance = (attendance?.totalClasses ?? 0) > 0;
+      const attendancePercent = hasAttendance
+        ? attendance?.overallPercentage ?? reportRow?.attendancePercentage ?? 0
+        : reportRow && reportRow.attendancePercentage > 0
+          ? reportRow.attendancePercentage
+          : null;
+      const atRisk =
+        reportRow?.riskFlag === "At Risk" ||
+        reportRow?.riskFlag === "Triggered" ||
+        Boolean(attendance?.isDiscontinuationRisk);
 
       return {
-        id: apiS.id,
-        name: reportRow?.name || apiS.user?.name || `Student ${apiS.studentCode}`,
-        studentCode: apiS.studentCode,
-        email: apiS.user?.email || "student@aadya.in",
-        phone: apiS.user?.phone || "+91 98765 43210",
-        course: courseName,
-        courses: packageCourses,
-        batch: batchLabel,
-        faculty: "Faculty Instructor",
-        center: branchName,
-        admissionNo: `ADM-${apiS.studentCode}`,
-        dateOfJoining: apiS.createdAt
-          ? new Date(apiS.createdAt).toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })
-          : "N/A",
-        status: reportRow?.riskFlag === "At Risk" ? "AT RISK" : apiS.status || "ACTIVE",
-        avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250`,
-        attendance: attPct,
-        progress: assignmentPct,
-        coursesCount: Math.max(packageCourses.length, 1),
-        assignmentsCompleted: `${submissionsCount}/${totalAssignments}`,
-        performanceGrade: attPct >= 80 ? "Good" : attPct >= 60 ? "Average" : "Needs Improvement",
-        performanceMessage: reportRow?.riskFlag === "At Risk" ? "Attendance risk flagged" : "Academic progress active",
-        assessments: [] as any[],
-        enrolledCourses:
-          packageCourses.length > 0
-            ? packageCourses.map((c, idx) => ({
-                name: c.name,
-                batch: batchLabel,
-                progress: assignmentPct,
-                status: "In Progress",
-                icon: Code2,
-                iconBg: idx % 2 === 0 ? "bg-blue-50 text-blue-600" : "bg-indigo-50 text-indigo-600",
-              }))
-            : [
-                {
-                  name: courseName,
-                  batch: batchLabel,
-                  progress: assignmentPct,
-                  status: "In Progress",
-                  icon: Code2,
-                  iconBg: "bg-blue-50 text-blue-600",
-                },
-              ],
-        attendanceHistory:
-          instituteAttendanceHistory.length > 0
-            ? instituteAttendanceHistory.map((p) => ({ ...p, attendance: attPct }))
-            : [{ date: "Current", attendance: attPct }],
-        performanceTrend:
-          institutePerformanceTrend.length > 0
-            ? institutePerformanceTrend.map((p) => ({ ...p, score: assignmentPct }))
-            : [{ month: "Current", score: assignmentPct }],
+        id: student.id,
+        name: student.user?.name || reportRow?.name || student.studentCode,
+        studentCode: student.studentCode,
+        courses,
+        course: formatPackageCourseLabel(courses) || student.courseName || "Not assigned",
+        batch: student.batchName || "Not assigned",
+        center: student.branch?.name || reportRow?.branchName || notRecorded,
+        attendancePercent,
+        performanceLabel: atRisk
+          ? "At Risk"
+          : attendancePercent === null
+            ? "No records"
+            : attendancePercent >= 80
+              ? "Good"
+              : attendancePercent >= 60
+                ? "Average"
+                : "Needs Improvement",
       };
     });
-  }, [apiStudents, reportStudents, instituteAttendanceHistory, institutePerformanceTrend]);
+  }, [apiStudents, reportStudents]);
 
-  // Determine selected student ID
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(() => {
-    return queryStudentId || (allAvailableStudents[0]?.id ?? "");
-  });
+  const filteredStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+    if (!query) return listStudents;
+    return listStudents.filter((student) =>
+      [student.name, student.studentCode, student.course, student.batch, student.center]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [listStudents, studentSearch]);
 
-  // Sync state with URL parameter changes
-  useEffect(() => {
-    if (queryStudentId && queryStudentId !== selectedStudentId) {
-      setSelectedStudentId(queryStudentId);
-    } else if (!queryStudentId && allAvailableStudents.length > 0) {
-      setSelectedStudentId(allAvailableStudents[0].id);
-      setSearchParams({ studentId: allAvailableStudents[0].id });
+  const {
+    data: studentDetailRes,
+    isLoading: detailLoading,
+    isError: detailError,
+    refetch: refetchDetail,
+  } = useStudent(queryStudentId || undefined);
+  const {
+    data: performanceRes,
+    isLoading: performanceLoading,
+    isError: performanceError,
+    refetch: refetchPerformance,
+  } = useStudentPerformance(queryStudentId || undefined);
+
+  const student = studentDetailRes?.data;
+  const performance = performanceRes?.data;
+
+  const analytics = useMemo(() => {
+    const records = [...(student?.attendanceRecords ?? [])].sort(
+      (a, b) => new Date(a.classSession.scheduledDate).getTime() - new Date(b.classSession.scheduledDate).getTime()
+    );
+    const attendanceByMonth = new Map<string, StudentAttendanceRecord[]>();
+    for (const record of records) {
+      const key = monthLabel(record.classSession.scheduledDate);
+      const bucket = attendanceByMonth.get(key) ?? [];
+      bucket.push(record);
+      attendanceByMonth.set(key, bucket);
     }
-  }, [queryStudentId, allAvailableStudents]);
+    const attendanceHistory = Array.from(attendanceByMonth.entries()).map(([date, monthRecords]) => {
+      const present = monthRecords.filter((record) => record.status === "PRESENT").length;
+      return {
+        date,
+        attendance: monthRecords.length > 0 ? Math.round((present / monthRecords.length) * 100) : 0,
+      };
+    });
 
-  const handleStudentSelect = (newStudentId: string) => {
-    setSelectedStudentId(newStudentId);
-    setSearchParams({ studentId: newStudentId });
+    const graded = (student?.assignments ?? []).filter(
+      (item): item is StudentAssignmentItem & { marks: number } => item.marks !== null
+    );
+    const assessments = graded
+      .slice()
+      .sort((a, b) => new Date(a.submittedAt || a.dueDate || 0).getTime() - new Date(b.submittedAt || b.dueDate || 0).getTime())
+      .map((item) => {
+        const percent = scorePercent(item.marks, item.maxMarks ?? 100);
+        const grade = gradeFromPercent(percent);
+        return {
+          id: item.id,
+          name: item.title,
+          date: formatDate(item.submittedAt || item.dueDate),
+          maxMarks: item.maxMarks ?? 100,
+          obtained: item.marks,
+          percent,
+          grade: grade.label,
+          gradeClassName: grade.className,
+          status: item.status,
+        };
+      });
+
+    const performanceTrend = assessments.map((item) => ({
+      month: item.name.length > 16 ? `${item.name.slice(0, 16)}…` : item.name,
+      score: item.percent,
+    }));
+
+    const buckets = [
+      { name: "Excellent (80-100%)", min: 80, max: 100, color: "#22c55e" },
+      { name: "Good (60-79%)", min: 60, max: 79, color: "#3b82f6" },
+      { name: "Average (40-59%)", min: 40, max: 59, color: "#f59e0b" },
+      { name: "Below Average (0-39%)", min: 0, max: 39, color: "#ef4444" },
+    ];
+    const assessmentDistribution = buckets
+      .map((bucket) => {
+        const count = assessments.filter((item) => item.percent >= bucket.min && item.percent <= bucket.max).length;
+        return {
+          name: bucket.name,
+          count,
+          percent: assessments.length > 0 ? `${Math.round((count / assessments.length) * 100)}%` : "0%",
+          color: bucket.color,
+        };
+      })
+      .filter((bucket) => bucket.count > 0);
+
+    const submittedCount = (student?.assignments ?? []).filter(
+      (item) => item.status === "SUBMITTED" || item.status === "GRADED" || item.status === "LATE"
+    ).length;
+
+    return {
+      attendanceHistory,
+      assessments,
+      performanceTrend,
+      assessmentDistribution,
+      submittedCount,
+      totalAssignments: student?.assignments?.length ?? 0,
+      previousAttendance: attendanceHistory.length > 1 ? attendanceHistory[attendanceHistory.length - 2].attendance : null,
+      previousScore: performanceTrend.length > 1 ? performanceTrend[performanceTrend.length - 2].score : null,
+    };
+  }, [student]);
+
+  const openStudentPerformance = (studentId: string) => {
+    setSearchParams({ studentId });
   };
 
-  // Find the active student data
-  const currentStudent = useMemo(() => {
-    const found = allAvailableStudents.find(
-      s => s.id === selectedStudentId || s.studentCode === selectedStudentId
-    );
-    return found || allAvailableStudents[0] || {
-      id: "none",
-      name: "Student",
-      studentCode: "STU-001",
-      email: "student@aadya.in",
-      phone: "N/A",
-      course: "Full Stack Development",
-      batch: "Active Batch",
-      faculty: "Faculty Instructor",
-      center: "Aadya Branch",
-      admissionNo: "ADM-001",
-      dateOfJoining: "N/A",
-      status: "ACTIVE",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
-      attendance: 85,
-      progress: 75,
-      coursesCount: 1,
-      assignmentsCompleted: "0/0",
-      performanceGrade: "Good",
-      performanceMessage: "Academic progress active",
-      assessments: [] as any[],
-      enrolledCourses: [],
-      attendanceHistory: [],
-      performanceTrend: [],
-    };
-  }, [allAvailableStudents, selectedStudentId]);
+  const backToStudentList = () => {
+    setStudentSearch("");
+    setSearchParams({});
+  };
 
-  // Calculate Average Test Score
-  const avgTestScore = useMemo(() => {
-    if (!currentStudent.assessments || currentStudent.assessments.length === 0) return currentStudent.progress;
-    const totalPercentage = currentStudent.assessments.reduce((acc: number, curr: any) => {
-      return acc + Math.round(((curr.obtained || 0) / (curr.maxMarks || 100)) * 100);
-    }, 0);
-    return Math.round(totalPercentage / currentStudent.assessments.length);
-  }, [currentStudent]);
+  if (!queryStudentId) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Academic Performance"
+          description="Select a student to view their recorded attendance, assessments, and course progress."
+        />
 
-  // Calculate Assessment Breakdown from report attendance distribution when available
-  const assessmentDistribution = useMemo(() => {
-    if (reportData?.attendanceDistribution?.length) {
-      return reportData.attendanceDistribution.map((item) => ({
-        name: item.range,
-        count: item.count,
-        percent: `${Math.round(
-          (item.count / Math.max(reportData.summary.totalStudents, 1)) * 100
-        )}%`,
-        color: item.color,
-      }));
-    }
-
-    const scores = (currentStudent.assessments || []).map((a: any) =>
-      Math.round(((a.obtained || 0) / (a.maxMarks || 100)) * 100)
-    );
-    const total = scores.length || 1;
-    const excellent = scores.filter((s: number) => s >= 80).length;
-    const good = scores.filter((s: number) => s >= 60 && s < 80).length;
-    const average = scores.filter((s: number) => s >= 40 && s < 60).length;
-    const below = scores.filter((s: number) => s < 40).length;
-
-    return [
-      { name: "Excellent (80-100%)", count: excellent, percent: `${Math.round((excellent / total) * 100)}%`, color: "#22c55e" },
-      { name: "Good (60-79%)", count: good, percent: `${Math.round((good / total) * 100)}%`, color: "#3b82f6" },
-      { name: "Average (40-59%)", count: average, percent: `${Math.round((average / total) * 100)}%`, color: "#f59e0b" },
-      { name: "Below Average (0-39%)", count: below, percent: `${Math.round((below / total) * 100)}%`, color: "#ef4444" },
-    ];
-  }, [currentStudent, reportData]);
-
-  return (
-    <PageContainer>
-      {reportLoading && (
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading performance report data...
-        </div>
-      )}
-      {reportError && (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle className="h-4 w-4" /> Failed to load report analytics. Showing student list data only.
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-start gap-3.5 min-w-0 flex-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10 px-3.5 text-slate-700 hover:text-primary hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors shrink-0"
-            onClick={() => navigate("/admin/students/all")}
-          >
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Button>
-          <PageHeader
-            className="flex-1 min-w-0"
-            title="Academic Performance"
-            description="View detailed academic analytics and progress for individual students."
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            value={studentSearch}
+            onChange={(event) => setStudentSearch(event.target.value)}
+            placeholder="Search by name, code, course, or batch"
+            className="pl-9"
           />
         </div>
 
-        <div className="w-full sm:w-80 shrink-0">
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            <select
-              value={currentStudent.id}
-              onChange={(e) => handleStudentSelect(e.target.value)}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium cursor-pointer shadow-sm"
-            >
-              {allAvailableStudents.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.studentCode})
-                </option>
-              ))}
-            </select>
+        {studentsError && (
+          <div className="flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="h-4 w-4" /> Unable to load students.
           </div>
+        )}
+
+        <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
+                <tr>
+                  <th className="p-3.5 pl-5">Student</th>
+                  <th className="p-3.5">Course & Batch</th>
+                  <th className="p-3.5">Attendance</th>
+                  <th className="p-3.5">Performance</th>
+                  <th className="p-3.5 text-right pr-5">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {studentsLoading ? (
+                  <tr>
+                    <td colSpan={5} className="p-12 text-center text-slate-500">
+                      <Loader2 className="h-5 w-5 mx-auto animate-spin mb-2" />
+                      Loading students...
+                    </td>
+                  </tr>
+                ) : filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-12 text-center text-slate-500">
+                      <Users className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm font-semibold text-slate-700">No students found</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Try a different name, code, or course.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => openStudentPerformance(row.id)}
+                      className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                    >
+                      <td className="p-3.5 pl-5">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 border border-slate-200">
+                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                              {initials(row.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-bold text-slate-900 group-hover:text-primary">{row.name}</p>
+                            <p className="font-mono text-[11px] text-slate-500">{row.studentCode}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3.5">
+                        <CourseChips courses={row.courses} fallback="Not assigned" maxVisible={2} />
+                        <p className="text-[11px] text-slate-500 mt-1">{row.batch}</p>
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`font-bold ${
+                          row.attendancePercent === null
+                            ? "text-slate-400"
+                            : row.attendancePercent >= 75
+                              ? "text-emerald-700"
+                              : "text-amber-700"
+                        }`}>
+                          {row.attendancePercent === null ? notRecorded : `${row.attendancePercent}%`}
+                        </span>
+                      </td>
+                      <td className="p-3.5">
+                        <span className="font-semibold text-slate-800">{row.performanceLabel}</span>
+                      </td>
+                      <td className="p-3.5 text-right pr-5">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                          View <ArrowRight className="h-3.5 w-3.5" />
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  if (detailLoading || performanceLoading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading academic performance...
         </div>
+      </PageContainer>
+    );
+  }
+
+  if (detailError || performanceError || !student || !performance) {
+    return (
+      <PageContainer>
+        <PageHeader title="Academic Performance" description="This student's records could not be loaded." />
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4" /> Failed to load live student performance.
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={backToStudentList}>
+            <ArrowLeft className="h-4 w-4" /> Back to students
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              void refetchDetail();
+              void refetchPerformance();
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  const courses = coursesFromStudent({ courses: student.courses, courseName: student.courseName });
+  const admission = student.admissions?.[0] as { admissionNo?: string; admissionDate?: string } | undefined;
+  const facultyName =
+    student.facultyName ||
+    student.batchEnrollments
+      ?.map((enrollment) => enrollment.batch.faculty?.user?.name)
+      .filter(Boolean)
+      .join(", ") ||
+    notRecorded;
+  const attendancePercent = performance.totalClasses > 0 ? performance.overallAttendancePercent : null;
+  const averageScore =
+    analytics.assessments.length > 0
+      ? Math.round(analytics.assessments.reduce((sum, item) => sum + item.percent, 0) / analytics.assessments.length)
+      : null;
+  const atRisk = performance.discontinuationAlert || student.status === "DISCONTINUED";
+  const statusLabel =
+    student.status === "DISCONTINUED"
+      ? "Discontinued"
+      : student.status === "COMPLETED"
+        ? "Completed"
+        : student.status === "ON_LEAVE"
+          ? "On Leave"
+          : atRisk
+            ? "At Risk"
+            : "Active";
+
+  return (
+    <PageContainer>
+      <div className="flex items-start gap-3.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 px-3.5 text-slate-700 hover:text-primary hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 shrink-0"
+          onClick={backToStudentList}
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title="Academic Performance"
+          description="Attendance, assessments, and course progress from this student's records."
+        />
       </div>
 
-      {/* 2. Student Profile Card */}
       <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
-
-            {/* Left: Avatar + Info */}
-            <div className="flex items-center gap-4 min-w-[320px]">
-              <img
-                src={currentStudent.avatar}
-                alt={currentStudent.name}
-                className="h-16 w-16 rounded-full object-cover border border-slate-200 shadow-sm shrink-0"
-              />
+            <div className="flex items-center gap-4 min-w-[280px]">
+              <Avatar className="h-16 w-16 border border-slate-200">
+                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+                  {initials(student.user?.name || student.studentCode)}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <div className="flex items-center gap-2.5 mb-1">
-                  <h2 className="text-xl font-bold text-slate-900">{currentStudent.name}</h2>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${currentStudent.status === "AT RISK"
-                    ? "bg-red-50 text-red-600 border border-red-200/60"
-                    : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
-                    }`}>
-                    {currentStudent.status === "AT RISK" ? "At Risk" : "Active"}
+                  <h2 className="text-xl font-bold text-slate-900">{student.user?.name || student.studentCode}</h2>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    atRisk || student.status === "DISCONTINUED"
+                      ? "bg-red-50 text-red-600 border border-red-200/60"
+                      : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+                  }`}>
+                    {statusLabel}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
-                  <span>{currentStudent.studentCode}</span>
+                  <span>{student.studentCode}</span>
                   <span>•</span>
-                  <span>{currentStudent.phone}</span>
+                  <span>{student.user?.phone || notRecorded}</span>
                   <span>•</span>
-                  <span className="text-slate-500">{currentStudent.email}</span>
+                  <span>{student.user?.email || notRecorded}</span>
                 </p>
               </div>
             </div>
 
-            <div className="hidden lg:block w-px h-12 bg-slate-100"></div>
+            <div className="hidden lg:block w-px h-12 bg-slate-100" />
 
-            {/* Right: 5 Detail Columns */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 flex-1 w-full">
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <FileText className="h-3.5 w-3.5 text-slate-400" /> Admission No.
+                  <FileText className="h-3.5 w-3.5" /> Admission No.
                 </p>
-                <p className="text-[13px] font-bold text-slate-800">{currentStudent.admissionNo}</p>
+                <p className="text-[13px] font-bold text-slate-800">{admission?.admissionNo || notRecorded}</p>
               </div>
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" /> Batch
+                  <Calendar className="h-3.5 w-3.5" /> Batch
                 </p>
-                <p className="text-[13px] font-bold text-slate-800">{currentStudent.batch}</p>
+                <p className="text-[13px] font-bold text-slate-800">{student.batchName || "Not assigned"}</p>
               </div>
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <BookOpen className="h-3.5 w-3.5 text-slate-400" /> Course
+                  <BookOpen className="h-3.5 w-3.5" /> Course
                 </p>
-                <CourseChips
-                  courses={(currentStudent as any).courses}
-                  fallback={currentStudent.course}
-                  maxVisible={4}
-                />
+                <CourseChips courses={courses} fallback="Not assigned" maxVisible={4} />
               </div>
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <Building className="h-3.5 w-3.5 text-slate-400" /> Center
+                  <Building className="h-3.5 w-3.5" /> Center
                 </p>
-                <p className="text-[13px] font-bold text-slate-800">{currentStudent.center}</p>
+                <p className="text-[13px] font-bold text-slate-800">{student.branch?.name || notRecorded}</p>
               </div>
             </div>
-
           </div>
         </CardContent>
       </Card>
 
-      {/* 3. KPI Cards */}
       <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
-
-        {/* KPI 1 */}
         <Card size="compact" className="border-slate-200 shadow-sm bg-white">
           <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600 shrink-0">
@@ -394,57 +530,58 @@ export const StudentPerformance: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">Courses Enrolled</p>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.coursesCount}</h3>
-              <p className="text-xs text-slate-400 font-medium">Active Courses</p>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{performance.enrolledCourses.length}</h3>
+              <p className="text-xs text-slate-400 font-medium">Faculty: {facultyName}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPI 2 */}
         <Card size="compact" className="border-slate-200 shadow-sm bg-white">
           <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
               <LayoutGrid className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-slate-500">Overall Attendance</p>
-                <span className={`text-[10px] font-bold flex items-center ${currentStudent.attendance >= 75 ? "text-emerald-600" : "text-red-500"}`}>
-                  {currentStudent.attendance >= 75 ? (
-                    <><TrendingUp className="h-3 w-3 mr-0.5" /> 8%</>
-                  ) : (
-                    <><TrendingDown className="h-3 w-3 mr-0.5" /> 5%</>
-                  )}
-                </span>
+                {attendancePercent !== null && (
+                  <Delta current={attendancePercent} previous={analytics.previousAttendance} />
+                )}
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.attendance}%</h3>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
+                {attendancePercent === null ? notRecorded : `${attendancePercent}%`}
+              </h3>
               <p className="text-xs text-slate-400 font-medium truncate">
-                Present in {Math.round((currentStudent.attendance / 100) * 100)} of 100 classes
+                {performance.totalClasses > 0
+                  ? `Present in ${performance.presentCount} of ${performance.totalClasses} classes`
+                  : "No classes recorded"}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPI 3 */}
         <Card size="compact" className="border-slate-200 shadow-sm bg-white">
           <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600 shrink-0">
               <FileEdit className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-slate-500">Average Test Score</p>
-                <span className="text-[10px] font-bold text-emerald-600 flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-0.5" /> 6%
-                </span>
+                {averageScore !== null && <Delta current={averageScore} previous={analytics.previousScore} />}
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{avgTestScore}%</h3>
-              <p className="text-xs text-slate-400 font-medium truncate">Across {currentStudent.assessments.length} assessments</p>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
+                {averageScore === null ? notRecorded : `${averageScore}%`}
+              </h3>
+              <p className="text-xs text-slate-400 font-medium truncate">
+                {analytics.assessments.length > 0
+                  ? `Across ${analytics.assessments.length} graded assessments`
+                  : "No graded assessments"}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPI 4 */}
         <Card size="compact" className="border-slate-200 shadow-sm bg-white">
           <CardContent size="compact" className="flex items-start gap-3.5">
             <div className="p-2.5 bg-orange-50 rounded-xl text-orange-500 shrink-0">
@@ -452,267 +589,200 @@ export const StudentPerformance: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500">Assignments Completed</p>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{currentStudent.assignmentsCompleted}</h3>
-              <p className="text-xs text-slate-400 font-medium">Completion Rate</p>
+              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
+                {analytics.submittedCount}/{analytics.totalAssignments}
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                {analytics.totalAssignments > 0 ? "Submitted or graded" : "No assignments assigned"}
+              </p>
             </div>
           </CardContent>
         </Card>
-
       </MetricGrid>
 
-      {/* 4. Filter Bar */}
-      <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          <Button variant="outline" className="h-9 text-xs font-medium text-slate-700 bg-slate-50/70 border-slate-200 hover:bg-slate-100 flex items-center gap-2">
-            <Calendar className="h-3.5 w-3.5 text-slate-500" />
-            01 May 2026 - 14 May 2026
-          </Button>
-
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-primary">
-            <option>All Courses</option>
-            <option>{currentStudent.course}</option>
-          </select>
-
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-primary">
-            <option>All Assessments</option>
-            <option>Tests Only</option>
-            <option>Assignments Only</option>
-          </select>
-        </div>
-
-        <Button variant="outline" className="h-9 text-xs font-bold text-primary border-blue-200 hover:bg-blue-50/60 shadow-sm flex items-center gap-2">
-          <Download className="h-3.5 w-3.5" /> Export Report
-        </Button>
-      </div>
-
-      {/* 5. Three Analytics Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Card 1: Attendance Overview */}
         <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">Attendance Overview</CardTitle>
-            <select className="text-xs font-medium border border-slate-200 rounded-md px-2 py-1 bg-slate-50 text-slate-600 focus:outline-none">
-              <option>This Month</option>
-              <option>Last Month</option>
-              <option>All Time</option>
-            </select>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="mb-4">
               <p className="text-xs text-slate-400 font-medium">Overall Attendance</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-2xl font-bold text-slate-900">{currentStudent.attendance}%</span>
-                <span className={`text-xs font-bold flex items-center ${currentStudent.attendance >= 75 ? "text-emerald-600" : "text-red-500"}`}>
-                  {currentStudent.attendance >= 75 ? (
-                    <><TrendingUp className="h-3 w-3 mr-0.5" /> 8% vs Last Month</>
-                  ) : (
-                    <><TrendingDown className="h-3 w-3 mr-0.5" /> 5% vs Last Month</>
-                  )}
-                </span>
+              <p className="text-2xl font-bold text-slate-900 mt-0.5">
+                {attendancePercent === null ? notRecorded : `${attendancePercent}%`}
+              </p>
+            </div>
+            {analytics.attendanceHistory.length === 0 ? (
+              <EmptyChart message="No attendance has been marked for this student yet." />
+            ) : (
+              <div className="h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analytics.attendanceHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => `${value}%`} />
+                    <RechartsTooltip formatter={(value) => [`${value}%`, "Attendance"]} />
+                    <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-            </div>
-
-            <div className="h-[180px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={currentStudent.attendanceHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
-                  <RechartsTooltip
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: any) => [`${val}%`, 'Attendance']}
-                  />
-                  <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Card 2: Assessment Performance */}
         <Card className="border-slate-200 shadow-sm bg-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">Assessment Performance</CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="flex items-center justify-between gap-4">
-              {/* Donut Chart */}
-              <div className="h-[180px] w-[140px] relative shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={assessmentDistribution}
-                      cx="50%" cy="50%" innerRadius={50} outerRadius={68} paddingAngle={2} dataKey="count"
-                    >
-                      {assessmentDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-bold text-slate-900">{currentStudent.assessments.length}</span>
-                  <span className="text-[10px] font-semibold text-slate-400 leading-tight">Total Tests</span>
+            {analytics.assessmentDistribution.length === 0 ? (
+              <EmptyChart message="No graded assessments yet." />
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <div className="h-[180px] w-[140px] relative shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={analytics.assessmentDistribution} cx="50%" cy="50%" innerRadius={50} outerRadius={68} paddingAngle={2} dataKey="count">
+                        {analytics.assessmentDistribution.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xl font-bold text-slate-900">{analytics.assessments.length}</span>
+                    <span className="text-[10px] font-semibold text-slate-400">Graded</span>
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2.5">
+                  {analytics.assessmentDistribution.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="font-medium text-slate-700 text-[11px] truncate">{item.name}</span>
+                      </div>
+                      <span className="font-bold text-slate-800 text-[11px] shrink-0">
+                        {item.count} <span className="text-slate-400 font-normal">({item.percent})</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Legend List */}
-              <div className="flex-1 space-y-2.5">
-                {assessmentDistribution.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="font-medium text-slate-700 text-[11px]">{item.name}</span>
-                    </div>
-                    <span className="font-bold text-slate-800 text-[11px]">
-                      {item.count} <span className="text-slate-400 font-normal">({item.percent})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Card 3: Performance Trend */}
         <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">Performance Trend</CardTitle>
-            <select className="text-xs font-medium border border-slate-200 rounded-md px-2 py-1 bg-slate-50 text-slate-600 focus:outline-none">
-              <option>All Assessments</option>
-              <option>Tests</option>
-              <option>Assignments</option>
-            </select>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="h-[210px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={currentStudent.performanceTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
-                  <RechartsTooltip
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: any) => [`${val}%`, 'Score']}
-                  />
-                  <Area type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#purpleGradient)" dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {analytics.performanceTrend.length === 0 ? (
+              <EmptyChart message="Scores will appear here after assessments are graded." />
+            ) : (
+              <div className="h-[210px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.performanceTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => `${value}%`} />
+                    <RechartsTooltip formatter={(value) => [`${value}%`, "Score"]} />
+                    <Area type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#scoreGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
-
       </div>
 
-      {/* 6. Assessment Results & Enrolled Courses */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Assessment Results Table (Spans 2 cols) */}
-        <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2 flex flex-col">
+        <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
           <CardHeader className="pb-3 border-b border-slate-100">
             <CardTitle className="text-base font-bold text-slate-900">Assessment Results</CardTitle>
           </CardHeader>
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-slate-50/50 border-b border-slate-100 text-[11px] font-bold text-slate-400">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Assessment Name</th>
-                  <th className="px-4 py-3 font-medium">Course</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium text-center">Max Marks</th>
-                  <th className="px-4 py-3 font-medium text-center">Obtained Marks</th>
-                  <th className="px-4 py-3 font-medium text-center">Score</th>
-                  <th className="px-5 py-3 font-medium text-center">Grade</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {currentStudent.assessments.map((test, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-slate-800">{test.name}</td>
-                    <td className="px-4 py-3.5 text-slate-600">{test.course}</td>
-                    <td className="px-4 py-3.5 text-slate-500">{test.type}</td>
-                    <td className="px-4 py-3.5 text-slate-500">{test.date}</td>
-                    <td className="px-4 py-3.5 text-slate-600 text-center">{test.maxMarks}</td>
-                    <td className="px-4 py-3.5 font-semibold text-slate-800 text-center">{test.obtained}</td>
-                    <td className="px-4 py-3.5 font-bold text-primary text-center">{test.score}</td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold text-[11px] ${test.gradeColor}`}>
-                        {test.grade}
-                      </span>
-                    </td>
+          {analytics.assessments.length === 0 ? (
+            <CardContent className="p-8 text-center text-sm text-slate-500">
+              No graded assessment results for this student.
+            </CardContent>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="bg-slate-50/50 border-b border-slate-100 text-[11px] font-bold text-slate-400">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Assessment</th>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium text-center">Max</th>
+                    <th className="px-4 py-3 font-medium text-center">Obtained</th>
+                    <th className="px-4 py-3 font-medium text-center">Score</th>
+                    <th className="px-5 py-3 font-medium text-center">Grade</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center">
-            <button className="text-xs font-bold text-primary hover:text-primary flex items-center gap-1.5">
-              View All Assessments <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {analytics.assessments.map((test) => (
+                    <tr key={test.id}>
+                      <td className="px-5 py-3.5 font-semibold text-slate-800">{test.name}</td>
+                      <td className="px-4 py-3.5 text-slate-500">{test.date}</td>
+                      <td className="px-4 py-3.5 text-center text-slate-600">{test.maxMarks}</td>
+                      <td className="px-4 py-3.5 text-center font-semibold text-slate-800">{test.obtained}</td>
+                      <td className="px-4 py-3.5 text-center font-bold text-primary">{test.percent}%</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded font-bold text-[11px] ${test.gradeClassName}`}>
+                          {test.grade}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
-        {/* Enrolled Courses */}
-        <Card className="border-slate-200 shadow-sm bg-white flex flex-col">
+        <Card className="border-slate-200 shadow-sm bg-white">
           <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900">Enrolled Courses ({currentStudent.enrolledCourses.length})</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-900">
+              Enrolled Courses ({performance.enrolledCourses.length})
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-5 flex-1 space-y-4">
-            {currentStudent.enrolledCourses.map((c, i) => (
-              <div key={i} className="p-4 rounded-xl border border-slate-100 bg-slate-50/40 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${c.iconBg} shrink-0 mt-0.5`}>
-                    <c.icon className="h-4 w-4" />
+          <CardContent className="p-5 space-y-4">
+            {performance.enrolledCourses.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6">No active course enrollment.</p>
+            ) : (
+              performance.enrolledCourses.map((course) => (
+                <div key={`${course.courseId}-${course.batchCode}`} className="p-4 rounded-xl border border-slate-100 bg-slate-50/40 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{course.courseName}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Batch: {course.batchName} · {course.completedModules}/{course.totalModules} modules completed
+                    </p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-slate-900 truncate">{c.name}</h4>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">Batch: <span className="text-slate-600">{c.batch}</span></p>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400">Progress</span>
+                      <span className="font-bold text-slate-900">{course.completionPercentage}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full bg-blue-600 rounded-full" style={{ width: `${course.completionPercentage}%` }} />
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400 font-medium">Progress</span>
-                    <span className="font-bold text-slate-900">{c.progress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${c.progress}%` }} />
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-[11px] text-slate-400 font-medium">Status</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/60">
-                    {c.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
-          <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center mt-auto">
-            <button className="text-xs font-bold text-primary hover:text-primary flex items-center gap-1.5">
-              View All Courses <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
         </Card>
-
       </div>
 
-      {/* 7. Bottom Note */}
-      <div className="text-center pt-2">
-        <p className="text-xs text-slate-400 font-medium">
-          Note: All data is based on recorded attendance and assessments.
-        </p>
-      </div>
+      <p className="text-center text-xs text-slate-400">
+        Figures come from marked attendance, submitted assignments, and active batch enrollments.
+      </p>
     </PageContainer>
   );
 };

@@ -97,6 +97,9 @@ export interface Student {
   leadSource?: string;
   counsellorName?: string;
   enquiryDate?: string | null;
+  admissionNo?: string | null;
+  admissionDate?: string | null;
+  admissionStatus?: string | null;
   courseName?: string;
   /** All courses from admissions / package enrollments */
   courses?: Array<{ id: string; name: string; code: string }>;
@@ -118,7 +121,7 @@ export interface StudentAdmission {
   status: string;
   feePlan?: string;
   notes?: string;
-  course: { id: string; name: string; code: string };
+  course: { id: string; name: string; code: string; duration?: number | null; mode?: string | null };
   batch?: { id: string; name: string; code: string; timeSlot?: string } | null;
 }
 
@@ -136,7 +139,7 @@ export interface StudentBatchEnrollment {
     schedulePattern?: string;
     courseId?: string;
     faculty?: { id: string; user?: { name: string } };
-    course: { id: string; name: string; code: string };
+    course: { id: string; name: string; code: string; duration?: number | null; mode?: string | null };
     batchCourses?: Array<{
       id?: string;
       courseId?: string;
@@ -199,6 +202,15 @@ export interface StudentDetail extends Student {
     status: string;
   }>;
   courseModules?: Array<{ name: string; status: string }>;
+  whatsappNotifications?: Array<{
+    id: string;
+    event: string | null;
+    status: string;
+    createdAt: string;
+    sentAt: string | null;
+    skipReason: string | null;
+    errorMessage: string | null;
+  }>;
 }
 
 // ─── Student Performance Metrics ────────────────────────────────────────

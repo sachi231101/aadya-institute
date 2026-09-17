@@ -37,7 +37,7 @@ const studentInclude = {
   },
   admissions: {
     include: {
-      course: { select: { id: true, name: true, code: true } },
+      course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
       batch: { select: { id: true, name: true, code: true, timeSlot: true } },
       application: {
         include: {
@@ -55,6 +55,7 @@ const studentInclude = {
   convertedFromLeads: {
     select: {
       createdAt: true,
+      source: true,
       assignedCounsellor: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" as const },
@@ -69,11 +70,11 @@ const studentInclude = {
           status: true,
           timeSlot: true,
           courseId: true,
-          course: { select: { id: true, name: true, code: true } },
+          course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
           faculty: { select: { id: true, user: { select: { name: true } } } },
           batchCourses: {
             include: {
-              course: { select: { id: true, name: true, code: true } },
+              course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
               faculty: { select: { id: true, user: { select: { name: true } } } },
             },
           },
@@ -190,7 +191,7 @@ export const findStudentById = (id: string) =>
       ...studentInclude,
       admissions: {
         include: {
-          course: { select: { id: true, name: true, code: true } },
+          course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
           batch: { select: { id: true, name: true, code: true, timeSlot: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -206,11 +207,11 @@ export const findStudentById = (id: string) =>
               timeSlot: true,
               schedulePattern: true,
               courseId: true,
-              course: { select: { id: true, name: true, code: true } },
+              course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
               faculty: { select: { id: true, user: { select: { name: true } } } },
               batchCourses: {
                 include: {
-                  course: { select: { id: true, name: true, code: true } },
+                  course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
                   faculty: { select: { id: true, user: { select: { name: true } } } },
                 },
               },
@@ -653,7 +654,7 @@ export const findStudentEnrollments = (studentId: string) =>
           code: true,
           status: true,
           courseId: true,
-          course: { select: { id: true, name: true, code: true } },
+          course: { select: { id: true, name: true, code: true, duration: true, mode: true } },
           batchCourses: {
             orderBy: { sequence: "asc" },
             include: { course: { select: { id: true, name: true, code: true } } },

@@ -65,7 +65,7 @@ export interface FacultyCourseAssignment {
     user: { id: string; name: string; email: string | null };
   } | null;
   branch: { id: string; name: string; code: string };
-  schedules: { dayOfWeek: number; startTime: string; endTime: string }[];
+  schedules: { dayOfWeek: number; startTime: string; endTime: string; facultyId?: string | null }[];
   classSessions?: { sessionStatus: string }[];
   _count: { enrollments: number };
 }
