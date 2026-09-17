@@ -7,6 +7,7 @@ import {
   Sparkles,
   User,
   Phone,
+  X,
 } from "lucide-react";
 import type { CallLog } from "@/services/leads.api";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -77,21 +79,35 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl p-0 overflow-y-auto bg-card text-foreground border-l border-border"
+        hideClose
+        className="flex h-full w-full flex-col overflow-hidden p-0 sm:max-w-xl bg-card text-foreground border-l border-border"
       >
         {!call ? (
           <div className="p-8 text-sm text-muted-foreground">No call selected.</div>
         ) : (
-          <div className="flex flex-col h-full">
-            <SheetHeader className="p-5 border-b border-border bg-muted/30 sticky top-0 z-10 space-y-3 text-left">
-              <div className="flex flex-wrap items-center gap-2 pr-8">
-                <Badge variant="outline">{call.callType || "AI"}</Badge>
-                <Badge variant="secondary">{call.status}</Badge>
-                {call.interestStatus ? (
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                    {call.interestStatus}
-                  </Badge>
-                ) : null}
+          <div className="flex h-full min-h-0 flex-col">
+            <SheetHeader className="shrink-0 space-y-3 border-b border-border bg-muted/30 p-5 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">{call.callType || "AI"}</Badge>
+                  <Badge variant="secondary">{call.status}</Badge>
+                  {call.interestStatus ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      {call.interestStatus}
+                    </Badge>
+                  ) : null}
+                </div>
+                <SheetClose asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Close call details"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </SheetClose>
               </div>
               <div>
                 <SheetTitle className="text-lg font-bold">
@@ -116,7 +132,7 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
               ) : null}
             </SheetHeader>
 
-            <div className="p-5 space-y-5 flex-1">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-sm">
                 <div className="flex items-start gap-2">
                   <User className="h-4 w-4 mt-0.5 text-muted-foreground" />

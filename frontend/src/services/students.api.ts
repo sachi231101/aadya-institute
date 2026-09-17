@@ -150,6 +150,7 @@ export const studentsApi = {
   ): Promise<
     SingleResponse<{
       success: boolean;
+      sent: boolean;
       queued: boolean;
       status: string;
       skipReason: string | null;

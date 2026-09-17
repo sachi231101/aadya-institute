@@ -717,6 +717,14 @@ export const sendStudentCredentialsWhatsAppService = async (
     throw new AppError("This student has no login account.", 400);
   }
 
+  const existingUser = await prisma.user.findUnique({
+    where: { id: student.userId },
+    select: { passwordHash: true },
+  });
+  if (!existingUser) {
+    throw new AppError("This student has no login account.", 400);
+  }
+
   const temporaryPassword = generateTemporaryPassword();
   await assertPasswordMeetsInstitutePolicy(currentUser.instituteId, temporaryPassword);
   const passwordHash = await hashPassword(temporaryPassword);
@@ -727,40 +735,99 @@ export const sendStudentCredentialsWhatsAppService = async (
 
   const portalHost = process.env.CLIENT_URL || "http://localhost:5173";
   const loginUrl = `${portalHost.replace(/\/+$/, "")}/login`;
-  const stamp = new Date().toISOString().slice(0, 16);
+  const stamp = new Date().toISOString();
 
-  const notification = await triggerNotification({
-    instituteId: currentUser.instituteId,
-    studentId: student.id,
-    event: NotificationEvent.STUDENT_CREDENTIALS,
-    idempotencyKey: buildIdempotencyKey.STUDENT_CREDENTIALS(student.id, stamp),
-    templateParams: {
-      student_name: studentName,
-      student_code: studentCode,
-      password: temporaryPassword,
-      portal_url: loginUrl,
-    },
-    metadata: {
-      studentId: student.id,
-      manualSend: true,
-    },
-  });
-
-  const queued = Boolean(notification && notification.status !== "SKIPPED");
-
-  return {
-    success: queued,
-    queued,
-    notificationId: notification?.id ?? null,
-    status: notification?.status ?? "SKIPPED",
-    skipReason: notification?.skipReason ?? (queued ? null : "WhatsApp is not connected"),
-    temporaryPassword,
-    recipient: {
-      name: studentName,
-      phone: rawPhone,
-      studentCode,
-    },
+  const restorePreviousPassword = async () => {
+    await prisma.user.update({
+      where: { id: student.userId! },
+      data: { passwordHash: existingUser.passwordHash },
+    });
   };
+
+  try {
+    const notification = await triggerNotification({
+      instituteId: currentUser.instituteId,
+      studentId: student.id,
+      userId: student.userId,
+      event: NotificationEvent.STUDENT_CREDENTIALS,
+      idempotencyKey: buildIdempotencyKey.STUDENT_CREDENTIALS(student.id, stamp),
+      recipientPhone: rawPhone,
+      recipientName: studentName,
+      templateParams: {
+        student_name: studentName,
+        student_code: studentCode,
+        user_id: studentCode,
+        login_id: studentCode,
+        password: temporaryPassword,
+        portal_url: loginUrl,
+      },
+      metadata: {
+        studentId: student.id,
+        manualSend: true,
+      },
+    });
+
+    if (!notification || notification.status === "SKIPPED") {
+      await restorePreviousPassword();
+      throw new AppError(credentialsSkipMessage(notification?.skipReason), 400);
+    }
+
+    const { processWhatsappJob } = await import("../whatsapp/whatsapp.worker");
+    const whatsappRepo = await import("../whatsapp/whatsapp.repository");
+    await processWhatsappJob({
+      id: notification.id,
+      data: { notificationId: notification.id },
+      attemptsMade: 1,
+      opts: { attempts: 1 },
+    });
+
+    const sent = await whatsappRepo.findNotificationById(notification.id, currentUser.instituteId);
+    const delivered = sent?.status === "SENT" || sent?.status === "DELIVERED" || sent?.status === "READ";
+    if (!delivered) {
+      await restorePreviousPassword();
+      throw new AppError(sent?.errorMessage || "WhatsApp did not send the login ID and password.", 502);
+    }
+
+    return {
+      success: true,
+      queued: true,
+      sent: true,
+      notificationId: notification.id,
+      status: sent.status,
+      skipReason: null,
+      temporaryPassword,
+      recipient: {
+        name: studentName,
+        phone: rawPhone,
+        studentCode,
+      },
+    };
+  } catch (err) {
+    if (!(err instanceof AppError)) {
+      await restorePreviousPassword();
+    }
+    throw err;
+  }
+};
+
+const credentialsSkipMessage = (reason?: string | null) => {
+  switch (reason) {
+    case "TEMPLATE_MISSING":
+    case "TEMPLATE_INACTIVE":
+      return "The WhatsApp credentials template is not active, so the message was not sent.";
+    case "MSG91_NOT_CONFIGURED":
+    case "PROVIDER_NOT_CONNECTED":
+      return "WhatsApp is not connected, so the message was not sent.";
+    case "AUTOMATION_DISABLED":
+    case "GLOBAL_AUTOMATION_DISABLED":
+      return "Student credentials WhatsApp is turned off, so the message was not sent.";
+    case "INVALID_PHONE":
+      return "The student's mobile number is not a valid WhatsApp number.";
+    case "RECIPIENT_OPTED_OUT":
+      return "This student has WhatsApp messages turned off.";
+    default:
+      return "WhatsApp did not send the login ID and password.";
+  }
 };
 
 const generateTemporaryPassword = () => {

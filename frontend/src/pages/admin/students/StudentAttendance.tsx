@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Calendar as CalendarIcon,
@@ -22,13 +23,12 @@ import {
   Info,
   ChevronDown
 } from "lucide-react";
-import { useCourseStore } from "@/store/course.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { METRIC_GRID_COLUMNS, PageContainer, PageHeader, MetricGrid } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -51,21 +51,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type AttendanceDeskStatus = "PRESENT" | "ABSENT" | "EXCUSED";
+export type AttendanceDeskStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
 export interface StudentAttendanceItem {
   id: string;
   studentCode: string;
   name: string;
   email: string;
-  avatar?: string;
-  status: AttendanceDeskStatus;
+  status: AttendanceDeskStatus | null;
   remarks: string;
-  leaveReason?: string;
-  selected?: boolean;
 }
 
-const EXCUSED_REASONS = [
+const LEAVE_REASONS = [
   "Medical Leave",
   "Personal Emergency",
   "Official Leave",
@@ -76,13 +73,49 @@ const EXCUSED_REASONS = [
 
 import { useBranches } from "@/hooks/useBranches";
 import { useBatches } from "@/hooks/useBatches";
+import { useClassSessions } from "@/hooks/useClassSessions";
 import { useBranchStore } from "@/store/branch.store";
-import { useStudentList } from "../../../hooks/useStudents";
+import { classSessionsApi, type BackendClassSession } from "@/services/class-sessions.api";
+import { localTodayKey, toDateKey } from "@/constants/timetable-slots";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 
+function shiftDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, (month || 1) - 1, day || 1);
+  date.setDate(date.getDate() + days);
+  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
+  const nextDay = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
+}
+
+function normalizeStatus(raw: unknown): AttendanceDeskStatus | null {
+  const value = String(raw ?? "").toUpperCase();
+  if (value === "PRESENT" || value === "ABSENT" || value === "LEAVE") return value;
+  if (value === "EXCUSED") return "LEAVE";
+  return null;
+}
+
+function apiMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+    if (message) return message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+function sessionOptionLabel(session: BackendClassSession): string {
+  const time =
+    session.startTime && session.endTime ? `${session.startTime}–${session.endTime}` : "";
+  const batch = session.batch?.code || session.batch?.name || "";
+  return [time, session.title || "Class", batch].filter(Boolean).join(" · ");
+}
+
 export const StudentAttendance: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { canEditItem } = usePermissions();
   const canEditAttendance = canEditItem("students.attendance");
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
@@ -90,117 +123,180 @@ export const StudentAttendance: React.FC = () => {
   const branches = branchResponse?.data ?? [];
   const { batches } = useBatches();
 
-  const [selectedBranch, setSelectedBranch] = useState<string>(selectedBranchId !== "ALL" ? selectedBranchId : (branches[0]?.id || "ALL"));
+  const [selectedBranch, setSelectedBranch] = useState<string>(
+    selectedBranchId !== "ALL" ? selectedBranchId : "ALL"
+  );
   const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(localTodayKey());
+  const [sessionChoice, setSessionChoice] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | AttendanceDeskStatus>("ALL");
   const [activeTab, setActiveTab] = useState<"list" | "summary" | "history">("list");
-
-  // Fetch real students filtered by selected branch
-  const { data: studentListResponse } = useStudentList({
-    limit: 100,
-    branchId: selectedBranch !== "ALL" ? selectedBranch : undefined,
-  });
-  const apiStudents = studentListResponse?.data ?? [];
-
-  // Roster state from real students
-  const [students, setStudents] = useState<StudentAttendanceItem[]>([]);
+  const [draft, setDraft] = useState<Record<string, { status: AttendanceDeskStatus | null; remarks: string }>>({});
+  const [draftSessionId, setDraftSessionId] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [autoSaveState, setAutoSaveState] = useState<"saved" | "saving">("saved");
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
-  // Modals
   const [isScanQrModalOpen, setIsScanQrModalOpen] = useState(false);
   const [manualQrCode, setManualQrCode] = useState("");
 
+  const showToast = (message: string, tone: "success" | "error" = "success") => {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 3500);
+  };
+
+  const profileBase = location.pathname.startsWith("/center")
+    ? "/center/students"
+    : location.pathname.startsWith("/counselor")
+      ? "/counselor/students"
+      : "/admin/students";
+
+  const visibleBatches = batches.filter(
+    (batch) =>
+      selectedBranch === "ALL" ||
+      batch.branchId === selectedBranch ||
+      batch.branch?.id === selectedBranch
+  );
+
+  const daySessionParams = {
+    ...(selectedBranch !== "ALL" ? { branchId: selectedBranch } : {}),
+    ...(selectedBatch !== "ALL" ? { batchId: selectedBatch } : {}),
+    startDate: selectedDate,
+    endDate: selectedDate,
+    limit: 100,
+  };
+  const {
+    data: daySessionsResponse,
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    error: sessionsQueryError,
+  } = useClassSessions(daySessionParams);
+
+  const daySessions = useMemo(
+    () =>
+      (daySessionsResponse?.data ?? []).filter(
+        (session) => session.sessionStatus !== "CANCELLED" && session.status !== "CANCELLED"
+      ),
+    [daySessionsResponse]
+  );
+
+  const activeSession =
+    daySessions.find((session) => session.id === sessionChoice) ??
+    (daySessions.length === 1 ? daySessions[0] : null);
+  const activeSessionId = activeSession?.id ?? "";
+
+  if (activeSessionId !== draftSessionId) {
+    setDraftSessionId(activeSessionId);
+    setDraft({});
+    setSelectedIds(new Set());
+  }
+
+  const {
+    data: attendanceResponse,
+    isLoading: rosterLoading,
+    isError: rosterError,
+    error: rosterQueryError,
+  } = useQuery({
+    queryKey: ["class-session-attendance", activeSessionId],
+    queryFn: () => classSessionsApi.getAttendance(activeSessionId),
+    enabled: Boolean(activeSessionId),
+  });
+
+  const serverRoster = useMemo<StudentAttendanceItem[]>(() => {
+    const roster = attendanceResponse?.data?.students;
+    if (!Array.isArray(roster)) return [];
+    return roster.map((student: {
+      studentId?: string;
+      id?: string;
+      studentCode?: string;
+      name?: string;
+      email?: string | null;
+      status?: string | null;
+      remarks?: string | null;
+    }) => {
+      const id = student.studentId || student.id || "";
+      const name = student.name || student.studentCode || "Student";
+      return {
+        id,
+        studentCode: student.studentCode || id.slice(0, 8),
+        name,
+        email: student.email || "",
+        status: normalizeStatus(student.status),
+        remarks: student.remarks || "",
+      };
+    });
+  }, [attendanceResponse]);
+
+  const students = useMemo(
+    () =>
+      serverRoster.map((student) => {
+        const edit = activeSessionId === draftSessionId ? draft[student.id] : undefined;
+        return edit ? { ...student, status: edit.status, remarks: edit.remarks } : student;
+      }),
+    [serverRoster, draft, activeSessionId, draftSessionId]
+  );
+
+  const historyFrom = shiftDateKey(selectedDate, -30);
+  const {
+    data: historyResponse,
+    isLoading: historyLoading,
+  } = useQuery({
+    queryKey: ["class-sessions", "attendance-history", selectedBranch, selectedBatch, historyFrom, selectedDate],
+    queryFn: () =>
+      classSessionsApi.getAll({
+        ...(selectedBranch !== "ALL" ? { branchId: selectedBranch } : {}),
+        ...(selectedBatch !== "ALL" ? { batchId: selectedBatch } : {}),
+        startDate: historyFrom,
+        endDate: selectedDate,
+        limit: 100,
+      }),
+    enabled: activeTab === "history",
+  });
+
   const sessionHistory = useMemo(() => {
-    return [
-      {
-        id: "hist-1",
-        date: selectedDate,
-        topic: `${selectedBatch} Core Session`,
-        total: students.length,
-        present: students.filter((s) => s.status === "PRESENT").length,
-        absent: students.filter((s) => s.status === "ABSENT").length,
-        excused: students.filter((s) => s.status === "EXCUSED").length,
-        percentage: students.length > 0 ? `${Math.round((students.filter((s) => s.status === "PRESENT").length / students.length) * 100)}%` : "100%",
-      }
-    ];
-  }, [selectedDate, selectedBatch, students]);
+    return (historyResponse?.data ?? [])
+      .filter((session) => session.sessionStatus !== "CANCELLED" && session.status !== "CANCELLED")
+      .slice()
+      .sort((a, b) => toDateKey(b.scheduledDate).localeCompare(toDateKey(a.scheduledDate)));
+  }, [historyResponse]);
 
-  // Sync with real students from PostgreSQL
-  useEffect(() => {
-    if (apiStudents.length > 0) {
-      const mapped: StudentAttendanceItem[] = apiStudents.map((s: any, idx: number) => ({
-        id: s.id,
-        studentCode: s.studentCode || `STU-00${idx + 1}`,
-        name: s.user?.name || `Student ${s.studentCode}`,
-        email: s.user?.email || "student@aadya.in",
-        avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150`,
-        status: "PRESENT",
-        remarks: "",
-        leaveReason: undefined,
-      }));
-      setStudents(mapped);
-    }
-  }, [apiStudents]);
-
-  // Calculations
   const totalStudents = students.length;
   const presentCount = students.filter((s) => s.status === "PRESENT").length;
   const absentCount = students.filter((s) => s.status === "ABSENT").length;
-  const excusedCount = students.filter((s) => s.status === "EXCUSED").length;
-  const markedCount = presentCount + absentCount + excusedCount;
+  const leaveCount = students.filter((s) => s.status === "LEAVE").length;
+  const unmarkedCount = students.filter((s) => !s.status).length;
+  const markedCount = presentCount + absentCount + leaveCount;
+  const hasUnsavedChanges = Object.keys(draft).length > 0;
 
   const presentPercentage = totalStudents > 0 ? ((presentCount / totalStudents) * 100).toFixed(2) : "0.00";
   const absentPercentage = totalStudents > 0 ? ((absentCount / totalStudents) * 100).toFixed(2) : "0.00";
-  const excusedPercentage = totalStudents > 0 ? ((excusedCount / totalStudents) * 100).toFixed(2) : "0.00";
+  const leavePercentage = totalStudents > 0 ? ((leaveCount / totalStudents) * 100).toFixed(2) : "0.00";
 
-  // Trigger brief auto-save indicator
-  const triggerAutoSave = () => {
-    setAutoSaveState("saving");
-    setTimeout(() => {
-      setAutoSaveState("saved");
-    }, 450);
+  const updateDraft = (studentId: string, next: { status: AttendanceDeskStatus | null; remarks: string }) => {
+    setDraft((prev) => ({ ...prev, [studentId]: next }));
   };
 
-  // Status Change Handler
   const handleStatusChange = (studentId: string, newStatus: AttendanceDeskStatus) => {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === studentId) {
-          const updatedRemarks = newStatus === "EXCUSED" && !s.remarks ? "Medical Leave" : newStatus === "PRESENT" ? "" : s.remarks;
-          return {
-            ...s,
-            status: newStatus,
-            remarks: updatedRemarks,
-            leaveReason: newStatus === "EXCUSED" ? (s.leaveReason || "Medical Leave") : undefined,
-          };
-        }
-        return s;
-      })
-    );
-    triggerAutoSave();
+    const current = students.find((student) => student.id === studentId);
+    if (!current) return;
+    updateDraft(studentId, {
+      status: newStatus,
+      remarks: newStatus === "PRESENT" ? "" : current.remarks,
+    });
   };
 
-  // Remarks Change Handler
   const handleRemarksChange = (studentId: string, remarks: string) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, remarks } : s))
-    );
-    triggerAutoSave();
+    const current = students.find((student) => student.id === studentId);
+    if (!current) return;
+    updateDraft(studentId, { status: current.status, remarks });
   };
 
-  // Checkbox toggle
   const handleToggleSelect = (studentId: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(studentId)) {
-        next.delete(studentId);
-      } else {
-        next.add(studentId);
-      }
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
       return next;
     });
   };
@@ -213,57 +309,147 @@ export const StudentAttendance: React.FC = () => {
     }
   };
 
-  // Bulk status update
   const handleBulkStatusChange = (status: AttendanceDeskStatus) => {
     if (selectedIds.size === 0) return;
-    setStudents((prev) =>
-      prev.map((s) => (selectedIds.has(s.id) ? { ...s, status } : s))
-    );
+    setDraft((prev) => {
+      const next = { ...prev };
+      for (const student of students) {
+        if (!selectedIds.has(student.id)) continue;
+        next[student.id] = {
+          status,
+          remarks: status === "PRESENT" ? "" : student.remarks,
+        };
+      }
+      return next;
+    });
+    const count = selectedIds.size;
     setSelectedIds(new Set());
-    triggerAutoSave();
-    setToastMessage(`Marked ${selectedIds.size} students as ${status}.`);
-    setTimeout(() => setToastMessage(null), 3000);
+    showToast(`Marked ${count} students as ${status}. Save to record them.`);
   };
 
-  // Save attendance explicit action
-  const handleSaveAttendance = () => {
-    setAutoSaveState("saving");
-    setTimeout(() => {
-      setAutoSaveState("saved");
-      setToastMessage("✓ Attendance saved successfully for " + selectedDate);
-      setTimeout(() => setToastMessage(null), 3500);
-    }, 600);
+  const handleSaveAttendance = async () => {
+    if (!activeSessionId) {
+      showToast("Select a scheduled class session before saving.", "error");
+      return;
+    }
+    const entries = students
+      .filter((student) => student.status)
+      .map((student) => ({
+        studentId: student.id,
+        status: student.status as AttendanceDeskStatus,
+        remarks: student.remarks || undefined,
+      }));
+    if (entries.length === 0) {
+      showToast("Mark at least one student before saving.", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await classSessionsApi.saveAttendance(activeSessionId, entries);
+      queryClient.setQueryData(
+        ["class-session-attendance", activeSessionId],
+        (current: { data?: { students?: Array<{ studentId?: string; id?: string }> } } | undefined) => {
+          if (!current?.data?.students) return current;
+          const byId = new Map(entries.map((entry) => [entry.studentId, entry]));
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              students: current.data.students.map((student) => {
+                const entry = byId.get(student.studentId || student.id || "");
+                if (!entry) return student;
+                return { ...student, status: entry.status, remarks: entry.remarks ?? null };
+              }),
+            },
+          };
+        }
+      );
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["class-session-attendance", activeSessionId] });
+      setDraft({});
+      const unmarked = students.length - entries.length;
+      showToast(
+        unmarked > 0
+          ? `Saved ${entries.length} students. ${unmarked} still unmarked.`
+          : `Attendance saved for ${selectedDate}.`
+      );
+    } catch (err) {
+      showToast(apiMessage(err, "Failed to save attendance"), "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Export CSV
   const handleExportCSV = () => {
-    const headers = "Student ID,Student Name,Email,Batch,Date,Status,Remarks\n";
+    if (students.length === 0) {
+      showToast("There is no class roster to export.", "error");
+      return;
+    }
+    const batchLabel = activeSession?.batch?.code || selectedBatch;
+    const headers = "Student ID,Student Name,Email,Batch,Date,Session,Status,Remarks\n";
     const rows = students
       .map(
-        (s) =>
-          `"${s.studentCode}","${s.name}","${s.email}","${selectedBatch}","${selectedDate}","${s.status}","${s.remarks || ""}"`
+        (student) =>
+          `"${student.studentCode}","${student.name}","${student.email}","${batchLabel}","${selectedDate}","${activeSession?.title || ""}","${student.status || "UNMARKED"}","${student.remarks || ""}"`
       )
       .join("\n");
 
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Attendance_${selectedBatch}_${selectedDate}.csv`);
+    link.href = url;
+    link.download = `Attendance_${batchLabel}_${selectedDate}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  // Filtered students for display
+  const handleExportHistory = () => {
+    if (sessionHistory.length === 0) {
+      showToast("No class history to export.", "error");
+      return;
+    }
+    const headers = "Date,Session,Batch,Enrolled,Marked,Done %\n";
+    const rows = sessionHistory
+      .map((session) => {
+        const enrolled = session.enrolledStudentsCount ?? 0;
+        const marked = session.attendanceMarkedCount ?? 0;
+        const done = session.attendanceDonePercentage ?? (enrolled > 0 ? Math.round((marked / enrolled) * 100) : 0);
+        return `"${toDateKey(session.scheduledDate)}","${sessionOptionLabel(session)}","${session.batch?.code || ""}","${enrolled}","${marked}","${done}"`;
+      })
+      .join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Attendance_History_${selectedDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const openHistorySession = (session: BackendClassSession) => {
+    setSelectedDate(toDateKey(session.scheduledDate));
+    if (session.batchId) setSelectedBatch(session.batchId);
+    if (session.branchId) {
+      setSelectedBranch(session.branchId);
+      setSelectedBranchId(session.branchId);
+    }
+    setSessionChoice(session.id);
+    setActiveTab("list");
+  };
+
   const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
+    return students.filter((student) => {
       const matchesSearch =
         !searchTerm ||
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.email.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
+        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "ALL" || student.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [students, searchTerm, statusFilter]);
@@ -290,15 +476,25 @@ export const StudentAttendance: React.FC = () => {
       />
 
       {/* ─── TOAST NOTIFICATION ────────────────────────────────────────── */}
-      {toastMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
+      {toast && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2 ${
+            toast.tone === "error"
+              ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-300"
+              : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+          }`}
+        >
+          {toast.tone === "error" ? (
+            <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
       {/* ─── 2. CLASS SELECTION BAR ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-card p-3.5 rounded-xl border border-border shadow-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 bg-card p-3.5 rounded-xl border border-border shadow-xs">
         {/* Branch */}
         <div className="space-y-1">
           <label className="text-[11px] font-bold text-muted-foreground block">Branch</label>
@@ -309,6 +505,8 @@ export const StudentAttendance: React.FC = () => {
               onChange={(e) => {
                 setSelectedBranch(e.target.value);
                 setSelectedBranchId(e.target.value);
+                setSelectedBatch("ALL");
+                setSessionChoice("");
               }}
               className="w-full h-10 pl-9 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-background outline-none transition-all appearance-none cursor-pointer"
             >
@@ -330,13 +528,14 @@ export const StudentAttendance: React.FC = () => {
             <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
             <select
               value={selectedBatch}
-              onChange={(e) => setSelectedBatch(e.target.value)}
+              onChange={(e) => {
+                setSelectedBatch(e.target.value);
+                setSessionChoice("");
+              }}
               className="w-full h-10 pl-9 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-background outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="ALL">All Batches</option>
-              {batches
-                .filter((b) => selectedBranch === "ALL" || b.branchId === selectedBranch || b.branch?.id === selectedBranch)
-                .map((b) => (
+              {visibleBatches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name} ({b.code})
                   </option>
@@ -354,9 +553,44 @@ export const StudentAttendance: React.FC = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setSessionChoice("");
+              }}
               className="w-full h-10 pl-9 pr-3 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-background outline-none transition-all cursor-pointer"
             />
+          </div>
+        </div>
+
+        {/* Class session — attendance is stored against a scheduled class */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-bold text-muted-foreground block">Class session</label>
+          <div className="relative">
+            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+            <select
+              value={activeSessionId}
+              onChange={(e) => setSessionChoice(e.target.value)}
+              disabled={sessionsLoading || daySessions.length === 0}
+              className="w-full h-10 pl-9 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-background outline-none transition-all appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {sessionsLoading ? (
+                <option value="">Loading classes…</option>
+              ) : daySessions.length === 0 ? (
+                <option value="">No class scheduled</option>
+              ) : (
+                <>
+                  {daySessions.length > 1 && !daySessions.some((session) => session.id === sessionChoice) && (
+                    <option value="">Select a class</option>
+                  )}
+                  {daySessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {sessionOptionLabel(session)}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           </div>
         </div>
 
@@ -385,7 +619,9 @@ export const StudentAttendance: React.FC = () => {
                 Total Students
               </p>
               <h3 className="text-2xl font-bold text-foreground mt-1">{totalStudents}</h3>
-              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Students in this batch</p>
+              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                {unmarkedCount > 0 ? `${unmarkedCount} still unmarked` : "Enrolled in this class"}
+              </p>
             </div>
             <div className="p-3 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-xl text-primary dark:text-sky-400">
               <Users className="h-6 w-6" />
@@ -423,7 +659,7 @@ export const StudentAttendance: React.FC = () => {
                 <h3 className="text-2xl font-bold text-foreground">{absentCount}</h3>
                 <span className="text-xs font-bold text-rose-600 dark:text-rose-400">{absentPercentage}%</span>
               </div>
-              <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5">Unexcused</p>
+              <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5">Not in class</p>
             </div>
             <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400">
               <XCircle className="h-6 w-6" />
@@ -436,11 +672,11 @@ export const StudentAttendance: React.FC = () => {
           <CardContent size="compact" className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Excused
+                Leave
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h3 className="text-2xl font-bold text-foreground">{excusedCount}</h3>
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{excusedPercentage}%</span>
+                <h3 className="text-2xl font-bold text-foreground">{leaveCount}</h3>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{leavePercentage}%</span>
               </div>
               <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Approved leave</p>
             </div>
@@ -516,13 +752,13 @@ export const StudentAttendance: React.FC = () => {
               Absent
             </button>
             <button
-              onClick={() => setStatusFilter("EXCUSED")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "EXCUSED"
+              onClick={() => setStatusFilter("LEAVE")}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "LEAVE"
                   ? "bg-amber-600 text-white shadow-xs"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                 }`}
             >
-              Excused
+              Leave
             </button>
           </div>
 
@@ -546,15 +782,18 @@ export const StudentAttendance: React.FC = () => {
       <div className="p-3 bg-blue-50/70 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/50 rounded-xl flex items-center justify-between gap-2 text-xs font-medium text-foreground shadow-2xs">
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4 text-primary dark:text-sky-400 shrink-0" />
-          <span>Tap a status to mark attendance. Changes are auto-saved.</span>
+          <span>
+            {activeSession
+              ? `Marking ${activeSession.title || "class"} · ${activeSession.startTime}–${activeSession.endTime}. Unmarked students are not recorded until you save.`
+              : daySessions.length > 1
+                ? "Select the class session you want to mark."
+                : "Choose a branch, batch, and date that has a scheduled class. Attendance is saved against that class session."}
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs font-bold">
-          <span
-            className={`h-2 w-2 rounded-full ${autoSaveState === "saved" ? "bg-emerald-500" : "bg-amber-500 animate-ping"
-              }`}
-          />
-          <span className={autoSaveState === "saved" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-            {autoSaveState === "saved" ? "All changes saved" : "Saving changes..."}
+        <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
+          <span className={`h-2 w-2 rounded-full ${hasUnsavedChanges ? "bg-amber-500" : "bg-emerald-500"}`} />
+          <span className={hasUnsavedChanges ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}>
+            {hasUnsavedChanges ? "Unsaved changes" : "Synced with class session"}
           </span>
         </div>
       </div>
@@ -595,7 +834,27 @@ export const StudentAttendance: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.length === 0 ? (
+                {sessionsLoading || rosterLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm font-medium">
+                      Loading class roster…
+                    </TableCell>
+                  </TableRow>
+                ) : sessionsError || rosterError ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-rose-600 text-sm font-medium">
+                      {apiMessage(sessionsQueryError || rosterQueryError, "Could not load this class roster.")}
+                    </TableCell>
+                  </TableRow>
+                ) : !activeSession ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm font-medium">
+                      {daySessions.length > 1
+                        ? "Select a class session to load its roster."
+                        : "No class is scheduled for this branch, batch, and date. Attendance can only be marked for a scheduled class session."}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredStudents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm font-medium">
                       No students found matching current filters.
@@ -634,7 +893,6 @@ export const StudentAttendance: React.FC = () => {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8 border border-border">
-                              <AvatarImage src={stu.avatar} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-indigo-600 text-white text-[10px] font-bold">
                                 {stu.name.slice(0, 2).toUpperCase()}
                               </AvatarFallback>
@@ -678,14 +936,14 @@ export const StudentAttendance: React.FC = () => {
 
                             {/* Excused */}
                             <button
-                              onClick={() => handleStatusChange(stu.id, "EXCUSED")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${stu.status === "EXCUSED"
+                              onClick={() => handleStatusChange(stu.id, "LEAVE")}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${stu.status === "LEAVE"
                                   ? "bg-amber-500 text-white shadow-amber-500/20 shadow-md ring-2 ring-amber-500/30"
                                   : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20"
                                 }`}
                             >
                               <Clock className="h-3.5 w-3.5" />
-                              <span>Excused</span>
+                              <span>Leave</span>
                             </button>
                           </div>
                           ) : (
@@ -696,10 +954,12 @@ export const StudentAttendance: React.FC = () => {
                                     ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                     : stu.status === "ABSENT"
                                     ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                    : stu.status === "LEAVE"
+                                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                    : "bg-muted text-muted-foreground border-border"
                                 }`}
                               >
-                                {stu.status}
+                                {stu.status || "UNMARKED"}
                               </Badge>
                             </div>
                           )}
@@ -717,7 +977,7 @@ export const StudentAttendance: React.FC = () => {
                               disabled={!canEditAttendance}
                               className="w-full h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-70 disabled:cursor-default"
                             />
-                            {canEditAttendance && stu.status === "EXCUSED" && (
+                            {canEditAttendance && stu.status === "LEAVE" && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button
@@ -728,7 +988,7 @@ export const StudentAttendance: React.FC = () => {
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-44 text-xs font-medium bg-card border-border">
-                                  {EXCUSED_REASONS.map((reason) => (
+                                  {LEAVE_REASONS.map((reason) => (
                                     <DropdownMenuItem
                                       key={reason}
                                       onClick={() => handleRemarksChange(stu.id, reason)}
@@ -757,21 +1017,24 @@ export const StudentAttendance: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 text-xs font-medium bg-card border-border">
                               <DropdownMenuItem
-                                onClick={() => navigate("/faculty/students/all")}
+                                onClick={() => navigate(`${profileBase}/${stu.id}`)}
                                 className="cursor-pointer"
                               >
                                 View Student Profile
                               </DropdownMenuItem>
                               {canEditAttendance && (
                               <DropdownMenuItem
-                                onClick={() => handleStatusChange(stu.id, "EXCUSED")}
+                                onClick={() => handleStatusChange(stu.id, "LEAVE")}
                                 className="cursor-pointer"
                               >
                                 Mark as Approved Leave
                               </DropdownMenuItem>
                               )}
                               <DropdownMenuItem
-                                onClick={() => alert(`Contacting ${stu.name} (${stu.email})`)}
+                                onClick={() => {
+                                  if (stu.email) window.location.href = `mailto:${stu.email}`;
+                                  else showToast("This student has no email on file.", "error");
+                                }}
                                 className="cursor-pointer text-primary"
                               >
                                 Contact / Email Student
@@ -812,10 +1075,10 @@ export const StudentAttendance: React.FC = () => {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => handleBulkStatusChange("EXCUSED")}
+                    onClick={() => handleBulkStatusChange("LEAVE")}
                     className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-8 px-3 gap-1"
                   >
-                    <Clock className="h-3 w-3" /> Mark Excused
+                    <Clock className="h-3 w-3" /> Mark Leave
                   </Button>
                 </div>
               </div>
@@ -879,7 +1142,6 @@ export const StudentAttendance: React.FC = () => {
                   >
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={s.avatar} />
                         <AvatarFallback className="text-[9px]">
                           {s.name.slice(0, 2)}
                         </AvatarFallback>
@@ -903,7 +1165,7 @@ export const StudentAttendance: React.FC = () => {
             <CardContent className="p-0 pt-4 space-y-2.5 max-h-[360px] overflow-y-auto">
               {students.filter((s) => s.status === "ABSENT").length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-8 font-medium">
-                  No unexcused absences today.
+                  No absences marked for this class.
                 </p>
               ) : (
                 students
@@ -915,7 +1177,6 @@ export const StudentAttendance: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={s.avatar} />
                           <AvatarFallback className="text-[9px]">
                             {s.name.slice(0, 2)}
                           </AvatarFallback>
@@ -939,17 +1200,17 @@ export const StudentAttendance: React.FC = () => {
             <CardHeader className="p-0 pb-4 border-b border-border">
               <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-600" />
-                Excused Students ({excusedCount})
+                Leave Students ({leaveCount})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 pt-4 space-y-2.5 max-h-[360px] overflow-y-auto">
-              {students.filter((s) => s.status === "EXCUSED").length === 0 ? (
+              {students.filter((s) => s.status === "LEAVE").length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-8 font-medium">
-                  No excused leaves recorded today.
+                  No approved leave recorded for this class.
                 </p>
               ) : (
                 students
-                  .filter((s) => s.status === "EXCUSED")
+                  .filter((s) => s.status === "LEAVE")
                   .map((s) => (
                     <div
                       key={s.id}
@@ -957,7 +1218,6 @@ export const StudentAttendance: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={s.avatar} />
                           <AvatarFallback className="text-[9px]">
                             {s.name.slice(0, 2)}
                           </AvatarFallback>
@@ -965,7 +1225,7 @@ export const StudentAttendance: React.FC = () => {
                         <div>
                           <span className="font-bold text-foreground block">{s.name}</span>
                           <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                            {s.remarks || s.leaveReason || "Approved Leave"}
+                            {s.remarks || "Approved leave"}
                           </span>
                         </div>
                       </div>
@@ -984,16 +1244,16 @@ export const StudentAttendance: React.FC = () => {
           <CardHeader className="p-5 border-b border-border flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-sm font-bold text-foreground">
-                Attendance History – {selectedBatch}
+                Attendance History – last 30 days
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Past recorded classroom sessions for this batch.
+                Scheduled classes for the selected branch and batch. Open a session to review or correct marks.
               </CardDescription>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportCSV}
+              onClick={handleExportHistory}
               className="text-xs font-bold h-8 border-border"
             >
               <Download className="h-3.5 w-3.5 mr-1" /> Export History
@@ -1004,48 +1264,53 @@ export const StudentAttendance: React.FC = () => {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-bold text-xs text-foreground">Date</TableHead>
                 <TableHead className="font-bold text-xs text-foreground">Session Topic</TableHead>
-                <TableHead className="font-bold text-xs text-foreground text-center">Present</TableHead>
-                <TableHead className="font-bold text-xs text-foreground text-center">Absent</TableHead>
-                <TableHead className="font-bold text-xs text-foreground text-center">Excused</TableHead>
-                <TableHead className="font-bold text-xs text-foreground text-center">Percentage</TableHead>
+                <TableHead className="font-bold text-xs text-foreground text-center">Enrolled</TableHead>
+                <TableHead className="font-bold text-xs text-foreground text-center">Marked</TableHead>
+                <TableHead className="font-bold text-xs text-foreground text-center">Done</TableHead>
                 <TableHead className="font-bold text-xs text-foreground text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sessionHistory.map((h: any) => (
-                <TableRow key={h.id} className="border-b border-border/70 hover:bg-muted/30">
-                  <TableCell className="font-bold text-xs text-foreground">{h.date}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground font-medium">{h.topic}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-900/40 text-xs font-bold">
-                      {h.present}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge className="bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200/60 dark:border-rose-900/40 text-xs font-bold">
-                      {h.absent}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge className="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40 text-xs font-bold">
-                      {h.excused}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center font-bold text-xs text-foreground">
-                    {h.percentage}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => alert(`Showing full session attendance for ${h.date}`)}
-                      className="text-xs font-bold text-primary hover:bg-primary/10 h-7"
-                    >
-                      View Details
-                    </Button>
+              {historyLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-sm text-muted-foreground">
+                    Loading scheduled classes…
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : sessionHistory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-sm text-muted-foreground">
+                    No classes scheduled in the last 30 days for this filter.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sessionHistory.map((session) => {
+                  const enrolled = session.enrolledStudentsCount ?? 0;
+                  const marked = session.attendanceMarkedCount ?? 0;
+                  const done = session.attendanceDonePercentage ?? (enrolled > 0 ? Math.round((marked / enrolled) * 100) : 0);
+                  return (
+                    <TableRow key={session.id} className="border-b border-border/70 hover:bg-muted/30">
+                      <TableCell className="font-bold text-xs text-foreground">{toDateKey(session.scheduledDate)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-medium">
+                        {sessionOptionLabel(session)}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-xs text-foreground">{enrolled}</TableCell>
+                      <TableCell className="text-center font-bold text-xs text-foreground">{marked}</TableCell>
+                      <TableCell className="text-center font-bold text-xs text-foreground">{done}%</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openHistorySession(session)}
+                          className="text-xs font-bold text-primary hover:bg-primary/10 h-7"
+                        >
+                          Open session
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </Card>
@@ -1088,8 +1353,10 @@ export const StudentAttendance: React.FC = () => {
               </h5>
               <p className="text-xs text-muted-foreground font-medium mt-0.5 leading-relaxed">
                 {canEditAttendance
-                  ? `Your attendance will be permanently recorded in the Aadya portal database for ${selectedDate}.`
-                  : `Viewing attendance records for ${selectedDate}.`}
+                  ? hasUnsavedChanges
+                    ? "Marks stay on this screen until you save them to the class session."
+                    : `Saved marks for ${activeSession?.title || "this class"} are loaded from the database.`
+                  : `Viewing attendance for ${selectedDate}.`}
               </p>
             </div>
           </div>
@@ -1097,9 +1364,10 @@ export const StudentAttendance: React.FC = () => {
           <PermissionGate itemKey="students.attendance" mode="write">
           <Button
             onClick={handleSaveAttendance}
-            className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
+            disabled={!activeSessionId || isSaving || markedCount === 0}
+            className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            <Lock className="h-4 w-4" /> Save Attendance
+            <Lock className="h-4 w-4" /> {isSaving ? "Saving…" : "Save Attendance"}
           </Button>
           </PermissionGate>
         </div>
@@ -1125,7 +1393,7 @@ export const StudentAttendance: React.FC = () => {
               <Camera className="h-10 w-10 text-primary animate-pulse mb-3" />
               <p className="text-xs font-bold text-foreground">Point Camera at Student ID Card</p>
               <span className="text-[10px] text-muted-foreground mt-1">
-                Batch: {selectedBatch} • {selectedDate}
+                Batch: {activeSession?.batch?.code || "—"} • {selectedDate}
               </span>
             </div>
 
@@ -1145,11 +1413,11 @@ export const StudentAttendance: React.FC = () => {
                     );
                     if (match) {
                       handleStatusChange(match.id, "PRESENT");
-                      setToastMessage(`✓ Marked ${match.name} as Present via QR.`);
+                      showToast(`Marked ${match.name} as Present. Save to record it.`);
                       setManualQrCode("");
                       setIsScanQrModalOpen(false);
                     } else {
-                      alert("Student code not found in current batch roster.");
+                      showToast("Student code was not found in this class roster.", "error");
                     }
                   }}
                   className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-9 px-4 cursor-pointer"

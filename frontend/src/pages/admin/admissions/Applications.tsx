@@ -44,7 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type DetailedStatus = ApplicationDisplayStatus;
@@ -550,13 +550,14 @@ export const Applications: React.FC = () => {
       >
         <SheetContent
           side="right"
-          className="w-full sm:max-w-xl p-0 overflow-y-auto bg-card text-foreground border-l border-border"
+          hideClose
+          className="flex h-full w-full flex-col overflow-hidden p-0 sm:max-w-xl bg-card text-foreground border-l border-border"
         >
           {isLoadingDetails && !selectedApplication ? (
             <div className="p-8 text-sm text-muted-foreground">Loading application...</div>
           ) : selectedApplication ? (
-            <div className="flex flex-col h-full">
-              <div className="p-5 border-b border-border bg-muted/30 sticky top-0 z-10">
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="shrink-0 border-b border-border bg-muted/30 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -574,19 +575,32 @@ export const Applications: React.FC = () => {
                       {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
-                    className="h-8 text-xs gap-1 shrink-0"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
+                      className="h-8 text-xs gap-1"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy
+                    </Button>
+                    <SheetClose asChild>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        aria-label="Close application details"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </SheetClose>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-5 space-y-5 flex-1">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <User className="h-4 w-4 text-primary" /> Contact
@@ -692,7 +706,7 @@ export const Applications: React.FC = () => {
               </div>
 
               {canEditApplications && (
-              <div className="p-4 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3 sticky bottom-0">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-card p-4">
                 <Button
                   size="sm"
                   variant="outline"
