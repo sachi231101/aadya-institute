@@ -32,7 +32,18 @@ const parseConfiguredOrigins = (): string[] =>
 
 const isAllowedDevOrigin = (origin: string): boolean => {
   if (env.NODE_ENV === "production") return false;
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  // localhost / loopback
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  // Private LAN (RFC1918) — same Wi‑Fi access during local development
+  if (
+    /^https?:\/\/(10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(:\d+)?$/.test(
+      origin
+    )
+  ) {
+    return true;
+  }
+  // ngrok tunnels (hostname rotates on free plan)
+  return /^https:\/\/[a-z0-9-]+\.(ngrok-free\.dev|ngrok-free\.app|ngrok\.app)$/i.test(origin);
 };
 
 const allowedOrigins =

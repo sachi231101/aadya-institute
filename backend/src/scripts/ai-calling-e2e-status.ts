@@ -230,7 +230,7 @@ async function main() {
         },
         rows,
         nextAction: blocked.some((r) => r.id === "webhook.public_url")
-          ? "Set PUBLIC_API_BASE_URL to a public tunnel (ngrok/localtunnel) so Sarvam can POST webhooks."
+          ? "Set PUBLIC_API_BASE_URL to a public tunnel (ngrok) so Sarvam can POST webhooks."
           : blocked.some((r) => r.id === "live.phone_ring")
             ? "Lead → AI Call (live ring)."
             : blocked.length

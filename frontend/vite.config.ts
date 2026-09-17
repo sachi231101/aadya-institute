@@ -19,9 +19,9 @@ export default defineConfig(({ command }) => ({
         plugins:
           command === 'serve'
             ? [
-                // Injects data-inspector-* attrs so click-to-source works reliably.
-                '@react-dev-inspector/babel-plugin',
-              ]
+              // Injects data-inspector-* attrs so click-to-source works reliably.
+              '@react-dev-inspector/babel-plugin',
+            ]
             : [],
       },
     }),
@@ -145,10 +145,19 @@ export default defineConfig(({ command }) => ({
     },
   },
   server: {
+    host: true, // listen on 0.0.0.0 so LAN devices can reach the app
+    // Allow rotating ngrok hostnames (leading dot = all subdomains)
+    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.app"],
     proxy: {
       "/api": {
         target: "http://localhost:5000",
         changeOrigin: true,
+        configure: (proxy) => {
+          // Vite forwards the browser Origin (ngrok/LAN); normalize for backend CORS
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Origin", "http://localhost:5173");
+          });
+        },
       },
       "/ws": {
         target: "ws://localhost:5000",
