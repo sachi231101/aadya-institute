@@ -1,44 +1,28 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
-  UserCheck,
-  CalendarDays,
-  Wallet,
-  AlertTriangle,
   Search,
-  Download,
   Plus,
-  Pencil,
-  Sparkles,
-  ShieldAlert,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useStudentList } from "@/hooks/useStudents";
-import { useStudentReport } from "@/hooks/useReports";
-import { useCourses } from "@/hooks/useCourses";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
 import { CourseChips } from "@/components/common/CourseChips";
 import { coursesFromStudent } from "@/utils/admission-package.utils";
-
-const getFeeDetails = (fees?: any) => {
-  const total = Number(fees?.totalFee ?? fees?.total ?? 0);
-  const paid = Number(fees?.amountPaid ?? fees?.paid ?? 0);
-  const pending = Number(fees?.dueAmount ?? fees?.pending ?? Math.max(0, total - paid));
-  return { total, paid, pending };
-};
 
 export const AllStudents: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedTab, setSelectedTab] = useState("All Students");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState("All Courses");
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -53,7 +37,6 @@ export const AllStudents: React.FC = () => {
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
-  const { courses: allCourses } = useCourses();
 
   // If selected branch doesn't exist in current branches (e.g. after re-seeding), reset to "ALL"
   useEffect(() => {
@@ -68,11 +51,10 @@ export const AllStudents: React.FC = () => {
       : undefined;
 
   // Live database students filtered by branch
-  const { data: liveStudentsResponse, isLoading, isError, error } = useStudentList({
+  const { data: liveStudentsResponse, isLoading, isError } = useStudentList({
     limit: 200,
     branchId: activeBranchId,
   });
-  const { data: studentReport } = useStudentReport(activeBranchId);
   const liveStudents = liveStudentsResponse?.data || [];
 
   const combinedStudents = useMemo(() => {
@@ -101,20 +83,24 @@ export const AllStudents: React.FC = () => {
         email: s.user?.email || "—",
         phone: s.user?.phone || "—",
         course: s.courseName || "Not assigned",
-        courses: (s as any).courses as Array<{ id: string; name: string; code: string }> | undefined,
+        courses: s.courses,
         batch: s.batchName || "Not assigned",
-        faculty: s.facultyName || "—",
-        branch: s.branch?.name || "—",
+        admissionNo: s.admissionNo || "—",
+        admissionDate: s.admissionDate
+          ? new Date(s.admissionDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+          : "—",
+        faculty: s.facultyName || "â€”",
+        branch: s.branch?.name || "â€”",
         branchId: s.branchId,
         attendance: s.attendance?.overallPercentage ?? 0,
         totalClasses: s.attendance?.totalClasses ?? 0,
         consecutiveAbsences: s.attendance?.consecutiveAbsences ?? 0,
         progress: s.status === "COMPLETED" ? 100 : 75,
         gender: s.gender || "Male",
-        dob: s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : "—",
+        dob: s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : "â€”",
         qualification: s.qualification || "Graduate",
         guardianName: s.guardian?.name || "Parent/Guardian",
-        guardianPhone: s.guardian?.phone || "—",
+        guardianPhone: s.guardian?.phone || "â€”",
         fees: s.fees || { total: 0, paid: 0, pending: 0, status: "Pending" },
         status: computedStatus,
         joinDate: new Date(s.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
@@ -143,13 +129,6 @@ export const AllStudents: React.FC = () => {
         student.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (student.courses || []).some((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Course Filter — match any package course, not only the joined string
-      const matchesCourse =
-        selectedCourseFilter === "All Courses" ||
-        student.course === selectedCourseFilter ||
-        (student.courses || []).some((c) => c.name === selectedCourseFilter) ||
-        student.course.toLowerCase().includes(selectedCourseFilter.toLowerCase());
-
       // Tab Filter
       const matchesTab =
         selectedTab === "All Students" ||
@@ -159,75 +138,43 @@ export const AllStudents: React.FC = () => {
         (selectedTab === "Completed" && student.status === "Completed") ||
         (selectedTab === "Dropped" && student.status === "Dropped");
 
-      return matchesBranch && matchesSearch && matchesCourse && matchesTab;
+      return matchesBranch && matchesSearch && matchesTab;
     });
-  }, [combinedStudents, selectedBranchId, branches, searchTerm, selectedCourseFilter, selectedTab]);
+  }, [combinedStudents, selectedBranchId, branches, searchTerm, selectedTab]);
 
-  // Dynamic KPI calculations
   const branchStudents = useMemo(() => {
-    return combinedStudents.filter(
-      (s) =>
-        selectedBranchId === "ALL" ||
-        s.branchId === selectedBranchId ||
-        branches.find((b) => b.id === selectedBranchId)?.name.toLowerCase().includes(s.branch.toLowerCase())
-    );
+    return combinedStudents.filter((student) => (
+      selectedBranchId === "ALL" ||
+      student.branchId === selectedBranchId ||
+      branches.find((branch) => branch.id === selectedBranchId)?.name.toLowerCase().includes(student.branch.toLowerCase())
+    ));
   }, [combinedStudents, selectedBranchId, branches]);
 
-  const studentsWithAttendance = branchStudents.filter((s) => s.totalClasses > 0);
-  const calculatedAvgAttendance = studentsWithAttendance.length
-    ? Math.round(
-        studentsWithAttendance.reduce((acc, s) => acc + s.attendance, 0) / studentsWithAttendance.length
-      )
-    : 0;
-
-  const kpis = {
-    total: branchStudents.length,
-    active: branchStudents.filter((s) => s.status === "Active" || s.status === "Batch Assignment Pending").length,
-    draft: branchStudents.filter((s) => s.status === "Admission Pending").length,
-    atRisk: branchStudents.filter((s) => s.status === "At Risk").length,
-    avgAttendance: studentReport?.summary?.avgAttendanceRate ?? calculatedAvgAttendance,
-    studentsWithAttendance: studentsWithAttendance.length,
-    pendingFees: branchStudents.reduce((acc, s) => acc + getFeeDetails(s.fees).pending, 0),
-  };
-
-  const tabs = [
-    { name: "All Students", count: branchStudents.length, color: "text-primary" },
-    { name: "Active", count: branchStudents.filter((s) => s.status === "Active" || s.status === "Batch Assignment Pending").length, color: "text-emerald-600" },
-    { name: "Draft", count: branchStudents.filter((s) => s.status === "Admission Pending").length, color: "text-amber-600" },
-    { name: "At Risk", count: branchStudents.filter((s) => s.status === "At Risk").length, color: "text-red-500" },
-    { name: "Completed", count: branchStudents.filter((s) => s.status === "Completed").length, color: "text-purple-600" },
-    { name: "Dropped", count: branchStudents.filter((s) => s.status === "Dropped").length, color: "text-slate-500" },
+  const statusCards = [
+    { value: "All Students", label: "All students", count: branchStudents.length },
+    { value: "Active", label: "Active", count: branchStudents.filter((student) => student.status === "Active" || student.status === "Batch Assignment Pending").length },
+    { value: "Draft", label: "Admission pending", count: branchStudents.filter((student) => student.status === "Admission Pending").length },
+    { value: "At Risk", label: "At risk", count: branchStudents.filter((student) => student.status === "At Risk").length },
+    { value: "Completed", label: "Completed", count: branchStudents.filter((student) => student.status === "Completed").length },
+    { value: "Dropped", label: "Dropped", count: branchStudents.filter((student) => student.status === "Dropped").length },
   ];
 
   return (
-    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
+    <PageContainer>
       <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
-            Student Directory & 360° Tracker
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-              {filteredStudents.length} Students
-            </span>
-          </span>
-        }
-        description="Monitor admissions, demographics, attendance compliance, batch progress, and fee collections."
+        title="Students"
+        description="Search a student and open their record."
         actions={
-          <>
-            <Button variant="outline" className="h-9 text-slate-700 border-slate-300 font-medium bg-white shadow-sm">
-              <Download className="h-4 w-4 mr-2 text-slate-500" /> Export Excel
-            </Button>
-            {!isFacultyPortal && (
-              <PermissionGate itemKey="admissions.all" mode="write">
-                <Button
-                  className="h-9 bg-primary hover:bg-primary text-white font-semibold shadow-sm"
-                  onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-                >
-                  <Plus className="h-4 w-4 mr-2" /> Register Student
-                </Button>
-              </PermissionGate>
-            )}
-          </>
+          !isFacultyPortal ? (
+            <PermissionGate itemKey="admissions.all" mode="write">
+              <Button
+                className="h-9 bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
+                onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Register Student
+              </Button>
+            </PermissionGate>
+          ) : undefined
         }
       />
 
@@ -235,290 +182,139 @@ export const AllStudents: React.FC = () => {
         <ReadOnlyBanner itemKey="students.all" label="All Students" />
       )}
 
-      <MetricGrid columns="grid-cols-2 md:grid-cols-4" density="compact">
-        {[
-          {
-            label: "Active Students",
-            value: kpis.active,
-            sub: `${Math.round((kpis.active / (kpis.total || 1)) * 100)}% Enrolled`,
-            icon: UserCheck,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-          },
-          {
-            label: "Average Attendance",
-            value: `${kpis.avgAttendance}%`,
-            sub:
-              kpis.studentsWithAttendance > 0
-                ? `${kpis.studentsWithAttendance} students with marked attendance`
-                : "No attendance records yet",
-            icon: CalendarDays,
-            color: "text-primary",
-            bg: "bg-blue-50",
-          },
-          {
-            label: "Pending Fees Balance",
-            value: `₹${kpis.pendingFees.toLocaleString()}`,
-            sub: `${branchStudents.filter((s) => getFeeDetails(s.fees).pending > 0).length} Accounts Pending`,
-            icon: Wallet,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-          },
-          {
-            label: "Students At Risk (Absences)",
-            value: kpis.atRisk,
-            sub: "≥2 Consecutive Theory Absences",
-            icon: AlertTriangle,
-            color: "text-red-600",
-            bg: "bg-red-50",
-          },
-        ].map((kpi, idx) => (
-          <Card key={idx} size="compact" className="border-slate-200 shadow-sm bg-white">
-            <CardContent size="compact">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{kpi.label}</p>
-                <div className={`p-1.5 rounded-md ${kpi.bg}`}>
-                  <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2">{kpi.value}</h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">{kpi.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </MetricGrid>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {statusCards.map((card) => {
+          const selected = selectedTab === card.value;
+          return (
+            <button
+              key={card.value}
+              type="button"
+              onClick={() => setSelectedTab(card.value)}
+              className="text-left"
+            >
+              <Card className={`border shadow-sm ${selected ? "border-primary bg-primary/5" : "border-slate-200 bg-white hover:border-primary/40"}`}>
+                <CardContent className="p-3.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{card.count}</p>
+                </CardContent>
+              </Card>
+            </button>
+          );
+        })}
+      </div>
 
-      <FilterToolbar className="flex flex-col lg:flex-row lg:items-center gap-3">
+      <FilterToolbar className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search student by Name, Student ID (AAD-2026-XX), Email, or Phone..."
+            placeholder="Search by name, code, or phone"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-9 pl-9 pr-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+            className="w-full h-9 pl-9 pr-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          <select
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="h-9 text-sm font-semibold border border-slate-200 rounded-xl px-3 text-slate-700 bg-white focus:outline-none focus:border-primary"
-          >
-            <option value="ALL">🌐 All Branches</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                📍 {b.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={selectedCourseFilter}
-            onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="h-9 text-sm border border-slate-200 rounded-xl px-3 text-slate-600 bg-white focus:outline-none focus:border-primary"
-          >
-            <option value="All Courses">All Courses</option>
-            {allCourses.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          {branches.length > 1 && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-9 text-sm border border-slate-200 rounded-xl px-3 text-slate-700 bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="ALL">All branches</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </FilterToolbar>
 
-      <div className="flex items-center gap-6 overflow-x-auto border-b border-border">
-        {tabs.map((tab) => (
-          <button
-            key={tab.name}
-            onClick={() => setSelectedTab(tab.name)}
-            className={`text-xs font-semibold py-2 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
-              selectedTab === tab.name
-                ? "border-primary text-primary"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <span>{tab.name}</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              selectedTab === tab.name ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600"
-            }`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {isLoading ? "Loading students..." : `${filteredStudents.length} student${filteredStudents.length === 1 ? "" : "s"}`}
+      </p>
 
-      {/* ─── 4. RICH STUDENTS TABLE ───────────────────────────────────── */}
       <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500 font-semibold text-xs border-b border-slate-200">
               <tr>
-                <th className="p-3.5 pl-5">Student / Code</th>
-                <th className="p-3.5">Branch & Demographics</th>
-                <th className="p-3.5">Enrolled Program & Batch</th>
-                <th className="p-3.5">Attendance Compliance</th>
-                <th className="p-3.5">Fee Status</th>
+                <th className="p-3.5 pl-5">Student</th>
+                <th className="p-3.5">Phone</th>
+                <th className="p-3.5">Admission No.</th>
+                <th className="p-3.5">Admission Date</th>
+                <th className="p-3.5">Course</th>
+                <th className="p-3.5">Batch</th>
                 <th className="p-3.5">Status</th>
-                <th className="p-3.5 text-right pr-5">Quick Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredStudents.length === 0 ? (
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-slate-500">
+                    <Loader2 className="h-5 w-5 mx-auto animate-spin mb-2" />
+                    Loading students...
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-red-600">
+                    <AlertCircle className="h-5 w-5 mx-auto mb-2" />
+                    Unable to load students.
+                  </td>
+                </tr>
+              ) : filteredStudents.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-500">
                     <Users className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                    <p className="text-sm font-semibold text-slate-700">No students match the criteria</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Try clearing filters or search term.</p>
+                    <p className="text-sm font-semibold text-slate-700">No students found</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Try another name or clear the status filter.</p>
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((s) => (
+                filteredStudents.map((student) => (
                   <tr
-                    key={s.id}
-                    onClick={() => navigate(`${basePath}/students/${s.id}`)}
-                    className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
+                    key={student.id}
+                    onClick={() => navigate(`${basePath}/students/${student.id}`)}
+                    className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                   >
-                    {/* Student Name & Code */}
                     <td className="p-3.5 pl-5">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 border border-slate-200">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-indigo-700 text-white font-bold text-xs">
-                            {s.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
+                          <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                            {student.name.split(" ").map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-bold text-slate-900 group-hover:text-primary transition-colors">
-                            {s.name}
-                          </p>
-                          <p className="font-mono text-[11px] text-slate-500">{s.studentCode}</p>
-                          <p className="text-[10px] text-slate-400">{s.phone}</p>
+                          <p className="font-semibold text-slate-900">{student.name}</p>
                         </div>
                       </div>
                     </td>
-
-                    {/* Branch & Demographics */}
-                    <td className="p-3.5">
-                      <span className="font-semibold text-slate-800 flex items-center gap-1">
-                        📍 {s.branch}
-                      </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {s.gender} • {s.qualification}
-                      </p>
-                    </td>
-
-                    {/* Program & Batch */}
+                    <td className="p-3.5 text-xs text-slate-700">{student.phone}</td>
+                    <td className="p-3.5 font-mono text-xs text-slate-700">{student.admissionNo}</td>
+                    <td className="p-3.5 text-xs text-slate-700">{student.admissionDate}</td>
                     <td className="p-3.5">
                       <CourseChips
-                        courses={coursesFromStudent({ courses: s.courses, courseName: s.course })}
-                        fallback={s.course}
-                        maxVisible={3}
-                        className="max-w-[220px]"
+                        courses={coursesFromStudent({ courses: student.courses, courseName: student.course })}
+                        fallback="Not assigned"
+                        maxVisible={2}
                       />
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">{s.batch}</p>
-                      <p className="text-[10px] text-slate-400">Faculty: {s.faculty}</p>
                     </td>
-
-                    {/* Attendance */}
+                    <td className="p-3.5 text-xs font-medium text-slate-800">{student.batch}</td>
                     <td className="p-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold text-xs ${
-                          s.attendance >= 85 ? "text-emerald-700" : s.attendance >= 70 ? "text-amber-700" : "text-red-700"
-                        }`}>
-                          {s.attendance}%
-                        </span>
-                        {s.consecutiveAbsences >= 2 && (
-                          <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                            <ShieldAlert className="h-3 w-3" /> {s.consecutiveAbsences} Absences
-                          </span>
-                        )}
-                      </div>
-                      <div className="w-28 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            s.attendance >= 85 ? "bg-emerald-500" : s.attendance >= 70 ? "bg-amber-500" : "bg-red-500"
-                          }`}
-                          style={{ width: `${s.attendance}%` }}
-                        />
-                      </div>
-                    </td>
-
-                    {/* Fee Status */}
-                    <td className="p-3.5">
-                      {(() => {
-                        const feeInfo = getFeeDetails(s.fees);
-                        return (
-                          <>
-                            <p className="font-bold text-slate-900">
-                              ₹{feeInfo.paid.toLocaleString()}
-                              <span className="text-[10px] text-slate-400 font-normal"> / ₹{feeInfo.total.toLocaleString()}</span>
-                            </p>
-                            {feeInfo.pending > 0 ? (
-                              <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
-                                ₹{feeInfo.pending.toLocaleString()} Due
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                                ✓ Fully Paid
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="p-3.5">
-                      {s.status === "Admission Pending" || s.status === "Draft" ? (
-                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
-                          Admission Pending
-                        </span>
-                      ) : s.status === "Batch Assignment Pending" ? (
-                        <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-200">
-                          Batch Pending
-                        </span>
-                      ) : s.status === "Active" ? (
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          Active
-                        </span>
-                      ) : s.status === "At Risk" ? (
-                        <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          At Risk
-                        </span>
-                      ) : (
-                        <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {s.status}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="p-3.5 text-right pr-5" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2">
-                        {s.status === "Admission Pending" || s.status === "Draft" ? (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => navigate(`${basePath}/students/${s.id}`)}
-                            className="h-7 px-2.5 text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
-                            title="Open Dossier and view Admission Pending details"
-                          >
-                            <Sparkles className="h-3.5 w-3.5 text-amber-200" />
-                            View Pending
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`${basePath}/students/${s.id}`)}
-                            className="h-7 px-2.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
-                            title="Open Student Profile & Dossier"
-                          >
-                            View Dossier
-                          </Button>
-                        )}
-                      </div>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        student.status === "Active"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : student.status === "At Risk"
+                            ? "bg-red-100 text-red-800"
+                            : student.status === "Admission Pending" || student.status === "Batch Assignment Pending"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-700"
+                      }`}>
+                        {student.status}
+                      </span>
                     </td>
                   </tr>
                 ))

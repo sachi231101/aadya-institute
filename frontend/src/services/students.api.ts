@@ -150,14 +150,15 @@ export const studentsApi = {
   ): Promise<
     SingleResponse<{
       success: boolean;
+      queued: boolean;
+      status: string;
+      skipReason: string | null;
+      temporaryPassword: string;
       recipient: {
         name: string;
         phone: string;
-        formattedPhone: string;
         studentCode: string;
       };
-      message: string;
-      whatsappWebUrl: string;
     }>
   > => {
     const response = await api.post(`/students/${id}/send-credentials-whatsapp`);

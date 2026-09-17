@@ -74,7 +74,6 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "students",
     items: [
       { title: "All Students", url: "/counselor/students/all", itemKey: "students.all" },
-      { title: "Student Documents", url: "/counselor/students/documents", itemKey: "students.documents" },
       { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: "/counselor/students/student-allocation", itemKey: "students.student_allocation" },
       { title: L["students.attendance"] ?? "Student Attendance", url: "/counselor/students/attendance", itemKey: "students.attendance" },
       { title: L["students.performance"] ?? "Academic Performance", url: "/counselor/students/performance", itemKey: "students.performance" },

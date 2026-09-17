@@ -19,7 +19,6 @@ import {
   User,
   HeartHandshake,
   CreditCard,
-  Clock,
   MessageSquare,
   Bot,
   Download,
@@ -31,12 +30,7 @@ import {
   CheckCircle2,
   PlusCircle,
   FileText,
-  ShieldCheck,
-  Copy,
-  MapPin,
   RefreshCw,
-  X,
-  ExternalLink,
   Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -64,10 +58,6 @@ export const StudentDetails: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("overview");
-  const [callInitiated, setCallInitiated] = useState(false);
-  const [waSent, setWaSent] = useState(false);
-  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
-
   // Admission & Batch Activation Modal State
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
@@ -251,71 +241,40 @@ export const StudentDetails: React.FC = () => {
     }
   };
 
-  const handleAICall = () => {
-    setCallInitiated(true);
-    setTimeout(() => setCallInitiated(false), 4000);
-  };
-
-  const handleWhatsAppSend = () => {
-    setWaSent(true);
-    setTimeout(() => setWaSent(false), 3000);
-  };
-
   // ─── Send ID & Password to Student WhatsApp ───────────────────────
   const [isSendingCredentials, setIsSendingCredentials] = useState(false);
   const [credentialsSentInfo, setCredentialsSentInfo] = useState<{
     phone: string;
     studentCode: string;
-    whatsappWebUrl: string;
+    temporaryPassword: string;
+    queued: boolean;
+    skipReason: string | null;
   } | null>(null);
   const [showCredentialsSentModal, setShowCredentialsSentModal] = useState(false);
+  const [credentialsError, setCredentialsError] = useState<string | null>(null);
 
   const handleSendCredentialsWhatsApp = async () => {
     if (!id) return;
     setIsSendingCredentials(true);
+    setCredentialsError(null);
     try {
       const res = await studentsApi.sendCredentialsWhatsApp(id);
-      if (res.data?.success) {
-        setCredentialsSentInfo({
-          phone: res.data.recipient.formattedPhone || res.data.recipient.phone,
-          studentCode: res.data.recipient.studentCode,
-          whatsappWebUrl: res.data.whatsappWebUrl,
-        });
-        setShowCredentialsSentModal(true);
+      const result = res.data;
+      if (!result?.temporaryPassword) {
+        setCredentialsError(res.message || "Could not reset the student password.");
+        return;
       }
-    } catch {
-      // Fallback: If student has a phone number, construct WhatsApp Web URL directly
-      const phoneToUse = studentPhone && studentPhone !== "—" && studentPhone !== notProvided
-        ? studentPhone
-        : "";
-      const cleanPhone = phoneToUse.replace(/\D/g, "");
-      const formatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-      const code = student?.studentCode || admissionNo || "AADYA/2026/0001";
-      const fallbackText = `🎓 *Welcome to Aadya Institute!*
-
-Dear *${studentName}*,
-
-Your admission has been confirmed. Below are your Student Portal login credentials:
-
-🆔 *Student ID / Username:* \`${code}\`
-🔑 *Initial Password:* \`Aadya@123\`
-🌐 *Portal URL:* ${window.location.origin}/login
-
-📌 *Important Instructions:*
-1. Sign in to your Student Dashboard using your Student ID and Initial Password.
-2. Go to *Profile* → *Change Password* to set your personal secure password.
-3. Access your class timetables, attendance history, assignments, and recordings.
-
-Best regards,  
-*Aadya Institute Management*`;
-
-      const directUrl = formatted ? `https://wa.me/${formatted}?text=${encodeURIComponent(fallbackText)}` : "";
       setCredentialsSentInfo({
-        phone: formatted ? `+${formatted}` : "Registered Number",
-        studentCode: code,
-        whatsappWebUrl: directUrl,
+        phone: result.recipient.phone,
+        studentCode: result.recipient.studentCode,
+        temporaryPassword: result.temporaryPassword,
+        queued: result.queued,
+        skipReason: result.skipReason,
       });
       setShowCredentialsSentModal(true);
+      await queryClient.invalidateQueries({ queryKey: ["student", id] });
+    } catch (err: any) {
+      setCredentialsError(err?.response?.data?.message || "Could not send login credentials.");
     } finally {
       setIsSendingCredentials(false);
     }
@@ -359,7 +318,7 @@ Best regards,
   const studentEmail = student.user?.email || notProvided;
   const studentPhone = student.user?.phone || notProvided;
   const altPhone = extractNote(notesText, /Alternate mobile:\s*([^|\n]+)/i) || notProvided;
-  const branchName = student.branch?.name || "Aadya Institute Malleshwaram";
+  const branchName = student.branch?.name || notProvided;
   const gender = student.gender || extractNote(notesText, /Gender:\s*([^|\n]+)/i) || notProvided;
   const qualification =
     (student as any).highestQualification ||
@@ -375,9 +334,12 @@ Best regards,
   const guardianPhone = student.guardian?.phone || extractNote(notesText, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || notProvided;
   const emergencyContact = guardianPhone !== notProvided ? guardianPhone : notProvided;
   const addressStr = student.address?.street || extractNote(notesText, /Address:\s*([^|\n]+)/i) || notProvided;
-  const cityStr = student.address?.city || "Bengaluru";
-  const stateStr = (student.address as any)?.state || "Karnataka";
-  const pincodeStr = student.address?.pincode || "560102";
+  const cityStr = student.address?.city || notProvided;
+  const stateStr = student.address?.state || notProvided;
+  const pincodeStr = student.address?.pincode || "";
+  const locationStr = [cityStr !== notProvided ? cityStr : "", stateStr !== notProvided ? stateStr : "", pincodeStr]
+    .filter(Boolean)
+    .join(", ") || notProvided;
 
   const activeBatch = student.batchEnrollments?.[0]?.batch;
   const batchName = isDraftStudent || (!activeBatch?.name && !student.batchName && !admission?.batch?.name) ? "Not Assigned" : (activeBatch?.name || student.batchName || admission?.batch?.name || "Not Assigned");
@@ -432,9 +394,10 @@ Best regards,
     enrolledCourses.length > 1
       ? `${enrolledCourses.length} courses`
       : enrolledCourses[0]?.code || activeBatch?.course?.code || admission?.course?.code || "—";
-  const courseDuration = admission?.course?.duration ? `${admission.course.duration} Months` : "6 Months Program";
-  const deliveryMode = "Classroom / Offline Mode";
-  const batchTimeSlot = activeBatch?.timeSlot || student.batchTiming || "10:00 AM – 12:00 PM";
+  const primaryCourse = admission?.course || activeBatch?.course;
+  const courseDuration = primaryCourse?.duration ? `${primaryCourse.duration} months` : notProvided;
+  const deliveryMode = primaryCourse?.mode || notProvided;
+  const batchTimeSlot = activeBatch?.timeSlot || student.batchTiming || notProvided;
   const facultyName =
     isDraftStudent ||
     (!activeBatch?.faculty?.user?.name && !student.facultyName && !activeBatch?.batchCourses?.length)
@@ -442,23 +405,22 @@ Best regards,
       : activeBatch
         ? formatBatchInstructorsSummary(activeBatch)
         : student.facultyName || "Not Assigned";
-  const facultyAvatar = (activeBatch?.faculty?.user?.name)
-    ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(activeBatch.faculty.user.name)}`
-    : undefined;
   const schedulePattern = isDraftStudent || (!activeBatch?.schedulePattern && !admission?.batch?.schedulePattern) ? "Not Assigned" : (activeBatch?.schedulePattern || admission?.batch?.schedulePattern || "Not Assigned");
-  const preferredTiming = batchTimeSlot !== notProvided ? batchTimeSlot : "Morning / Evening";
+  const preferredTiming = batchTimeSlot !== notProvided ? batchTimeSlot : notProvided;
 
   const admissionNo = isDraftStudent || !admission?.admissionNo ? "Not Yet Admitted" : admission.admissionNo;
-  const admissionType = extractNote(notesText, /Admission type:\s*([^|\n]+)/i) || "Regular Admission";
+  const admissionType = extractNote(notesText, /Admission type:\s*([^|\n]+)/i) || notProvided;
   const admissionDate = isDraftStudent
     ? "Not Yet Admitted"
     : admission?.admissionDate
     ? new Date(admission.admissionDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : new Date(student.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  const academicYear = extractNote(notesText, /Academic year:\s*([^|\n]+)/i) || "2025 – 2026";
-  const counselorName = admission?.counselorName || extractNote(notesText, /Counsellor:\s*([^|\n]+)/i) || "Priya Singh (Senior Counsellor)";
-  const leadSource = extractNote(notesText, /(?:Lead source|Source):\s*([^|\n]+)/i) || (student as any).leadSource || "Direct Walk-in";
-  const referralSource = extractNote(notesText, /Referral:\s*([^|\n]+)/i) || "Direct";
+  const academicYear = admission?.admissionDate
+    ? String(new Date(admission.admissionDate).getFullYear())
+    : notProvided;
+  const counselorName = student.counsellorName || extractNote(notesText, /Counsellor:\s*([^|\n]+)/i) || notProvided;
+  const leadSource = student.leadSource || extractNote(notesText, /(?:Lead source|Source):\s*([^|\n]+)/i) || notProvided;
+  const referralSource = extractNote(notesText, /Referral:\s*([^|\n]+)/i) || notProvided;
   const admissionStatusDisplay = isDraftStudent ? "Admission Pending" : admission?.status === "PROVISIONAL" ? "Provisional" : "Confirmed";
 
   const attendanceRate = student.attendance?.overallPercentage ?? 0;
@@ -479,22 +441,6 @@ Best regards,
   const assignments = student.assignments ?? [];
   const payments = student.payments ?? [];
   const pendingFees = student.pendingFees ?? [];
-
-  const docs = (admission?.documents && admission.documents.length > 0)
-    ? admission.documents
-    : [
-        { id: "d1", title: "Government Identity Proof (Aadhaar / Passport)", fileName: "aadhaar_card.pdf", verified: true },
-        { id: "d2", title: "Highest Qualification Certificate / Marksheet", fileName: "qualification_certificate.pdf", verified: true },
-        { id: "d3", title: "Passport Size Photograph", fileName: "student_photo.jpg", verified: true },
-        { id: "d4", title: "Residential Address Verification Proof", fileName: "address_proof.pdf", verified: true },
-      ];
-
-  const docStats = {
-    total: docs.length,
-    submitted: docs.length,
-    pending: docs.filter((d: any) => !d.verified).length,
-    verified: docs.filter((d: any) => d.verified).length,
-  };
 
   return (
     <PageContainer maxWidth="narrow" className="text-foreground font-sans antialiased animate-in fade-in duration-200">
@@ -565,25 +511,6 @@ Best regards,
             </Button>
           )}
 
-          {/* AI Voice Call Trigger */}
-          <Button
-            onClick={handleAICall}
-            disabled={callInitiated}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-3 py-1.5 shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            {callInitiated ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>AI Call Ringing...</span>
-              </>
-            ) : (
-              <>
-                <Bot className="h-3.5 w-3.5" />
-                <span>Trigger AI Voice Call</span>
-              </>
-            )}
-          </Button>
-
           {/* Send ID & Password to Student WhatsApp */}
           <Button
             onClick={handleSendCredentialsWhatsApp}
@@ -595,7 +522,7 @@ Best regards,
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 <span>Sending ID & Password...</span>
               </>
-            ) : credentialsSentInfo ? (
+            ) : credentialsSentInfo?.queued ? (
               <>
                 <Check className="h-3.5 w-3.5 text-white" />
                 <span>Credentials Sent!</span>
@@ -607,27 +534,10 @@ Best regards,
               </>
             )}
           </Button>
-
-          {/* WhatsApp Direct */}
-          <Button
-            onClick={handleWhatsAppSend}
-            variant="outline"
-            disabled={waSent}
-            className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-medium text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
-          >
-            {waSent ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>WhatsApp Sent!</span>
-              </>
-            ) : (
-              <>
-                <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Send WhatsApp</span>
-              </>
-            )}
-          </Button>
           </PermissionGate>
+          {credentialsError && (
+            <p className="basis-full text-xs font-medium text-rose-600">{credentialsError}</p>
+          )}
         </div>
       </div>
 
@@ -645,19 +555,9 @@ Best regards,
                 {consecutiveAbsences >= 3
                   ? " The auto-discontinuation workflow is triggered."
                   : " One more absence will trigger the discontinuation workflow."}
-                {" "}Please contact the student via AI Voice Call or WhatsApp.
               </p>
             </div>
           </div>
-          <PermissionGate itemKey="students.all" mode="write">
-          <Button
-            size="sm"
-            onClick={handleAICall}
-            className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs px-3 py-1 shadow-sm shrink-0 cursor-pointer"
-          >
-            Initiate Urgent AI Call
-          </Button>
-          </PermissionGate>
         </div>
       )}
 
@@ -668,7 +568,6 @@ Best regards,
             {/* Left Side: Avatar, Name, Code, Phone, Email */}
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14 border border-border shrink-0">
-                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(studentName)}`} alt={studentName} />
                 <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
                   {studentName.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
                 </AvatarFallback>
@@ -957,7 +856,7 @@ Best regards,
                   <div className="sm:col-span-2">
                     <span className="text-muted-foreground block text-[10px] uppercase font-semibold">City / Location</span>
                     <span className="text-foreground font-medium mt-0.5 block">
-                      {cityStr}, {stateStr} {pincodeStr ? `- ${pincodeStr}` : ""}
+                      {locationStr}
                     </span>
                   </div>
                 </CardContent>
@@ -1055,44 +954,6 @@ Best regards,
                 </CardContent>
               </Card>
 
-              {/* SECTION 6 — DOCUMENT SUMMARY */}
-              <Card className="bg-card border-border shadow-xs">
-                <CardHeader className="bg-muted/20 border-b border-border py-3 px-5 flex flex-row items-center justify-between">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-primary" />
-                    <span>Section 6 — Document Summary</span>
-                  </CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsDocsModalOpen(true)}
-                    className="h-7 text-xs font-semibold border-border text-foreground hover:bg-muted/50 gap-1 cursor-pointer"
-                  >
-                    <FileText className="h-3 w-3 text-primary" />
-                    <span>View Documents</span>
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-5 text-xs">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-muted/40 rounded-xl border border-border text-center">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Documents</span>
-                      <span className="text-base font-bold text-foreground mt-0.5 block">{docStats.total}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Submitted</span>
-                      <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5 block">{docStats.submitted}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Pending</span>
-                      <span className="text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">{docStats.pending}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Verified</span>
-                      <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{docStats.verified}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </TabsContent>
@@ -1141,6 +1002,7 @@ Best regards,
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Batch: <strong className="text-foreground">{batchName}</strong>
+                    {schedulePattern !== "Not Assigned" ? ` • ${schedulePattern}` : ""}
                     {enrolledCourses.length <= 1 ? ` (${courseCode})` : ""} • Assigned Faculty:{" "}
                     <strong className="text-foreground">{facultyName}</strong>
                   </p>
@@ -1236,7 +1098,7 @@ Best regards,
                             <td className="p-3 font-semibold text-foreground">
                               {new Date(rec.classSession?.scheduledDate || rec.date || rec.markedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                             </td>
-                            <td className="p-3 text-foreground">{rec.classSession?.title || rec.sessionTopic || "General Class Session"}</td>
+                            <td className="p-3 text-foreground">{rec.classSession?.title || rec.sessionTopic || "Class"}</td>
                             <td className="p-3">
                               <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${rec.status === "PRESENT" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" : rec.status === "LEAVE" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30" : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"}`}>
                                 {rec.status}
@@ -1432,76 +1294,28 @@ Best regards,
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
-                <p className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
-                  WhatsApp notification logs will appear here once messages are sent to this student.
-                </p>
+                {(student.whatsappNotifications || []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
+                    No WhatsApp messages have been sent to this student.
+                  </p>
+                ) : (
+                  student.whatsappNotifications?.map((note) => (
+                    <div key={note.id} className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between font-semibold">
+                        <span className="text-foreground">{new Date(note.createdAt).toLocaleString("en-IN")}</span>
+                        <Badge variant="outline" className="text-[10px]">{note.status}</Badge>
+                      </div>
+                      <p className="text-muted-foreground text-[11px]">{note.event || "WhatsApp"}{note.skipReason ? ` — ${note.skipReason}` : ""}{note.errorMessage ? ` — ${note.errorMessage}` : ""}</p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* ─── 5. DOCUMENTS MODAL ─────────────────────────────────────────── */}
-      {isDocsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-primary flex items-center justify-center">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">Verification Documents</h3>
-                  <p className="text-xs text-muted-foreground">{studentName} ({student.studentCode})</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDocsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2.5">
-              {docs.map((doc: any) => (
-                <div
-                  key={doc.id}
-                  className="p-3.5 rounded-xl border border-border bg-background flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-primary shrink-0" />
-                    <div>
-                      <p className="font-bold text-foreground">{doc.title}</p>
-                      <p className="text-[11px] text-muted-foreground">{doc.fileName}</p>
-                      {doc.verified && (
-                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                          <ShieldCheck className="h-3 w-3" /> Verified Document
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px]">
-                    Verified ✓
-                  </Badge>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-border">
-              <Button
-                variant="outline"
-                onClick={() => setIsDocsModalOpen(false)}
-                className="h-9 text-xs font-semibold border-border text-foreground hover:bg-muted/50 cursor-pointer"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── 6. ON-DOSSIER COMPLETE ADMISSION & BATCH ASSIGNMENT DIALOG ───── */}
+      {/* ─── ON-DOSSIER COMPLETE ADMISSION & BATCH ASSIGNMENT DIALOG ───── */}
       <Dialog open={isActivateModalOpen} onOpenChange={setIsActivateModalOpen}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto bg-card border-border text-foreground">
           <DialogHeader>
@@ -1656,10 +1470,12 @@ Best regards,
               <CheckCircle2 className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
             </div>
             <DialogTitle className="text-center text-lg font-bold text-foreground">
-              Credentials Dispatched to WhatsApp
+              {credentialsSentInfo?.queued ? "Login credentials queued" : "Password reset, WhatsApp not sent"}
             </DialogTitle>
             <DialogDescription className="text-center text-xs text-muted-foreground">
-              Login ID and initial default password sent to the mobile number registered during admission.
+              {credentialsSentInfo?.queued
+                ? "A new password was set and queued to the student's registered mobile number."
+                : credentialsSentInfo?.skipReason || "WhatsApp did not accept this message. Share the new password directly."}
             </DialogDescription>
           </DialogHeader>
 
@@ -1669,32 +1485,22 @@ Best regards,
               <span className="font-semibold text-foreground">{studentName}</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b border-border/50">
-              <span className="text-muted-foreground font-medium">Student ID / Admission No:</span>
+              <span className="text-muted-foreground font-medium">Student ID:</span>
               <span className="font-mono font-bold text-primary">{credentialsSentInfo?.studentCode || student.studentCode}</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b border-border/50">
-              <span className="text-muted-foreground font-medium">Default Password:</span>
-              <span className="font-mono font-bold text-foreground">Aadya@123</span>
+              <span className="text-muted-foreground font-medium">New password:</span>
+              <span className="font-mono font-bold text-foreground">{credentialsSentInfo?.temporaryPassword}</span>
             </div>
             <div className="flex justify-between items-center py-1">
-              <span className="text-muted-foreground font-medium">WhatsApp Recipient:</span>
-              <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="text-muted-foreground font-medium">Mobile:</span>
+              <span className="font-mono font-semibold text-foreground">
                 {credentialsSentInfo?.phone || studentPhone}
               </span>
             </div>
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-3 pt-2 border-t border-border">
-            {credentialsSentInfo?.whatsappWebUrl && (
-              <Button
-                variant="default"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto cursor-pointer"
-                onClick={() => window.open(credentialsSentInfo.whatsappWebUrl, "_blank")}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span>Open in WhatsApp Web / App</span>
-              </Button>
-            )}
             <Button
               variant="outline"
               className="w-full sm:w-auto text-xs border-border text-foreground hover:bg-muted/50 cursor-pointer"

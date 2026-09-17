@@ -2,21 +2,12 @@
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Mail,
-  Phone,
-  Award,
-  BookOpen,
   Clock,
-  MapPin,
   Loader2,
   AlertCircle,
   Star,
   Calendar,
   TrendingUp,
-  MonitorPlay,
-  AlertTriangle,
-  CheckCircle2,
-  BarChart3,
   Users
 } from "lucide-react";
 import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "../../../hooks/useFaculty";
@@ -85,7 +76,31 @@ const buildAttendanceTrend = (
   }));
 };
 
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const SCHEDULE_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+
+const minutesFromClock = (value?: string) => {
+  if (!value) return null;
+  const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  const meridiem = match[3]?.toLowerCase();
+  if (meridiem === "pm" && hours < 12) hours += 12;
+  if (meridiem === "am" && hours === 12) hours = 0;
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+};
+
+const hoursBetween = (start?: string, end?: string) => {
+  const startMinutes = minutesFromClock(start);
+  const endMinutes = minutesFromClock(end);
+  if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return 0;
+  return (endMinutes - startMinutes) / 60;
+};
+
 const getWorkloadState = (hrs: number) => {
+  if (hrs <= 0) return { label: "Not scheduled", color: "bg-slate-300", text: "text-muted-foreground", pct: 0 };
   if (hrs > 30) return { label: "High", color: "bg-rose-500", text: "text-rose-500", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
   if (hrs > 20) return { label: "Moderate", color: "bg-amber-500", text: "text-amber-500", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
   return { label: "Optimal", color: "bg-emerald-500", text: "text-emerald-500", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
@@ -145,41 +160,93 @@ export const FacultyDetails: React.FC = () => {
     );
   }
 
-  const assignedStudentsCount = facultyAssignments.reduce((sum, a: any) => sum + (a._count?.enrollments ?? a.enrollments?.length ?? 0), 0);
+  const uniqueBatches = new Map<string, (typeof facultyAssignments)[number]>();
+  for (const assignment of facultyAssignments) {
+    const key = assignment.batchId || assignment.id;
+    if (!uniqueBatches.has(key)) uniqueBatches.set(key, assignment);
+  }
+  const assignedBatches = Array.from(uniqueBatches.values());
+  const assignedStudentsCount = assignedBatches.reduce(
+    (sum, assignment) => sum + (assignment._count?.enrollments ?? 0),
+    0
+  );
+  const weeklyHours = Math.round(
+    assignedBatches.reduce((sum, assignment) => {
+      const slots = (assignment.schedules || []).filter(
+        (slot) => !slot.facultyId || slot.facultyId === assignment.facultyId
+      );
+      return sum + slots.reduce((hours, slot) => hours + hoursBetween(slot.startTime, slot.endTime), 0);
+    }, 0) * 10
+  ) / 10;
+  const sessionStats = assignedBatches.reduce(
+    (stats, assignment) => {
+      for (const session of assignment.classSessions || []) {
+        stats.total += 1;
+        if (session.sessionStatus === "COMPLETED") stats.completed += 1;
+        if (session.sessionStatus === "UPCOMING" || session.sessionStatus === "LIVE") stats.upcoming += 1;
+      }
+      return stats;
+    },
+    { total: 0, completed: 0, upcoming: 0 }
+  );
+  const averageRating = facultyReviews.length
+    ? Math.round((facultyReviews.reduce((sum, review) => sum + review.rating, 0) / facultyReviews.length) * 10) / 10
+    : null;
 
-  // Unified real faculty data object
+  const schedule: Record<string, Array<{ batch: string; time: string }>> = {
+    MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [],
+  };
+  for (const assignment of assignedBatches) {
+    for (const slot of (assignment.schedules || []).filter(
+      (item) => !item.facultyId || item.facultyId === assignment.facultyId
+    )) {
+      const day = DAY_NAMES[slot.dayOfWeek]?.slice(0, 3).toUpperCase();
+      if (!day || !schedule[day]) continue;
+      schedule[day].push({
+        batch: assignment.course?.name ? `${assignment.name} · ${assignment.course.name}` : assignment.name,
+        time: `${slot.startTime}–${slot.endTime}`,
+      });
+    }
+  }
+
   const faculty = {
     id: backendFaculty.id,
     name: backendFaculty.user?.name || "Faculty Member",
-    email: backendFaculty.user?.email || "N/A",
-    phone: backendFaculty.user?.phone || "N/A",
-    specialization: backendFaculty.specialization || "Technical Instructor",
-    designation: backendFaculty.designation || backendFaculty.designationMaster?.name || "—",
-    qualification: backendFaculty.qualification || backendFaculty.qualificationMaster?.name || "—",
-    employeeCode: backendFaculty.employeeCode || "EMP-001",
-    branch: backendFaculty.branch?.name || "Aadya Branch",
-    status: backendFaculty.status || "Active",
-    avatar: `https://i.pravatar.cc/150?u=${id}`,
+    email: backendFaculty.user?.email || null,
+    phone: backendFaculty.user?.phone || null,
+    specialization: backendFaculty.specialization || null,
+    designation: backendFaculty.designation || backendFaculty.designationMaster?.name || null,
+    qualification: backendFaculty.qualification || backendFaculty.qualificationMaster?.name || null,
+    employeeCode: backendFaculty.employeeCode,
+    branch: backendFaculty.branch?.name || null,
+    status: backendFaculty.status,
     joinDate: backendFaculty.createdAt
       ? new Date(backendFaculty.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-      : "N/A",
-    experience: "Certified Faculty",
-    rating: 4.8,
-    batchesCount: facultyAssignments.length,
+      : "—",
+    rating: averageRating,
+    batchesCount: assignedBatches.length,
     studentsCount: assignedStudentsCount,
-    workloadHrs: facultyAssignments.length * 6,
+    workloadHrs: weeklyHours,
     attendance: attendanceRate,
-    batches: facultyAssignments.map((a: any) => ({
-      id: a.code || a.id,
-      name: a.course?.name || a.name || "Assigned Batch",
-      students: a._count?.enrollments || 0,
-      status: a.status || "Active",
-      progress: 50,
-      time: "Scheduled",
-    })),
-    studentPerf: { excellent: 0, good: 0, needsImp: 0, atRisk: 0 },
-    schedule: {} as Record<string, any[]>,
-    alerts: [],
+    batches: assignedBatches.map((assignment) => {
+      const sessions = assignment.classSessions || [];
+      const completed = sessions.filter((session) => session.sessionStatus === "COMPLETED").length;
+      const timing = (assignment.schedules || [])
+        .filter((slot) => !slot.facultyId || slot.facultyId === assignment.facultyId)
+        .map((slot) => `${DAY_NAMES[slot.dayOfWeek] || "Day"} ${slot.startTime}–${slot.endTime}`)
+        .join(", ");
+      return {
+        id: assignment.code || assignment.id,
+        name: assignment.course?.name || assignment.name,
+        batchName: assignment.name,
+        students: assignment._count?.enrollments || 0,
+        status: assignment.status,
+        progress: sessions.length > 0 ? Math.round((completed / sessions.length) * 100) : null,
+        time: timing || null,
+      };
+    }),
+    schedule,
+    sessionStats,
   };
 
   const workloadState = getWorkloadState(faculty.workloadHrs);
@@ -238,13 +305,15 @@ export const FacultyDetails: React.FC = () => {
           >
             Course Allocations
           </Button>
-          <Button
-            size="sm"
-            onClick={() => alert(`Opening message composer for ${faculty.name}`)}
-            className="bg-primary hover:bg-primary/90 text-white text-xs font-semibold h-9 rounded-xl shadow-xs cursor-pointer"
-          >
-            Message Faculty
-          </Button>
+          {faculty.email && (
+            <Button
+              size="sm"
+              asChild
+              className="bg-primary hover:bg-primary/90 text-white text-xs font-semibold h-9 rounded-xl shadow-xs cursor-pointer"
+            >
+              <a href={`mailto:${faculty.email}`}>Message Faculty</a>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -252,12 +321,7 @@ export const FacultyDetails: React.FC = () => {
       <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
         <CardContent className="p-5">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <img
-                src={faculty.avatar}
-                alt={faculty.name}
-                className="w-16 h-16 rounded-xl border border-border object-cover shrink-0"
-              />
+            <div className="min-w-0">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h2 className="text-lg font-bold text-foreground">{faculty.name}</h2>
@@ -270,7 +334,7 @@ export const FacultyDetails: React.FC = () => {
                   >
                     {faculty.status}
                   </span>
-                  {faculty.rating > 0 && (
+                  {faculty.rating !== null && (
                     <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                       ★ {faculty.rating} / 5.0
                     </span>
@@ -285,7 +349,7 @@ export const FacultyDetails: React.FC = () => {
                       <span className="text-primary font-semibold">{faculty.specialization}</span>
                     </>
                   )}
-                  {faculty.designation && faculty.designation !== "—" && (
+                  {faculty.designation && (
                     <>
                       <span>•</span>
                       <span>{faculty.designation}</span>
@@ -300,19 +364,23 @@ export const FacultyDetails: React.FC = () => {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <a href={`mailto:${faculty.email}`} className="hover:text-primary transition-colors">
-                    {faculty.email}
-                  </a>
+                  {faculty.email ? (
+                    <a href={`mailto:${faculty.email}`} className="hover:text-primary transition-colors">
+                      {faculty.email}
+                    </a>
+                  ) : (
+                    <span>No email on record</span>
+                  )}
                   {faculty.phone && (
                     <>
                       <span>•</span>
-                      <span>+91 {faculty.phone}</span>
+                      <span>{faculty.phone}</span>
                     </>
                   )}
-                  {faculty.experience && faculty.experience !== "—" && (
+                  {faculty.qualification && (
                     <>
                       <span>•</span>
-                      <span>{faculty.experience}</span>
+                      <span>{faculty.qualification}</span>
                     </>
                   )}
                 </div>
@@ -344,14 +412,17 @@ export const FacultyDetails: React.FC = () => {
           <CardContent className="p-3.5 text-center">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weekly Workload</p>
             <h4 className="text-xl font-bold text-primary mt-0.5">
-              {faculty.workloadHrs}h <span className="text-xs font-normal text-muted-foreground">/wk</span>
+              {faculty.workloadHrs > 0 ? faculty.workloadHrs : "—"}
+              {faculty.workloadHrs > 0 && <span className="text-xs font-normal text-muted-foreground">h /wk</span>}
             </h4>
           </CardContent>
         </Card>
         <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
           <CardContent className="p-3.5 text-center">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Rate</p>
-            <h4 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{faculty.attendance}%</h4>
+            <h4 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {facultyDailyAttendance.length > 0 ? `${faculty.attendance}%` : "—"}
+            </h4>
           </CardContent>
         </Card>
       </div>
@@ -398,15 +469,15 @@ export const FacultyDetails: React.FC = () => {
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-border/70">
                   <span className="text-muted-foreground font-medium">Branch</span>
-                  <span className="font-semibold text-foreground">{faculty.branch}</span>
+                  <span className="font-semibold text-foreground">{faculty.branch || "—"}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-border/70">
                   <span className="text-muted-foreground font-medium">Specialization</span>
-                  <span className="font-semibold text-primary">{faculty.specialization}</span>
+                  <span className="font-semibold text-primary">{faculty.specialization || "—"}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-border/70">
-                  <span className="text-muted-foreground font-medium">Experience</span>
-                  <span className="font-semibold text-foreground">{faculty.experience}</span>
+                  <span className="text-muted-foreground font-medium">Qualification</span>
+                  <span className="font-semibold text-foreground">{faculty.qualification || "—"}</span>
                 </div>
                 <div className="flex justify-between py-1.5">
                   <span className="text-muted-foreground font-medium">Joined</span>
@@ -426,7 +497,9 @@ export const FacultyDetails: React.FC = () => {
                 <CardContent className="p-5 space-y-3 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground font-medium">Weekly Hours</span>
-                    <span className={`font-semibold ${workloadState.text}`}>{faculty.workloadHrs} Hours ({workloadState.label})</span>
+                    <span className={`font-semibold ${workloadState.text}`}>
+                      {faculty.workloadHrs > 0 ? `${faculty.workloadHrs} Hours (${workloadState.label})` : workloadState.label}
+                    </span>
                   </div>
                   <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                     <div className={`h-full ${workloadState.color} rounded-full`} style={{ width: `${workloadState.pct}%` }} />
@@ -440,27 +513,6 @@ export const FacultyDetails: React.FC = () => {
               </Card>
 
               {/* Alerts & Insights */}
-              {faculty.alerts.length > 0 && (
-                <div className="space-y-2">
-                  {faculty.alerts.map((alert: any, i: number) => (
-                    <div
-                      key={i}
-                      className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs font-medium ${
-                        alert.type === "warning"
-                          ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
-                          : alert.type === "danger"
-                          ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
-                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                      }`}
-                    >
-                      {alert.type === "warning" && <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-                      {alert.type === "danger" && <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />}
-                      {alert.type === "success" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />}
-                      <span>{alert.text}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -468,50 +520,53 @@ export const FacultyDetails: React.FC = () => {
         {/* ─── TAB 2: ASSIGNED BATCHES & COURSES ─────────────────────── */}
         {activeTab === "batches" && (
           <div className="space-y-4">
+            {faculty.batches.length === 0 ? (
+              <Card className="border border-border shadow-xs bg-card rounded-xl">
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  No batches are assigned to this faculty member.
+                </CardContent>
+              </Card>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {faculty.batches.map((b: any) => (
+              {faculty.batches.map((b) => (
                 <Card key={b.id} className="border border-border shadow-xs bg-card rounded-xl hover:border-primary/40 transition-all overflow-hidden">
                   <CardContent className="p-5 space-y-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
                         <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                           {b.id}
                         </span>
                         <h4 className="text-sm font-bold text-foreground mt-1.5">{b.name}</h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{b.batchName}</p>
                       </div>
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                          b.status === "Active"
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
-                        }`}
-                      >
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-muted text-foreground border border-border">
                         {b.status}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
                       <div className="flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" /> {b.students} Students Enrolled
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" /> Timing: {b.time}
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" /> {b.time || "No schedule set"}
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-border/70">
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-semibold text-muted-foreground">Curriculum Progression</span>
-                        <span className="font-bold text-primary">{b.progress}%</span>
+                        <span className="font-semibold text-muted-foreground">Completed sessions</span>
+                        <span className="font-bold text-primary">{b.progress === null ? "—" : `${b.progress}%`}</span>
                       </div>
                       <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${b.progress}%` }} />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${b.progress ?? 0}%` }} />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -522,35 +577,33 @@ export const FacultyDetails: React.FC = () => {
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <MonitorPlay className="h-4 w-4 text-primary" /> Student Grade & Attendance Distribution
+                  <Users className="h-4 w-4 text-primary" /> Assigned Teaching Activity
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Students</span>
+                    <h4 className="text-3xl font-bold text-foreground mt-1">{faculty.studentsCount}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Enrolled in assigned batches</p>
+                  </div>
                   <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 text-center">
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Excellent (&gt;85%)</span>
-                    <h4 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{faculty.studentPerf.excellent}</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Top scorers</p>
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Completed</span>
+                    <h4 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{faculty.sessionStats.completed}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Class sessions</p>
                   </div>
                   <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-center">
-                    <span className="text-[10px] font-bold text-primary dark:text-sky-400 uppercase tracking-wider">Good (70-85%)</span>
-                    <h4 className="text-3xl font-bold text-primary dark:text-sky-400 mt-1">{faculty.studentPerf.good}</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Regular on-track</p>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Upcoming</span>
+                    <h4 className="text-3xl font-bold text-primary mt-1">{faculty.sessionStats.upcoming}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Scheduled sessions</p>
                   </div>
                   <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 text-center">
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Needs Imp. (50-70%)</span>
-                    <h4 className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{faculty.studentPerf.needsImp}</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Extra clinic needed</p>
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Reviews</span>
+                    <h4 className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{faculty.rating ?? "—"}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {facultyReviews.length > 0 ? `${facultyReviews.length} student ratings` : "No ratings yet"}
+                    </p>
                   </div>
-                  <div className="bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center">
-                    <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">At Risk (&lt;50%)</span>
-                    <h4 className="text-3xl font-bold text-rose-600 dark:text-rose-400 mt-1">{faculty.studentPerf.atRisk}</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Discontinuation risk</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-muted/40 rounded-xl border border-border text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">Academic Support Strategy:</strong> Faculty conducts weekly remedial sessions on Saturdays for students requiring additional assistance.
                 </div>
               </CardContent>
             </Card>
@@ -608,13 +661,13 @@ export const FacultyDetails: React.FC = () => {
             </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {["MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => {
+                {SCHEDULE_DAYS.map((day) => {
                   const slots = faculty.schedule[day] || [];
                   return (
                     <div key={day} className="bg-muted/30 p-3.5 rounded-xl border border-border space-y-2">
                       <span className="text-xs font-bold text-primary tracking-wider block">{day}</span>
                       {slots.length > 0 ? (
-                        slots.map((s: any, idx: number) => (
+                        slots.map((s, idx) => (
                           <div key={idx} className="p-2 rounded-lg bg-card border border-border text-xs shadow-2xs">
                             <p className="font-bold text-foreground">{s.batch}</p>
                             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">

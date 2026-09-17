@@ -301,7 +301,10 @@ export const findFacultyCourses = async (params: FindFacultyCoursesParams) => {
       batch: {
         include: {
           branch: { select: { id: true, name: true, code: true } },
-          schedules: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+          schedules: {
+            where: { status: "ACTIVE" },
+            select: { dayOfWeek: true, startTime: true, endTime: true, facultyId: true },
+          },
           classSessions: { select: { sessionStatus: true } },
           _count: { select: { enrollments: true } },
         },

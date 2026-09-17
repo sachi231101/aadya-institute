@@ -13,7 +13,6 @@ import { EditStudent } from "../pages/admin/students/EditStudent";
 import { StudentAttendance } from "../pages/admin/students/StudentAttendance";
 import { StudentPerformance } from "../pages/admin/students/StudentPerformance";
 import { DiscontinuationRisk } from "../pages/admin/students/DiscontinuationRisk";
-import { StudentDocuments } from "../pages/admin/students/StudentDocuments";
 import { StudentAllocation } from "../pages/admin/students/StudentAllocation";
 
 import { AllFaculty } from "../pages/admin/faculty/AllFaculty";
@@ -175,7 +174,7 @@ export const adminChildRoutes = (
     <Route path="students">
       <Route path="all" element={<AllStudents />} />
       <Route path="add" element={<AddStudent />} />
-      <Route path="documents" element={<StudentDocuments />} />
+      <Route path="documents" element={<Navigate to="/admin/students/all" replace />} />
       <Route path="student-allocation" element={<StudentAllocation />} />
       <Route path="batch-allocation" element={<Navigate to="/admin/students/student-allocation" replace />} />
       <Route path="attendance" element={<StudentAttendance />} />

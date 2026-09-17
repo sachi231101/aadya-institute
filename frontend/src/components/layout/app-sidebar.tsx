@@ -96,7 +96,6 @@ const data = {
       icon: GraduationCap,
       items: [
         { title: L["students.all"] ?? "All Students", url: A.STUDENTS.ALL },
-        { title: L["students.documents"] ?? "Student Documents", url: A.STUDENTS.DOCUMENTS },
         { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: A.STUDENTS.STUDENT_ALLOCATION },
         { title: L["students.attendance"] ?? "Student Attendance", url: A.STUDENTS.ATTENDANCE },
         { title: L["students.performance"] ?? "Academic Performance", url: A.STUDENTS.PERFORMANCE },

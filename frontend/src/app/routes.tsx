@@ -90,7 +90,6 @@ import { TargetManagement } from "../pages/admin/targets/TargetManagement";
 import { TargetPerformance } from "../pages/admin/targets/TargetPerformance";
 import { IncentiveManagement } from "../pages/admin/targets/IncentiveManagement";
 import { CallHistory } from "../pages/admin/leads/CallHistory";
-import { StudentDocuments } from "../pages/admin/students/StudentDocuments";
 import { StudentAllocation } from "../pages/admin/students/StudentAllocation";
 import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments";
 import { AllBatches } from "../pages/admin/batches/AllBatches";
@@ -197,7 +196,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="students">
           <Route path="all" element={<AllStudents />} />
           <Route path="add" element={<AddStudent />} />
-          <Route path="documents" element={<StudentDocuments />} />
+          <Route path="documents" element={<Navigate to="/center/students/all" replace />} />
           <Route path="student-allocation" element={<StudentAllocation />} />
           <Route path="batch-allocation" element={<Navigate to="/center/students/student-allocation" replace />} />
           <Route path=":id" element={<StudentDetails />} />
@@ -398,7 +397,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="add" element={<Navigate to="/counselor/students/all" replace />} />
           <Route path=":id" element={<StudentDetails />} />
           <Route path=":id/edit" element={<EditStudent />} />
-          <Route path="documents" element={<StudentDocuments />} />
+          <Route path="documents" element={<Navigate to="/counselor/students/all" replace />} />
           <Route path="student-allocation" element={<StudentAllocation />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="performance" element={<StudentPerformance />} />

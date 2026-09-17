@@ -87,7 +87,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "students",
     items: [
       { title: "All Students", url: "/center/students/all", itemKey: "students.all" },
-      { title: "Student Documents", url: "/center/students/documents", itemKey: "students.documents" },
       { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: "/center/students/student-allocation", itemKey: "students.student_allocation" },
       { title: L["students.attendance"] ?? "Student Attendance", url: "/center/students/attendance", itemKey: "students.attendance" },
       { title: L["students.performance"] ?? "Academic Performance", url: "/center/students/performance", itemKey: "students.performance" },
