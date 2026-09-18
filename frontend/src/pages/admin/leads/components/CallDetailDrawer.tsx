@@ -121,11 +121,7 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                 </SheetDescription>
               </div>
               {leadId ? (
-                <Button
-                  size="sm"
-                  className="w-fit"
-                  onClick={goToLead360}
-                >
+                <Button size="sm" className="w-fit" onClick={goToLead360}>
                   Open Lead 360
                   <ExternalLink className="ml-2 h-3.5 w-3.5" />
                 </Button>
@@ -137,78 +133,96 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                 <div className="flex items-start gap-2">
                   <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
-                    <p className="text-[11px] text-muted-foreground">AI / interest</p>
+                    <p className="text-[11px] text-muted-foreground">Caller</p>
                     <p className="font-medium">
-                      {[call.aiScore, call.interestStatus, call.lead?.leadScore != null ? `Score ${call.lead.leadScore}` : null]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
+                      {call.caller?.name ||
+                        (call.callType === "MANUAL" ? "Counsellor" : "AI Agent")}
                     </p>
                   </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Phone className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
-                    <p className="text-[11px] text-muted-foreground">Sentiment</p>
-                    <p className="font-medium">{call.sentiment || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground">Outcome</p>
+                    <p className="font-medium">{call.outcome || "—"}</p>
                   </div>
                 </div>
-
-                <DetailBlock label="Qualification">
-                  {call.qualification || "—"}
-                </DetailBlock>
-
-                <DetailBlock label="Next action / follow-up">
-                  {call.nextAction || "—"}
-                </DetailBlock>
-
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Summary
+                <div>
+                  <p className="text-[11px] text-muted-foreground">AI / interest</p>
+                  <p className="font-medium">
+                    {[
+                      call.aiScore,
+                      call.interestStatus,
+                      call.lead?.leadScore != null ? `Score ${call.lead.leadScore}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </p>
-                  <div className="p-3 rounded-lg border border-border bg-muted/20 text-sm whitespace-pre-wrap">
-                    {call.aiSummary || "No summary available."}
-                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <MessageSquareText className="h-3.5 w-3.5" />
-                    Transcript
-                  </p>
-                  <div className="p-3 rounded-lg border border-border bg-muted/20 text-sm max-h-64 overflow-y-auto whitespace-pre-wrap">
-                    {call.transcript || "No transcript available."}
-                  </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Sentiment</p>
+                  <p className="font-medium">{call.sentiment || "—"}</p>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <FileAudio className="h-3.5 w-3.5" />
-                    Recording
-                  </p>
-                  {call.recordingUrl ? (
-                    <div className="space-y-2">
-                      <audio controls className="w-full" src={call.recordingUrl}>
-                        Your browser does not support audio playback.
-                      </audio>
-                      <a
-                        href={call.recordingUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary text-xs font-semibold inline-flex items-center gap-1"
-                      >
-                        Open recording <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No recording available.</p>
-                  )}
-                </div>
-
-                {call.failureReason ? (
-                  <DetailBlock label="Failure reason">{call.failureReason}</DetailBlock>
-                ) : null}
               </div>
-            </>
-          )}
-        </div>
+
+              <DetailBlock label="Qualification">
+                {call.qualification || "—"}
+              </DetailBlock>
+
+              <DetailBlock label="Next action / follow-up">
+                {call.nextAction || "—"}
+              </DetailBlock>
+
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Summary
+                </p>
+                <div className="p-3 rounded-lg border border-border bg-muted/20 text-sm whitespace-pre-wrap">
+                  {call.aiSummary || "No summary available."}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <MessageSquareText className="h-3.5 w-3.5" />
+                  Transcript
+                </p>
+                <div className="p-3 rounded-lg border border-border bg-muted/20 text-sm max-h-64 overflow-y-auto whitespace-pre-wrap">
+                  {call.transcript || "No transcript available."}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileAudio className="h-3.5 w-3.5" />
+                  Recording
+                </p>
+                {call.recordingUrl ? (
+                  <div className="space-y-2">
+                    <audio controls className="w-full" src={call.recordingUrl}>
+                      Your browser does not support audio playback.
+                    </audio>
+                    <a
+                      href={call.recordingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary text-xs font-semibold inline-flex items-center gap-1"
+                    >
+                      Open recording <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No recording available.</p>
+                )}
+              </div>
+
+              {call.failureReason ? (
+                <DetailBlock label="Failure reason">{call.failureReason}</DetailBlock>
+              ) : null}
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
