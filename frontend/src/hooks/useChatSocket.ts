@@ -9,7 +9,7 @@ import { chatApi } from "../services/chat.api";
 const ALLOWED_STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STAFF"];
 
 const buildChatWebSocketUrl = (token: string): string => {
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+  const apiUrl = import.meta.env.VITE_API_URL || "/api/v1";
 
   // Prefer same-origin WebSocket when API is proxied through Vite (e.g. /api/v1)
   if (apiUrl.startsWith("/")) {
@@ -160,7 +160,7 @@ export const useChatSocket = () => {
 
               // 3. If currently actively viewing this conversation, mark as read on backend
               if (isCurrentOpenConv && !isSender) {
-                chatApi.markConversationRead(newMessage.conversationId).catch(() => {});
+                chatApi.markConversationRead(newMessage.conversationId).catch(() => { });
               }
             } else if (payload.event === "message:read") {
               const { conversationId } = (payload.data as { conversationId?: string }) || {};

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { batchesApi } from "@/services/batches.api";
 import { ROUTES } from "@/constants/routes";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +96,8 @@ const statusLabel = (status?: string) => {
 export const BatchDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const batchesBasePath = `${getPortalBasePath(location.pathname)}/batches`;
   const { canEditItem } = usePermissions();
   const canEditBatches = canEditItem("batches.all");
   const [tab, setTab] = useState<Tab>("overview");
@@ -205,7 +208,7 @@ export const BatchDetails: React.FC = () => {
     try {
       setIsDeleting(true);
       await batchesApi.delete(batch.id);
-      navigate(ROUTES.ADMIN.BATCHES.ALL);
+      navigate(batchesBasePath);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -272,7 +275,7 @@ export const BatchDetails: React.FC = () => {
             className="h-8 px-2.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-lg transition-all cursor-pointer"
             asChild
           >
-            <Link to={`${ROUTES.ADMIN.BATCHES.ALL}?edit=${batch.id}`}>
+            <Link to={`${batchesBasePath}?edit=${batch.id}`}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Edit
             </Link>
@@ -282,7 +285,7 @@ export const BatchDetails: React.FC = () => {
             className="h-8 px-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-xs rounded-lg transition-all cursor-pointer"
             asChild
           >
-            <Link to={`${ROUTES.ADMIN.BATCHES.ALL}?create=1`}>
+            <Link to={`${batchesBasePath}?create=1`}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add New
             </Link>
@@ -292,7 +295,7 @@ export const BatchDetails: React.FC = () => {
             size="sm"
             variant="outline"
             className="h-8 px-2.5 text-xs font-semibold rounded-lg border-border hover:bg-muted/50 transition-all cursor-pointer"
-            onClick={() => navigate(ROUTES.ADMIN.BATCHES.ALL)}
+            onClick={() => navigate(batchesBasePath)}
           >
             <X className="mr-1.5 h-3.5 w-3.5" />
             Cancel

@@ -33,6 +33,7 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { getMasterLabel, findMasterIdByLabel, getTimeslotTimes } from "@/utils/master.utils";
+import { getPortalBasePath } from "@/utils/portal-path";
 import {
   batchIncludesCourse,
   formatBatchSubjectNames,
@@ -68,9 +69,7 @@ export const Batches: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
   const location = useLocation();
-  const batchesBasePath = location.pathname.startsWith("/center")
-    ? "/center/batches"
-    : "/admin/batches";
+  const batchesBasePath = `${getPortalBasePath(location.pathname)}/batches`;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
