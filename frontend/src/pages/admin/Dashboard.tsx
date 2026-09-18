@@ -535,7 +535,11 @@ export const AdminDashboard: React.FC = () => {
           <CardContent className="p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold text-foreground tracking-tight">Recent Academy Records</h3>
-              <button onClick={() => navigate("/admin/reports")} className="text-xs text-primary font-bold hover:underline cursor-pointer">
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.ADMIN.REPORTS.FINANCE)}
+                className="text-xs text-primary font-bold hover:underline cursor-pointer"
+              >
                 View Reports
               </button>
             </div>
