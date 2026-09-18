@@ -415,7 +415,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="ratings" element={<FacultyRatings />} />
         </Route>
 
-        <Route path="batches" element={<CounsellorBatches />} />
+        <Route path="batches">
+          <Route index element={<AllBatches />} />
+          <Route path="create" element={<Navigate to="/counselor/batches" replace />} />
+          <Route path=":id" element={<BatchDetails />} />
+        </Route>
         <Route path="timetable" element={<Navigate to="/counselor/batches" replace />} />
 
         <Route path="fees">

@@ -19,6 +19,7 @@ import {
 import { useCourses } from "../../../hooks/useCourses";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -103,9 +104,7 @@ export const AllCourses: React.FC = () => {
   };
 
   const handleOpenBatches = (courseId?: string) => {
-    const batchesBase = location.pathname.startsWith("/center")
-      ? "/center/batches"
-      : "/admin/batches";
+    const batchesBase = `${getPortalBasePath(location.pathname)}/batches`;
     navigate(
       courseId ? `${batchesBase}?courseId=${courseId}` : batchesBase
     );
