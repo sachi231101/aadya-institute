@@ -623,109 +623,75 @@ export const Applications: React.FC = () => {
                         <Mail className="h-3 w-3 text-primary" /> {selectedApplication.email}
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <GraduationCap className="h-4 w-4 text-primary" /> Course
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-xs">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Program</p>
+                      <p className="font-semibold text-foreground mt-0.5">{selectedApplication.courseName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Course code</p>
+                      <p className="font-semibold text-foreground mt-0.5">{selectedApplication.courseCode}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <CreditCard className="h-4 w-4 text-primary" /> Application fee
+                  </h4>
+                  <div className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Status</p>
+                      <p className={`font-bold mt-0.5 ${selectedApplication.feeStatus === "PAID" ? "text-emerald-600" : "text-rose-600"}`}>
+                        {selectedApplication.feeStatus === "PAID" ? "Paid" : "Pending"}
+                      </p>
+                    </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
-                      className="h-8 text-xs gap-1 shrink-0"
+                      className="h-8 text-xs"
+                      onClick={() => handleToggleFeePaid(selectedApplication.id)}
+                      disabled={!canEditApplications || selectedApplication.status === "REJECTED"}
                     >
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy
+                      Mark {selectedApplication.feeStatus === "PAID" ? "pending" : "paid"}
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-5">
+                {(selectedApplication.enquiryId || selectedApplication.leadId) && (
                   <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <User className="h-4 w-4 text-primary" /> Contact
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-xs">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Full name</p>
-                        <p className="font-semibold text-foreground mt-0.5">{selectedApplication.applicantName}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Mobile</p>
-                        <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
-                          <Phone className="h-3 w-3 text-emerald-500" /> {selectedApplication.phone}
-                        </p>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <p className="text-[11px] text-muted-foreground">Email</p>
-                        <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
-                          <Mail className="h-3 w-3 text-primary" /> {selectedApplication.email}
-                        </p>
-                      </div>
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Source</h4>
+                    <div className="p-4 rounded-xl border border-border bg-muted/20 text-xs space-y-1">
+                      {selectedApplication.enquiryNo && (
+                        <p><span className="text-muted-foreground">Enquiry:</span> {selectedApplication.enquiryNo}</p>
+                      )}
+                      {selectedApplication.enquirySource && (
+                        <p><span className="text-muted-foreground">Channel:</span> {selectedApplication.enquirySource}</p>
+                      )}
+                      {selectedApplication.leadId && (
+                        <p><span className="text-muted-foreground">Lead ID:</span> {selectedApplication.leadId}</p>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <GraduationCap className="h-4 w-4 text-primary" /> Course
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-xs">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Program</p>
-                        <p className="font-semibold text-foreground mt-0.5">{selectedApplication.courseName}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Course code</p>
-                        <p className="font-semibold text-foreground mt-0.5">{selectedApplication.courseCode}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <CreditCard className="h-4 w-4 text-primary" /> Application fee
-                    </h4>
-                    <div className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Status</p>
-                        <p className={`font-bold mt-0.5 ${selectedApplication.feeStatus === "PAID" ? "text-emerald-600" : "text-rose-600"}`}>
-                          {selectedApplication.feeStatus === "PAID" ? "Paid" : "Pending"}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs"
-                        onClick={() => handleToggleFeePaid(selectedApplication.id)}
-                        disabled={!canEditApplications || selectedApplication.status === "REJECTED"}
-                      >
-                        Mark {selectedApplication.feeStatus === "PAID" ? "pending" : "paid"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {(selectedApplication.enquiryId || selectedApplication.leadId) && (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Source</h4>
-                      <div className="p-4 rounded-xl border border-border bg-muted/20 text-xs space-y-1">
-                        {selectedApplication.enquiryNo && (
-                          <p><span className="text-muted-foreground">Enquiry:</span> {selectedApplication.enquiryNo}</p>
-                        )}
-                        {selectedApplication.enquirySource && (
-                          <p><span className="text-muted-foreground">Channel:</span> {selectedApplication.enquirySource}</p>
-                        )}
-                        {selectedApplication.leadId && (
-                          <p><span className="text-muted-foreground">Lead ID:</span> {selectedApplication.leadId}</p>
-                        )}
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Counsellor notes</h4>
+                  {selectedApplication.notes ? (
+                    <p className="text-xs text-foreground whitespace-pre-wrap p-3 rounded-xl border border-border bg-card">
+                      {selectedApplication.notes}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No notes yet.</p>
                   )}
-
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Counsellor notes</h4>
-                    {selectedApplication.notes ? (
-                      <p className="text-xs text-foreground whitespace-pre-wrap p-3 rounded-xl border border-border bg-card">
-                        {selectedApplication.notes}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">No notes yet.</p>
-                    )}
-                    {canEditApplications && selectedApplication.status !== "REJECTED" && (
+                  {canEditApplications && selectedApplication.status !== "REJECTED" && (
                     <div className="flex gap-2">
                       <Input
                         placeholder="Add a note..."
@@ -737,24 +703,12 @@ export const Applications: React.FC = () => {
                         Save
                       </Button>
                     </div>
-                    )}
-                  </div>
+                  )}
                 </div>
+              </div>
 
               {canEditApplications && (
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-card p-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleUpdateStatus(selectedApplication.id, "REJECTED")}
-                  className="text-xs text-rose-600 border-border h-9"
-                >
-                  Reject
-                </Button>
-                <div className="flex items-center gap-2">
-                  {selectedApplication.feeStatus !== "PAID" && (
-                    <span className="text-[11px] font-medium text-amber-600">Fee pending</span>
-                  )}
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-card p-4">
                   <Button
                     size="sm"
                     variant="outline"
@@ -790,12 +744,11 @@ export const Applications: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                )}
-              </>
-            ) : (
-              <div className="p-8 text-sm text-muted-foreground">Application not found.</div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-8 text-sm text-muted-foreground">Application not found.</div>
+          )}
         </SheetContent>
       </Sheet>
 
