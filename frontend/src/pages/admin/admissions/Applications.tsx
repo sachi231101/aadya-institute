@@ -44,7 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type DetailedStatus = ApplicationDisplayStatus;
@@ -551,29 +551,76 @@ export const Applications: React.FC = () => {
       >
         <SheetContent
           side="right"
-          className="w-full sm:max-w-xl p-0 gap-0 overflow-hidden bg-card text-foreground border-l border-border"
+          hideClose
+          className="flex h-full w-full flex-col overflow-hidden p-0 sm:max-w-xl bg-card text-foreground border-l border-border"
         >
-          <div className="absolute inset-0 flex flex-col">
-            {isLoadingDetails && !selectedApplication ? (
-              <div className="p-8 text-sm text-muted-foreground">Loading application...</div>
-            ) : selectedApplication ? (
-              <>
-                <div className="shrink-0 p-5 pr-12 border-b border-border bg-muted/30">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 font-mono">
-                          {selectedApplication.applicationNo}
-                        </span>
-                        {renderStatusBadge(selectedApplication.status, selectedApplication.feeStatus)}
-                      </div>
-                      <h2 className="text-lg font-bold text-foreground truncate">
-                        {selectedApplication.applicantName}
-                      </h2>
-                      <p className="text-xs text-muted-foreground">
-                        Applied for <strong className="text-foreground">{selectedApplication.courseName}</strong>
-                        {" · "}
-                        {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
+          {isLoadingDetails && !selectedApplication ? (
+            <div className="p-8 text-sm text-muted-foreground">Loading application...</div>
+          ) : selectedApplication ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="shrink-0 border-b border-border bg-muted/30 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 font-mono">
+                        {selectedApplication.applicationNo}
+                      </span>
+                      {renderStatusBadge(selectedApplication.status, selectedApplication.feeStatus)}
+                    </div>
+                    <h2 className="text-lg font-bold text-foreground truncate">
+                      {selectedApplication.applicantName}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Applied for <strong className="text-foreground">{selectedApplication.courseName}</strong>
+                      {" · "}
+                      {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
+                      className="h-8 text-xs gap-1"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy
+                    </Button>
+                    <SheetClose asChild>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        aria-label="Close application details"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </SheetClose>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="h-4 w-4 text-primary" /> Contact
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-xs">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Full name</p>
+                      <p className="font-semibold text-foreground mt-0.5">{selectedApplication.applicantName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Mobile</p>
+                      <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-emerald-500" /> {selectedApplication.phone}
+                      </p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[11px] text-muted-foreground">Email</p>
+                      <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                        <Mail className="h-3 w-3 text-primary" /> {selectedApplication.email}
                       </p>
                     </div>
                     <Button
@@ -694,8 +741,20 @@ export const Applications: React.FC = () => {
                   </div>
                 </div>
 
-                {canEditApplications && (
-                <div className="shrink-0 p-4 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3">
+              {canEditApplications && (
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-card p-4">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleUpdateStatus(selectedApplication.id, "REJECTED")}
+                  className="text-xs text-rose-600 border-border h-9"
+                >
+                  Reject
+                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedApplication.feeStatus !== "PAID" && (
+                    <span className="text-[11px] font-medium text-amber-600">Fee pending</span>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"

@@ -62,9 +62,6 @@ export const StudentDetails: React.FC = () => {
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [feePlan, setFeePlan] = useState<"INSTALLMENT" | "FULL_PAYMENT">("INSTALLMENT");
-  const [totalFee, setTotalFee] = useState<number>(0);
-  const [downPayment, setDownPayment] = useState<number>(0);
   const [admissionNotes, setAdmissionNotes] = useState("");
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -123,14 +120,9 @@ export const StudentDetails: React.FC = () => {
     if (student) {
       const initialCourseId = admission?.courseId || admission?.course?.id || enrollment?.batch?.course?.id || "";
       const initialBatchId = admission?.batchId || enrollment?.batchId || "";
-      const initialTotalFee = Number(student.fees?.totalFee || (student.fees as any)?.total || admission?.totalFee || 0);
-      const initialDownPay = Number(student.fees?.amountPaid || (student.fees as any)?.paid || 0);
 
       setSelectedCourseId(initialCourseId);
       setSelectedBatchId(initialBatchId);
-      setFeePlan((admission?.feePlan as any) || "INSTALLMENT");
-      setTotalFee(initialTotalFee);
-      setDownPayment(initialDownPay);
       setAdmissionNotes(admission?.notes || "");
     }
   }, [student, admission, enrollment]);
@@ -147,13 +139,6 @@ export const StudentDetails: React.FC = () => {
   const handleCourseSelect = (courseId: string) => {
     setSelectedCourseId(courseId);
     setSelectedBatchId("");
-    const matched = courses.find((c) => c.id === courseId);
-    if (matched && (matched.fee || (matched as any).totalFee)) {
-      const courseFee = Number(matched.fee || (matched as any).totalFee || 0);
-      if (!totalFee || totalFee === 0) {
-        setTotalFee(courseFee);
-      }
-    }
   };
 
   const handleActivateStudent = async () => {
@@ -175,9 +160,6 @@ export const StudentDetails: React.FC = () => {
           batchId: selectedBatchId || undefined,
           status: "ACTIVE",
           admissionStatus: "CONFIRMED",
-          feePlan,
-          totalFee: Number(totalFee) || 0,
-          downPayment: Number(downPayment) || 0,
           notes: admissionNotes || undefined,
         },
       });
@@ -186,7 +168,7 @@ export const StudentDetails: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ["students"] });
 
       setIsActivateModalOpen(false);
-      setSuccessToast("Student admission confirmed and status successfully converted to Active!");
+      setSuccessToast(isDraftStudent ? "Admission confirmed and student is now active." : "Batch updated.");
       setTimeout(() => setSuccessToast(null), 5000);
     } catch (err: any) {
       setDialogError(err?.response?.data?.message || "Failed to activate student admission.");
@@ -260,16 +242,16 @@ export const StudentDetails: React.FC = () => {
     try {
       const res = await studentsApi.sendCredentialsWhatsApp(id);
       const result = res.data;
-      if (!result?.temporaryPassword) {
-        setCredentialsError(res.message || "Could not reset the student password.");
+      if (!result?.sent) {
+        setCredentialsError(result?.skipReason || res.message || "WhatsApp did not send the login ID and password.");
         return;
       }
       setCredentialsSentInfo({
         phone: result.recipient.phone,
         studentCode: result.recipient.studentCode,
         temporaryPassword: result.temporaryPassword,
-        queued: result.queued,
-        skipReason: result.skipReason,
+        queued: true,
+        skipReason: null,
       });
       setShowCredentialsSentModal(true);
       await queryClient.invalidateQueries({ queryKey: ["student", id] });
@@ -1127,11 +1109,11 @@ export const StudentDetails: React.FC = () => {
               <PermissionGate itemKey="students.all" mode="write">
               <Button
                 size="sm"
-                onClick={() => setIsActivateModalOpen(true)}
+                onClick={() => navigate(`${basePath}/fees/students/${id}`)}
                 variant="outline"
                 className="text-xs h-8 border-border font-semibold cursor-pointer"
               >
-                Update Fee Structure
+                Open Fee Record
               </Button>
               </PermissionGate>
             </CardHeader>
@@ -1321,10 +1303,10 @@ export const StudentDetails: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              {isDraftStudent ? "Complete Admission & Activate Student" : "Assign / Update Academic Batch & Fee"}
+              {isDraftStudent ? "Complete Admission & Activate Student" : "Assign / Change Batch"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Finalize course enrollment, select an active class batch, and configure student fees for <strong className="text-foreground">{studentName}</strong>.
+              Choose the course and class batch for <strong className="text-foreground">{studentName}</strong>. Fees are managed on the fee record, not here.
             </DialogDescription>
           </DialogHeader>
 
@@ -1349,7 +1331,7 @@ export const StudentDetails: React.FC = () => {
                 <option value="" className="bg-card text-foreground">-- Select Course --</option>
                 {courses.map((c) => (
                   <option key={c.id} value={c.id} className="bg-card text-foreground">
-                    {c.name} {c.code ? `(${c.code})` : ""} {c.fee ? `- ₹${Number(c.fee).toLocaleString()}` : ""}
+                    {c.name} {c.code ? `(${c.code})` : ""}
                   </option>
                 ))}
               </select>
@@ -1377,49 +1359,6 @@ export const StudentDetails: React.FC = () => {
               </p>
             </div>
 
-            {/* Fee Plan & Amounts */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border">
-              <div>
-                <label className="font-semibold text-muted-foreground uppercase text-[10px] block mb-1">
-                  Payment Plan
-                </label>
-                <select
-                  value={feePlan}
-                  onChange={(e) => setFeePlan(e.target.value as any)}
-                  className="w-full h-9 px-2 rounded-md border border-border bg-background text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="INSTALLMENT" className="bg-card text-foreground">Installment Plan</option>
-                  <option value="FULL_PAYMENT" className="bg-card text-foreground">Full Payment</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-muted-foreground uppercase text-[10px] block mb-1">
-                  Total Course Fee (₹)
-                </label>
-                <Input
-                  type="number"
-                  value={totalFee}
-                  onChange={(e) => setTotalFee(Number(e.target.value))}
-                  placeholder="0"
-                  className="h-9 text-xs bg-background border-border text-foreground"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-muted-foreground uppercase text-[10px] block mb-1">
-                  Down Payment / Paid (₹)
-                </label>
-                <Input
-                  type="number"
-                  value={downPayment}
-                  onChange={(e) => setDownPayment(Number(e.target.value))}
-                  placeholder="0"
-                  className="h-9 text-xs bg-background border-border text-foreground"
-                />
-              </div>
-            </div>
-
             {/* Counsellor Remarks / Notes */}
             <div>
               <label className="font-semibold text-muted-foreground uppercase text-[10px] block mb-1">
@@ -1428,7 +1367,7 @@ export const StudentDetails: React.FC = () => {
               <Input
                 value={admissionNotes}
                 onChange={(e) => setAdmissionNotes(e.target.value)}
-                placeholder="Special fee discounts, timing preferences, documents submitted..."
+                placeholder="Batch timing or other notes"
                 className="h-9 text-xs bg-background border-border text-foreground"
               />
             </div>
@@ -1455,7 +1394,7 @@ export const StudentDetails: React.FC = () => {
               ) : isDraftStudent ? (
                 "Confirm Admission & Activate Student"
               ) : (
-                "Save Batch & Fee Updates"
+                "Save Batch"
               )}
             </Button>
           </DialogFooter>
@@ -1470,12 +1409,12 @@ export const StudentDetails: React.FC = () => {
               <CheckCircle2 className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
             </div>
             <DialogTitle className="text-center text-lg font-bold text-foreground">
-              {credentialsSentInfo?.queued ? "Login credentials queued" : "Password reset, WhatsApp not sent"}
+              {credentialsSentInfo?.queued ? "Login ID and password sent" : "WhatsApp did not send"}
             </DialogTitle>
             <DialogDescription className="text-center text-xs text-muted-foreground">
               {credentialsSentInfo?.queued
-                ? "A new password was set and queued to the student's registered mobile number."
-                : credentialsSentInfo?.skipReason || "WhatsApp did not accept this message. Share the new password directly."}
+                ? "The student's login ID and new password were sent to their WhatsApp number."
+                : credentialsSentInfo?.skipReason || "WhatsApp did not send the message."}
             </DialogDescription>
           </DialogHeader>
 

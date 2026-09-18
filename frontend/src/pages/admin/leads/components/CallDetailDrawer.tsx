@@ -7,6 +7,7 @@ import {
   Sparkles,
   User,
   Phone,
+  X,
 } from "lucide-react";
 import type { CallLog } from "@/services/leads.api";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -77,14 +79,15 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl p-0 gap-0 overflow-hidden bg-card text-foreground border-l border-border"
+        hideClose
+        className="flex h-full w-full flex-col overflow-hidden p-0 sm:max-w-xl bg-card text-foreground border-l border-border"
       >
-        <div className="absolute inset-0 flex flex-col">
-          {!call ? (
-            <div className="p-8 text-sm text-muted-foreground">No call selected.</div>
-          ) : (
-            <>
-              <SheetHeader className="shrink-0 p-5 pr-12 border-b border-border bg-muted/30 space-y-3 text-left">
+        {!call ? (
+          <div className="p-8 text-sm text-muted-foreground">No call selected.</div>
+        ) : (
+          <div className="flex h-full min-h-0 flex-col">
+            <SheetHeader className="shrink-0 space-y-3 border-b border-border bg-muted/30 p-5 text-left">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{call.callType || "AI"}</Badge>
                   <Badge variant="secondary">{call.status}</Badge>
@@ -94,48 +97,45 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                     </Badge>
                   ) : null}
                 </div>
-                <div>
-                  <SheetTitle className="text-lg font-bold">
-                    {call.lead?.name || "Unknown lead"}
-                  </SheetTitle>
-                  <SheetDescription className="text-xs mt-1">
-                    {formatDateTime(call.startedAt || call.createdAt)}
-                    {" · "}
-                    {formatDuration(call.duration)}
-                    {call.lead?.phoneNumber ? ` · ${call.lead.phoneNumber}` : ""}
-                  </SheetDescription>
-                </div>
-                {leadId ? (
+                <SheetClose asChild>
                   <Button
-                    size="sm"
-                    className="w-fit"
-                    onClick={goToLead360}
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Close call details"
                   >
-                    Open Lead 360
-                    <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </Button>
-                ) : null}
-              </SheetHeader>
+                </SheetClose>
+              </div>
+              <div>
+                <SheetTitle className="text-lg font-bold">
+                  {call.lead?.name || "Unknown lead"}
+                </SheetTitle>
+                <SheetDescription className="text-xs mt-1">
+                  {formatDateTime(call.startedAt || call.createdAt)}
+                  {" · "}
+                  {formatDuration(call.duration)}
+                  {call.lead?.phoneNumber ? ` · ${call.lead.phoneNumber}` : ""}
+                </SheetDescription>
+              </div>
+              {leadId ? (
+                <Button
+                  size="sm"
+                  className="w-fit"
+                  onClick={goToLead360}
+                >
+                  Open Lead 360
+                  <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+            </SheetHeader>
 
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-sm">
-                  <div className="flex items-start gap-2">
-                    <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground">Caller</p>
-                      <p className="font-medium">
-                        {call.caller?.name ||
-                          (call.callType === "MANUAL" ? "Counsellor" : "AI Agent")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground">Outcome</p>
-                      <p className="font-medium">{call.outcome || "—"}</p>
-                    </div>
-                  </div>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-muted/20 text-sm">
+                <div className="flex items-start gap-2">
+                  <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
                     <p className="text-[11px] text-muted-foreground">AI / interest</p>
                     <p className="font-medium">

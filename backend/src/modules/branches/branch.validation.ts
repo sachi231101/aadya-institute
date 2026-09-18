@@ -49,14 +49,17 @@ const managerUserIdValidation = z.preprocess(
   z.string().min(1).nullable().optional()
 );
 
+const branchCodeSchema = z
+  .string()
+  .trim()
+  .min(2, "Branch code must be at least 2 characters")
+  .max(10, "Branch code must be at most 10 characters")
+  .regex(/^[A-Za-z0-9-]+$/, "Branch code can use letters and numbers, for example MLM01")
+  .transform((val) => val.toUpperCase());
+
 export const createBranchSchema = z.object({
   name: z.string().min(2, "Branch name must be at least 2 characters").trim(),
-  code: z
-    .string()
-    .min(2, "Branch code must be at least 2 characters")
-    .max(10, "Branch code must be at most 10 characters")
-    .trim()
-    .toUpperCase(),
+  code: branchCodeSchema,
   address: addressValidation,
   phone: phoneValidation,
   email: emailValidation,
@@ -67,7 +70,7 @@ export const createBranchSchema = z.object({
 
 export const updateBranchSchema = z.object({
   name: z.string().min(2).trim().optional(),
-  code: z.string().min(2).max(10).trim().toUpperCase().optional(),
+  code: branchCodeSchema.optional(),
   address: addressValidation,
   phone: phoneValidation,
   email: emailValidation,

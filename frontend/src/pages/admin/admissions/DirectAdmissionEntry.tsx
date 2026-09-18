@@ -1149,6 +1149,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const validateAdmissionForm = (statusOverride?: "Draft" | "Confirmed") => {
     if (!firstName.trim()) {
@@ -1237,8 +1238,39 @@ export const DirectAdmissionEntry: React.FC = () => {
       .join(" | ");
   };
 
-  const handleConfirmAdmission = (statusOverride?: "Draft" | "Confirmed") => {
+  const findDuplicatePhone = async () => {
+    const realStudentId = selectedExistingStudentId && !selectedExistingStudentId.startsWith("st-")
+      ? selectedExistingStudentId
+      : undefined;
+    if (realStudentId) return null;
+
+    const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+    if (normalizedPhone.length < 10) return null;
+
+    const phoneSearchRes = await studentsApi.getAll({ search: normalizedPhone, limit: 50 });
+    return (phoneSearchRes.data || []).find(
+      (student) => (student.user?.phone || "").replace(/\D/g, "").slice(-10) === normalizedPhone
+    ) || null;
+  };
+
+  const handleConfirmAdmission = async (statusOverride?: "Draft" | "Confirmed") => {
     if (!validateAdmissionForm(statusOverride)) return;
+
+    if (statusOverride !== "Draft") {
+      setIsSubmitting(true);
+      try {
+        const phoneMatch = await findDuplicatePhone();
+        if (phoneMatch) {
+          notifyError("This phone number is already registered. Please enter a different phone number.");
+          return;
+        }
+      } catch {
+        notifyError("Could not check this mobile number. Please try again.");
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
 
     const studentFullName = `${firstName} ${lastName}`.trim() || "Student";
     const coursesSummary = selectedCoursesList.map((c) => c.courseName).join(", ");
@@ -1271,6 +1303,7 @@ export const DirectAdmissionEntry: React.FC = () => {
     }
 
     setReviewVerifiedCheck(false);
+    setReviewError(null);
     setShowReviewStepModal(true);
   };
 
@@ -1283,13 +1316,10 @@ export const DirectAdmissionEntry: React.FC = () => {
 
     try {
       if (!realStudentId) {
-        const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
-        const phoneSearchRes = await studentsApi.getAll({ search: normalizedPhone, limit: 50 });
-        const phoneMatch = (phoneSearchRes.data || []).find(
-          (s) => (s.user?.phone || "").replace(/\D/g, "").slice(-10) === normalizedPhone
-        );
+        const phoneMatch = await findDuplicatePhone();
         if (phoneMatch) {
-          notifyError("This phone number is already registered. Please enter a different phone number.");
+          const message = "This phone number is already registered. Please enter a different phone number.";
+          setReviewError(message);
           setIsSubmitting(false);
           return;
         }
@@ -1407,7 +1437,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifySuccess(status === "PENDING" ? "Admission saved as draft." : "Admission confirmed successfully.");
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Failed to create admission. Please try again.";
-      notifyError(message);
+      setReviewError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -1431,7 +1461,7 @@ export const DirectAdmissionEntry: React.FC = () => {
     <PageContainer className="text-foreground">
       <ReadOnlyBanner itemKey={admissionWriteKey} label="Direct Admission" />
       {(formError || formSuccess) && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
           {formError ? (
             <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
           ) : (
@@ -1468,14 +1498,6 @@ export const DirectAdmissionEntry: React.FC = () => {
                 className="h-9 text-xs font-semibold border-border"
               >
                 Save Draft
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleConfirmAdmission("Confirmed")}
-                disabled={isSubmitting}
-                className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs px-4"
-              >
-                Confirm Admission
               </Button>
             </>
           }
@@ -3019,16 +3041,18 @@ export const DirectAdmissionEntry: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Confirm Admission CTA Button */}
-            <Button
-              onClick={() => handleConfirmAdmission("Confirmed")}
-              disabled={isSubmitting}
-              className="w-full bg-primary hover:bg-primary/90 text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Confirm Admission
-            </Button>
           </div>
+        </div>
+
+        <div className="mt-8 flex justify-start">
+          <Button
+            onClick={() => handleConfirmAdmission("Confirmed")}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50 px-8"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {isSubmitting ? "Checking..." : "Confirm Admission"}
+          </Button>
         </div>
       </div>
 
@@ -3164,6 +3188,13 @@ export const DirectAdmissionEntry: React.FC = () => {
               </span>
             </label>
           </div>
+
+          {reviewError && (
+            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{reviewError}</span>
+            </div>
+          )}
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between pt-2">
             <Button
@@ -3489,77 +3520,6 @@ export const DirectAdmissionEntry: React.FC = () => {
           </div>
 
           <DialogFooter className="flex flex-col gap-2 pt-1">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  if (createdAdmissionSummary?.studentId) {
-                    navigate(`${basePath}/students/${createdAdmissionSummary.studentId}`);
-                  } else {
-                    navigate(`${basePath}/students/all`);
-                  }
-                }}
-                className="text-xs font-semibold"
-              >
-                View Student
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  navigate(`${basePath}/fees/students?tab=pending`);
-                }}
-                className="text-xs font-semibold"
-              >
-                View Fees
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  navigate(`${basePath}/admissions/documents`);
-                }}
-                className="text-xs font-semibold"
-              >
-                Documents
-              </Button>
-              {createdAdmissionSummary?.admissionId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowSuccessModal(false);
-                    navigate(`${basePath}/admissions/all`, {
-                      state: { admissionId: createdAdmissionSummary.admissionId },
-                    });
-                  }}
-                  className="text-xs font-semibold"
-                >
-                  View Admission
-                </Button>
-              )}
-              {createdAdmissionSummary?.studentId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      await studentsApi.sendCredentialsWhatsApp(createdAdmissionSummary.studentId);
-                      notifySuccess("Login credentials sent via WhatsApp.");
-                    } catch {
-                      notifyError("Could not send credentials. Try again from the student profile.");
-                    }
-                  }}
-                  className="text-xs font-semibold col-span-2 sm:col-span-1"
-                >
-                  Send Login on WhatsApp
-                </Button>
-              )}
-            </div>
             <Button
               onClick={() => {
                 setShowSuccessModal(false);

@@ -131,6 +131,11 @@ export const targetsApi = {
     return response.data;
   },
 
+  deleteTargetPlan: async (id: string): Promise<{ data: { id: string; success: boolean } }> => {
+    const response = await api.delete(`/targets/plans/${id}`);
+    return response.data;
+  },
+
   // ─── Targets ───────────────────────────────────────────────────────────────
 
   getTargets: async (

@@ -15,6 +15,7 @@ import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
 import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { SearchableSelect } from "@/components/common/SearchableSelect";
 import { PageContainer, PageHeader } from "@/components/layout";
 
 const addLeadSchema = z.object({
@@ -185,24 +186,22 @@ export const AddLead: React.FC = () => {
                 <FormField control={form.control} name="courseId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Matched Course</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          const selectedCourse = courses.find((c: any) => c.id === e.target.value);
-                          if (selectedCourse && !form.getValues("interestedIn")) {
-                            form.setValue("interestedIn", selectedCourse.name);
-                          }
-                        }}
-                        className="w-full h-9 px-3 rounded-md border border-border text-sm bg-background"
-                      >
-                        <option value="">Select course (optional)</option>
-                        {courses.map((c: any) => (
-                          <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                        ))}
-                      </select>
-                    </FormControl>
+                    <SearchableSelect
+                      value={field.value || ""}
+                      onChange={(courseId) => {
+                        field.onChange(courseId);
+                        const selectedCourse = courses.find((course) => course.id === courseId);
+                        if (selectedCourse && !form.getValues("interestedIn")) {
+                          form.setValue("interestedIn", selectedCourse.name);
+                        }
+                      }}
+                      options={courses.map((course) => ({
+                        value: course.id,
+                        label: course.code ? `${course.name} (${course.code})` : course.name,
+                      }))}
+                      placeholder="Search course"
+                      emptyLabel="No course found"
+                    />
                     <FormMessage />
                   </FormItem>
                 )} />

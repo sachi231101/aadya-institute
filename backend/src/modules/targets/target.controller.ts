@@ -66,6 +66,18 @@ export const TargetController = {
     }
   },
 
+  async deleteTargetPlan(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await TargetService.deleteTargetPlan(
+        req.user as unknown as AuthUser,
+        req.params.id as string
+      );
+      sendSuccess(res, result, 200, "Target plan deleted successfully");
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async publishTargetPlan(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const plan = await TargetService.publishTargetPlan(

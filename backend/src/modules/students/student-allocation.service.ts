@@ -64,9 +64,10 @@ export const triggerBatchAssignedNotification = async (studentId: string, batchI
   }
 };
 
-const resolveAdmission = async (
+const resolveAdmissionForBatch = async (
   studentId: string,
   instituteId: string,
+  batch: { courseId: string; batchCourses?: Array<{ courseId: string }> },
   admissionId?: string
 ) => {
   if (admissionId) {
@@ -76,10 +77,16 @@ const resolveAdmission = async (
     if (!admission) {
       throw new AppError("Admission not found for this student", 404);
     }
+    if (!batchIncludesCourse(batch, admission.courseId)) {
+      throw new AppError(
+        "This admission course is not offered in the selected batch",
+        400
+      );
+    }
     return admission;
   }
 
-  return prisma.admission.findFirst({
+  const admissions = await prisma.admission.findMany({
     where: {
       studentId,
       instituteId,
@@ -87,6 +94,16 @@ const resolveAdmission = async (
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const matching = admissions.find((admission) => batchIncludesCourse(batch, admission.courseId));
+  if (admissions.length > 0 && !matching) {
+    throw new AppError(
+      "None of this student's courses are offered in the selected batch",
+      400
+    );
+  }
+
+  return matching ?? null;
 };
 
 const validateBatchForEnrollment = async (batchId: string, instituteId: string) => {
@@ -128,13 +145,7 @@ export const assignStudentToBatch = async (
     throw new AppError("Student not found", 404);
   }
 
-  const admission = await resolveAdmission(studentId, instituteId, admissionId);
-  if (admission && !batchIncludesCourse(batch, admission.courseId)) {
-    throw new AppError(
-      "Student's admission course is not offered in this batch's subject list",
-      400
-    );
-  }
+  const admission = await resolveAdmissionForBatch(studentId, instituteId, batch, admissionId);
 
   const resolvedAdmissionId = admission?.id ?? null;
 
@@ -279,13 +290,7 @@ export const transferStudent = async (
     throw new AppError("Student is not actively enrolled in the source batch", 404);
   }
 
-  const admission = await resolveAdmission(studentId, instituteId, admissionId);
-  if (admission && !batchIncludesCourse(toBatch, admission.courseId)) {
-    throw new AppError(
-      "Student's admission course is not offered in this batch's subject list",
-      400
-    );
-  }
+  const admission = await resolveAdmissionForBatch(studentId, instituteId, toBatch, admissionId);
 
   const resolvedAdmissionId = admission?.id ?? activeEnrollment.admissionId ?? null;
 

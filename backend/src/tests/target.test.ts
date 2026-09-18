@@ -1,4 +1,4 @@
-import { test, describe, before } from "node:test";
+import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 import { prisma } from "../config/database";
 import { TargetService } from "../modules/targets/target.service";
@@ -428,5 +428,26 @@ describe("Target & Incentive Business Workflows and Security Isolation", () => {
     if (leaderboard.length > 0) {
       assert.strictEqual(leaderboard[0].rank, 1);
     }
+  });
+
+  after(async () => {
+    const testPlanNames = ["Automated Test Target Plan", "Plan To Be Locked"];
+    const testTargetTitles = ["Test Admissions Target", "Incentive Test Target"];
+
+    await prisma.target.deleteMany({
+      where: {
+        instituteId: testInstituteId,
+        title: { in: testTargetTitles },
+      },
+    });
+    await prisma.targetPlan.deleteMany({
+      where: {
+        instituteId: testInstituteId,
+        name: { in: testPlanNames },
+      },
+    });
+    await prisma.user.deleteMany({
+      where: { id: "test-counsellor-branch-b" },
+    });
   });
 });

@@ -57,7 +57,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -138,25 +138,21 @@ export const StudentAllocation: React.FC = () => {
   // Unique Courses for filter
   const uniqueCourses = useMemo(() => {
     const set = new Set<string>();
-    students.forEach((s) => {
-      if (s.qualification) set.add(s.qualification);
-      if (s.courseName) {
-        s.courseName.split(",").forEach((part) => {
-          const name = part.replace(/\+\d+\s*$/, "").trim();
-          if (name) set.add(name);
+    students.forEach((student) => {
+      const courses = coursesFromStudent(student);
+      if (courses.length > 0) {
+        courses.forEach((course) => {
+          if (course.name) set.add(course.name);
         });
+        return;
       }
-      (s.courses || []).forEach((c) => {
-        if (c.name) set.add(c.name);
-      });
+      const enrolledCourse = enrolledMap.get(student.id)?.courseName;
+      if (enrolledCourse && enrolledCourse !== "—" && enrolledCourse !== "Not assigned") {
+        set.add(enrolledCourse);
+      }
     });
-    batches.forEach((b) => {
-      getBatchCourseRows(b).forEach((row) => {
-        if (row.course?.name) set.add(row.course.name);
-      });
-    });
-    return Array.from(set);
-  }, [students, batches]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [students, enrolledMap]);
 
   // Counts & KPIs
   const totalStudentsCount = students.length;
@@ -196,10 +192,8 @@ export const StudentAllocation: React.FC = () => {
 
       const matchesCourse =
         selectedCourseFilter === "ALL" ||
-        (s.qualification && s.qualification === selectedCourseFilter) ||
-        (enrolledBatch && enrolledBatch.courseName === selectedCourseFilter) ||
         packageCourses.some((c) => c.name === selectedCourseFilter) ||
-        (s.courseName && s.courseName.includes(selectedCourseFilter));
+        (packageCourses.length === 0 && enrolledBatch?.courseName === selectedCourseFilter);
 
       const matchesBranch =
         selectedBranchFilter === "ALL" ||
@@ -319,10 +313,10 @@ export const StudentAllocation: React.FC = () => {
 
   // Avatar Initials Helper
   const getInitials = (name?: string) => {
-    if (!name) return "ST";
-    const parts = name.trim().split(" ");
-    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    return name.slice(0, 2).toUpperCase();
+    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "ST";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase() || "ST";
   };
 
   // Color generator for avatars
@@ -379,7 +373,7 @@ export const StudentAllocation: React.FC = () => {
         </div>
       )}
 
-      {actionError && (
+      {actionError && !showConfirmModal && (
         <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
           <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
           <span>{actionError}</span>
@@ -496,15 +490,15 @@ export const StudentAllocation: React.FC = () => {
                   placeholder="Search by name, email, phone or student ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9.5 pl-9 bg-muted/30 border-border text-foreground text-xs font-medium rounded-xl focus:bg-background"
+                  className="h-10 pl-9 bg-muted/30 border-border text-foreground text-xs font-medium rounded-xl focus:bg-background"
                 />
               </div>
 
-              <div className="relative min-w-[140px]">
+              <div className="relative w-[240px] shrink-0">
                 <select
                   value={selectedCourseFilter}
                   onChange={(e) => setSelectedCourseFilter(e.target.value)}
-                  className="w-full h-9.5 pl-3 pr-7 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-1 focus:ring-primary focus:bg-background outline-none cursor-pointer"
+                  className="w-full h-10 pl-3 pr-8 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-1 focus:ring-primary focus:bg-background outline-none cursor-pointer"
                 >
                   <option value="ALL">All Courses</option>
                   {uniqueCourses.map((c) => (
@@ -937,7 +931,13 @@ export const StudentAllocation: React.FC = () => {
       </div>
 
       {/* ─── CONFIRM BULK ASSIGN MODAL ─── */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+          <Dialog
+            open={showConfirmModal}
+            onOpenChange={(open) => {
+              setShowConfirmModal(open);
+              if (!open) setActionError(null);
+            }}
+          >
         <DialogContent className="max-w-md bg-white rounded-xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -949,6 +949,13 @@ export const StudentAllocation: React.FC = () => {
               <strong className="text-slate-900">{targetBatch?.code} – {targetBatch?.name}</strong>?
             </DialogDescription>
           </DialogHeader>
+
+          {actionError && (
+            <div className="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2 px-3 py-2.5 text-xs font-semibold">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{actionError}</span>
+            </div>
+          )}
 
           <div className="max-h-40 overflow-y-auto space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
             {selectedStudentsList.map((s) => (

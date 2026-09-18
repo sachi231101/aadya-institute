@@ -323,10 +323,21 @@ export const Branches: React.FC = () => {
                 <Label htmlFor="branch-code">Code *</Label>
                 <Input
                   id="branch-code"
+                  type="text"
+                  inputMode="text"
+                  autoComplete="off"
                   required
+                  maxLength={10}
+                  placeholder="e.g. MLM01"
                   value={form.code}
-                  onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""),
+                    }))
+                  }
                 />
+                <p className="text-[11px] text-muted-foreground">Letters and numbers, such as MLM01.</p>
               </div>
             </div>
             <div className="space-y-2">
