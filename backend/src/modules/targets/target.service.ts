@@ -105,6 +105,27 @@ export const TargetService = {
     return updated;
   },
 
+  async deleteTargetPlan(currentUser: AuthUser, id: string) {
+    const existing = await this.getTargetPlanById(currentUser, id);
+
+    if (existing.status === "LOCKED") {
+      throw new AppError("Cannot delete a LOCKED target plan", 400);
+    }
+
+    await TargetRepository.deleteTargetPlan(id, currentUser.instituteId);
+
+    await createAuditLog({
+      userId: currentUser.userId || currentUser.id,
+      instituteId: currentUser.instituteId,
+      action: "TARGET_PLAN_DELETED",
+      entityType: "TargetPlan",
+      entityId: id,
+      oldData: existing,
+    });
+
+    return { id, success: true };
+  },
+
   async publishTargetPlan(currentUser: AuthUser, id: string) {
     const existing = await this.getTargetPlanById(currentUser, id);
 

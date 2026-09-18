@@ -30,6 +30,7 @@ import {
   usePublishTargetPlan,
   useActivateTargetPlan,
   useLockTargetPlan,
+  useDeleteTargetPlan,
   useCreateTarget,
   useUpdateTarget,
   useDeleteTarget,
@@ -49,6 +50,15 @@ import type {
 } from "../../../types/target.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageContainer, PageHeader } from "@/components/layout";
 
 export const TargetManagement: React.FC = () => {
@@ -78,6 +88,7 @@ export const TargetManagement: React.FC = () => {
   const publishPlanMutation = usePublishTargetPlan();
   const activatePlanMutation = useActivateTargetPlan();
   const lockPlanMutation = useLockTargetPlan();
+  const deletePlanMutation = useDeleteTargetPlan();
   const createTargetMutation = useCreateTarget();
   const updateTargetMutation = useUpdateTarget();
   const deleteTargetMutation = useDeleteTarget();
@@ -94,6 +105,8 @@ export const TargetManagement: React.FC = () => {
   const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [editingTarget, setEditingTarget] = useState<Target | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
 
   // Form State: Target Plan
   const [planName, setPlanName] = useState("");
@@ -275,14 +288,31 @@ export const TargetManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete target "${title}"?`)) {
-      try {
-        await deleteTargetMutation.mutateAsync(id);
-        showToast(`✓ Target "${title}" deleted`);
-      } catch {
-        showToast("❌ Failed to delete target");
-      }
+  const handleDelete = (id: string, title: string) => {
+    setDeleteTarget({ id, title });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const { id, title } = deleteTarget;
+    try {
+      await deleteTargetMutation.mutateAsync(id);
+      setDeleteTarget(null);
+      showToast(`✓ Target "${title}" deleted`);
+    } catch {
+      showToast("❌ Failed to delete target");
+    }
+  };
+
+  const handleDeletePlanConfirm = async () => {
+    if (!deletePlan) return;
+    const { id, name } = deletePlan;
+    try {
+      await deletePlanMutation.mutateAsync(id);
+      setDeletePlan(null);
+      showToast(`✓ Campaign plan "${name}" deleted`);
+    } catch (err: any) {
+      showToast(`❌ ${err?.response?.data?.message || "Failed to delete campaign plan"}`);
     }
   };
 
@@ -746,7 +776,7 @@ export const TargetManagement: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-border flex items-center justify-between gap-2">
+                  <div className="pt-4 border-t border-border flex flex-col gap-2">
                     <PermissionGate itemKey="targets.all" mode="write">
                       {plan.status === "DRAFT" && (
                         <button
@@ -786,6 +816,17 @@ export const TargetManagement: React.FC = () => {
                         >
                           <Lock className="w-3.5 h-3.5" />
                           Lock & Finalize
+                        </button>
+                      )}
+
+                      {plan.status !== "LOCKED" && (
+                        <button
+                          type="button"
+                          onClick={() => setDeletePlan({ id: plan.id, name: plan.name })}
+                          className="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete Plan
                         </button>
                       )}
                     </PermissionGate>
@@ -1291,6 +1332,92 @@ export const TargetManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !deleteTargetMutation.isPending) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
+          <DialogHeader className="space-y-2">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Delete target?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
+              This will permanently remove{" "}
+              <strong className="text-foreground">{deleteTarget?.title}</strong>. This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteTargetMutation.isPending}
+              onClick={() => setDeleteTarget(null)}
+              className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteTargetMutation.isPending}
+              onClick={handleDeleteConfirm}
+              className="text-xs font-bold rounded-xl gap-1.5"
+            >
+              {deleteTargetMutation.isPending ? "Deleting..." : "Delete target"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deletePlan}
+        onOpenChange={(open) => {
+          if (!open && !deletePlanMutation.isPending) setDeletePlan(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
+          <DialogHeader className="space-y-2">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Delete campaign plan?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
+              This will permanently remove{" "}
+              <strong className="text-foreground">{deletePlan?.name}</strong>. Assigned
+              targets under this plan will stay, but will no longer be linked to the campaign.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deletePlanMutation.isPending}
+              onClick={() => setDeletePlan(null)}
+              className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletePlanMutation.isPending}
+              onClick={handleDeletePlanConfirm}
+              className="text-xs font-bold rounded-xl gap-1.5"
+            >
+              {deletePlanMutation.isPending ? "Deleting..." : "Delete plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };

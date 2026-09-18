@@ -47,6 +47,12 @@ router.patch(
   TargetController.updateTargetPlan
 );
 
+router.delete(
+  "/plans/:id",
+  requirePermission("target.manage"),
+  TargetController.deleteTargetPlan
+);
+
 router.post(
   "/plans/:id/publish",
   requirePermission("target.manage"),

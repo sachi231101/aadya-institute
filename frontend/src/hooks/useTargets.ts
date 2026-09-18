@@ -107,6 +107,17 @@ export const useLockTargetPlan = () => {
   });
 };
 
+export const useDeleteTargetPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => targetsApi.deleteTargetPlan(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allPlans });
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allTargets });
+    },
+  });
+};
+
 // ─── Targets CRUD Hooks ──────────────────────────────────────────────────────
 
 export const useTargets = (params?: QueryTargetsParams) => {

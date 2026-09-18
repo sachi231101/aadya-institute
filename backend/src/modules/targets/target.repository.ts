@@ -120,6 +120,12 @@ export const TargetRepository = {
     });
   },
 
+  async deleteTargetPlan(id: string, instituteId: string) {
+    return prisma.targetPlan.deleteMany({
+      where: { id, instituteId },
+    });
+  },
+
   // ─── Targets ───────────────────────────────────────────────────────────────
 
   async findTargets(
