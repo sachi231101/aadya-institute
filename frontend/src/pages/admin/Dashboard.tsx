@@ -21,6 +21,7 @@ import { useScheduleSummary } from "@/hooks/useScheduleSummary";
 import { useLeadDashboard } from "@/hooks/useLeads";
 import { usePayments } from "@/hooks/useFees";
 import { useAssignmentStats } from "@/hooks/useAssignments";
+import { useAdmissions } from "@/hooks/useAdmissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,12 @@ import { PageContainer, PageHeader, PageSection, MetricGrid } from "@/components
 import { ROUTES } from "@/constants/routes";
 
 import { useNotificationStore } from "@/store/notification.store";
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+  return `₹${amount.toLocaleString("en-IN")}`;
+};
 
 const ACCENT_COLORS = ["bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-emerald-500", "bg-pink-500"];
 const ACCENT_TEXT = ["text-blue-600", "text-purple-600", "text-orange-600", "text-emerald-600", "text-pink-600"];
@@ -53,7 +60,14 @@ export const AdminDashboard: React.FC = () => {
   const { data: scheduleSummary } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
   const { data: assignmentStatsRes } = useAssignmentStats();
+  const { data: admissionsCountRes } = useAdmissions({
+    limit: 1,
+    branchId: activeBranchId,
+  });
   const assignmentStats = assignmentStatsRes?.data;
+  const admissionsTotal =
+    admissionsCountRes?.meta?.total ??
+    (Array.isArray(admissionsCountRes?.data) ? admissionsCountRes.data.length : 0);
 
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
@@ -125,14 +139,24 @@ export const AdminDashboard: React.FC = () => {
     ? branchesData
     : branchesData.filter(b => b.id === selectedBranchId);
 
-  // Global Real KPIs
-  const kpiTotalStudents = studentReport?.summary?.totalStudents ?? filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
-  const kpiActiveBatches = allBatches?.filter(b => b.status === "ACTIVE").length ?? filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
+  // Global Real KPIs (branch-scoped when a center is selected)
+  const kpiTotalStudents =
+    studentReport?.summary?.totalStudents ??
+    filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
+  const scopedBatches = useMemo(() => {
+    const list = allBatches || [];
+    if (!activeBranchId) return list;
+    return list.filter((b) => b.branchId === activeBranchId || b.branch?.id === activeBranchId);
+  }, [allBatches, activeBranchId]);
+  const kpiActiveBatches = scopedBatches.filter((b) => b.status === "ACTIVE").length;
   const kpiTotalLeads = leadDashboardData?.data?.totalLeads ?? leadDashboardData?.totalLeads ?? 0;
-  const kpiTotalRevenue = financialReport?.summary?.totalCollected ?? filteredBranches.reduce((acc, b) => acc + b.collected, 0);
-  const formattedRevenue = kpiTotalRevenue >= 100000 
-    ? `₹${(kpiTotalRevenue / 100000).toFixed(2)}L` 
-    : `₹${kpiTotalRevenue.toLocaleString("en-IN")}`;
+  const kpiTotalRevenue =
+    financialReport?.summary?.totalCollected ??
+    filteredBranches.reduce((acc, b) => acc + b.collected, 0);
+  const kpiPendingFees = financialReport?.summary?.totalPending ?? 0;
+  const formattedRevenue = formatCompactCurrency(kpiTotalRevenue);
+  const formattedPendingFees = formatCompactCurrency(kpiPendingFees);
+  const todayClasses = scheduleSummary?.todayClasses ?? 0;
 
   const topBranches = [...branchesData].sort((a, b) => b.collected - a.collected).slice(0, 3);
 
@@ -274,21 +298,23 @@ export const AdminDashboard: React.FC = () => {
         </Card>
       </MetricGrid>
 
-      <PageSection title="Module Quick Access" density="compact">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <PageSection
+        title="Module Quick Access"
+        description="Jump into modules that are not covered by the KPI cards above."
+        density="compact"
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
           {[
-            { label: "Leads", path: ROUTES.ADMIN.LEADS.ROOT, count: kpiTotalLeads },
-            { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: kpiTotalStudents },
-            { label: "Students", path: ROUTES.ADMIN.STUDENTS.ALL, count: kpiTotalStudents },
-            { label: "Schedule", path: ROUTES.ADMIN.SCHEDULE.CLASSES, count: scheduleSummary?.todayClasses ?? 0 },
-            { label: "Fees", path: ROUTES.ADMIN.FEES.PENDING, count: financialReport?.summary?.totalPending ? "Pending" : 0 },
-            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: "→" },
-            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "→" },
-            { label: "Batches", path: ROUTES.ADMIN.BATCHES.ALL, count: kpiActiveBatches },
+            { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: admissionsTotal, hint: "Total records" },
+            { label: "Schedule", path: ROUTES.ADMIN.SCHEDULE.CLASSES, count: todayClasses, hint: "Classes today" },
+            { label: "Fees Pending", path: ROUTES.ADMIN.FEES.PENDING, count: formattedPendingFees, hint: "Outstanding dues" },
+            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: "Open", hint: "Exam desk" },
+            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "Open", hint: "Notifications" },
             {
               label: "Assignments",
               path: ROUTES.ADMIN.ASSIGNMENTS.ALL,
               count: assignmentStats?.activeAssignments ?? 0,
+              hint: "Active assignments",
             },
           ].map((mod) => (
             <button
@@ -299,6 +325,7 @@ export const AdminDashboard: React.FC = () => {
             >
               <p className="text-xs font-semibold text-foreground">{mod.label}</p>
               <p className="text-xl font-semibold text-primary mt-1.5">{mod.count}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{mod.hint}</p>
             </button>
           ))}
         </div>

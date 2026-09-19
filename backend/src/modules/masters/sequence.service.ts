@@ -203,11 +203,13 @@ export const SequenceService = {
 
         let generatedNumber = applyPattern(pattern, nextSequence, context);
 
-        // Verification & Collision Prevention Loop
+        // Collision prevention must match DB uniqueness:
+        // admissionNo / receiptNo / invoiceNo are globally @unique.
+        // studentCode is unique per institute.
         if (normalizedTarget === "ADMISSION") {
           let attempts = 0;
           while (
-            (await tx.admission.findFirst({ where: { instituteId, admissionNo: generatedNumber } })) &&
+            (await tx.admission.findFirst({ where: { admissionNo: generatedNumber } })) &&
             attempts < 500
           ) {
             nextSequence++;
@@ -227,9 +229,8 @@ export const SequenceService = {
         } else if (normalizedTarget === "INVOICE") {
           let attempts = 0;
           while (
-            (await tx.studentInvoice.findFirst({
-              where: { instituteId, invoiceNo: generatedNumber },
-            })) &&
+            ((await tx.studentInvoice.findFirst({ where: { invoiceNo: generatedNumber } })) ||
+              (await tx.otherInvoice.findFirst({ where: { invoiceNo: generatedNumber } }))) &&
             attempts < 500
           ) {
             nextSequence++;
@@ -239,9 +240,8 @@ export const SequenceService = {
         } else if (normalizedTarget === "OTHER_INVOICE") {
           let attempts = 0;
           while (
-            (await tx.otherInvoice.findFirst({
-              where: { instituteId, invoiceNo: generatedNumber },
-            })) &&
+            ((await tx.otherInvoice.findFirst({ where: { invoiceNo: generatedNumber } })) ||
+              (await tx.studentInvoice.findFirst({ where: { invoiceNo: generatedNumber } }))) &&
             attempts < 500
           ) {
             nextSequence++;
@@ -251,9 +251,7 @@ export const SequenceService = {
         } else if (normalizedTarget === "RECEIPT") {
           let attempts = 0;
           while (
-            (await tx.payment.findFirst({
-              where: { instituteId, receiptNo: generatedNumber },
-            })) &&
+            (await tx.payment.findFirst({ where: { receiptNo: generatedNumber } })) &&
             attempts < 500
           ) {
             nextSequence++;
