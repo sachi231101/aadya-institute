@@ -14,3 +14,10 @@ export const isValidIndianPhone = (phone: string): boolean => {
   const last10 = digits.slice(-10);
   return last10.length === 10 && /^[6-9]\d{9}$/.test(last10);
 };
+
+/** Normalize phone to last 10 digits for cross-module matching. */
+export const normalizePhoneDigits = (phone: string | null | undefined): string => {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  return digits.slice(-10);
+};

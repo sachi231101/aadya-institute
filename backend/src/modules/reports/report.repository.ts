@@ -63,10 +63,10 @@ export class ReportRepository {
             course: { select: { id: true, name: true, code: true } },
             application: {
               include: {
-                enquiry: {
+                lead: {
                   select: {
                     createdAt: true,
-                    assignedTo: { select: { name: true } },
+                    assignedCounsellor: { select: { name: true } },
                   },
                 },
               },
@@ -158,9 +158,9 @@ export class ReportRepository {
         if (!enquiryAt || lead.createdAt < enquiryAt) enquiryAt = lead.createdAt;
       }
       for (const admission of s.admissions) {
-        const enquiryCreatedAt = admission.application?.enquiry?.createdAt;
-        if (enquiryCreatedAt && (!enquiryAt || enquiryCreatedAt < enquiryAt)) {
-          enquiryAt = enquiryCreatedAt;
+        const leadCreatedAt = admission.application?.lead?.createdAt;
+        if (leadCreatedAt && (!enquiryAt || leadCreatedAt < enquiryAt)) {
+          enquiryAt = leadCreatedAt;
         }
       }
       const enquiryDate = enquiryAt ? enquiryAt.toISOString() : null;
@@ -168,12 +168,12 @@ export class ReportRepository {
       const counsellorFromLead = (s.convertedFromLeads || []).find(
         (lead) => lead.assignedCounsellor?.name
       )?.assignedCounsellor?.name;
-      const counsellorFromEnquiry = s.admissions
-        .map((a) => a.application?.enquiry?.assignedTo?.name)
+      const counsellorFromAppLead = s.admissions
+        .map((a) => a.application?.lead?.assignedCounsellor?.name)
         .find((name): name is string => !!name);
       const counsellorName =
         counsellorFromLead ||
-        counsellorFromEnquiry ||
+        counsellorFromAppLead ||
         extractFromNotes(combinedNotes, /Counsellor:\s*([^|\n]+)/i) ||
         null;
 
@@ -2083,13 +2083,6 @@ export class ReportRepository {
                   source: true,
                   assignedCounsellorId: true,
                   assignedCounsellor: { select: { name: true } },
-                },
-              },
-              enquiry: {
-                select: {
-                  source: true,
-                  assignedToId: true,
-                  assignedTo: { select: { name: true } },
                   createdAt: true,
                 },
               },
@@ -2157,17 +2150,14 @@ export class ReportRepository {
         (lead) => lead.assignedCounsellorId || lead.assignedCounsellor?.name
       );
       const applicationLead = admission.application?.lead;
-      const enquiry = admission.application?.enquiry;
       return {
         id:
           convertedLead?.assignedCounsellorId ||
           applicationLead?.assignedCounsellorId ||
-          enquiry?.assignedToId ||
           undefined,
         name:
           convertedLead?.assignedCounsellor?.name ||
           applicationLead?.assignedCounsellor?.name ||
-          enquiry?.assignedTo?.name ||
           extractNoteValue(admission.notes, "Counsellor"),
       };
     };
@@ -2177,7 +2167,6 @@ export class ReportRepository {
     ): string | null =>
       admission.convertedFromLeads.find((lead) => lead.source)?.source ||
       admission.application?.lead?.source ||
-      admission.application?.enquiry?.source ||
       extractNoteValue(admission.notes, "Lead source");
 
     const admissions = admissionCandidates.filter((admission) => {
@@ -2273,14 +2262,6 @@ export class ReportRepository {
                 assignedCounsellor: { select: { name: true } },
               },
             },
-            enquiry: {
-              select: {
-                branchId: true,
-                source: true,
-                assignedToId: true,
-                assignedTo: { select: { name: true } },
-              },
-            },
           },
         }),
         admissionIds.length || studentIds.length
@@ -2351,16 +2332,12 @@ export class ReportRepository {
       const applicationBranchId =
         application.branchId ||
         application.lead?.branchId ||
-        application.enquiry?.branchId ||
         null;
       if (!isBranchAllowed(applicationBranchId)) return false;
       if (counsellorId) {
-        const assignedId =
-          application.lead?.assignedCounsellorId ||
-          application.enquiry?.assignedToId;
+        const assignedId = application.lead?.assignedCounsellorId;
         const assignedName =
           application.lead?.assignedCounsellor?.name ||
-          application.enquiry?.assignedTo?.name ||
           extractNoteValue(application.notes, "Counsellor");
         if (
           assignedId !== counsellorId &&
@@ -2371,7 +2348,6 @@ export class ReportRepository {
       }
       const source =
         application.lead?.source ||
-        application.enquiry?.source ||
         extractNoteValue(application.notes, "Lead source");
       return matchesLeadSource(source);
     });

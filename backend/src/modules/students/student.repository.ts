@@ -41,10 +41,10 @@ const studentInclude = {
       batch: { select: { id: true, name: true, code: true, timeSlot: true } },
       application: {
         include: {
-          enquiry: {
+          lead: {
             select: {
               createdAt: true,
-              assignedTo: { select: { name: true } },
+              assignedCounsellor: { select: { name: true } },
             },
           },
         },

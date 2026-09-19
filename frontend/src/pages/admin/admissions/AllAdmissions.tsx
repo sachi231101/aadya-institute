@@ -10,7 +10,6 @@ import {
   Copy,
   Check,
   SlidersHorizontal,
-  Filter,
   FileText,
   UserCheck,
   XCircle,
@@ -215,8 +214,14 @@ export const AllAdmissions: React.FC = () => {
       phone: adm.phone || adm.student?.user?.phone || "",
       altPhone: extractNote(adm.notes, /Alternate mobile:\s*([^|\n]+)/i) || "—",
       emergencyContact: extractNote(adm.notes, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || "—",
-      dob: adm.dob ? String(adm.dob).slice(0, 10) : extractNote(adm.notes, /DOB:\s*([^|\n]+)/i) || "—",
-      gender: extractNote(adm.notes, /Gender:\s*([^|\n]+)/i) || "—",
+      dob:
+        (adm.student?.dateOfBirth
+          ? String(adm.student.dateOfBirth).slice(0, 10)
+          : null) ||
+        (adm.dob ? String(adm.dob).slice(0, 10) : null) ||
+        extractNote(adm.notes, /DOB:\s*([^|\n]+)/i) ||
+        "—",
+      gender: extractNote(adm.notes, /Gender:\s*([^|\n]+)/i) || adm.student?.gender || "—",
       bloodGroup: extractNote(adm.notes, /Blood Group:\s*([^|\n]+)/i) || "—",
       highestQualification: extractNote(adm.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || adm.student?.qualification || "—",
       address: extractNote(adm.notes, /Address:\s*([^|\n]+)/i) || "—",
@@ -337,8 +342,13 @@ export const AllAdmissions: React.FC = () => {
       phone: detail.phone || detail.student?.user?.phone || "",
       altPhone: extractNote(detail.notes, /Alternate mobile:\s*([^|\n]+)/i) || "—",
       emergencyContact: extractNote(detail.notes, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || "—",
-      dob: extractNote(detail.notes, /DOB:\s*([^|\n]+)/i) || "—",
-      gender: extractNote(detail.notes, /Gender:\s*([^|\n]+)/i) || "—",
+      dob:
+        (detail.student?.dateOfBirth
+          ? String(detail.student.dateOfBirth).slice(0, 10)
+          : null) ||
+        extractNote(detail.notes, /DOB:\s*([^|\n]+)/i) ||
+        "—",
+      gender: extractNote(detail.notes, /Gender:\s*([^|\n]+)/i) || detail.student?.gender || "—",
       bloodGroup: extractNote(detail.notes, /Blood Group:\s*([^|\n]+)/i) || "—",
       highestQualification: extractNote(detail.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || detail.student?.qualification || "—",
       address: extractNote(detail.notes, /Address:\s*([^|\n]+)/i) || "—",
@@ -409,10 +419,8 @@ export const AllAdmissions: React.FC = () => {
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
   const [batchTypeFilter, setBatchTypeFilter] = useState("ALL");
   const [feeStatusFilter, setFeeStatusFilter] = useState("ALL");
-  const [showFilters, setShowFilters] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -514,18 +522,15 @@ export const AllAdmissions: React.FC = () => {
         adm.courseName.toLowerCase().includes(courseFilter.toLowerCase()) ||
         (adm.courses || []).some((c) => c.name.toLowerCase() === courseFilter.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "ALL" || adm.status === statusFilter;
-
       const matchesBatchType =
         batchTypeFilter === "ALL" || adm.batchType === batchTypeFilter;
 
       const matchesFee =
         feeStatusFilter === "ALL" || adm.feePaymentStatus === feeStatusFilter;
 
-      return matchesSearch && matchesCourse && matchesStatus && matchesBatchType && matchesFee;
+      return matchesSearch && matchesCourse && matchesBatchType && matchesFee;
     });
-  }, [admissionsList, searchTerm, courseFilter, statusFilter, batchTypeFilter, feeStatusFilter]);
+  }, [admissionsList, searchTerm, courseFilter, batchTypeFilter, feeStatusFilter]);
 
   // Paginated Rows
   const currentRows = useMemo(() => {
@@ -770,90 +775,59 @@ export const AllAdmissions: React.FC = () => {
             }
           />
 
-          <FilterToolbar className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search name, admission no, phone..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="h-9 pl-8 text-xs rounded-lg"
-                />
-              </div>
-              <select
-                value={statusFilter}
+          <FilterToolbar className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search name, admission no, phone..."
+                value={searchTerm}
                 onChange={(e) => {
-                  setStatusFilter(e.target.value);
+                  setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
-              >
-                <option value="ALL">All statuses</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Provisional">Provisional</option>
-                <option value="Admission Pending">Pending</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters((v) => !v)}
-                className="h-9 gap-1.5 text-xs shrink-0"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                More
-              </Button>
+                className="h-9 pl-8 text-xs rounded-lg"
+              />
             </div>
-
-            {showFilters && (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={courseFilter}
-                  onChange={(e) => {
-                    setCourseFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
-                >
-                  <option value="ALL">All courses</option>
-                  {courseOptions.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-                <select
-                  value={feeStatusFilter}
-                  onChange={(e) => {
-                    setFeeStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
-                >
-                  <option value="ALL">All fees</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Due">Due</option>
-                </select>
-                {(searchTerm || courseFilter !== "ALL" || statusFilter !== "ALL" || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setCourseFilter("ALL");
-                      setStatusFilter("ALL");
-                      setBatchTypeFilter("ALL");
-                      setFeeStatusFilter("ALL");
-                      setCurrentPage(1);
-                    }}
-                    className="h-9 text-xs text-muted-foreground"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
+            <select
+              value={courseFilter}
+              onChange={(e) => {
+                setCourseFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
+            >
+              <option value="ALL">All courses</option>
+              {courseOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <select
+              value={feeStatusFilter}
+              onChange={(e) => {
+                setFeeStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
+            >
+              <option value="ALL">All fees</option>
+              <option value="Paid">Paid</option>
+              <option value="Due">Due</option>
+            </select>
+            {(searchTerm || courseFilter !== "ALL" || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("");
+                  setCourseFilter("ALL");
+                  setBatchTypeFilter("ALL");
+                  setFeeStatusFilter("ALL");
+                  setCurrentPage(1);
+                }}
+                className="h-9 text-xs text-muted-foreground"
+              >
+                Clear
+              </Button>
             )}
           </FilterToolbar>
 

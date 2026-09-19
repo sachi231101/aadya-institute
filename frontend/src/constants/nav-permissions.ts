@@ -148,7 +148,6 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
     "leads.call_history": ["ai_call.read", "lead.read"],
     "admissions.all": ["admission.read"],
     "admissions.applications": ["admission.read"],
-    "admissions.enquiries": ["lead.read", "admission.read"],
     "counsellor.overview": ["user.read"],
     "counsellor.manage": ["user.read"],
     "counsellor.batches": ["batch.read"],

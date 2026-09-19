@@ -1,45 +1,17 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 import {
-  createEnquirySchema,
-  updateEnquirySchema,
   createApplicationSchema,
   updateApplicationSchema,
   createAdmissionSchema,
   updateAdmissionSchema,
-  convertEnquirySchema,
-  convertApplicationSchema,
+  createApplicationActivitySchema,
 } from "../modules/admissions/admissions.validation";
 import { AdmissionsService } from "../modules/admissions/admissions.service";
 import { prisma } from "../config/database";
 import type { AuthUser } from "../modules/auth/auth.types";
 
 describe("Admissions Validation Unit Tests", () => {
-  test("createEnquirySchema should validate valid input", () => {
-    const input = {
-      name: "Rohan Sharma",
-      email: "rohan@gmail.com",
-      phone: "+919876543210",
-      courseId: "course-123",
-      source: "WEBSITE",
-      status: "NEW",
-      counselorNotes: "Interested in upcoming batch",
-    };
-    const parsed = createEnquirySchema.parse(input);
-    assert.strictEqual(parsed.name, "Rohan Sharma");
-    assert.strictEqual(parsed.source, "WEBSITE");
-  });
-
-  test("createEnquirySchema should reject invalid email or short phone", () => {
-    assert.throws(() => {
-      createEnquirySchema.parse({
-        name: "A",
-        phone: "123",
-        courseId: "c1",
-      });
-    });
-  });
-
   test("createApplicationSchema should validate valid input", () => {
     const input = {
       applicantName: "Amitabh Joshi",
@@ -47,11 +19,53 @@ describe("Admissions Validation Unit Tests", () => {
       phone: "+919845011223",
       courseId: "course-[#1]",
       feeStatus: "PAID",
+      applicationFee: 500,
+      paymentModeMasterId: "payment-mode-1",
       status: "SUBMITTED",
+      branchId: "branch-1",
     };
     const parsed = createApplicationSchema.parse(input);
     assert.strictEqual(parsed.applicantName, "Amitabh Joshi");
     assert.strictEqual(parsed.feeStatus, "PAID");
+    assert.strictEqual(parsed.applicationFee, 500);
+    assert.strictEqual(parsed.paymentModeMasterId, "payment-mode-1");
+  });
+
+  test("createApplicationSchema should require fee and payment mode when PAID", () => {
+    assert.throws(() => {
+      createApplicationSchema.parse({
+        applicantName: "Amitabh Joshi",
+        phone: "+919845011223",
+        courseId: "course-1",
+        feeStatus: "PAID",
+      });
+    });
+  });
+
+  test("updateApplicationSchema should require rejectReason when REJECTED", () => {
+    assert.throws(() => {
+      updateApplicationSchema.parse({ status: "REJECTED" });
+    });
+    const parsed = updateApplicationSchema.parse({
+      status: "REJECTED",
+      rejectReason: "Not eligible",
+    });
+    assert.strictEqual(parsed.rejectReason, "Not eligible");
+  });
+
+  test("createApplicationSchema should reject invalid email or short phone", () => {
+    assert.throws(() => {
+      createApplicationSchema.parse({
+        applicantName: "A",
+        phone: "123",
+        courseId: "c1",
+      });
+    });
+  });
+
+  test("updateApplicationSchema should accept partial updates", () => {
+    const parsed = updateApplicationSchema.parse({ status: "UNDER_REVIEW" });
+    assert.strictEqual(parsed.status, "UNDER_REVIEW");
   });
 
   test("createAdmissionSchema should validate direct admission payload", () => {
@@ -81,23 +95,17 @@ describe("Admissions Validation Unit Tests", () => {
     assert.strictEqual(parsed.sendCredentials, true);
   });
 
-  test("convertApplicationSchema should accept fee fields", () => {
-    const parsed = convertApplicationSchema.parse({
-      batchId: "batch-1",
-      totalFee: 50000,
-      amountPaid: 10000,
-      installments: [{ installmentNo: 1, dueDate: "2026-04-01", amount: 20000 }],
+  test("createApplicationActivitySchema should require description", () => {
+    const parsed = createApplicationActivitySchema.parse({
+      description: "Follow-up note",
     });
-    assert.strictEqual(parsed.totalFee, 50000);
-    assert.strictEqual(parsed.amountPaid, 10000);
+    assert.strictEqual(parsed.description, "Follow-up note");
   });
 
   test("AdmissionsService generateNo helper should return prefixed sequential identifier", async () => {
-    const enqNo = await AdmissionsService.generateNo("ENQ");
     const appNo = await AdmissionsService.generateNo("APP");
     const admNo = await AdmissionsService.generateNo("ADM");
 
-    assert.match(enqNo, /^ENQ-2026-\d{7}$/);
     assert.match(appNo, /^APP-2026-\d{7}$/);
     assert.match(admNo, /^ADM-2026-\d{7}$/);
   });
@@ -113,6 +121,7 @@ describe("Admissions Workflow Integration Tests", () => {
   let adminUser: AuthUser;
   let leadId: string;
   let creatorUserId: string;
+  let paymentModeMasterId: string;
   let termsAcceptance: Array<{ masterId: string; name: string }>;
 
   before(async () => {
@@ -163,6 +172,26 @@ describe("Admissions Workflow Integration Tests", () => {
       )
     );
     termsAcceptance = terms.map((term) => ({ masterId: term.id, name: term.name }));
+
+    const paymentMode = await prisma.masterRecord.upsert({
+      where: {
+        instituteId_entityType_name: {
+          instituteId,
+          entityType: "paymentmodes",
+          name: "UPI Test",
+        },
+      },
+      update: { status: "ACTIVE", code: "UPI" },
+      create: {
+        instituteId,
+        entityType: "paymentmodes",
+        name: "UPI Test",
+        code: "UPI",
+        status: "ACTIVE",
+        sortOrder: 1,
+      },
+    });
+    paymentModeMasterId = paymentMode.id;
 
     const course = await prisma.course.upsert({
       where: { instituteId_code: { instituteId, code: "ADM-COURSE" } },
@@ -458,7 +487,7 @@ describe("Admissions Workflow Integration Tests", () => {
     assert.ok(result.total >= 1);
   });
 
-  test("application conversion requires and persists terms acceptance", async () => {
+  test("application conversion via createAdmission requires and persists terms acceptance", async () => {
     const phone = `3${Date.now().toString().slice(-9)}`;
     const application = await prisma.application.create({
       data: {
@@ -469,33 +498,108 @@ describe("Admissions Workflow Integration Tests", () => {
         phone,
         courseId,
         status: "SUBMITTED",
+        feeStatus: "PAID",
       },
     });
 
     await assert.rejects(
       () =>
-        AdmissionsService.convertApplicationToAdmission(
-          application.id,
+        AdmissionsService.createAdmission(
           instituteId,
-          { batchId, totalFee: 10000, amountPaid: 0 },
-          adminUser
+          branchAId,
+          {
+            studentName: "Convert Terms Applicant",
+            phone,
+            courseId,
+            batchId,
+            applicationId: application.id,
+            totalFee: 10000,
+            amountPaid: 0,
+            status: "CONFIRMED",
+          },
+          { userId: adminUser.userId, currentUser: adminUser }
         ),
       (err: Error) => err.message.includes("Terms & Conditions")
     );
 
-    const admission = await AdmissionsService.convertApplicationToAdmission(
-      application.id,
+    const admission = await AdmissionsService.createAdmission(
       instituteId,
+      branchAId,
       {
+        studentName: "Convert Terms Applicant",
+        phone,
+        courseId,
         batchId,
+        applicationId: application.id,
         totalFee: 10000,
         amountPaid: 0,
+        status: "CONFIRMED",
         termsAcceptance,
       },
-      adminUser
+      { userId: adminUser.userId, currentUser: adminUser }
     );
 
     assert.ok(admission.termsAcceptedAt);
     assert.deepStrictEqual(admission.termsAcceptance, termsAcceptance);
+
+    const updatedApp = await prisma.application.findUnique({ where: { id: application.id } });
+    assert.strictEqual(updatedApp?.status, "ADMITTED");
+  });
+
+  test("createApplication requires branch for admin without branchId", async () => {
+    await assert.rejects(
+      () =>
+        AdmissionsService.createApplication(adminUser, {
+          applicantName: "No Branch Applicant",
+          phone: `9${Date.now().toString().slice(-9)}`,
+          courseId,
+        }),
+      (err: Error) => err.message.includes("Branch is required")
+    );
+
+    const app = await AdmissionsService.createApplication(adminUser, {
+      applicantName: "With Branch Applicant",
+      phone: `8${Date.now().toString().slice(-9)}`,
+      courseId,
+      branchId: branchAId,
+    });
+    assert.strictEqual(app?.branchId, branchAId);
+  });
+
+  test("PAID application creates SUCCESS Payment with receipt and voids on pending", async () => {
+    const phone = `6${Date.now().toString().slice(-9)}`;
+    const txnRef = `TXN-${Date.now()}`;
+    const app = await AdmissionsService.createApplication(adminUser, {
+      applicantName: "Fee Paid Applicant",
+      phone,
+      courseId,
+      branchId: branchAId,
+      feeStatus: "PAID",
+      applicationFee: 500,
+      paymentModeMasterId,
+      paymentRef: txnRef,
+    });
+
+    assert.ok(app);
+    assert.strictEqual(app!.feeStatus, "PAID");
+    assert.ok(app!.paymentId);
+    assert.ok(app!.payment?.receiptNo);
+
+    const payment = await prisma.payment.findUnique({ where: { id: app!.paymentId! } });
+    assert.ok(payment);
+    assert.strictEqual(payment!.status, "SUCCESS");
+    assert.strictEqual(Number(payment!.amount), 500);
+    assert.strictEqual(payment!.transactionRef, txnRef);
+    assert.strictEqual(payment!.admissionNo, app!.applicationNo);
+    assert.strictEqual(payment!.studentId, null);
+
+    const updated = await AdmissionsService.updateApplication(app!.id, adminUser, {
+      feeStatus: "PENDING",
+    });
+    assert.strictEqual(updated!.feeStatus, "PENDING");
+    assert.strictEqual(updated!.paymentId, null);
+
+    const voided = await prisma.payment.findUnique({ where: { id: payment!.id } });
+    assert.strictEqual(voided!.status, "VOID");
   });
 });

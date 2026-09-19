@@ -38,7 +38,6 @@ import { AddAdmin } from "../pages/admin/administration/AddAdmin";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
-import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
 import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
@@ -279,7 +278,6 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Enquiries />} />
           <Route path="documents" element={<AdmissionDocuments />} />
         </Route>
 
@@ -346,7 +344,6 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<AllLeadsList />} />
           <Route path="all" element={<AllLeadsList />} />
           <Route path="call-history" element={<CallHistory />} />
-          <Route path="enquiries" element={<Navigate to="/center/admissions/enquiries" replace />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />
@@ -389,7 +386,6 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
         <Route path="students">
@@ -455,7 +451,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="leads">
           <Route index element={<AllLeadsList />} />
           <Route path="all" element={<AllLeadsList />} />
-          <Route path="enquiries" element={<Enquiries />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="call-history" element={<CallHistory />} />

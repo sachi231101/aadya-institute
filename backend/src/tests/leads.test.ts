@@ -1454,102 +1454,37 @@ describe("Lead Management Module Tests", () => {
     });
   });
 
-  describe("16. Enquiry → Lead bridge for AI call", () => {
-    test("ensureLeadFromEnquiry creates ACTIVE lead when none exists", async () => {
-      const { ensureLeadFromEnquiry } = await import(
-        "../modules/leads/services/lead-enquiry-bridge.service"
-      );
+  describe("16. Application from lead (no enquiry bridge)", () => {
+    test("createApplicationFromLead creates application linked to lead only", async () => {
+      const { LeadService } = await import("../modules/leads/lead.service");
 
-      const phone = "+919876501801";
-      const enquiry = await prisma.enquiry.create({
+      const phone = `+91987650${String(Date.now()).slice(-4)}`;
+      const lead = await prisma.lead.create({
         data: {
           instituteId,
           branchId: branchAId,
-          name: "Enquiry Bridge Person",
-          phone,
-          email: "bridge@aadya.test",
+          name: "App From Lead Person",
+          phoneNumber: phone,
+          interestedIn: "Test Course",
           courseId,
           source: "WEBSITE",
-          status: "NEW",
-          counselorNotes: "Wants demo",
-        },
-        include: { course: { select: { name: true } } },
-      });
-
-      const result = await ensureLeadFromEnquiry({
-        enquiry,
-        createdById: managerAUser.id,
-      });
-
-      assert.strictEqual(result.created, true);
-      assert.ok(result.lead.id);
-
-      const lead = await prisma.lead.findUnique({ where: { id: result.lead.id } });
-      assert.ok(lead);
-      assert.strictEqual(lead!.status, "ACTIVE");
-      assert.strictEqual(lead!.courseId, courseId);
-      assert.ok(lead!.phoneNumber.includes("9876501801"));
-
-      const again = await ensureLeadFromEnquiry({
-        enquiry,
-        createdById: managerAUser.id,
-      });
-      assert.strictEqual(again.created, false);
-      assert.strictEqual(again.lead.id, result.lead.id);
-
-      await prisma.enquiry.delete({ where: { id: enquiry.id } });
-    });
-
-    test("triggerEnquiryAiCall auto-creates lead then dials", async () => {
-      const { AdmissionsService } = await import(
-        "../modules/admissions/admissions.service"
-      );
-
-      const phone = "+919876501802";
-      const enquiry = await prisma.enquiry.create({
-        data: {
-          instituteId,
-          branchId: branchAId,
-          name: "Enquiry Dial Person",
-          phone,
-          courseId,
-          source: "WEBSITE",
-          status: "NEW",
-        },
-        include: { course: { select: { name: true } } },
-      });
-
-      const before = await prisma.lead.findFirst({
-        where: {
-          instituteId,
+          stage: "QUALIFIED",
           status: "ACTIVE",
-          OR: [{ normalizedPhone: "9876501802" }, { phoneNumber: phone }],
+          createdById: managerAUser.id,
         },
       });
-      assert.strictEqual(before, null);
 
-      const updated = await AdmissionsService.triggerEnquiryAiCall(
-        enquiry.id,
-        instituteId,
-        managerAUser.id
-      );
-
-      assert.ok(updated);
-      assert.ok(updated!.counselorNotes?.includes("AI Call"));
-
-      const lead = await prisma.lead.findFirst({
-        where: {
-          instituteId,
-          status: "ACTIVE",
-          OR: [{ normalizedPhone: "9876501802" }, { phoneNumber: phone }],
-        },
+      const application = await LeadService.createApplicationFromLead(lead.id, managerAUser, {
+        courseId,
+        notes: "From lead test",
       });
-      assert.ok(lead);
 
-      const callLogs = await prisma.callLog.findMany({ where: { leadId: lead!.id } });
-      assert.ok(callLogs.length >= 1);
+      assert.ok(application.id);
+      assert.strictEqual(application.leadId, lead.id);
 
-      await prisma.enquiry.delete({ where: { id: enquiry.id } });
+      await prisma.applicationActivity.deleteMany({ where: { applicationId: application.id } });
+      await prisma.application.delete({ where: { id: application.id } });
+      await prisma.lead.delete({ where: { id: lead.id } });
     });
   });
 

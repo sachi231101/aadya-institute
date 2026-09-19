@@ -1,7 +1,7 @@
 import { prisma } from "../../config/database";
 import type { Prisma, LeadStatus, LeadLostReason } from "@prisma/client";
 import { LeadActivityService } from "./services/lead-activity.service";
-import { normalizePhoneDigits } from "./services/lead-enquiry-sync.service";
+import { normalizePhoneDigits } from "../../utils/phone";
 
 export interface LeadFindManyParams {
   instituteId: string;

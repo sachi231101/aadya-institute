@@ -1,6 +1,6 @@
 import { prisma } from "../../../config/database";
 import { isValidIndianPhone, normalizePhone } from "../../../utils/phone";
-import { normalizePhoneDigits } from "./lead-enquiry-sync.service";
+import { normalizePhoneDigits } from "../../../utils/phone";
 
 const DEFAULT_INTERESTED_IN = "General enquiry";
 

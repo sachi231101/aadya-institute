@@ -12,6 +12,7 @@ import {
   resolveTuitionFeeHead,
 } from "../fees/fee-provision.service";
 import type { FeeProvisionLine } from "../fees/fee.types";
+import { attachApplicationFeePaymentToAdmission } from "./application-fee-payment.service";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -125,6 +126,7 @@ async function ensureStudentUser(
     /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i
   );
   const extractedDob = extractNote(dto.notes, /DOB:\s*([^|\n]+)/i);
+  const extractedGender = extractNote(dto.notes, /Gender:\s*([^|\n]+)/i);
 
   const studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT", {
     branchCode: params.branchCode,
@@ -163,6 +165,7 @@ async function ensureStudentUser(
       studentCode,
       qualification: extractedQual || null,
       dateOfBirth: parsedDob,
+      gender: extractedGender || null,
       status: "ACTIVE",
       ...(dto.areaMasterId ? { areaMasterId: dto.areaMasterId } : {}),
     },
@@ -352,6 +355,14 @@ export async function provisionAdmissionInTransaction(
       where: { id: dto.applicationId, instituteId },
       data: { status: "ADMITTED" },
     });
+    if (finalStudentId) {
+      await attachApplicationFeePaymentToAdmission(tx, {
+        applicationId: dto.applicationId,
+        instituteId,
+        studentId: finalStudentId,
+        admissionId: admission.id,
+      });
+    }
   }
 
   if (dto.leadId) {

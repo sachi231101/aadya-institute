@@ -180,15 +180,17 @@ const mapStudentSummary = (s: any) => {
     }
   }
   for (const adm of s.admissions || []) {
-    const enquiryCreatedAt = adm.application?.enquiry?.createdAt;
-    if (enquiryCreatedAt && (!enquiryAt || new Date(enquiryCreatedAt) < enquiryAt)) {
-      enquiryAt = new Date(enquiryCreatedAt);
+    const leadCreatedAt = adm.application?.lead?.createdAt;
+    if (leadCreatedAt && (!enquiryAt || new Date(leadCreatedAt) < enquiryAt)) {
+      enquiryAt = new Date(leadCreatedAt);
     }
   }
 
   const counsellorName =
     (s.convertedFromLeads || []).find((lead: any) => lead.assignedCounsellor?.name)?.assignedCounsellor?.name ||
-    (s.admissions || []).map((a: any) => a.application?.enquiry?.assignedTo?.name).find((n: string | undefined) => !!n) ||
+    (s.admissions || [])
+      .map((a: any) => a.application?.lead?.assignedCounsellor?.name)
+      .find((n: string | undefined) => !!n) ||
     extractFromNotes(/Counsellor:\s*([^|\n]+)/i) ||
     null;
   const leadSource =

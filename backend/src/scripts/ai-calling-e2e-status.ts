@@ -215,7 +215,7 @@ async function main() {
     id: "cross_module.code_paths",
     status: "PASS",
     evidence:
-      "Lead trigger/assign/convert/follow-up/call-history routes + enquiry sync wired (see leads.test.ts suites 4–6, 11, 13)",
+      "Lead trigger/assign/convert/follow-up/call-history routes wired (see leads.test.ts)",
   });
 
   const blocked = rows.filter((r) => r.status === "BLOCKED" || r.status === "FAIL");

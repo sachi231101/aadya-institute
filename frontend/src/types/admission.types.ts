@@ -1,41 +1,51 @@
-export type EnquirySource = "WEBSITE" | "WHATSAPP" | "WALK_IN" | "REFERRAL" | "SOCIAL_MEDIA";
-export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "FOLLOW_UP" | "CONVERTED" | "REJECTED";
-
-export interface Enquiry {
-  id: string;
-  enquiryNo?: string;
-  name: string;
-  email?: string | null;
-  phone: string;
-  courseId: string;
-  courseName?: string;
-  course?: { id: string; name: string; code: string };
-  source: EnquirySource;
-  status: EnquiryStatus;
-  counselorNotes?: string | null;
-  assignedToId?: string | null;
-  assignedTo?: { id: string; name: string; email: string } | null;
-  createdAt: string;
-}
-
 export type ApplicationStatus = "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "ADMITTED";
 export type FeeStatus = "PAID" | "PENDING";
+
+export interface ApplicationActivity {
+  id: string;
+  applicationId: string;
+  userId?: string | null;
+  type: "NOTE_ADDED" | "STATUS_CHANGED" | "FEE_STATUS_CHANGED" | "CREATED";
+  title: string;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  user?: { id: string; name: string } | null;
+}
 
 export interface Application {
   id: string;
   applicationNo: string;
-  enquiryId?: string | null;
+  leadId?: string | null;
+  branchId?: string | null;
   applicantName: string;
   email?: string | null;
   phone: string;
   courseId: string;
   courseName?: string;
   course?: { id: string; name: string; code: string };
+  lead?: { id: string; name: string; source?: string } | null;
   feeStatus: FeeStatus;
+  applicationFee?: number | null;
+  paymentModeMasterId?: string | null;
+  paymentRef?: string | null;
+  feePaidAt?: string | null;
+  paymentId?: string | null;
+  paymentModeMaster?: { id: string; name: string; code?: string | null } | null;
+  payment?: {
+    id: string;
+    receiptNo: string;
+    amount?: number | null;
+    status?: string | null;
+    transactionRef?: string | null;
+    date?: string | null;
+  } | null;
   status: ApplicationStatus;
   submittedDate: string;
   notes?: string | null;
   createdAt?: string;
+  activities?: ApplicationActivity[];
+  admissions?: Array<{ id: string; admissionNo?: string | null; status?: string | null }>;
 }
 
 export type AdmissionStatus = "CONFIRMED" | "PROVISIONAL" | "CANCELLED" | "PENDING" | "ACTIVE" | "COMPLETED";
@@ -69,25 +79,20 @@ export interface Admission {
   documents?: Array<{ id: string; name: string; status: string; fileName: string }>;
 }
 
-export interface CreateEnquiryPayload {
-  name: string;
-  email?: string;
-  phone: string;
-  courseId: string;
-  source?: EnquirySource;
-  status?: EnquiryStatus;
-  counselorNotes?: string;
-}
-
 export interface CreateApplicationPayload {
   applicantName: string;
   email?: string;
   phone: string;
   courseId: string;
-  enquiryId?: string;
+  leadId?: string;
+  branchId?: string;
   feeStatus?: FeeStatus;
+  applicationFee?: number;
+  paymentModeMasterId?: string;
+  paymentRef?: string;
   status?: ApplicationStatus;
   notes?: string;
+  rejectReason?: string;
 }
 
 export interface AdmissionInstallmentPayload {
@@ -122,16 +127,4 @@ export interface CreateAdmissionPayload {
   concessionHeadMasterId?: string;
   termsAcceptance?: Array<{ masterId: string; name: string }>;
   sendCredentials?: boolean;
-}
-
-export interface ConvertEnquiryPayload {
-  feeStatus?: FeeStatus;
-  notes?: string;
-}
-
-export interface ConvertApplicationPayload {
-  batchId?: string;
-  feePlan?: FeePlan;
-  notes?: string;
-  termsAcceptance?: Array<{ masterId: string; name: string }>;
 }

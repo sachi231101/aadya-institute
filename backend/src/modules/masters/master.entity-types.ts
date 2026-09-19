@@ -34,6 +34,7 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeDef[] = [
   { id: "feeheads", name: "Fee Heads", category: "ACCOUNTING_FEES" },
   { id: "paymentmodes", name: "Payment Modes", category: "ACCOUNTING_FEES" },
   { id: "concessionheads", name: "Concession Heads", category: "ACCOUNTING_FEES" },
+  { id: "tax", name: "Tax", category: "ACCOUNTING_FEES" },
   // System & Automation
   { id: "numberingseries", name: "Numbering Series", category: "SYSTEM_AUTOMATION" },
 ];

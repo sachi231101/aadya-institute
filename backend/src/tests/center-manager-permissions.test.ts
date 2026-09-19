@@ -60,22 +60,22 @@ const moduleCases: ModulePermissionCase[] = [
     ],
   },
   {
-    name: "admissions.enquiries",
-    itemKey: "admissions.enquiries",
+    name: "admissions.applications",
+    itemKey: "admissions.applications",
     read: {
       method: "GET",
-      path: "/admissions/enquiries",
+      path: "/admissions/applications",
       middleware: requirePermission("admission.read"),
     },
     writes: [
       {
         method: "POST",
-        path: "/admissions/enquiries",
+        path: "/admissions/applications",
         middleware: requirePermission("admission.create"),
       },
       {
         method: "PATCH",
-        path: "/admissions/enquiries/:id",
+        path: "/admissions/applications/:id",
         middleware: requirePermission("admission.update"),
       },
     ],
