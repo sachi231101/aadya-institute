@@ -724,7 +724,7 @@ export class NotificationRepository {
           message: "Prospective student lead Ananya Roy assigned for counselling follow-up.",
           type: "AI_CALL",
           module: "admissions",
-          link: "/counselor/admissions/enquiries",
+          link: "/counselor/admissions/applications",
           createdAt: new Date(now.getTime() - 1000 * 60 * 15),
         },
         {
@@ -732,7 +732,7 @@ export class NotificationRepository {
           message: "AI voice call completed with High Interest status for lead Ananya Roy.",
           type: "AI_CALL",
           module: "admissions",
-          link: "/counselor/admissions/enquiries",
+          link: "/counselor/admissions/applications",
           createdAt: new Date(now.getTime() - 1000 * 60 * 45),
         },
         {
@@ -783,7 +783,7 @@ export class NotificationRepository {
           message: "Lead Ananya Roy indicated high admission intent during automated AI voice call.",
           type: "AI_CALL",
           module: "admissions",
-          link: "/admin/admissions/enquiries",
+          link: "/admin/admissions/applications",
           createdAt: new Date(now.getTime() - 1000 * 60 * 360),
         },
         {

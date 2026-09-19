@@ -4,7 +4,6 @@
  */
 export const NAV_ITEM_LABELS: Record<string, string> = {
   // Admission
-  "admissions.enquiries": "Enquiries",
   "admissions.applications": "Admission Applications",
   "admissions.all": "Admissions",
   "admissions.direct": "Direct Admission",

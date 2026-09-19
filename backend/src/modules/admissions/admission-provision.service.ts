@@ -12,6 +12,7 @@ import {
   resolveTuitionFeeHead,
 } from "../fees/fee-provision.service";
 import type { FeeProvisionLine } from "../fees/fee.types";
+import { attachApplicationFeePaymentToAdmission } from "./application-fee-payment.service";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -352,6 +353,14 @@ export async function provisionAdmissionInTransaction(
       where: { id: dto.applicationId, instituteId },
       data: { status: "ADMITTED" },
     });
+    if (finalStudentId) {
+      await attachApplicationFeePaymentToAdmission(tx, {
+        applicationId: dto.applicationId,
+        instituteId,
+        studentId: finalStudentId,
+        admissionId: admission.id,
+      });
+    }
   }
 
   if (dto.leadId) {

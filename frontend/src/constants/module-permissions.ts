@@ -114,7 +114,7 @@ export const COUNSELLOR_MODULE_OPTIONS: FrontendModuleDef[] = [
   {
     key: "leads_ai_calling",
     label: "Leads & AI Calling",
-    description: "Manage leads, follow-ups, AI calling qualification, and student enquiries",
+    description: "Manage leads, follow-ups, and AI calling qualification",
     icon: Bot,
     category: "Growth & AI",
   },

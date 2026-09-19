@@ -1,118 +1,36 @@
 import { prisma } from "../../config/database";
 import type { Prisma } from "@prisma/client";
-import type { 
-  CreateEnquiryDTO, 
-  UpdateEnquiryDTO, 
-  QueryEnquiriesDTO,
+import type {
   CreateApplicationDTO,
   UpdateApplicationDTO,
   QueryApplicationsDTO,
   CreateAdmissionDTO,
   UpdateAdmissionDTO,
-  QueryAdmissionsDTO
+  QueryAdmissionsDTO,
+  CreateApplicationActivityDTO,
 } from "./admissions.types";
-import { SequenceService } from "../masters/sequence.service";
 import { provisionAdmission } from "./admission-provision.service";
 
+const applicationInclude = {
+  course: { select: { id: true, name: true, code: true } },
+  lead: { select: { id: true, name: true, source: true } },
+  paymentModeMaster: { select: { id: true, name: true, code: true } },
+  payment: {
+    select: {
+      id: true,
+      receiptNo: true,
+      amount: true,
+      status: true,
+      transactionRef: true,
+      date: true,
+    },
+  },
+} as const;
+
 export const AdmissionsRepository = {
-  // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
-  async findEnquiries(instituteId: string, params: QueryEnquiriesDTO) {
-    const { search, source, status, courseId, branchId, page = 1, limit = 50 } = params;
-
-    const where: Prisma.EnquiryWhereInput = {
-      instituteId,
-      ...(branchId ? { branchId } : {}),
-      ...(source && source !== "ALL" ? { source: source as any } : {}),
-      ...(status && status !== "ALL" ? { status: status as any } : {}),
-      ...(courseId && courseId !== "ALL" ? { courseId } : {}),
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { email: { contains: search, mode: "insensitive" } },
-              { phone: { contains: search, mode: "insensitive" } },
-              { enquiryNo: { contains: search, mode: "insensitive" } },
-              { course: { name: { contains: search, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    };
-
-    const [total, data] = await Promise.all([
-      prisma.enquiry.count({ where }),
-      prisma.enquiry.findMany({
-        where,
-        include: {
-          course: { select: { id: true, name: true, code: true } },
-          assignedTo: { select: { id: true, name: true, email: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
-
-    return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
-  },
-
-  async findEnquiryById(id: string, instituteId: string) {
-    return prisma.enquiry.findFirst({
-      where: { id, instituteId },
-      include: {
-        course: { select: { id: true, name: true, code: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
-        applications: true,
-      },
-    });
-  },
-
-  async createEnquiry(instituteId: string, branchId: string | undefined, enquiryNo: string, dto: CreateEnquiryDTO) {
-    return prisma.enquiry.create({
-      data: {
-        instituteId,
-        branchId,
-        enquiryNo,
-        name: dto.name,
-        email: dto.email || null,
-        phone: dto.phone,
-        courseId: dto.courseId,
-        source: dto.source || "WEBSITE",
-        status: dto.status || "NEW",
-        counselorNotes: dto.counselorNotes || null,
-        assignedToId: dto.assignedToId || null,
-      },
-      include: {
-        course: { select: { id: true, name: true, code: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
-      },
-    });
-  },
-
-  async updateEnquiry(id: string, instituteId: string, dto: UpdateEnquiryDTO) {
-    return prisma.enquiry.updateMany({
-      where: { id, instituteId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.email !== undefined ? { email: dto.email || null } : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
-        ...(dto.courseId !== undefined ? { courseId: dto.courseId } : {}),
-        ...(dto.source !== undefined ? { source: dto.source } : {}),
-        ...(dto.status !== undefined ? { status: dto.status } : {}),
-        ...(dto.counselorNotes !== undefined ? { counselorNotes: dto.counselorNotes } : {}),
-        ...(dto.assignedToId !== undefined ? { assignedToId: dto.assignedToId } : {}),
-      },
-    });
-  },
-
-  async deleteEnquiry(id: string, instituteId: string) {
-    return prisma.enquiry.deleteMany({
-      where: { id, instituteId },
-    });
-  },
-
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async findApplications(instituteId: string, params: QueryApplicationsDTO) {
-    const { search, feeStatus, status, courseId, branchId, page = 1, limit = 50 } = params;
+    const { search, feeStatus, status, courseId, branchId, page = 1, limit = 20 } = params;
 
     const where: Prisma.ApplicationWhereInput = {
       instituteId,
@@ -137,69 +55,129 @@ export const AdmissionsRepository = {
       prisma.application.count({ where }),
       prisma.application.findMany({
         where,
-        include: {
-          course: { select: { id: true, name: true, code: true } },
-          enquiry: { select: { id: true, enquiryNo: true, source: true } },
-        },
+        include: applicationInclude,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
 
-    return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
+    return { total, data, page, limit, totalPages: Math.ceil(total / limit) || 1 };
   },
 
   async findApplicationById(id: string, instituteId: string) {
     return prisma.application.findFirst({
       where: { id, instituteId },
       include: {
-        course: { select: { id: true, name: true, code: true } },
-        enquiry: true,
-        admissions: true,
+        ...applicationInclude,
+        lead: { select: { id: true, name: true, source: true, phoneNumber: true } },
+        admissions: { select: { id: true, admissionNo: true, status: true }, orderBy: { createdAt: "desc" } },
+        activities: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        },
       },
     });
   },
 
-  async createApplication(instituteId: string, branchId: string | undefined, applicationNo: string, dto: CreateApplicationDTO) {
+  async createApplication(
+    instituteId: string,
+    branchId: string,
+    applicationNo: string,
+    dto: CreateApplicationDTO
+  ) {
+    const isPaid = dto.feeStatus === "PAID";
     return prisma.application.create({
       data: {
         instituteId,
         branchId,
         applicationNo,
-        enquiryId: dto.enquiryId || null,
+        leadId: dto.leadId || null,
         applicantName: dto.applicantName,
         email: dto.email || null,
         phone: dto.phone,
         courseId: dto.courseId,
         feeStatus: dto.feeStatus || "PENDING",
+        applicationFee: isPaid && dto.applicationFee != null ? dto.applicationFee : null,
+        paymentModeMasterId: isPaid ? dto.paymentModeMasterId || null : null,
+        paymentRef: isPaid ? dto.paymentRef || null : null,
+        feePaidAt: isPaid ? new Date() : null,
         status: dto.status || "SUBMITTED",
         notes: dto.notes || null,
       },
-      include: {
-        course: { select: { id: true, name: true, code: true } },
-      },
+      include: applicationInclude,
     });
   },
 
   async updateApplication(id: string, instituteId: string, dto: UpdateApplicationDTO) {
+    const data: Prisma.ApplicationUpdateManyMutationInput = {
+      ...(dto.applicantName !== undefined ? { applicantName: dto.applicantName } : {}),
+      ...(dto.email !== undefined ? { email: dto.email || null } : {}),
+      ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+      ...(dto.courseId !== undefined ? { courseId: dto.courseId } : {}),
+      ...(dto.status !== undefined ? { status: dto.status } : {}),
+      ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+    };
+
+    if (dto.feeStatus === "PENDING") {
+      data.feeStatus = "PENDING";
+      data.applicationFee = null;
+      data.paymentModeMasterId = null;
+      data.paymentRef = null;
+      data.feePaidAt = null;
+      data.paymentId = null;
+    } else if (dto.feeStatus === "PAID") {
+      data.feeStatus = "PAID";
+      if (dto.applicationFee !== undefined) data.applicationFee = dto.applicationFee;
+      if (dto.paymentModeMasterId !== undefined) {
+        data.paymentModeMasterId = dto.paymentModeMasterId;
+      }
+      if (dto.paymentRef !== undefined) data.paymentRef = dto.paymentRef;
+      data.feePaidAt = new Date();
+    } else {
+      if (dto.applicationFee !== undefined) data.applicationFee = dto.applicationFee;
+      if (dto.paymentModeMasterId !== undefined) {
+        data.paymentModeMasterId = dto.paymentModeMasterId;
+      }
+      if (dto.paymentRef !== undefined) data.paymentRef = dto.paymentRef;
+    }
+
     return prisma.application.updateMany({
       where: { id, instituteId },
-      data: {
-        ...(dto.applicantName !== undefined ? { applicantName: dto.applicantName } : {}),
-        ...(dto.email !== undefined ? { email: dto.email || null } : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
-        ...(dto.courseId !== undefined ? { courseId: dto.courseId } : {}),
-        ...(dto.feeStatus !== undefined ? { feeStatus: dto.feeStatus } : {}),
-        ...(dto.status !== undefined ? { status: dto.status } : {}),
-        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-      },
+      data,
     });
   },
 
   async deleteApplication(id: string, instituteId: string) {
     return prisma.application.deleteMany({
       where: { id, instituteId },
+    });
+  },
+
+  async findApplicationActivities(applicationId: string) {
+    return prisma.applicationActivity.findMany({
+      where: { applicationId },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async createApplicationActivity(
+    applicationId: string,
+    userId: string | undefined,
+    dto: CreateApplicationActivityDTO
+  ) {
+    return prisma.applicationActivity.create({
+      data: {
+        applicationId,
+        userId: userId || null,
+        type: dto.type || "NOTE_ADDED",
+        title: dto.title || "Note added",
+        description: dto.description,
+        metadata: (dto.metadata as Prisma.InputJsonValue) || undefined,
+      },
+      include: { user: { select: { id: true, name: true } } },
     });
   },
 

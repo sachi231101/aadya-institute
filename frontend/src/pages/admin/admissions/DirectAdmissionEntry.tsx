@@ -434,7 +434,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const convertingApplicationId = location.state?.applicationId || location.state?.application?.id || location.state?.lead?.applicationId;
   const convertingLeadId = location.state?.leadId || location.state?.lead?.id;
 
-  // Auto-fill student details when converted directly from an Application, Lead or Enquiry
+  // Auto-fill student details when converted directly from an Application or Lead
   useEffect(() => {
     const rawData = location.state?.lead || location.state?.application || location.state;
     if (!rawData) return;
@@ -833,7 +833,7 @@ export const DirectAdmissionEntry: React.FC = () => {
     });
   }, [allDbBatches, batchesLoading, branchId, selectedCoursesList.length]);
 
-  // Auto-select course from Enquiry/Lead/Application when available courses are ready
+  // Auto-select course from Lead/Application when available courses are ready
   useEffect(() => {
     const rawData = location.state?.lead || location.state?.application || location.state;
     if (!rawData || allAvailableCourses.length === 0 || selectedCoursesList.length > 0) return;

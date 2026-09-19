@@ -64,7 +64,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     icon: Target,
     moduleKey: "admissions",
     items: [
-      { title: L["admissions.enquiries"] ?? "Enquiries", url: "/center/admissions/enquiries", itemKey: "admissions.enquiries" },
       { title: L["admissions.applications"] ?? "Admission Applications", url: "/center/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/center/admissions/all", itemKey: "admissions.all" },
     ],

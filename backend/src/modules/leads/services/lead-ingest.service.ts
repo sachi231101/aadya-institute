@@ -1,5 +1,5 @@
 import { prisma } from "../../../config/database";
-import { normalizePhoneDigits } from "./lead-enquiry-sync.service";
+import { normalizePhoneDigits } from "../../../utils/phone";
 
 export type IngestLeadRowInput = {
   instituteId: string;

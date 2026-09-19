@@ -17,7 +17,6 @@ const CENTER_NAV_ITEM_KEYS = [
   "leads.ai_calling",
   "leads.followups",
   "leads.call_history",
-  "admissions.enquiries",
   "admissions.applications",
   "admissions.all",
   "counsellor.all",
@@ -152,13 +151,10 @@ describe("CENTER_MANAGER permission catalog", () => {
         .map((item) => [item.key, item])
     );
 
-    assert.deepStrictEqual(items.get("admissions.enquiries")?.readPermissions, [
-      "lead.read",
+    assert.deepStrictEqual(items.get("admissions.applications")?.readPermissions, [
       "admission.read",
     ]);
-    assert.deepStrictEqual(items.get("admissions.enquiries")?.writePermissions, [
-      "lead.create",
-      "lead.update",
+    assert.deepStrictEqual(items.get("admissions.applications")?.writePermissions, [
       "admission.create",
       "admission.update",
     ]);
@@ -267,7 +263,6 @@ const COUNSELLOR_NAV_ITEM_KEYS = [
   "leads.ai_calling",
   "leads.followups",
   "leads.call_history",
-  "admissions.enquiries",
   "admissions.applications",
   "admissions.all",
   "students.all",

@@ -25,16 +25,16 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "area", name: "Area", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Direct Admission"] },
   { id: "classroom", name: "Classroom / Lab", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Classes", "Timetable", "Faculty Timetable", "Counselor Batches"] },
   { id: "designation", name: "Designation", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Faculty", "Edit Faculty", "Settings"] },
-  { id: "education", name: "Education", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Add Faculty", "Edit Faculty", "Enquiries"] },
+  { id: "education", name: "Education", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Add Faculty", "Edit Faculty"] },
   { id: "parentinfo", name: "Parent Info", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Direct Admission"] },
-  { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Enquiries", "Faculty Schedule"] },
+  { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Faculty Schedule"] },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Exam", "Edit Exam"] },
   { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Direct Admission"] },
   { id: "academicyear", name: "Academic Year", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
   { id: "assignmenttype", name: "Assignment Type", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
   { id: "holiday", name: "Holiday", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Timetable", "Faculty Timetable", "Faculty My Schedule"] },
 
-  { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Enquiries", "Admissions", "AI Calling"] },
+  { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Admissions", "AI Calling"] },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Lead Management", "Lead Details", "Counselor Dashboard"] },
   { id: "admissionstatus", name: "Admission Status", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Direct Admission"] },
   { id: "termsconditions", name: "Terms & Conditions", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Direct Admission"] },
@@ -45,7 +45,7 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "paymentmodes", name: "Payment Modes", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments", "Add Student", "Direct Admission"] },
   { id: "concessionheads", name: "Concession Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Add Student", "Direct Admission"] },
 
-  { id: "numberingseries", name: "Numbering Series", category: "SYSTEM_AUTOMATION", categoryName: MASTER_CATEGORY_LABELS.SYSTEM_AUTOMATION, usedInPages: ["Admissions", "Add Student", "Add Faculty", "Payments", "Invoices", "Fees", "Enquiries", "Lead Conversion"] },
+  { id: "numberingseries", name: "Numbering Series", category: "SYSTEM_AUTOMATION", categoryName: MASTER_CATEGORY_LABELS.SYSTEM_AUTOMATION, usedInPages: ["Admissions", "Add Student", "Add Faculty", "Payments", "Invoices", "Fees", "Lead Conversion"] },
 ];
 
 /** @deprecated Use MASTER_ENTITY_TYPES — all registered types are active */

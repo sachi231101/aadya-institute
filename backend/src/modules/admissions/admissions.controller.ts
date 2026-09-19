@@ -4,147 +4,17 @@ import { AdmissionsService } from "./admissions.service";
 import { toAuthUser } from "../../utils/auth-user.util";
 import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import {
-  createEnquirySchema,
-  updateEnquirySchema,
-  queryEnquiriesSchema,
   createApplicationSchema,
   updateApplicationSchema,
   queryApplicationsSchema,
+  createApplicationActivitySchema,
   createAdmissionSchema,
   updateAdmissionSchema,
   queryAdmissionsSchema,
-  convertEnquirySchema,
-  convertApplicationSchema,
 } from "./admissions.validation";
-import type { EnquirySource, EnquiryStatus, ApplicationStatus, FeeStatus, AdmissionStatus } from "./admissions.types";
+import type { ApplicationStatus, FeeStatus, AdmissionStatus } from "./admissions.types";
 
 export const AdmissionsController = {
-  // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
-  async getEnquiries(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = toAuthUser(req);
-      const parsedQuery = queryEnquiriesSchema.parse(req.query);
-      const branchId = resolveEffectiveBranchId(user);
-      const result = await AdmissionsService.getEnquiries(user.instituteId, {
-        ...parsedQuery,
-        source: parsedQuery.source as EnquirySource | "ALL" | undefined,
-        status: parsedQuery.status as EnquiryStatus | "ALL" | undefined,
-        branchId,
-      });
-      res.json({
-        success: true,
-        message: "Enquiries fetched successfully",
-        data: result.data,
-        meta: {
-          total: result.total,
-          page: result.page,
-          limit: result.limit,
-          totalPages: result.totalPages,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async getEnquiryById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = toAuthUser(req);
-      const id = req.params.id as string;
-      const data = await AdmissionsService.getEnquiryById(id, user.instituteId, user);
-      res.json({
-        success: true,
-        message: "Enquiry fetched successfully",
-        data,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async createEnquiry(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const instituteId = req.user!.instituteId;
-      const branchId = req.user!.branchId || undefined;
-      const dto = createEnquirySchema.parse(req.body);
-      const data = await AdmissionsService.createEnquiry(instituteId, branchId, dto);
-      res.status(201).json({
-        success: true,
-        message: "Enquiry created successfully",
-        data,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async updateEnquiry(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const instituteId = req.user!.instituteId;
-      const id = req.params.id as string;
-      const dto = updateEnquirySchema.parse(req.body);
-      const data = await AdmissionsService.updateEnquiry(id, instituteId, dto);
-      res.json({
-        success: true,
-        message: "Enquiry updated successfully",
-        data,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async triggerEnquiryAiCall(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const instituteId = req.user!.instituteId;
-      const id = req.params.id as string;
-      const createdById = req.user!.userId || req.user!.id;
-      const data = await AdmissionsService.triggerEnquiryAiCall(
-        id,
-        instituteId,
-        createdById
-      );
-      res.json({
-        success: true,
-        message: "AI calling initiated for enquiry",
-        data,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async deleteEnquiry(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const instituteId = req.user!.instituteId;
-      const id = req.params.id as string;
-      await AdmissionsService.deleteEnquiry(id, instituteId);
-      res.json({
-        success: true,
-        message: "Enquiry deleted successfully",
-        data: { id },
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async convertEnquiryToApplication(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const instituteId = req.user!.instituteId;
-      const id = req.params.id as string;
-      const dto = convertEnquirySchema.parse(req.body);
-      const data = await AdmissionsService.convertEnquiryToApplication(id, instituteId, dto);
-      res.status(201).json({
-        success: true,
-        message: "Enquiry converted to application successfully",
-        data,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async getApplications(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
@@ -190,10 +60,9 @@ export const AdmissionsController = {
 
   async createApplication(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
-      const branchId = req.user!.branchId || undefined;
+      const user = toAuthUser(req);
       const dto = createApplicationSchema.parse(req.body);
-      const data = await AdmissionsService.createApplication(instituteId, branchId, dto);
+      const data = await AdmissionsService.createApplication(user, dto);
       res.status(201).json({
         success: true,
         message: "Application created successfully",
@@ -206,10 +75,10 @@ export const AdmissionsController = {
 
   async updateApplication(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
       const dto = updateApplicationSchema.parse(req.body);
-      const data = await AdmissionsService.updateApplication(id, instituteId, dto);
+      const data = await AdmissionsService.updateApplication(id, user, dto);
       res.json({
         success: true,
         message: "Application updated successfully",
@@ -222,9 +91,9 @@ export const AdmissionsController = {
 
   async deleteApplication(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
-      await AdmissionsService.deleteApplication(id, instituteId);
+      await AdmissionsService.deleteApplication(id, user);
       res.json({
         success: true,
         message: "Application deleted successfully",
@@ -235,20 +104,30 @@ export const AdmissionsController = {
     }
   },
 
-  async convertApplicationToAdmission(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getApplicationActivities(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
-      const dto = convertApplicationSchema.parse(req.body);
-      const data = await AdmissionsService.convertApplicationToAdmission(
-        id,
-        instituteId,
-        dto,
-        toAuthUser(req)
-      );
+      const data = await AdmissionsService.getApplicationActivities(id, user);
+      res.json({
+        success: true,
+        message: "Application activities fetched successfully",
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createApplicationActivity(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const user = toAuthUser(req);
+      const id = req.params.id as string;
+      const dto = createApplicationActivitySchema.parse(req.body);
+      const data = await AdmissionsService.createApplicationActivity(id, user, dto);
       res.status(201).json({
         success: true,
-        message: "Application converted to admission successfully",
+        message: "Note added successfully",
         data,
       });
     } catch (err) {

@@ -36,7 +36,6 @@ import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
 import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments";
-import { Enquiries } from "../pages/admin/admissions/Enquiries";
 
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
@@ -155,7 +154,6 @@ export const adminChildRoutes = (
 
     {/* Admission Management */}
     <Route path="admissions">
-      <Route path="enquiries" element={<Enquiries />} />
       <Route path="applications" element={<Applications />} />
       <Route path="all" element={<AllAdmissions />} />
       <Route path="direct-entry" element={<DirectAdmissionEntry />} />

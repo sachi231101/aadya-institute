@@ -1373,7 +1373,6 @@ export const MasterSetup: React.FC = () => {
                           <option value="RECEIPT">RECEIPT (Fee Payment Receipt Number)</option>
                           <option value="INVOICE">INVOICE (Student Fee Invoice Number)</option>
                           <option value="OTHER_INVOICE">OTHER_INVOICE (Other / Ad-hoc Invoice Number)</option>
-                          <option value="ENQUIRY">ENQUIRY (Enquiry Number)</option>
                           <option value="APPLICATION">APPLICATION (Application Number)</option>
                         </select>
                       </div>
