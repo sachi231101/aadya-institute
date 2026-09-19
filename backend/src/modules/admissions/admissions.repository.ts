@@ -216,7 +216,7 @@ export const AdmissionsRepository = {
         include: {
           course: { select: { id: true, name: true, code: true } },
           batch: { select: { id: true, name: true, code: true } },
-          student: { select: { id: true, studentCode: true } },
+          student: { select: { id: true, studentCode: true, dateOfBirth: true, gender: true, qualification: true } },
           application: { select: { id: true, applicationNo: true } },
         },
         orderBy: { createdAt: "desc" },

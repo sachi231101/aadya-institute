@@ -126,6 +126,7 @@ async function ensureStudentUser(
     /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i
   );
   const extractedDob = extractNote(dto.notes, /DOB:\s*([^|\n]+)/i);
+  const extractedGender = extractNote(dto.notes, /Gender:\s*([^|\n]+)/i);
 
   const studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT", {
     branchCode: params.branchCode,
@@ -164,6 +165,7 @@ async function ensureStudentUser(
       studentCode,
       qualification: extractedQual || null,
       dateOfBirth: parsedDob,
+      gender: extractedGender || null,
       status: "ACTIVE",
       ...(dto.areaMasterId ? { areaMasterId: dto.areaMasterId } : {}),
     },
