@@ -727,29 +727,41 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   const getCourseBatches = (courseId: string, _courseName?: string, _courseCode?: string) => {
-    return allDbBatches
-      .filter((batch) => {
-        if (!batchIncludesCourse(batch, courseId) || batch.status === "CANCELLED") return false;
-        if (branchId && batch.branchId && batch.branchId !== branchId) return false;
-        return true;
-      })
-      .map((batch) => {
-        const mapped = mapBatchToSelection(batch, courseId);
-        return {
-          id: mapped.batchId,
-          name: batch.name,
-          code: mapped.batchCode,
-          subjectsLabel: mapped.subjectsLabel,
-          facultyName: mapped.facultyName,
-          facultyAvatar: mapped.facultyAvatar,
-          schedule: mapped.schedule,
-          startDate: mapped.startDate,
-          endDate: mapped.endDate,
-          availableSeats: mapped.availableSeats,
-          totalCapacity: mapped.totalCapacity,
-          isPersisted: true,
-        };
-      });
+    const forCourse = allDbBatches.filter(
+      (batch) => batchIncludesCourse(batch, courseId) && batch.status !== "CANCELLED"
+    );
+    // Prefer batches at the selected admission center; if none exist there
+    // (e.g. batches still on a former/inactive branch), fall back to all
+    // matching course batches so the dropdown is not empty.
+    const forBranch = branchId
+      ? forCourse.filter((batch) => !batch.branchId || batch.branchId === branchId)
+      : forCourse;
+    const matchingBranch = forBranch.length > 0;
+    const source = matchingBranch ? forBranch : forCourse;
+
+    return source.map((batch) => {
+      const mapped = mapBatchToSelection(batch, courseId);
+      const isOtherBranch = Boolean(
+        branchId && batch.branchId && batch.branchId !== branchId
+      );
+      return {
+        id: mapped.batchId,
+        name: batch.name,
+        code: mapped.batchCode,
+        subjectsLabel: mapped.subjectsLabel,
+        facultyName: mapped.facultyName,
+        facultyAvatar: mapped.facultyAvatar,
+        schedule: mapped.schedule,
+        startDate: mapped.startDate,
+        endDate: mapped.endDate,
+        availableSeats: mapped.availableSeats,
+        totalCapacity: mapped.totalCapacity,
+        branchName: batch.branch?.name || batch.branch?.code || "",
+        isOtherBranch,
+        isCrossBranchFallback: !matchingBranch && forCourse.length > 0,
+        isPersisted: true,
+      };
+    });
   };
 
   const buildSelectedCourseItem = (
@@ -2291,6 +2303,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                         {selectedCoursesList.map((item) => {
                           const cObj = allAvailableCourses.find((c) => c.id === item.courseId);
                           const courseBatches = getCourseBatches(item.courseId, item.courseName, cObj?.code || "CRS");
+                          const showingOtherCenterBatches = courseBatches.some((b) => b.isCrossBranchFallback);
 
                           return (
                             <TableRow key={item.id} className="text-xs hover:bg-muted/40 transition-colors border-border">
@@ -2314,6 +2327,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                     <option key={b.id} value={b.id}>
                                       {b.code}
                                       {b.name && b.name !== b.code ? ` · ${b.name}` : ""}
+                                      {b.isOtherBranch && b.branchName ? ` · ${b.branchName}` : ""}
                                       {b.availableSeats == null ? "" : ` (${b.availableSeats} seats left)`}
                                     </option>
                                   ))}
@@ -2323,6 +2337,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                                 )}
                                 {!batchesLoading && courseBatches.length === 0 && (
                                   <span className="text-[10px] text-amber-600 dark:text-amber-400">No batch for this course</span>
+                                )}
+                                {!batchesLoading && showingOtherCenterBatches && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                                    No batches at this center — showing other centers
+                                  </span>
                                 )}
                               </TableCell>
 

@@ -199,6 +199,11 @@ describe("Master Module Integration Tests", () => {
     const { SequenceService } = await import("../modules/masters/sequence.service");
     const currentYear = new Date().getFullYear();
 
+    await prisma.masterRecord.updateMany({
+      where: { instituteId, entityType: "numberingseries", code: "INVOICE" },
+      data: { status: "INACTIVE" },
+    });
+
     await prisma.masterRecord.create({
       data: {
         instituteId,
@@ -208,19 +213,77 @@ describe("Master Module Integration Tests", () => {
         status: "ACTIVE",
         data: {
           target: "INVOICE",
-          pattern: "INV/{YEAR}/{SEQ:4}",
+          // Unique prefix avoids collisions with real INV/{YEAR}/… rows in shared DB
+          pattern: "TINV/{YEAR}/{SEQ:4}",
           startNumber: 1,
           currentSequence: 0,
           resetFrequency: "YEARLY",
+          lastResetPeriod: String(currentYear),
         },
       },
     });
 
     const inv1 = await SequenceService.getNextNumber(instituteId, "INVOICE");
     const inv2 = await SequenceService.getNextNumber(instituteId, "INVOICE");
-    assert.strictEqual(inv1, `INV/${currentYear}/0001`);
-    assert.strictEqual(inv2, `INV/${currentYear}/0002`);
+    assert.strictEqual(inv1, `TINV/${currentYear}/0001`);
+    assert.strictEqual(inv2, `TINV/${currentYear}/0002`);
     assert.ok(!inv1.includes("LEGACY"));
     assert.ok(!/^\d{4}$/.test(inv1));
+  });
+
+  test("SequenceService RECEIPT skips globally taken receipt numbers", async () => {
+    const { SequenceService } = await import("../modules/masters/sequence.service");
+    const currentYear = new Date().getFullYear();
+    const taken = `XRCP/${currentYear}/0001`;
+
+    const otherInstitute = await prisma.institute.create({
+      data: {
+        name: `Receipt Collision Inst ${Date.now()}`,
+        code: `RCI${Date.now().toString().slice(-6)}`,
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        receiptNo: taken,
+        instituteId: otherInstitute.id,
+        studentName: "Other Institute Student",
+        admissionNo: "OTHER-ADM",
+        courseName: "Test",
+        amount: 100,
+        method: "CASH",
+        status: "SUCCESS",
+      },
+    });
+
+    // Deactivate any existing RECEIPT series for this institute so our test series wins by code.
+    await prisma.masterRecord.updateMany({
+      where: { instituteId, entityType: "numberingseries", code: "RECEIPT" },
+      data: { status: "INACTIVE" },
+    });
+
+    await prisma.masterRecord.create({
+      data: {
+        instituteId,
+        entityType: "numberingseries",
+        name: "Receipt Global Collision Series",
+        code: "RECEIPT",
+        status: "ACTIVE",
+        data: {
+          target: "RECEIPT",
+          pattern: "XRCP/{YEAR}/{SEQ:4}",
+          startNumber: 1,
+          currentSequence: 0,
+          resetFrequency: "YEARLY",
+          lastResetPeriod: String(currentYear),
+        },
+      },
+    });
+
+    const next = await SequenceService.getNextNumber(instituteId, "RECEIPT");
+    assert.strictEqual(next, `XRCP/${currentYear}/0002`);
+
+    await prisma.payment.deleteMany({ where: { instituteId: otherInstitute.id } });
+    await prisma.institute.delete({ where: { id: otherInstitute.id } });
   });
 });
