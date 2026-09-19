@@ -166,15 +166,12 @@ export const LeadService = {
       !currentUser.roles.includes("ADMIN") &&
       !currentUser.roles.includes("CENTER_MANAGER");
 
-    // COUNSELLOR may only see leads assigned to them (unless ADMIN/CM).
-    const effectiveAssignedId = isCounsellorOnly
-      ? counsellorId
-      : assignedCounsellorId;
-
+    // COUNSELLOR: assigned to them, or unassigned leads they created (AI dial before score assign).
     const { leads, total } = await LeadRepository.findLeads({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
-      assignedCounsellorId: effectiveAssignedId,
+      assignedCounsellorId: isCounsellorOnly ? undefined : assignedCounsellorId,
+      counsellorVisibleId: isCounsellorOnly ? counsellorId : undefined,
       courseId,
       stage,
       stageMasterId,

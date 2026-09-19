@@ -94,6 +94,7 @@ import {
 import { BulkAssignDialog } from "./components/BulkAssignDialog";
 import { MergeLeadsDialog } from "./components/MergeLeadsDialog";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
+import { LeadIntentBadge } from "./components/LeadIntentBadge";
 import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
 
 type ViewMode = "list" | "kanban";
@@ -792,7 +793,14 @@ export const AllLeadsList: React.FC = () => {
                               <p className="font-bold text-sm text-foreground">
                                 {lead.name}
                               </p>
-                              <LeadScoreBadge score={lead.leadScore} showScore={false} />
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <LeadScoreBadge
+                                  score={lead.leadScore}
+                                  temperature={lead.leadTemperature}
+                                  showScore={false}
+                                />
+                                <LeadIntentBadge intent={lead.leadIntent} />
+                              </div>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {lead.phoneNumber}
@@ -833,7 +841,8 @@ export const AllLeadsList: React.FC = () => {
                       <TableHead>Source</TableHead>
                       <TableHead>Stage</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Lead Score</TableHead>
+                      <TableHead>Score / Temp</TableHead>
+                      <TableHead>Intent</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Counsellor</TableHead>
                       <TableHead>Last Contact</TableHead>
@@ -846,7 +855,7 @@ export const AllLeadsList: React.FC = () => {
                     {leads.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={13}
+                          colSpan={14}
                           className="text-center py-8 text-text-secondary"
                         >
                           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -900,7 +909,19 @@ export const AllLeadsList: React.FC = () => {
                             {lead.status || "—"}
                           </TableCell>
                           <TableCell>
-                            <LeadScoreBadge score={lead.leadScore} />
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="text-xs tabular-nums text-muted-foreground">
+                                {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
+                              </span>
+                              <LeadScoreBadge
+                                score={lead.leadScore}
+                                temperature={lead.leadTemperature}
+                                showScore={false}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <LeadIntentBadge intent={lead.leadIntent} emptyLabel="—" />
                           </TableCell>
                           <TableCell className="text-sm">
                             {lead.priority || "—"}

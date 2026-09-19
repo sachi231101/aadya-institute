@@ -22,12 +22,35 @@ export type AiCallingJobPayload = {
   instituteId: string;
 };
 
+export type LeadTemperature = "HOT" | "WARM" | "COOL" | "COLD";
+
+/** Score thresholds for HOT / WARM / COOL (below coolMin → COLD). */
+export type ScoreTemperatureBands = {
+  hotMin: number;
+  warmMin: number;
+  coolMin: number;
+};
+
+export const DEFAULT_SCORE_TEMPERATURE_BANDS: ScoreTemperatureBands = {
+  hotMin: 80,
+  warmMin: 60,
+  coolMin: 40,
+};
+
+/** Default min leadScore to auto-assign a counsellor after an AI call. */
+export const DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN = 50;
+
 export type ResolvedAiCallingConfig = {
   instituteId: string;
   isEnabled: boolean;
   fromNumber: string;
   agentId: string | null;
   callingScript: string | null;
+  /** Institute map or null when using defaults at dial time. */
+  agentVariableMap: Record<string, string> | null;
+  scoreTemperatureBands: ScoreTemperatureBands;
+  /** Effective threshold (null DB → DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN). */
+  minScoreToAutoAssign: number;
   callingHoursStart: string | null;
   callingHoursEnd: string | null;
   callingDays: number[] | null;

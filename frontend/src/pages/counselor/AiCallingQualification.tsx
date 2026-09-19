@@ -5,6 +5,7 @@ import {
   Bot,
   Check,
   Clock,
+  Download,
   Flame,
   Loader2,
   Phone,
@@ -55,6 +56,7 @@ import {
   usePreviewImport,
 } from "@/hooks/useDataManagement";
 import { useQueryClient } from "@tanstack/react-query";
+import { dataManagementApi } from "@/services/data-management.api";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { ROUTES } from "@/constants/routes";
@@ -74,7 +76,62 @@ type ImportFileJob = {
   validRows?: number;
   errorRows?: number;
   message?: string;
+  errors?: Array<{ row?: number; field?: string; message?: string }>;
 };
+
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+  if (!data || typeof data !== "object") return fallback;
+
+  if (typeof data.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+
+  const errors = data.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const parts = errors
+      .map((e) => {
+        if (typeof e === "string") return e;
+        if (e && typeof e === "object") {
+          const row = e as { message?: string; path?: string[] | string; field?: string };
+          const path = Array.isArray(row.path)
+            ? row.path.join(".")
+            : typeof row.path === "string"
+              ? row.path
+              : row.field || "";
+          const msg = row.message || "";
+          return path && msg ? `${path}: ${msg}` : msg || path;
+        }
+        return "";
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join("; ");
+  }
+
+  if (typeof data.error === "string" && data.error.trim()) {
+    return data.error.trim();
+  }
+
+  return fallback;
+}
+
+/** Read a File as raw base64 (no data-URL prefix) for preview API. */
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Failed to read file"));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
 
 const QUEUE_ELIGIBLE_STAGES = new Set([
   "NEW",
@@ -149,6 +206,7 @@ export const AiCallingQualification: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastTone, setToastTone] = useState<"default" | "error">("default");
   const [detailCall, setDetailCall] = useState<CallLog | null>(null);
   const [showDetailDrawer, setShowDetailDrawer] = useState(false);
 
@@ -158,6 +216,7 @@ export const AiCallingQualification: React.FC = () => {
   const [newLeadCourse, setNewLeadCourse] = useState("");
   const [newLeadSourceMasterId, setNewLeadSourceMasterId] = useState("");
   const [triggerImmediateCall, setTriggerImmediateCall] = useState(true);
+  const [addLeadError, setAddLeadError] = useState<string | null>(null);
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
   const [showImportModal, setShowImportModal] = useState(false);
@@ -261,9 +320,10 @@ export const AiCallingQualification: React.FC = () => {
 
   const recentImportJobs = importJobsRes?.data?.data || importJobsRes?.data || [];
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, tone: "default" | "error" = "default") => {
+    setToastTone(tone);
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4500);
+    setTimeout(() => setToastMessage(null), tone === "error" ? 8000 : 4500);
   };
 
   useEffect(() => {
@@ -316,40 +376,63 @@ export const AiCallingQualification: React.FC = () => {
 
   const handlePickImportFiles = async (files: FileList | null) => {
     if (!files?.length) return;
-    const csvFiles = Array.from(files).filter(
-      (f) => f.name.toLowerCase().endsWith(".csv") || f.type === "text/csv"
-    );
-    if (!csvFiles.length) {
-      showToast("Please select one or more CSV files");
+    const importFiles = Array.from(files).filter((f) => {
+      const name = f.name.toLowerCase();
+      return (
+        name.endsWith(".csv") ||
+        name.endsWith(".xlsx") ||
+        f.type === "text/csv" ||
+        f.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+    });
+    if (!importFiles.length) {
+      showToast("Please select one or more .xlsx or .csv files");
       return;
     }
     setImportBusy(true);
-    const next: ImportFileJob[] = csvFiles.map((f) => ({
+    const next: ImportFileJob[] = importFiles.map((f) => ({
       fileName: f.name,
       status: "previewing",
     }));
     setImportJobs(next);
 
-    for (let i = 0; i < csvFiles.length; i++) {
-      const file = csvFiles[i];
+    for (let i = 0; i < importFiles.length; i++) {
+      const file = importFiles[i];
+      const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
       try {
-        const csv = await file.text();
-        const res = await previewImportMutation.mutateAsync({
-          entityType: "leads",
-          csv,
-          fileName: file.name,
-          defaultLeadSource: "AI_CALLING",
-        });
+        const payload = isXlsx
+          ? {
+              entityType: "leads" as const,
+              fileBase64: await readFileAsBase64(file),
+              fileName: file.name,
+              defaultLeadSource: "AI_CALLING",
+            }
+          : {
+              entityType: "leads" as const,
+              csv: await file.text(),
+              fileName: file.name,
+              defaultLeadSource: "AI_CALLING",
+            };
+        const res = await previewImportMutation.mutateAsync(payload);
+        const valid = res.data?.validRows ?? 0;
+        const errCount = res.data?.errorRows ?? 0;
+        const previewErrors = Array.isArray(res.data?.errors)
+          ? (res.data.errors as Array<{ row?: number; field?: string; message?: string }>)
+          : [];
         setImportJobs((prev) =>
           prev.map((j, idx) =>
             idx === i
               ? {
                   ...j,
-                  status: "previewed",
+                  status: valid > 0 ? "previewed" : "error",
                   jobId: res.data?.jobId,
-                  validRows: res.data?.validRows,
-                  errorRows: res.data?.errorRows,
-                  message: `${res.data?.validRows ?? 0} valid / ${res.data?.errorRows ?? 0} errors`,
+                  validRows: valid,
+                  errorRows: errCount,
+                  errors: previewErrors,
+                  message:
+                    valid > 0
+                      ? `${valid} valid / ${errCount} errors — click Confirm to create leads & queue AI calls`
+                      : `${valid} valid / ${errCount} errors — fix Branch Name / Phone Number and re-upload`,
                 }
               : j
           )
@@ -377,13 +460,30 @@ export const AiCallingQualification: React.FC = () => {
     for (const job of ready) {
       try {
         const res = await confirmImportMutation.mutateAsync(job.jobId!);
+        const data = res.data as {
+          status?: string;
+          successRows?: number;
+          errorRows?: number;
+          errorReport?: Array<{ row?: number; message?: string }>;
+        } | undefined;
+        const errReport = Array.isArray(data?.errorReport) ? data!.errorReport! : [];
+        const ok = data?.successRows ?? 0;
+        const failed = data?.errorRows ?? errReport.length;
         setImportJobs((prev) =>
           prev.map((j) =>
             j.jobId === job.jobId
               ? {
                   ...j,
-                  status: "done",
-                  message: `Import ${res.data?.status || "completed"} — AI calls will queue automatically`,
+                  status: ok > 0 ? "done" : "error",
+                  errors: errReport,
+                  message:
+                    ok > 0
+                      ? `Import ${data?.status || "completed"} — ${ok} lead(s) created/dialed${
+                          failed ? `, ${failed} skipped` : ""
+                        }`
+                      : `Import finished with no dials — ${
+                          errReport[0]?.message || "see errors below"
+                        }`,
                 }
               : j
           )
@@ -403,11 +503,36 @@ export const AiCallingQualification: React.FC = () => {
     showToast("Import confirmed — leads refreshed and AI calls queued where applicable");
   };
 
+  const handleDownloadLeadTemplate = async () => {
+    try {
+      const res = await dataManagementApi.getTemplate("leads");
+      const csv =
+        res.data?.csv ||
+        "Name,Phone Number,Email,Interested In,Branch Name,Source\n";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.data?.fileName || "ai-calling-leads-template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Template downloaded — fill rows, then Import Excel/CSV");
+    } catch {
+      showToast("Failed to download template");
+    }
+  };
+
   const handleCreateLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLeadName.trim() || !newLeadPhone.trim()) return;
+    setAddLeadError(null);
+    if (!newLeadName.trim() || !newLeadPhone.trim()) {
+      setAddLeadError("Name and phone are required");
+      return;
+    }
     if (!user?.branchId) {
-      showToast("Your account has no branch assigned");
+      const msg = "Your account has no branch assigned — cannot create a lead";
+      setAddLeadError(msg);
+      showToast(msg, "error");
       return;
     }
     try {
@@ -422,22 +547,23 @@ export const AiCallingQualification: React.FC = () => {
       const sourceLabel = getMasterLabel(leadSourceOptions, newLeadSourceMasterId) || "manual";
       showToast(
         triggerImmediateCall
-          ? `Lead ${newLeadName} created — AI call queued automatically`
+          ? `Lead ${newLeadName} created — AI call queued (counsellor assigns after score ≥ threshold)`
           : `Lead ${newLeadName} created from ${sourceLabel} (AI call still queued on create)`
       );
       setShowAddLeadModal(false);
+      setAddLeadError(null);
       setNewLeadName("");
       setNewLeadPhone("");
       setNewLeadCourse("");
       setNewLeadSourceMasterId("");
       setTriggerImmediateCall(true);
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "call-history"] });
       void created;
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to create lead";
-      showToast(msg);
+      const msg = extractApiErrorMessage(err, "Failed to create lead");
+      setAddLeadError(msg);
+      showToast(msg, "error");
     }
   };
 
@@ -474,7 +600,16 @@ export const AiCallingQualification: React.FC = () => {
       <ReadOnlyBanner itemKey="leads.ai_calling" label="AI Calling" />
 
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-card px-4 py-3 shadow-lg text-sm font-medium flex items-start gap-2">
+        <div
+          className={
+            toastTone === "error"
+              ? "fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-destructive/40 bg-destructive/10 text-destructive px-4 py-3 shadow-lg text-sm font-medium flex items-start gap-2"
+              : "fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-card px-4 py-3 shadow-lg text-sm font-medium flex items-start gap-2"
+          }
+        >
+          {toastTone === "error" ? (
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          ) : null}
           <span className="flex-1">{toastMessage}</span>
           <button type="button" onClick={() => setToastMessage(null)} aria-label="Dismiss">
             <X className="h-4 w-4" />
@@ -524,6 +659,16 @@ export const AiCallingQualification: React.FC = () => {
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="h-9 text-xs font-bold gap-1.5"
+              onClick={handleDownloadLeadTemplate}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download Template
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => {
                 setImportJobs([]);
                 setShowImportModal(true);
@@ -531,7 +676,7 @@ export const AiCallingQualification: React.FC = () => {
               className="h-9 px-4 text-xs font-bold rounded-xl gap-1.5"
             >
               <Upload className="h-3.5 w-3.5 stroke-[3]" />
-              Import CSV
+              Import Excel/CSV
             </Button>
             <Button
               type="button"
@@ -665,6 +810,7 @@ export const AiCallingQualification: React.FC = () => {
                   <TableHead>Course</TableHead>
                   <TableHead>Stage</TableHead>
                   <TableHead>Score</TableHead>
+                  <TableHead>Counsellor</TableHead>
                   <TableHead>Last call</TableHead>
                   <TableHead>Next action</TableHead>
                 </TableRow>
@@ -672,8 +818,16 @@ export const AiCallingQualification: React.FC = () => {
               <TableBody>
                 {dialableLeads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground text-sm">
-                      No dialable leads on this page. Import CSV or add a lead to build the queue.
+                    <TableCell colSpan={8} className="py-10 text-center text-muted-foreground text-sm">
+                      No dialable leads on this page. Use{" "}
+                      <button
+                        type="button"
+                        className="text-primary font-semibold underline-offset-2 hover:underline"
+                        onClick={() => setShowImportModal(true)}
+                      >
+                        Import Excel/CSV
+                      </button>{" "}
+                      (download the empty template first) or Add New Lead.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -711,19 +865,39 @@ export const AiCallingQualification: React.FC = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <LeadScoreBadge score={lead.leadScore} />
+                          <LeadScoreBadge
+                            score={lead.leadScore}
+                            temperature={lead.leadTemperature}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {lead.assignedCounsellor?.name || (
+                            <span className="text-muted-foreground">Unassigned</span>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              lastStatus === "INITIATED"
-                                ? "border-amber-200 text-amber-700 bg-amber-50"
-                                : undefined
-                            }
-                          >
-                            {lastStatus}
-                          </Badge>
+                          <div className="space-y-0.5">
+                            <Badge
+                              variant="outline"
+                              className={
+                                lastStatus === "INITIATED"
+                                  ? "border-amber-200 text-amber-700 bg-amber-50"
+                                  : lastStatus === "FAILED"
+                                    ? "border-destructive/40 text-destructive bg-destructive/10"
+                                    : undefined
+                              }
+                            >
+                              {lastStatus}
+                            </Badge>
+                            {lastStatus === "FAILED" && latest?.failureReason ? (
+                              <p
+                                className="text-[10px] text-destructive max-w-[220px] leading-snug line-clamp-3"
+                                title={latest.failureReason}
+                              >
+                                {latest.failureReason}
+                              </p>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
                           {lead.nextBestAction || "—"}
@@ -940,18 +1114,36 @@ export const AiCallingQualification: React.FC = () => {
       />
 
       {/* Add lead */}
-      <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
+      <Dialog
+        open={showAddLeadModal}
+        onOpenChange={(open) => {
+          setShowAddLeadModal(open);
+          if (!open) setAddLeadError(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add lead for AI calling</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateLeadSubmit} className="space-y-3">
+            {addLeadError ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-start gap-2"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{addLeadError}</span>
+              </div>
+            ) : null}
             <div className="space-y-1.5">
               <Label htmlFor="ai-lead-name">Name</Label>
               <Input
                 id="ai-lead-name"
                 value={newLeadName}
-                onChange={(e) => setNewLeadName(e.target.value)}
+                onChange={(e) => {
+                  setNewLeadName(e.target.value);
+                  if (addLeadError) setAddLeadError(null);
+                }}
                 required
               />
             </div>
@@ -960,9 +1152,17 @@ export const AiCallingQualification: React.FC = () => {
               <Input
                 id="ai-lead-phone"
                 value={newLeadPhone}
-                onChange={(e) => setNewLeadPhone(e.target.value)}
+                onChange={(e) => {
+                  setNewLeadPhone(e.target.value);
+                  if (addLeadError) setAddLeadError(null);
+                }}
+                placeholder="10-digit mobile, e.g. 9876543210"
                 required
+                aria-invalid={Boolean(addLeadError)}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Indian mobile only. 10 digits is fine — we dial as +91…
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ai-lead-course">Interested in</Label>
@@ -1006,7 +1206,7 @@ export const AiCallingQualification: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Import CSV */}
+      {/* Import Excel/CSV */}
       <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -1014,12 +1214,39 @@ export const AiCallingQualification: React.FC = () => {
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground text-xs">
-              Upload one or more lead CSVs. Each file becomes an import job with source{" "}
-              <strong>AI_CALLING</strong>. After confirm, new leads queue for AI dial automatically.
+              Upload one or more .xlsx or .csv files. Each file becomes an import job with source{" "}
+              <strong>AI_CALLING</strong>. After confirm, new leads stay unassigned and queue for AI
+              dial; a branch counsellor is auto-assigned only when the post-call lead score meets the
+              institute threshold (default 50).
             </p>
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground space-y-1.5">
+              <p className="font-semibold text-foreground text-xs">Columns (required format)</p>
+              <code className="block text-[10px] break-all">
+                Name,Phone Number,Email,Interested In,Branch Name,Source
+              </code>
+              <p>
+                Required: <strong>Name</strong>, <strong>Phone Number</strong>,{" "}
+                <strong>Branch Name</strong> (must match an existing branch name or code exactly —
+                e.g. <strong>Malleshwaram</strong> or code <strong>02</strong>). Optional: Email,
+                Interested In (defaults to General enquiry), Source (defaults to AI_CALLING).
+                Phone can be 10 digits (e.g. <strong>9876543210</strong>) — we convert to{" "}
+                <strong>+91…</strong> for Sarvam. Format the Phone column as text in Excel.
+                Download the empty template below, fill rows, then upload.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={handleDownloadLeadTemplate}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download empty template
+              </Button>
+            </div>
             <Input
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
               multiple
               disabled={importBusy}
               onChange={(e) => handlePickImportFiles(e.target.files)}
@@ -1036,6 +1263,19 @@ export const AiCallingQualification: React.FC = () => {
                       {job.status}
                       {job.message ? ` — ${job.message}` : ""}
                     </div>
+                    {job.errors && job.errors.length > 0 ? (
+                      <ul className="mt-1.5 space-y-0.5 text-[11px] text-destructive">
+                        {job.errors.slice(0, 5).map((err, i) => (
+                          <li key={`${job.fileName}-err-${i}`}>
+                            Row {err.row ?? "?"}
+                            {err.field ? ` (${err.field})` : ""}: {err.message || "Invalid"}
+                          </li>
+                        ))}
+                        {job.errors.length > 5 ? (
+                          <li>…and {job.errors.length - 5} more</li>
+                        ) : null}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -1059,7 +1299,10 @@ export const AiCallingQualification: React.FC = () => {
             </Button>
             <Button
               type="button"
-              disabled={importBusy || !importJobs.some((j) => j.status === "previewed")}
+              disabled={
+                importBusy ||
+                !importJobs.some((j) => j.status === "previewed" && (j.validRows ?? 0) > 0)
+              }
               onClick={handleConfirmAllImports}
             >
               {importBusy ? (

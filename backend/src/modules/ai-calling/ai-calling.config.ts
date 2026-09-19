@@ -4,7 +4,20 @@ import {
   maskSecret,
 } from "../../utils/integration-credentials.util";
 import { AiCallingRepository } from "./ai-calling.repository";
-import type { ResolvedAiCallingConfig } from "./ai-calling.types";
+import type {
+  ResolvedAiCallingConfig,
+  ScoreTemperatureBands,
+  LeadTemperature,
+} from "./ai-calling.types";
+import {
+  DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN,
+  DEFAULT_SCORE_TEMPERATURE_BANDS,
+} from "./ai-calling.types";
+import {
+  DEFAULT_AGENT_VARIABLE_MAP,
+  ALLOWED_AGENT_VARIABLE_FIELDS,
+  parseAgentVariableMap,
+} from "./agent-variables.util";
 
 function asCallingDays(value: unknown): number[] | null {
   if (!Array.isArray(value)) return null;
@@ -12,6 +25,50 @@ function asCallingDays(value: unknown): number[] | null {
     .map((d) => (typeof d === "number" ? d : Number(d)))
     .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
   return days.length ? days : null;
+}
+
+function clampBand(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+/** Null/invalid → DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN (50). */
+export function parseMinScoreToAutoAssign(value: unknown): number {
+  if (value == null) return DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN;
+  return clampBand(value, DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN);
+}
+
+/**
+ * Parse institute score→temperature bands with defaults.
+ * Ensures hotMin >= warmMin >= coolMin.
+ */
+export function parseScoreTemperatureBands(
+  value: unknown
+): ScoreTemperatureBands {
+  const raw =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  let hotMin = clampBand(raw.hotMin, DEFAULT_SCORE_TEMPERATURE_BANDS.hotMin);
+  let warmMin = clampBand(raw.warmMin, DEFAULT_SCORE_TEMPERATURE_BANDS.warmMin);
+  let coolMin = clampBand(raw.coolMin, DEFAULT_SCORE_TEMPERATURE_BANDS.coolMin);
+
+  if (warmMin > hotMin) warmMin = hotMin;
+  if (coolMin > warmMin) coolMin = warmMin;
+
+  return { hotMin, warmMin, coolMin };
+}
+
+export function scoreToTemperature(
+  score: number,
+  bands: ScoreTemperatureBands = DEFAULT_SCORE_TEMPERATURE_BANDS
+): LeadTemperature {
+  const s = Math.max(0, Math.min(100, Math.round(score)));
+  if (s >= bands.hotMin) return "HOT";
+  if (s >= bands.warmMin) return "WARM";
+  if (s >= bands.coolMin) return "COOL";
+  return "COLD";
 }
 
 /** True when Instant Outbound dial env is complete (dial-only mode). */
@@ -118,6 +175,13 @@ export async function resolveAiCallingConfig(
       instituteConfig?.callingScript ||
       instituteConfig?.agent?.defaultScript ||
       null,
+    agentVariableMap: parseAgentVariableMap(instituteConfig?.agentVariableMap),
+    scoreTemperatureBands: parseScoreTemperatureBands(
+      instituteConfig?.scoreTemperatureBands
+    ),
+    minScoreToAutoAssign: parseMinScoreToAutoAssign(
+      instituteConfig?.minScoreToAutoAssign
+    ),
     callingHoursStart: instituteConfig?.callingHoursStart ?? null,
     callingHoursEnd: instituteConfig?.callingHoursEnd ?? null,
     callingDays: asCallingDays(instituteConfig?.callingDays),
@@ -160,6 +224,10 @@ export function toSafeInstituteConfigDto(
   row: NonNullable<Awaited<ReturnType<typeof AiCallingRepository.findInstituteConfig>>> | null,
   resolved?: ResolvedAiCallingConfig
 ) {
+  const storedMap = parseAgentVariableMap(row?.agentVariableMap);
+  const bands = parseScoreTemperatureBands(
+    row?.scoreTemperatureBands ?? resolved?.scoreTemperatureBands
+  );
   return {
     instituteId: row?.instituteId ?? resolved?.instituteId ?? null,
     agentId: row?.agentId ?? null,
@@ -173,6 +241,22 @@ export function toSafeInstituteConfigDto(
       : null,
     fromNumber: row?.fromNumber ?? null,
     callingScript: row?.callingScript ?? null,
+    /** Effective map used on dial (stored or defaults). */
+    agentVariableMap: storedMap ?? { ...DEFAULT_AGENT_VARIABLE_MAP },
+    /** True when institute has a custom map saved. */
+    agentVariableMapIsDefault: !storedMap,
+    defaultAgentVariableMap: { ...DEFAULT_AGENT_VARIABLE_MAP },
+    allowedAgentVariableFields: [...ALLOWED_AGENT_VARIABLE_FIELDS],
+    /** Effective HOT/WARM/COOL mins (stored or defaults). */
+    scoreTemperatureBands: bands,
+    scoreTemperatureBandsIsDefault: !row?.scoreTemperatureBands,
+    defaultScoreTemperatureBands: { ...DEFAULT_SCORE_TEMPERATURE_BANDS },
+    /** Effective min score for post-call counsellor auto-assign. */
+    minScoreToAutoAssign: parseMinScoreToAutoAssign(
+      row?.minScoreToAutoAssign ?? resolved?.minScoreToAutoAssign
+    ),
+    minScoreToAutoAssignIsDefault: row?.minScoreToAutoAssign == null,
+    defaultMinScoreToAutoAssign: DEFAULT_MIN_SCORE_TO_AUTO_ASSIGN,
     callingHoursStart: row?.callingHoursStart ?? null,
     callingHoursEnd: row?.callingHoursEnd ?? null,
     callingDays: row?.callingDays ?? null,

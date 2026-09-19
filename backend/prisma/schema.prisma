@@ -1171,6 +1171,8 @@ model CallLog {
   aiSummary           String?
   interestStatus      String?
   outcome             String?
+  scoreReason         String?
+  extractedFields     Json?
   attemptNumber       Int       @default(1)
   failureReason       String?
   providerPayload     Json?
@@ -1697,10 +1699,13 @@ model Lead {
   status               LeadStatus      @default(ACTIVE)
   priority             String          @default("MEDIUM") // LOW, MEDIUM, HIGH
   leadScore            Int?
+  leadTemperature      String?
   admissionProbability Int?
   tags                 String[]        @default([])
   nextBestAction       String?
   notes                String?
+  leadIntent           String?
+  aiCollectedFields    Json?
   createdById          String
   assignedCounsellorId String?
   lastContactedAt      DateTime?
@@ -1748,6 +1753,8 @@ model Lead {
   @@index([createdAt])
   @@index([instituteId, leadScore])
   @@index([instituteId, createdAt])
+  @@index([instituteId, leadIntent])
+  @@index([instituteId, leadTemperature])
 }
 
 model LeadAssignment {
@@ -3112,20 +3119,24 @@ model AiCallingPlatformSettings {
 }
 
 model InstituteAiCallingConfig {
-  id                 String   @id @default(cuid())
-  instituteId        String   @unique
-  agentId            String?
-  fromNumber         String?
-  callingScript      String?
-  callingHoursStart  String?
-  callingHoursEnd    String?
-  callingDays        Json?
-  dailyCallLimit     Int?
-  maxAttemptsPerLead Int      @default(3)
-  retryDelayMinutes  Int      @default(60)
-  isEnabled          Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  instituteId            String   @unique
+  agentId                String?
+  fromNumber             String?
+  callingScript          String?
+  agentVariableMap       Json?
+  scoreTemperatureBands  Json?
+  /** Min leadScore to auto-assign counsellor after AI call; null → 50. */
+  minScoreToAutoAssign   Int?
+  callingHoursStart      String?
+  callingHoursEnd        String?
+  callingDays            Json?
+  dailyCallLimit         Int?
+  maxAttemptsPerLead     Int      @default(3)
+  retryDelayMinutes      Int      @default(60)
+  isEnabled              Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   institute Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   agent     AiCallingAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)

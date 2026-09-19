@@ -24,7 +24,6 @@ const addLeadSchema = z.object({
     .string()
     .min(10, "Phone number must be at least 10 digits")
     .regex(/^[0-9+\s-]{10,15}$/, "Please enter a valid phone number"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
   interestedIn: z.string().min(1, "Interest or course name is required").trim(),
   courseId: z.string().optional().or(z.literal("")),
   sourceMasterId: z.string().optional().or(z.literal("")),
@@ -71,7 +70,6 @@ export const AddLead: React.FC = () => {
     defaultValues: {
       name: "",
       phoneNumber: "",
-      email: "",
       interestedIn: "",
       courseId: "",
       sourceMasterId: "",
@@ -93,7 +91,6 @@ export const AddLead: React.FC = () => {
       {
         name: data.name,
         phoneNumber: data.phoneNumber,
-        email: data.email || undefined,
         interestedIn: data.interestedIn,
         courseId: data.courseId || undefined,
         sourceMasterId: data.sourceMasterId || undefined,
@@ -163,14 +160,6 @@ export const AddLead: React.FC = () => {
                   <FormItem>
                     <FormLabel>Phone Number *</FormLabel>
                     <FormControl><Input placeholder="e.g. 9876543210" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl><Input placeholder="e.g. rahul@email.com" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

@@ -75,6 +75,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
+import { LeadIntentBadge } from "./components/LeadIntentBadge";
+import { LeadAiInsightsPanel } from "./components/LeadAiInsightsPanel";
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
@@ -481,8 +483,18 @@ export const LeadDetails: React.FC = () => {
         description={headerDescription}
         actions={
           <>
-            <LeadScoreBadge score={lead.leadScore} />
+            <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+              {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
+            </span>
+            <LeadScoreBadge
+              score={lead.leadScore}
+              temperature={lead.leadTemperature}
+              showScore={false}
+            />
             <LeadStageBadge stage={lead.stage} />
+            <LeadIntentBadge
+              intent={lead.leadIntent || latestCall?.interestStatus}
+            />
             {primaryAction}
             <PermissionGate itemKey="leads.all" mode="write">
               <DropdownMenu>
@@ -641,7 +653,7 @@ export const LeadDetails: React.FC = () => {
         </TabsList>
 
         {/* Profile */}
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Lead profile</CardTitle>
@@ -850,7 +862,34 @@ export const LeadDetails: React.FC = () => {
                   <div>
                     <dt className="text-text-muted">Lead score</dt>
                     <dd className="font-medium mt-0.5">
-                      <LeadScoreBadge score={lead.leadScore} />
+                      {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-muted">Temperature</dt>
+                    <dd className="font-medium mt-0.5">
+                      <LeadScoreBadge
+                        score={lead.leadScore}
+                        temperature={lead.leadTemperature}
+                        showScore={false}
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-muted">AI Intent</dt>
+                    <dd className="font-medium mt-0.5">
+                      <LeadIntentBadge
+                        intent={lead.leadIntent || latestCall?.interestStatus}
+                        emptyLabel="—"
+                      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-muted">Next follow-up</dt>
+                    <dd className="font-medium">
+                      {lead.nextFollowUpAt
+                        ? new Date(lead.nextFollowUpAt).toLocaleString("en-IN")
+                        : "—"}
                     </dd>
                   </div>
                   <div>
@@ -889,6 +928,8 @@ export const LeadDetails: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          <LeadAiInsightsPanel lead={lead} latestCall={latestCall} />
         </TabsContent>
 
         {/* Calls */}
@@ -937,7 +978,16 @@ export const LeadDetails: React.FC = () => {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Duration {call.duration || 0}s
-                      {call.interestStatus ? ` · ${call.interestStatus}` : ""}
+                      {call.interestStatus ? (
+                        <>
+                          {" · "}
+                          <span className="text-foreground font-medium">
+                            {call.interestStatus.replace(/_/g, " ")}
+                          </span>
+                        </>
+                      ) : (
+                        ""
+                      )}
                       {call.caller?.name ? ` · ${call.caller.name}` : ""}
                     </p>
                     {call.aiSummary && (

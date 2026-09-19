@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import type { CallRequest, CallResponse } from "./telephony.types";
+import { isValidIndianPhone, normalizePhone } from "../../utils/phone";
 
 export type TelephonyClientConfig = {
   baseUrl: string;
@@ -81,11 +82,11 @@ function assertApiKeyLooksComplete(apiKey: string): void {
   }
 }
 
-function resolveSarvamDialIds() {
+function resolveSarvamDialIds(appIdOverride?: string) {
   return {
     orgId: process.env.SARVAM_ORG_ID || "",
     workspaceId: process.env.SARVAM_WORKSPACE_ID || "",
-    appId: process.env.SARVAM_APP_ID || "",
+    appId: (appIdOverride || process.env.SARVAM_APP_ID || "").trim(),
     connectionId: process.env.SARVAM_CONNECTION_ID || "",
     appVersion: Number(process.env.SARVAM_APP_VERSION || "1") || 1,
   };
@@ -155,59 +156,108 @@ export const initiateCall = async (
   if (!req.to) {
     throw missingDialConfigError("Lead phone number missing");
   }
+  if (!isValidIndianPhone(req.to)) {
+    throw missingDialConfigError(
+      `Invalid lead phone for dial: ${req.to} — Sarvam requires E.164 (e.g. +919876543210)`
+    );
+  }
+  const toE164 = normalizePhone(req.to);
 
   if (isSarvamInstantOutboundBase(config.baseUrl)) {
-    const ids = resolveSarvamDialIds();
+    const ids = resolveSarvamDialIds(req.appId);
     if (!ids.orgId || !ids.workspaceId || !ids.appId || !ids.connectionId) {
       throw missingDialConfigError(
-        "Missing SARVAM_ORG_ID, SARVAM_WORKSPACE_ID, SARVAM_APP_ID, or SARVAM_CONNECTION_ID in backend .env"
+        "Missing SARVAM_ORG_ID, SARVAM_WORKSPACE_ID, SARVAM_APP_ID (Conversation app_id), or SARVAM_CONNECTION_ID in backend .env"
       );
     }
 
     const client = createTelephonyClient(config, "x-api-key");
     const path = `/v1/orgs/${ids.orgId}/workspaces/${ids.workspaceId}/outbounds`;
 
-    const payload: Record<string, unknown> = {
-      app_config: {
+    const buildPayload = (includeAgentVars: boolean) => {
+      const appConfig: Record<string, unknown> = {
         app_id: ids.appId,
         app_version: ids.appVersion,
         connection_config: {
           connection_id: ids.connectionId,
           agent_phone_number: req.from,
         },
-      },
-      user_config: {
-        user_phone_number: req.to,
-      },
+      };
+
+      if (
+        includeAgentVars &&
+        req.agentVariables &&
+        Object.keys(req.agentVariables).length > 0
+      ) {
+        appConfig.agent_variables = req.agentVariables;
+      }
+
+      const payload: Record<string, unknown> = {
+        app_config: appConfig,
+        user_config: {
+          user_phone_number: toE164,
+        },
+      };
+
+      if (req.callbackUrl) {
+        payload.webhook_config = {
+          url: req.callbackUrl,
+          ...(req.metadata ? { metadata: req.metadata } : {}),
+        };
+      }
+      return payload;
     };
 
-    if (req.callbackUrl) {
-      payload.webhook_config = {
-        url: req.callbackUrl,
-        ...(req.metadata ? { metadata: req.metadata } : {}),
-      };
-    }
-
-    try {
+    const postOutbound = async (includeAgentVars: boolean) => {
       const response = await client.post<{
         attempt_id?: string;
         callId?: string;
         status?: string;
-      }>(path, payload);
+      }>(path, buildPayload(includeAgentVars));
 
       return {
         callId: response.data.attempt_id || response.data.callId || "",
         status: response.data.status || "INITIATED",
       };
+    };
+
+    try {
+      return await postOutbound(true);
     } catch (err) {
-      throw telephonyHttpError(err, "Sarvam Instant Outbound initiate failed");
+      const wrapped = telephonyHttpError(err, "Sarvam Instant Outbound initiate failed");
+      const details = wrapped.message || "";
+      const agentVarMismatch =
+        wrapped.response?.status === 422 &&
+        /agent variables/i.test(details) &&
+        /not found/i.test(details);
+
+      // App exists but Genie input chips don't match — still place the call without vars.
+      if (
+        agentVarMismatch &&
+        req.agentVariables &&
+        Object.keys(req.agentVariables).length > 0
+      ) {
+        try {
+          return await postOutbound(false);
+        } catch (retryErr) {
+          throw telephonyHttpError(
+            retryErr,
+            "Sarvam Instant Outbound initiate failed (retry without agent_variables)"
+          );
+        }
+      }
+
+      throw wrapped;
     }
   }
 
   // Legacy / unit-test provider shape
   const client = createTelephonyClient(config, "bearer");
   try {
-    const response = await client.post<CallResponse>("/calls", req);
+    const response = await client.post<CallResponse>("/calls", {
+      ...req,
+      to: toE164,
+    });
     return response.data;
   } catch (err) {
     throw telephonyHttpError(err, "Telephony initiate failed");
