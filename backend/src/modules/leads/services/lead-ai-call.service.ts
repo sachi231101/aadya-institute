@@ -27,11 +27,11 @@ export async function startInitialAiCall(lead: {
   instituteId: string;
   branchId?: string | null;
   importJobId?: string | null;
-}): Promise<void> {
+}): Promise<{ queued: boolean; callLogId?: string; skipped?: string }> {
   const { AiCallingService } = await import(
     "../../ai-calling/ai-calling.service"
   );
-  await AiCallingService.enqueueInitialLeadCall(lead);
+  return AiCallingService.enqueueInitialLeadCall(lead);
 }
 
 export async function applyTerminalCallStatus(

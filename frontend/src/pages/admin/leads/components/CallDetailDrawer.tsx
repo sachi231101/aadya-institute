@@ -8,6 +8,7 @@ import {
   User,
   Phone,
   X,
+  ListChecks,
 } from "lucide-react";
 import type { CallLog } from "@/services/leads.api";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -21,6 +22,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { LeadIntentBadge } from "./LeadIntentBadge";
+import { LeadScoreBadge } from "./LeadScoreBadge";
 
 function formatDuration(seconds?: number | null): string {
   if (seconds == null || Number.isNaN(seconds)) return "—";
@@ -33,6 +36,29 @@ function formatDateTime(value?: string | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleString("en-IN");
 }
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+const META_KEYS = new Set([
+  "_missingFieldsAfterMerge",
+  "interestStatus",
+  "interest_status",
+  "lead_intent",
+  "leadIntent",
+  "intent",
+  "summary",
+  "aiSummary",
+  "ai_summary",
+  "lead_score",
+  "leadScore",
+  "score_reason",
+  "scoreReason",
+  "lead_temperature",
+  "leadTemperature",
+]);
 
 function DetailBlock({
   label,
@@ -53,6 +79,17 @@ function DetailBlock({
   );
 }
 
+function resolveScoreReason(call: CallLog): string | null {
+  if (call.scoreReason?.trim()) return call.scoreReason.trim();
+  const extracted = asRecord(call.extractedFields);
+  const fromExtracted =
+    extracted.score_reason ?? extracted.scoreReason ?? extracted.Score_Reason;
+  if (typeof fromExtracted === "string" && fromExtracted.trim()) {
+    return fromExtracted.trim();
+  }
+  return null;
+}
+
 export interface CallDetailDrawerProps {
   call: CallLog | null;
   open: boolean;
@@ -68,6 +105,31 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
   const leadId = call?.leadId || call?.lead?.id;
+
+  const extracted = asRecord(call?.extractedFields);
+  const missingRaw = extracted._missingFieldsAfterMerge;
+  const missingFields: string[] = Array.isArray(missingRaw)
+    ? missingRaw.filter((v): v is string => typeof v === "string" && Boolean(v.trim()))
+    : typeof missingRaw === "string" && missingRaw.trim()
+      ? missingRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+  const extractedEntries = Object.entries(extracted).filter(
+    ([key, value]) =>
+      !META_KEYS.has(key) &&
+      value != null &&
+      !(typeof value === "string" && !value.trim())
+  );
+
+  const score =
+    call?.lead?.leadScore ??
+    (call?.aiScore != null && !Number.isNaN(Number(call.aiScore))
+      ? Number(call.aiScore)
+      : null);
+  const temperature = call?.lead?.leadTemperature ?? null;
+  const scoreReason = call ? resolveScoreReason(call) : null;
 
   const goToLead360 = () => {
     if (!leadId) return;
@@ -91,11 +153,12 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{call.callType || "AI"}</Badge>
                   <Badge variant="secondary">{call.status}</Badge>
-                  {call.interestStatus ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                      {call.interestStatus}
-                    </Badge>
-                  ) : null}
+                  <LeadIntentBadge intent={call.interestStatus} />
+                  <LeadScoreBadge
+                    score={score}
+                    temperature={temperature}
+                    showScore={false}
+                  />
                 </div>
                 <SheetClose asChild>
                   <Button
@@ -148,15 +211,31 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                   </div>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground">AI / interest</p>
+                  <p className="text-[11px] text-muted-foreground">Score</p>
                   <p className="font-medium">
-                    {[
-                      call.aiScore,
-                      call.interestStatus,
-                      call.lead?.leadScore != null ? `Score ${call.lead.leadScore}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
+                    {score != null ? `${score}/100` : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Temperature</p>
+                  <div className="mt-0.5">
+                    <LeadScoreBadge
+                      score={score}
+                      temperature={temperature}
+                      showScore={false}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">AI Intent</p>
+                  <div className="mt-0.5">
+                    <LeadIntentBadge intent={call.interestStatus} emptyLabel="—" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Counsellor</p>
+                  <p className="font-medium">
+                    {call.lead?.assignedCounsellor?.name || "Unassigned"}
                   </p>
                 </div>
                 <div>
@@ -164,6 +243,10 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                   <p className="font-medium">{call.sentiment || "—"}</p>
                 </div>
               </div>
+
+              {scoreReason ? (
+                <DetailBlock label="Score reason">{scoreReason}</DetailBlock>
+              ) : null}
 
               <DetailBlock label="Qualification">
                 {call.qualification || "—"}
@@ -182,6 +265,47 @@ export const CallDetailDrawer: React.FC<CallDetailDrawerProps> = ({
                   {call.aiSummary || "No summary available."}
                 </div>
               </div>
+
+              {extractedEntries.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Extracted fields
+                  </p>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    {extractedEntries.map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="rounded-md border border-border/60 px-3 py-2"
+                      >
+                        <dt className="text-[11px] text-muted-foreground">
+                          {key.replace(/_/g, " ")}
+                        </dt>
+                        <dd className="font-medium break-words">
+                          {typeof value === "string"
+                            ? value
+                            : JSON.stringify(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ) : null}
+
+              {missingFields.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ListChecks className="h-3.5 w-3.5" />
+                    Missing after merge
+                  </p>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {missingFields.map((field) => (
+                      <Badge key={field} variant="warning">
+                        {field.replace(/_/g, " ")}
+                      </Badge>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">

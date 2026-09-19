@@ -6,7 +6,6 @@ import {
   useUpdateBranch,
   useDeleteBranch,
 } from "@/hooks/useBranches";
-import { useUsers } from "@/hooks/useUsers";
 import type { BranchResponse } from "@/services/branches.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +39,6 @@ type BranchForm = {
   timezone: string;
   openTime: string;
   closeTime: string;
-  managerUserId: string;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -53,7 +51,6 @@ const emptyForm: BranchForm = {
   timezone: "Asia/Kolkata",
   openTime: "09:00",
   closeTime: "18:00",
-  managerUserId: "",
   status: "ACTIVE",
 };
 
@@ -73,13 +70,11 @@ export const Branches: React.FC = () => {
   const [formError, setFormError] = useState("");
 
   const { data, isLoading, isError, refetch } = useBranches();
-  const { data: usersData } = useUsers({ role: "CENTER_MANAGER", limit: 100, status: "ACTIVE" });
   const createMutation = useCreateBranch();
   const updateMutation = useUpdateBranch();
   const deleteMutation = useDeleteBranch();
 
   const branches = data?.data || [];
-  const managers = usersData?.data || [];
 
   const filtered = branches.filter(
     (b) =>
@@ -108,7 +103,6 @@ export const Branches: React.FC = () => {
       timezone: branch.timezone || "Asia/Kolkata",
       openTime: hours?.open || "09:00",
       closeTime: hours?.close || "18:00",
-      managerUserId: branch.managerUserId || "",
       status: branch.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
     });
     setFormError("");
@@ -126,7 +120,6 @@ export const Branches: React.FC = () => {
       email: form.email || undefined,
       timezone: form.timezone || undefined,
       workingHours: workingHoursFromForm(form),
-      managerUserId: form.managerUserId || null,
     };
     try {
       if (editingBranch) {
@@ -202,7 +195,6 @@ export const Branches: React.FC = () => {
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Manager</TableHead>
                 <TableHead>Timezone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -211,14 +203,14 @@ export const Branches: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-red-600">
+                  <TableCell colSpan={6} className="text-center py-8 text-red-600">
                     <AlertCircle className="w-5 h-5 inline mr-2" />
                     Failed to load branches.
                     <Button variant="link" onClick={() => refetch()}>
@@ -228,7 +220,7 @@ export const Branches: React.FC = () => {
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={6} className="text-center py-8 text-text-secondary">
                     <MapPin className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No branches found.
                   </TableCell>
@@ -239,16 +231,6 @@ export const Branches: React.FC = () => {
                     <TableCell className="font-mono">{b.code}</TableCell>
                     <TableCell className="font-medium">{b.name}</TableCell>
                     <TableCell>{b.email || "—"}</TableCell>
-                    <TableCell>
-                      {b.manager ? (
-                        <div>
-                          <div className="font-medium">{b.manager.name}</div>
-                          <div className="text-xs text-text-secondary">{b.manager.email || ""}</div>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
                     <TableCell className="text-sm">{b.timezone || "—"}</TableCell>
                     <TableCell>
                       <Badge
@@ -367,33 +349,14 @@ export const Branches: React.FC = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="branch-timezone">Timezone</Label>
-                <Input
-                  id="branch-timezone"
-                  value={form.timezone}
-                  onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))}
-                  placeholder="Asia/Kolkata"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="branch-manager">Manager</Label>
-                <select
-                  id="branch-manager"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={form.managerUserId}
-                  onChange={(e) => setForm((f) => ({ ...f, managerUserId: e.target.value }))}
-                >
-                  <option value="">No manager</option>
-                  {managers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                      {u.email ? ` (${u.email})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch-timezone">Timezone</Label>
+              <Input
+                id="branch-timezone"
+                value={form.timezone}
+                onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))}
+                placeholder="Asia/Kolkata"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

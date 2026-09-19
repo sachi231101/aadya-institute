@@ -6,7 +6,151 @@ import { syncEnquiryAssigneeFromLead } from "./lead-enquiry-sync.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { AssignLeadDTO, BulkAssignLeadsDTO } from "../lead.types";
 
+type AssignLeadInternalParams = {
+  leadId: string;
+  counsellorId: string;
+  assignedById: string;
+  assignedByName?: string | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown>;
+  /** When false, skip counsellor notification (default true). */
+  notify?: boolean;
+};
+
 export const LeadAssignmentService = {
+  /**
+   * Internal assign used by HTTP assign and system auto-assign.
+   * Does not enforce the AI-call gate — callers that need the gate must check first.
+   */
+  async assignLeadInternal(params: AssignLeadInternalParams) {
+    const {
+      leadId,
+      counsellorId,
+      assignedById,
+      assignedByName,
+      notes,
+      metadata,
+      notify = true,
+    } = params;
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { branch: true },
+    });
+
+    if (!lead) {
+      throw new AppError("Lead not found", 404);
+    }
+
+    if (lead.status === "LOST" || lead.stage === "LOST") {
+      throw new AppError("Cannot assign a lost lead", 400);
+    }
+
+    if (lead.status === "CONVERTED" || lead.stage === "CONVERTED") {
+      throw new AppError("Cannot assign a converted lead", 400);
+    }
+
+    const counsellor = await prisma.user.findUnique({
+      where: { id: counsellorId },
+      include: {
+        userRoles: {
+          include: { role: true },
+        },
+      },
+    });
+
+    if (!counsellor) {
+      throw new AppError("Target counsellor not found", 404);
+    }
+
+    if (counsellor.instituteId !== lead.instituteId) {
+      throw new AppError("Counsellor does not belong to this institute", 400);
+    }
+
+    const hasCounsellorRole = counsellor.userRoles.some((ur) =>
+      ["COUNSELLOR", "ADMIN", "CENTER_MANAGER"].includes(ur.role.name)
+    );
+    if (!hasCounsellorRole) {
+      throw new AppError("Assigned user must have the COUNSELLOR role", 400);
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.leadAssignment.updateMany({
+        where: { leadId, isCurrent: true },
+        data: { isCurrent: false, unassignedAt: new Date() },
+      });
+
+      const assignment = await tx.leadAssignment.create({
+        data: {
+          leadId,
+          counsellorId,
+          assignedById,
+          isCurrent: true,
+          notes: notes ?? null,
+        },
+      });
+
+      const updatedLead = await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          assignedCounsellorId: counsellorId,
+          stage: ["NEW", "CONTACTED"].includes(lead.stage) ? "ASSIGNED" : lead.stage,
+        },
+        include: {
+          assignedCounsellor: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
+          createdBy: {
+            select: { id: true, name: true, email: true },
+          },
+          branch: {
+            select: { id: true, name: true, code: true },
+          },
+        },
+      });
+
+      await syncEnquiryAssigneeFromLead({
+        instituteId: lead.instituteId,
+        phoneNumber: lead.phoneNumber,
+        counsellorId,
+        tx: tx as any,
+      });
+
+      await LeadActivityService.logActivity(
+        leadId,
+        "LEAD_ASSIGNED",
+        `Lead assigned to ${counsellor.name}`,
+        {
+          userId: assignedById,
+          description:
+            notes ??
+            `Assigned by ${assignedByName ?? assignedById}`,
+          metadata: {
+            counsellorId,
+            counsellorName: counsellor.name,
+            ...metadata,
+          },
+          tx,
+        }
+      );
+
+      return { lead: updatedLead, assignment };
+    });
+
+    if (notify) {
+      await LeadNotifyService.notifyLeadAssigned({
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId,
+        leadName: lead.name,
+        counsellorId,
+        assignedByName: assignedByName ?? undefined,
+      });
+    }
+
+    return result;
+  },
+
   async assignLead(
     leadId: string,
     currentUser: AuthUser,
@@ -14,10 +158,15 @@ export const LeadAssignmentService = {
   ) {
     const { counsellorId, notes } = dto;
 
-    // 1. Fetch Lead
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      include: { branch: true },
+      select: {
+        id: true,
+        branchId: true,
+        instituteId: true,
+        status: true,
+        stage: true,
+      },
     });
 
     if (!lead) {
@@ -47,7 +196,6 @@ export const LeadAssignmentService = {
       );
     }
 
-    // Branch isolation check for CENTER_MANAGER
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
       !currentUser.roles.includes("ADMIN") &&
@@ -57,26 +205,15 @@ export const LeadAssignmentService = {
       throw new AppError("Lead not found", 404);
     }
 
-    // 2. Validate Target Counsellor
     const counsellor = await prisma.user.findUnique({
       where: { id: counsellorId },
-      include: {
-        userRoles: {
-          include: { role: true },
-        },
-      },
+      select: { id: true, branchId: true, instituteId: true },
     });
 
     if (!counsellor) {
       throw new AppError("Target counsellor not found", 404);
     }
 
-    // Check institute match
-    if (counsellor.instituteId !== lead.instituteId) {
-      throw new AppError("Counsellor does not belong to this institute", 400);
-    }
-
-    // Check branch match for CENTER_MANAGER
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
       !currentUser.roles.includes("ADMIN") &&
@@ -86,91 +223,18 @@ export const LeadAssignmentService = {
       throw new AppError("Cannot assign lead to a counsellor in another branch", 403);
     }
 
-    // Check role is COUNSELLOR or ADMIN/CENTER_MANAGER
-    const hasCounsellorRole = counsellor.userRoles.some((ur) =>
-      ["COUNSELLOR", "ADMIN", "CENTER_MANAGER"].includes(ur.role.name)
-    );
-    if (!hasCounsellorRole) {
-      throw new AppError("Assigned user must have the COUNSELLOR role", 400);
-    }
-
-    // 3. Perform Transaction
-    return prisma.$transaction(async (tx) => {
-      // Mark current assignments as inactive
-      await tx.leadAssignment.updateMany({
-        where: { leadId, isCurrent: true },
-        data: { isCurrent: false, unassignedAt: new Date() },
-      });
-
-      // Create new assignment record
-      const assignment = await tx.leadAssignment.create({
-        data: {
-          leadId,
-          counsellorId,
-          assignedById: currentUser.userId || currentUser.id,
-          isCurrent: true,
-          notes: notes ?? null,
-        },
-      });
-
-      // Update Lead
-      const updatedLead = await tx.lead.update({
-        where: { id: leadId },
-        data: {
-          assignedCounsellorId: counsellorId,
-          stage: ["NEW", "CONTACTED"].includes(lead.stage) ? "ASSIGNED" : lead.stage,
-        },
-        include: {
-          assignedCounsellor: {
-            select: { id: true, name: true, email: true, phone: true },
-          },
-          createdBy: {
-            select: { id: true, name: true, email: true },
-          },
-          branch: {
-            select: { id: true, name: true, code: true },
-          },
-        },
-      });
-
-      // Mirror onto matching Enquiries (admissions funnel)
-      await syncEnquiryAssigneeFromLead({
-        instituteId: lead.instituteId,
-        phoneNumber: lead.phoneNumber,
-        counsellorId,
-        tx: tx as any,
-      });
-
-      // Log Activity
-      await LeadActivityService.logActivity(
-        leadId,
-        "LEAD_ASSIGNED",
-        `Lead assigned to ${counsellor.name}`,
-        {
-          userId: currentUser.userId,
-          description: notes ?? `Assigned by ${currentUser.name ?? currentUser.userId}`,
-          metadata: {
-            counsellorId,
-            counsellorName: counsellor.name,
-            ...(canBypassAiCallGate && !aiCallReady
-              ? { aiCallGateBypassed: true, bypassedByRoles: roles }
-              : {}),
-          },
-          tx,
-        }
-      );
-
-      return { lead: updatedLead, assignment };
-    }).then(async (result) => {
-      await LeadNotifyService.notifyLeadAssigned({
-        instituteId: lead.instituteId,
-        branchId: lead.branchId,
-        leadId,
-        leadName: lead.name,
-        counsellorId,
-        assignedByName: currentUser.name,
-      });
-      return result;
+    return this.assignLeadInternal({
+      leadId,
+      counsellorId,
+      assignedById: currentUser.userId || currentUser.id,
+      assignedByName: currentUser.name,
+      notes,
+      metadata: {
+        ...(canBypassAiCallGate && !aiCallReady
+          ? { aiCallGateBypassed: true, bypassedByRoles: roles }
+          : {}),
+      },
+      notify: true,
     });
   },
 

@@ -24,8 +24,9 @@ export const usePreviewImport = () => {
   return useMutation({
     mutationFn: (data: {
       entityType: ImportEntityType;
-      csv: string;
+      csv?: string;
       fileName?: string;
+      fileBase64?: string;
       defaultLeadSource?: string;
     }) => dataManagementApi.previewImport(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["data-management", "imports"] }),

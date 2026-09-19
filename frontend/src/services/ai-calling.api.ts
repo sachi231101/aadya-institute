@@ -16,8 +16,10 @@ export interface AICallLog {
   recordingStorageKey?: string | null;
   aiScore?: string | null;
   aiSummary?: string | null;
+  scoreReason?: string | null;
   interestStatus?: string | null;
   outcome?: string | null;
+  extractedFields?: Record<string, unknown> | null;
   attemptNumber?: number;
   failureReason?: string | null;
   startedAt?: string | null;
@@ -29,6 +31,11 @@ export interface AICallLog {
     name: string;
     phoneNumber: string;
     branchId?: string | null;
+    leadScore?: number | null;
+    leadTemperature?: string | null;
+    leadIntent?: string | null;
+    assignedCounsellorId?: string | null;
+    assignedCounsellor?: { id: string; name: string } | null;
   } | null;
   agent?: {
     id: string;
@@ -48,6 +55,22 @@ export interface AiCallingAgent {
   updatedAt?: string;
 }
 
+/** Sarvam agent variable name → Aadya lead field path (not WhatsApp). */
+export type AgentVariableMap = Record<string, string>;
+
+/** HOT ≥ hotMin, WARM ≥ warmMin, COOL ≥ coolMin, else COLD. */
+export type ScoreTemperatureBands = {
+  hotMin: number;
+  warmMin: number;
+  coolMin: number;
+};
+
+export const DEFAULT_SCORE_TEMPERATURE_BANDS: ScoreTemperatureBands = {
+  hotMin: 80,
+  warmMin: 60,
+  coolMin: 40,
+};
+
 export interface InstituteAiCallingConfig {
   instituteId: string | null;
   agentId: string | null;
@@ -59,6 +82,20 @@ export interface InstituteAiCallingConfig {
   } | null;
   fromNumber: string | null;
   callingScript: string | null;
+  /** Effective map used on dial (stored or defaults). */
+  agentVariableMap?: AgentVariableMap;
+  /** True when institute has no custom map saved. */
+  agentVariableMapIsDefault?: boolean;
+  defaultAgentVariableMap?: AgentVariableMap;
+  allowedAgentVariableFields?: string[];
+  /** Effective HOT/WARM/COOL mins (stored or defaults). */
+  scoreTemperatureBands?: ScoreTemperatureBands;
+  scoreTemperatureBandsIsDefault?: boolean;
+  defaultScoreTemperatureBands?: ScoreTemperatureBands;
+  /** Min leadScore to auto-assign counsellor after AI call (default 50). */
+  minScoreToAutoAssign?: number;
+  minScoreToAutoAssignIsDefault?: boolean;
+  defaultMinScoreToAutoAssign?: number;
   callingHoursStart: string | null;
   callingHoursEnd: string | null;
   callingDays: number[] | null;
@@ -80,6 +117,12 @@ export interface UpdateInstituteAiCallingConfigInput {
   agentId?: string | null;
   fromNumber?: string | null;
   callingScript?: string | null;
+  /** Pass null to clear custom map and revert to defaults. */
+  agentVariableMap?: AgentVariableMap | null;
+  /** Pass null to reset bands to defaults (80 / 60 / 40). */
+  scoreTemperatureBands?: ScoreTemperatureBands | null;
+  /** Pass null to reset to default 50. */
+  minScoreToAutoAssign?: number | null;
   callingHoursStart?: string | null;
   callingHoursEnd?: string | null;
   callingDays?: number[] | null;

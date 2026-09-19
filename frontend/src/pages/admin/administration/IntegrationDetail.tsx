@@ -30,9 +30,12 @@ import {
   useUpdateAiCallingConfig,
 } from "@/hooks/useAiCalling";
 import type { IntegrationType } from "@/services/integrations.api";
+import type { AgentVariableMap, ScoreTemperatureBands } from "@/services/ai-calling.api";
+import { DEFAULT_SCORE_TEMPERATURE_BANDS } from "@/services/ai-calling.api";
 import { ROUTES } from "@/constants/routes";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { AgentVariableMapEditor } from "@/components/ai-calling/AgentVariableMapEditor";
 
 const CALLING_DAY_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Sun" },
@@ -157,6 +160,20 @@ export const IntegrationDetail: React.FC = () => {
   const [aiMaxAttempts, setAiMaxAttempts] = useState("3");
   const [aiRetryDelay, setAiRetryDelay] = useState("60");
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiAgentVariableMap, setAiAgentVariableMap] = useState<AgentVariableMap>({});
+  const [aiAgentMapIsDefault, setAiAgentMapIsDefault] = useState(true);
+  const [aiDefaultAgentMap, setAiDefaultAgentMap] = useState<AgentVariableMap>({});
+  const [aiAllowedFields, setAiAllowedFields] = useState<string[]>([]);
+  /** When true, save sends agentVariableMap: null to clear custom map. */
+  const [aiResetAgentMap, setAiResetAgentMap] = useState(false);
+  const [aiScoreBands, setAiScoreBands] = useState<ScoreTemperatureBands>({
+    ...DEFAULT_SCORE_TEMPERATURE_BANDS,
+  });
+  const [aiScoreBandsIsDefault, setAiScoreBandsIsDefault] = useState(true);
+  const [aiResetScoreBands, setAiResetScoreBands] = useState(false);
+  const [aiMinScoreToAutoAssign, setAiMinScoreToAutoAssign] = useState("50");
+  const [aiMinScoreIsDefault, setAiMinScoreIsDefault] = useState(true);
+  const [aiResetMinScore, setAiResetMinScore] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -209,6 +226,20 @@ export const IntegrationDetail: React.FC = () => {
     setAiMaxAttempts(String(cfg.maxAttemptsPerLead ?? 3));
     setAiRetryDelay(String(cfg.retryDelayMinutes ?? 60));
     setAiEnabled(Boolean(cfg.isEnabled));
+    setAiAgentVariableMap(cfg.agentVariableMap || {});
+    setAiAgentMapIsDefault(Boolean(cfg.agentVariableMapIsDefault));
+    setAiDefaultAgentMap(cfg.defaultAgentVariableMap || {});
+    setAiAllowedFields(cfg.allowedAgentVariableFields || []);
+    setAiResetAgentMap(false);
+    const bands = cfg.scoreTemperatureBands || cfg.defaultScoreTemperatureBands || DEFAULT_SCORE_TEMPERATURE_BANDS;
+    setAiScoreBands({ ...bands });
+    setAiScoreBandsIsDefault(Boolean(cfg.scoreTemperatureBandsIsDefault));
+    setAiResetScoreBands(false);
+    const minScore =
+      cfg.minScoreToAutoAssign ?? cfg.defaultMinScoreToAutoAssign ?? 50;
+    setAiMinScoreToAutoAssign(String(minScore));
+    setAiMinScoreIsDefault(Boolean(cfg.minScoreToAutoAssignIsDefault));
+    setAiResetMinScore(false);
   }, [aiConfigRes?.data]);
 
   if (!type) {
@@ -293,6 +324,25 @@ export const IntegrationDetail: React.FC = () => {
           maxAttemptsPerLead: Number(aiMaxAttempts) || 3,
           retryDelayMinutes: Number(aiRetryDelay) || 60,
           isEnabled: aiEnabled,
+          ...(aiResetAgentMap
+            ? { agentVariableMap: null }
+            : !aiAgentMapIsDefault
+              ? { agentVariableMap: aiAgentVariableMap }
+              : {}),
+          ...(aiResetScoreBands
+            ? { scoreTemperatureBands: null }
+            : !aiScoreBandsIsDefault
+              ? { scoreTemperatureBands: aiScoreBands }
+              : {}),
+          ...(aiResetMinScore
+            ? { minScoreToAutoAssign: null }
+            : !aiMinScoreIsDefault
+              ? {
+                  minScoreToAutoAssign: Number.isFinite(Number(aiMinScoreToAutoAssign))
+                    ? Number(aiMinScoreToAutoAssign)
+                    : 50,
+                }
+              : {}),
         });
         await upsert.mutateAsync({
           isEnabled: aiEnabled,
@@ -795,6 +845,220 @@ export const IntegrationDetail: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">
+                          Lead score temperature bands
+                        </p>
+                        <p className="text-xs text-text-secondary mt-0.5">
+                          HOT ≥ hot min, WARM ≥ warm min, COOL ≥ cool min, else COLD. Defaults
+                          80 / 60 / 40.
+                          {aiScoreBandsIsDefault || aiResetScoreBands
+                            ? " Using defaults."
+                            : " Custom bands saved for this institute."}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 text-xs"
+                        disabled={
+                          updateAiConfig.isPending ||
+                          (aiScoreBandsIsDefault && !aiResetScoreBands)
+                        }
+                        onClick={() => {
+                          const defaults =
+                            aiConfigRes?.data?.defaultScoreTemperatureBands ||
+                            DEFAULT_SCORE_TEMPERATURE_BANDS;
+                          setAiScoreBands({ ...defaults });
+                          setAiScoreBandsIsDefault(true);
+                          setAiResetScoreBands(true);
+                        }}
+                      >
+                        Reset to defaults
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>HOT min</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={aiScoreBands.hotMin}
+                          onChange={(e) => {
+                            const hotMin = Number(e.target.value);
+                            setAiScoreBands((prev) => ({
+                              ...prev,
+                              hotMin: Number.isFinite(hotMin) ? hotMin : prev.hotMin,
+                            }));
+                            setAiScoreBandsIsDefault(false);
+                            setAiResetScoreBands(false);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>WARM min</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={aiScoreBands.warmMin}
+                          onChange={(e) => {
+                            const warmMin = Number(e.target.value);
+                            setAiScoreBands((prev) => ({
+                              ...prev,
+                              warmMin: Number.isFinite(warmMin) ? warmMin : prev.warmMin,
+                            }));
+                            setAiScoreBandsIsDefault(false);
+                            setAiResetScoreBands(false);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label>COOL min</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={aiScoreBands.coolMin}
+                          onChange={(e) => {
+                            const coolMin = Number(e.target.value);
+                            setAiScoreBands((prev) => ({
+                              ...prev,
+                              coolMin: Number.isFinite(coolMin) ? coolMin : prev.coolMin,
+                            }));
+                            setAiScoreBandsIsDefault(false);
+                            setAiResetScoreBands(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {aiScoreBands.hotMin < aiScoreBands.warmMin ||
+                    aiScoreBands.warmMin < aiScoreBands.coolMin ? (
+                      <p className="text-xs text-amber-800">
+                        Expected hotMin ≥ warmMin ≥ coolMin.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">
+                          Min score to auto-assign counsellor
+                        </p>
+                        <p className="text-xs text-text-secondary mt-0.5">
+                          After an AI call, assign a branch counsellor only when lead score is
+                          at least this value (default 50). Leads below the threshold stay
+                          unassigned.
+                          {aiMinScoreIsDefault || aiResetMinScore
+                            ? " Using default."
+                            : " Custom threshold saved for this institute."}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 text-xs"
+                        disabled={
+                          updateAiConfig.isPending ||
+                          (aiMinScoreIsDefault && !aiResetMinScore)
+                        }
+                        onClick={() => {
+                          const defaults =
+                            aiConfigRes?.data?.defaultMinScoreToAutoAssign ?? 50;
+                          setAiMinScoreToAutoAssign(String(defaults));
+                          setAiMinScoreIsDefault(true);
+                          setAiResetMinScore(true);
+                        }}
+                      >
+                        Reset to default
+                      </Button>
+                    </div>
+                    <div className="max-w-xs">
+                      <Label>Min score to auto-assign counsellor</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={aiMinScoreToAutoAssign}
+                        onChange={(e) => {
+                          setAiMinScoreToAutoAssign(e.target.value);
+                          setAiMinScoreIsDefault(false);
+                          setAiResetMinScore(false);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Sarvam output variables (scoring)
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      Configure these as final agent output variables on Priya (or your Voice
+                      Agent). Score and intent are independent — a high score can still be{" "}
+                      <code className="text-[11px]">FOLLOW_UP_REQUIRED</code>.
+                    </p>
+                    <ul className="text-xs text-slate-700 space-y-1.5 list-disc pl-4">
+                      <li>
+                        <code className="text-[11px] bg-white/80 px-1 rounded">lead_score</code> —
+                        integer 0–100 from the full conversation (primary score source)
+                      </li>
+                      <li>
+                        <code className="text-[11px] bg-white/80 px-1 rounded">score_reason</code> —
+                        short text explaining the score
+                      </li>
+                      <li>
+                        <code className="text-[11px] bg-white/80 px-1 rounded">interestStatus</code>{" "}
+                        (or <code className="text-[11px]">interest_status</code>) — canonical
+                        intent (e.g. HIGHLY_INTERESTED, FOLLOW_UP_REQUIRED, CONVERTED)
+                      </li>
+                      <li>
+                        <code className="text-[11px] bg-white/80 px-1 rounded">summary</code> — AI
+                        call summary shown on Lead 360
+                      </li>
+                    </ul>
+                  </div>
+
+                  <AgentVariableMapEditor
+                    value={aiAgentVariableMap}
+                    defaultMap={aiDefaultAgentMap}
+                    allowedFields={
+                      aiAllowedFields.length
+                        ? aiAllowedFields
+                        : [
+                            "name",
+                            "phoneNumber",
+                            "email",
+                            "interestedIn",
+                            "course.name",
+                            "branch.name",
+                            "source",
+                            "notes",
+                            "stage",
+                            "priority",
+                            "tags",
+                          ]
+                    }
+                    isDefault={aiAgentMapIsDefault || aiResetAgentMap}
+                    disabled={updateAiConfig.isPending}
+                    onChange={(map) => {
+                      setAiAgentVariableMap(map);
+                      setAiAgentMapIsDefault(false);
+                      setAiResetAgentMap(false);
+                    }}
+                    onResetToDefault={() => {
+                      setAiAgentVariableMap(aiDefaultAgentMap);
+                      setAiAgentMapIsDefault(true);
+                      setAiResetAgentMap(true);
+                    }}
+                  />
                 </>
               )}
 

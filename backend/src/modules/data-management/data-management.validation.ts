@@ -7,13 +7,28 @@ export const templateQuerySchema = z.object({
   entityType: importEntityTypeSchema,
 });
 
-export const importPreviewSchema = z.object({
-  entityType: importEntityTypeSchema,
-  csv: z.string().min(1, "CSV content is required"),
-  fileName: z.string().optional(),
-  /** When set (e.g. AI_CALLING), used as Lead.source if CSV row has no source. */
-  defaultLeadSource: z.string().max(64).optional(),
-});
+export const importPreviewSchema = z
+  .object({
+    entityType: importEntityTypeSchema,
+    /** CSV text. Optional when fileBase64 is provided for .xlsx. */
+    csv: z.string().optional(),
+    fileName: z.string().optional(),
+    /** Base64-encoded file body (used for .xlsx when csv is omitted). */
+    fileBase64: z.string().optional(),
+    /** When set (e.g. AI_CALLING), used as Lead.source if row has no source. */
+    defaultLeadSource: z.string().max(64).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasCsv = Boolean(data.csv?.trim());
+    const hasFile = Boolean(data.fileBase64?.trim());
+    if (!hasCsv && !hasFile) {
+      ctx.addIssue({
+        code: "custom",
+        message: "CSV content or fileBase64 is required",
+        path: ["csv"],
+      });
+    }
+  });
 
 export const exportSchema = z.object({
   entityType: exportEntityTypeSchema,

@@ -12,10 +12,34 @@ const callingDaysSchema = z
   .optional()
   .nullable();
 
+const scoreTemperatureBandsSchema = z
+  .object({
+    hotMin: z.coerce.number().int().min(0).max(100),
+    warmMin: z.coerce.number().int().min(0).max(100),
+    coolMin: z.coerce.number().int().min(0).max(100),
+  })
+  .refine((b) => b.hotMin >= b.warmMin && b.warmMin >= b.coolMin, {
+    message: "Expected hotMin >= warmMin >= coolMin",
+  })
+  .optional()
+  .nullable();
+
 export const updateInstituteConfigSchema = z.object({
   agentId: z.string().min(1).optional().nullable(),
   fromNumber: z.string().max(32).optional().nullable(),
   callingScript: z.string().max(20_000).optional().nullable(),
+  /** Sarvam agent var name → Aadya lead field path (separate from WhatsApp). */
+  agentVariableMap: z.record(z.string(), z.string()).optional().nullable(),
+  /** HOT/WARM/COOL mins; scores below coolMin are COLD. Null resets to defaults. */
+  scoreTemperatureBands: scoreTemperatureBandsSchema,
+  /** Min leadScore to auto-assign after AI call. Null resets to default 50. */
+  minScoreToAutoAssign: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .optional()
+    .nullable(),
   callingHoursStart: timeHhMm,
   callingHoursEnd: timeHhMm,
   callingDays: callingDaysSchema,

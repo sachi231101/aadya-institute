@@ -1,5 +1,5 @@
 import { UnrecoverableError } from "bullmq";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { AppError } from "../../middlewares/error.middleware";
@@ -16,6 +16,7 @@ import {
   resolveAiCallingConfig,
   toSafeInstituteConfigDto,
   toSafePlatformDto,
+  parseScoreTemperatureBands,
 } from "./ai-calling.config";
 import {
   isWithinCallingHours,
@@ -24,6 +25,10 @@ import {
   usageDateKey,
 } from "./ai-calling.hours";
 import { AiCallingRepository } from "./ai-calling.repository";
+import {
+  invalidAgentVariableMapTargets,
+  parseAgentVariableMap,
+} from "./agent-variables.util";
 import type {
   CreateAgentInput,
   UpdateAgentInput,
@@ -77,6 +82,39 @@ export const AiCallingService = {
     if (input.agentId !== undefined) data.agentId = input.agentId;
     if (input.fromNumber !== undefined) data.fromNumber = input.fromNumber;
     if (input.callingScript !== undefined) data.callingScript = input.callingScript;
+    if (input.agentVariableMap !== undefined) {
+      if (input.agentVariableMap === null) {
+        data.agentVariableMap = Prisma.DbNull;
+      } else {
+        const map = parseAgentVariableMap(input.agentVariableMap);
+        if (!map) {
+          throw new AppError("agentVariableMap must be a non-empty string map", 400);
+        }
+        const bad = invalidAgentVariableMapTargets(map);
+        if (bad.length > 0) {
+          throw new AppError(
+            `Invalid agentVariableMap field targets: ${bad.join(", ")}`,
+            400
+          );
+        }
+        data.agentVariableMap = map as Prisma.InputJsonValue;
+      }
+    }
+    if (input.scoreTemperatureBands !== undefined) {
+      if (input.scoreTemperatureBands === null) {
+        data.scoreTemperatureBands = Prisma.DbNull;
+      } else {
+        data.scoreTemperatureBands = parseScoreTemperatureBands(
+          input.scoreTemperatureBands
+        ) as Prisma.InputJsonValue;
+      }
+    }
+    if (input.minScoreToAutoAssign !== undefined) {
+      data.minScoreToAutoAssign =
+        input.minScoreToAutoAssign === null
+          ? null
+          : Math.max(0, Math.min(100, Math.round(input.minScoreToAutoAssign)));
+    }
     if (input.callingHoursStart !== undefined) data.callingHoursStart = input.callingHoursStart;
     if (input.callingHoursEnd !== undefined) data.callingHoursEnd = input.callingHoursEnd;
     if (input.callingDays !== undefined) {
@@ -249,6 +287,28 @@ export const AiCallingService = {
     branchId?: string | null;
     importJobId?: string | null;
   }): Promise<{ queued: boolean; callLogId?: string; skipped?: string }> {
+    // Stale INITIATED/RINGING (worker crashed / webhook never arrived) blocks retries forever.
+    const staleCutoff = new Date(Date.now() - 15 * 60 * 1000);
+    const expired = await prisma.callLog.updateMany({
+      where: {
+        leadId: lead.id,
+        status: { in: ["INITIATED", "RINGING"] },
+        createdAt: { lt: staleCutoff },
+      },
+      data: {
+        status: "FAILED",
+        failureReason:
+          "Stale in-flight call expired (no provider completion within 15 minutes)",
+        endedAt: new Date(),
+      },
+    });
+    if (expired.count > 0) {
+      logger.warn(
+        { leadId: lead.id, expired: expired.count },
+        "[AiCalling] Expired stale in-flight call logs before dial"
+      );
+    }
+
     const hasNonFailed = await AiCallingRepository.hasNonFailedAttempt(lead.id);
     if (hasNonFailed) {
       return { queued: false, skipped: "non_failed_attempt_exists" };
@@ -442,6 +502,10 @@ export const AiCallingService = {
 
     const lead = await prisma.lead.findFirst({
       where: { id: leadId, instituteId },
+      include: {
+        course: { select: { name: true } },
+        branch: { select: { name: true } },
+      },
     });
     if (!lead) {
       throw new UnrecoverableError(`Lead ${leadId} not found for institute`);
@@ -540,6 +604,20 @@ export const AiCallingService = {
     }
 
     try {
+      const { buildAgentVariables } = await import("./agent-variables.util");
+      const { agentVariables } = buildAgentVariables(lead, config.agentVariableMap);
+
+      logger.info(
+        {
+          callLogId,
+          leadId,
+          instituteId,
+          agentVariableKeys: Object.keys(agentVariables),
+          missing_fields: agentVariables.missing_fields || "",
+        },
+        "[AiCalling] Dialing with agent_variables"
+      );
+
       const response = await initiateCall(
         {
           to: lead.phoneNumber,
@@ -551,6 +629,9 @@ export const AiCallingService = {
             callLogId,
             attemptNumber: String(callLog.attemptNumber),
           },
+          agentVariables,
+          // Prefer institute agent providerAppId (outbound deployment); else SARVAM_APP_ID env
+          appId: config.providerAppId || undefined,
         },
         {
           baseUrl: config.telephonyBaseUrl,
@@ -717,14 +798,25 @@ export const AiCallingService = {
       : null;
     const recordingUrl = payload.recording_url || payload.recordingUrl || null;
     const duration = payload.duration ?? 0;
+
+    const {
+      extractIntentFromAgentVariables,
+      extractSummaryFromAgentVariables,
+      normalizeLeadIntent,
+      toExtractedFieldsRecord,
+    } = await import("./lead-intent.util");
+
+    const finalVars = payload.final_agent_variables ?? null;
+    const extractedFields = toExtractedFieldsRecord(finalVars);
     const interestStatus =
-      (payload.final_agent_variables?.interestStatus as string | undefined) ||
-      (payload.final_agent_variables?.interest_status as string | undefined) ||
+      extractIntentFromAgentVariables(finalVars) ||
+      normalizeLeadIntent(
+        (finalVars?.interestStatus as string | undefined) ||
+          (finalVars?.interest_status as string | undefined) ||
+          null
+      ) ||
       null;
-    const aiSummary =
-      (payload.final_agent_variables?.summary as string | undefined) ||
-      (payload.final_agent_variables?.aiSummary as string | undefined) ||
-      null;
+    const aiSummary = extractSummaryFromAgentVariables(finalVars);
 
     let callLog = await AiCallingRepository.findCallLogByExternalId(attemptId);
 
@@ -812,6 +904,9 @@ export const AiCallingService = {
       recordingUrl,
       aiSummary,
       interestStatus,
+      extractedFields: extractedFields
+        ? (extractedFields as Prisma.InputJsonValue)
+        : undefined,
       failureReason: payload.failure_reason || null,
       providerPayload: payload as unknown as Prisma.InputJsonValue,
       endedAt: isTerminalCallStatus(mappedStatus) ? new Date() : undefined,

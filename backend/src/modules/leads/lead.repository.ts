@@ -7,6 +7,11 @@ export interface LeadFindManyParams {
   instituteId: string;
   branchId?: string;
   assignedCounsellorId?: string;
+  /**
+   * Counsellor list scope: assigned to this user OR unassigned and created by them.
+   * Matches getLeadById creator-waiting access for post-create AI dial (pre-score assign).
+   */
+  counsellorVisibleId?: string;
   courseId?: string;
   stage?: string;
   stageMasterId?: string;
@@ -250,6 +255,7 @@ export const LeadRepository = {
       instituteId,
       branchId,
       assignedCounsellorId,
+      counsellorVisibleId,
       courseId,
       stage,
       status,
@@ -267,10 +273,47 @@ export const LeadRepository = {
       take,
     } = params;
 
+    const andFilters: Prisma.LeadWhereInput[] = [];
+
+    if (counsellorVisibleId) {
+      andFilters.push({
+        OR: [
+          { assignedCounsellorId: counsellorVisibleId },
+          { assignedCounsellorId: null, createdById: counsellorVisibleId },
+        ],
+      });
+    } else if (assignedCounsellorId) {
+      andFilters.push({ assignedCounsellorId });
+    }
+
+    if (unassigned) {
+      andFilters.push({ assignedCounsellorId: null });
+    }
+
+    if (scoreBand === "hot") {
+      andFilters.push({ leadScore: { gte: 70 } });
+    } else if (scoreBand === "warm") {
+      andFilters.push({ leadScore: { gte: 40, lte: 69 } });
+    } else if (scoreBand === "cold") {
+      andFilters.push({ leadScore: { gte: 1, lte: 39 } });
+    } else if (scoreBand === "unscored") {
+      andFilters.push({ OR: [{ leadScore: null }, { leadScore: 0 }] });
+    }
+
+    if (search) {
+      andFilters.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { phoneNumber: { contains: search } },
+          { email: { contains: search, mode: "insensitive" } },
+          { interestedIn: { contains: search, mode: "insensitive" } },
+        ],
+      });
+    }
+
     const where: Prisma.LeadWhereInput = {
       instituteId,
       ...(branchId ? { branchId } : {}),
-      ...(assignedCounsellorId ? { assignedCounsellorId } : {}),
       ...(courseId ? { courseId } : {}),
       ...(stage ? { stage } : {}),
       ...(params.stageMasterId ? { stageMasterId: params.stageMasterId } : {}),
@@ -278,34 +321,9 @@ export const LeadRepository = {
       ...(source ? { source } : {}),
       ...(params.sourceMasterId ? { sourceMasterId: params.sourceMasterId } : {}),
       ...(priority ? { priority } : {}),
-      ...(unassigned ? { assignedCounsellorId: null } : {}),
       ...(tag ? { tags: { has: tag } } : {}),
+      ...(andFilters.length ? { AND: andFilters } : {}),
     };
-
-    if (scoreBand === "hot") {
-      where.leadScore = { gte: 70 };
-    } else if (scoreBand === "warm") {
-      where.leadScore = { gte: 40, lte: 69 };
-    } else if (scoreBand === "cold") {
-      where.leadScore = { gte: 1, lte: 39 };
-    } else if (scoreBand === "unscored") {
-      where.OR = [{ leadScore: null }, { leadScore: 0 }];
-    }
-
-    if (search) {
-      const searchFilter: Prisma.LeadWhereInput[] = [
-        { name: { contains: search, mode: "insensitive" } },
-        { phoneNumber: { contains: search } },
-        { email: { contains: search, mode: "insensitive" } },
-        { interestedIn: { contains: search, mode: "insensitive" } },
-      ];
-      if (where.OR && scoreBand === "unscored") {
-        where.AND = [{ OR: where.OR }, { OR: searchFilter }];
-        delete where.OR;
-      } else {
-        where.OR = searchFilter;
-      }
-    }
 
     if (dateFrom || dateTo) {
       where.createdAt = {
@@ -647,6 +665,10 @@ export const LeadRepository = {
               phoneNumber: true,
               branchId: true,
               leadScore: true,
+              leadTemperature: true,
+              leadIntent: true,
+              assignedCounsellorId: true,
+              assignedCounsellor: { select: { id: true, name: true } },
               branch: { select: { id: true, name: true, code: true } },
             },
           },

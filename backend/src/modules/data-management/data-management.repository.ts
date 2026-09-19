@@ -64,6 +64,14 @@ export const DataManagementRepository = {
     return new Set(branches.map((b) => b.id));
   },
 
+  /** Active (and non-deleted) branches for name → id resolution on lead import. */
+  async findBranchesForInstitute(instituteId: string) {
+    return prisma.branch.findMany({
+      where: { instituteId, status: { not: "DELETED" } },
+      select: { id: true, name: true },
+    });
+  },
+
   async listDeleted(instituteId: string) {
     const [branches, users] = await Promise.all([
       prisma.branch.findMany({

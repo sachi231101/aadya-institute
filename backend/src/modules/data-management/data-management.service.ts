@@ -16,10 +16,21 @@ import type {
   ListImportsQuery,
 } from "./data-management.validation";
 import type { CsvRowError, ImportEntityType, ExportEntityType } from "./data-management.types";
+import {
+  LEADS_IMPORT_TEMPLATE_CSV,
+  applyLeadImportDefaults,
+  canonicalizeLeadImportRow,
+  normalizeImportPhone,
+  loadImportRows,
+  parseCsvText,
+  resolveLeadBranchId,
+  splitCsvLine,
+} from "./lead-import.util";
+import { isValidIndianPhone, normalizePhone } from "../../utils/phone";
 
 const TEMPLATES: Record<ImportEntityType, string> = {
   students: "name,email,phone,password,branchId,studentCode\n",
-  leads: "name,phoneNumber,email,interestedIn,branchId,source\n",
+  leads: LEADS_IMPORT_TEMPLATE_CSV,
   users: "name,email,phone,password,roles,branchId\n",
 };
 
@@ -27,54 +38,7 @@ const SYNC_ROW_LIMIT = 500;
 const EXPORT_DIR = path.resolve(process.cwd(), "uploads", "exports");
 
 function parseCsv(csv: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = csv
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length === 0) {
-    throw new AppError("CSV is empty", 400);
-  }
-
-  const headers = splitCsvLine(lines[0]).map((h) => h.trim());
-  const rows: Record<string, string>[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = splitCsvLine(lines[i]);
-    const row: Record<string, string> = {};
-    headers.forEach((header, idx) => {
-      row[header] = (values[idx] ?? "").trim();
-    });
-    rows.push(row);
-  }
-
-  return { headers, rows };
-}
-
-function splitCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === "," && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  result.push(current);
-  return result;
+  return parseCsvText(csv);
 }
 
 function toCsv(headers: string[], rows: Array<Record<string, string | number | null | undefined>>): string {
@@ -93,16 +57,20 @@ function toCsv(headers: string[], rows: Array<Record<string, string | number | n
 function validateRows(
   entityType: ImportEntityType,
   rows: Record<string, string>[],
-  allowedBranchIds: Set<string>
+  allowedBranchIds: Set<string>,
+  options?: {
+    branchNameToId?: Map<string, string>;
+  }
 ): { validRows: Record<string, string>[]; errors: CsvRowError[] } {
   const errors: CsvRowError[] = [];
   const validRows: Record<string, string>[] = [];
+  const branchNameToId = options?.branchNameToId ?? new Map<string, string>();
 
-  rows.forEach((row, idx) => {
+  rows.forEach((rawRow, idx) => {
     const rowNumber = idx + 2; // header is row 1
     const rowErrors: CsvRowError[] = [];
 
-    const require = (field: string, label = field) => {
+    const require = (field: string, label = field, row: Record<string, string> = rawRow) => {
       if (!row[field]?.trim()) {
         rowErrors.push({ row: rowNumber, field, message: `${label} is required` });
       }
@@ -111,27 +79,69 @@ function validateRows(
     if (entityType === "students") {
       require("name");
       require("branchId");
-      if (row.branchId && !allowedBranchIds.has(row.branchId)) {
+      if (rawRow.branchId && !allowedBranchIds.has(rawRow.branchId)) {
         rowErrors.push({ row: rowNumber, field: "branchId", message: "branchId is not in this institute" });
       }
-      if (!row.email?.trim() && !row.phone?.trim()) {
+      if (!rawRow.email?.trim() && !rawRow.phone?.trim()) {
         rowErrors.push({ row: rowNumber, message: "At least one of email or phone is required" });
       }
-    } else if (entityType === "leads") {
-      require("name");
-      require("phoneNumber", "phoneNumber");
-      require("interestedIn", "interestedIn");
-      require("branchId");
-      if (row.branchId && !allowedBranchIds.has(row.branchId)) {
-        rowErrors.push({ row: rowNumber, field: "branchId", message: "branchId is not in this institute" });
+      if (rowErrors.length > 0) {
+        errors.push(...rowErrors);
+      } else {
+        validRows.push(rawRow);
       }
-    } else if (entityType === "users") {
+      return;
+    }
+
+    if (entityType === "leads") {
+      const row = applyLeadImportDefaults(canonicalizeLeadImportRow(rawRow));
+      row.phoneNumber = normalizeImportPhone(row.phoneNumber);
+      require("name", "Name", row);
+      require("phoneNumber", "Phone Number", row);
+      if (row.phoneNumber?.trim() && !isValidIndianPhone(row.phoneNumber)) {
+        rowErrors.push({
+          row: rowNumber,
+          field: "phoneNumber",
+          message:
+            "Phone Number must be a valid Indian mobile (10 digits, e.g. 9876543210)",
+        });
+      }
+
+      const resolved = resolveLeadBranchId(row, branchNameToId, allowedBranchIds);
+      if (resolved.error) {
+        rowErrors.push({
+          row: rowNumber,
+          field: row.branchId?.trim() ? "branchId" : "branchName",
+          message: resolved.error,
+        });
+      } else if (resolved.branchId) {
+        row.branchId = resolved.branchId;
+      }
+
+      if (rowErrors.length > 0) {
+        errors.push(...rowErrors);
+      } else {
+        // Persist canonical E.164 phone for Sarvam dial
+        validRows.push({
+          name: row.name.trim(),
+          phoneNumber: normalizePhone(row.phoneNumber.trim()),
+          email: row.email?.trim() || "",
+          interestedIn: row.interestedIn.trim(),
+          branchId: row.branchId,
+          source: row.source?.trim() || "",
+          ...(row.branchName?.trim() ? { branchName: row.branchName.trim() } : {}),
+        });
+      }
+      return;
+    }
+
+    if (entityType === "users") {
       require("name");
       require("roles");
-      if (!row.email?.trim() && !row.phone?.trim()) {
+      if (!rawRow.email?.trim() && !rawRow.phone?.trim()) {
         rowErrors.push({ row: rowNumber, message: "At least one of email or phone is required" });
       }
-      if (row.branchId && !allowedBranchIds.has(row.branchId)) {
+      if (rawRow.branchId && !allowedBranchIds.has(rawRow.branchId)) {
         rowErrors.push({ row: rowNumber, field: "branchId", message: "branchId is not in this institute" });
       }
     }
@@ -139,7 +149,7 @@ function validateRows(
     if (rowErrors.length > 0) {
       errors.push(...rowErrors);
     } else {
-      validRows.push(row);
+      validRows.push(rawRow);
     }
   });
 
@@ -188,7 +198,7 @@ async function processLeadRow(
   options?: { importJobId?: string; defaultSource?: string }
 ) {
   const { ingestLeadRow } = await import("../leads/services/lead-ingest.service");
-  await ingestLeadRow({
+  const result = await ingestLeadRow({
     instituteId,
     createdById,
     importJobId: options?.importJobId ?? null,
@@ -202,6 +212,20 @@ async function processLeadRow(
       source: row.source,
     },
   });
+
+  if (!result.created && !result.dialQueued) {
+    const phone = row.phoneNumber?.trim() || "(unknown)";
+    if (result.skippedReason === "non_failed_attempt_exists") {
+      throw new Error(
+        `Phone ${phone} already has an ACTIVE lead with a call in progress or completed — AI call not queued again`
+      );
+    }
+    throw new Error(
+      `Phone ${phone} already exists as an ACTIVE lead — skipped (no new AI call). Use a different number or open Lead 360 to retry.`
+    );
+  }
+
+  return result;
 }
 
 async function processUserRow(instituteId: string, row: Record<string, string>) {
@@ -274,8 +298,28 @@ export const DataManagementService = {
   async previewImport(currentUser: AuthUser, input: ImportPreviewInput) {
     const instituteId = currentUser.instituteId;
     const allowedBranchIds = await DataManagementRepository.findBranchIdsForInstitute(instituteId);
-    const { rows } = parseCsv(input.csv);
-    const { validRows, errors } = validateRows(input.entityType, rows, allowedBranchIds);
+
+    const { rows } = await loadImportRows({
+      csv: input.csv,
+      fileBase64: input.fileBase64,
+      fileName: input.fileName,
+    });
+
+    let branchNameToId: Map<string, string> | undefined;
+    if (input.entityType === "leads") {
+      const branches = await DataManagementRepository.findBranchesForInstitute(instituteId);
+      branchNameToId = new Map<string, string>();
+      for (const b of branches) {
+        branchNameToId.set(b.name.trim().toLowerCase(), b.id);
+        if (b.code?.trim()) {
+          branchNameToId.set(b.code.trim().toLowerCase(), b.id);
+        }
+      }
+    }
+
+    const { validRows, errors } = validateRows(input.entityType, rows, allowedBranchIds, {
+      branchNameToId,
+    });
 
     const job = await DataManagementRepository.createImportJob({
       institute: { connect: { id: instituteId } },
@@ -566,3 +610,6 @@ export const DataManagementService = {
     return DataManagementRepository.getOrCreateBackupStatus(currentUser.instituteId);
   },
 };
+
+// Re-export for tests / shared CSV helpers (splitCsvLine kept available)
+export { splitCsvLine };

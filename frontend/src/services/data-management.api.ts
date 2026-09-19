@@ -11,9 +11,12 @@ export const dataManagementApi = {
 
   previewImport: async (data: {
     entityType: ImportEntityType;
-    csv: string;
+    /** CSV text. Optional when fileBase64 is provided for .xlsx. */
+    csv?: string;
     fileName?: string;
-    /** When set (e.g. AI_CALLING), stamped on imported leads if CSV has no source. */
+    /** Base64-encoded file body (used for .xlsx when csv is omitted). */
+    fileBase64?: string;
+    /** When set (e.g. AI_CALLING), stamped on imported leads if row has no source. */
     defaultLeadSource?: string;
   }) => {
     const response = await api.post("/data-management/import/preview", data);

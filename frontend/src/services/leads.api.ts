@@ -14,10 +14,16 @@ export interface Lead {
   status: string;
   priority: string;
   leadScore?: number | null;
+  /** HOT | WARM | COOL | COLD from score + institute bands. */
+  leadTemperature?: string | null;
   admissionProbability?: number | null;
   tags?: string[];
   nextBestAction?: string | null;
   notes?: string;
+  /** Latest normalized AI call intent (denormalized from CallLog.interestStatus). */
+  leadIntent?: string | null;
+  /** Extra fields collected from AI calls that lack dedicated Lead columns. */
+  aiCollectedFields?: Record<string, unknown> | null;
   createdById: string;
   assignedCounsellorId?: string;
   lastContactedAt?: string;
@@ -62,8 +68,13 @@ export interface CallLog {
   recordingStorageKey?: string | null;
   aiScore?: string | null;
   aiSummary?: string | null;
+  /** Short reason for lead_score from Sarvam / outcome service. */
+  scoreReason?: string | null;
+  /** Normalized LeadIntent when from AI calling. */
   interestStatus?: string | null;
   outcome?: string | null;
+  /** Structured extraction from Sarvam final_agent_variables (+ _missingFieldsAfterMerge). */
+  extractedFields?: Record<string, unknown> | null;
   attemptNumber?: number;
   failureReason?: string | null;
   startedAt?: string | null;
@@ -71,7 +82,16 @@ export interface CallLog {
   createdAt: string;
   updatedAt?: string;
   caller?: { id: string; name: string; email?: string | null };
-  lead?: { id: string; name: string; phoneNumber: string; leadScore?: number | null };
+  lead?: {
+    id: string;
+    name: string;
+    phoneNumber: string;
+    leadScore?: number | null;
+    leadTemperature?: string | null;
+    leadIntent?: string | null;
+    assignedCounsellorId?: string | null;
+    assignedCounsellor?: { id: string; name: string } | null;
+  };
 }
 
 export interface LeadFollowUp {

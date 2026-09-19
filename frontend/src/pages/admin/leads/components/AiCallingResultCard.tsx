@@ -4,19 +4,34 @@ import type { CallLog } from "@/services/leads.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LeadScoreBadge, getLeadScoreBand } from "./LeadScoreBadge";
+import {
+  LeadScoreBadge,
+  getLeadScoreBand,
+  scoreToTemperature,
+} from "./LeadScoreBadge";
+import { LeadIntentBadge, formatLeadIntentLabel } from "./LeadIntentBadge";
 import { cn } from "@/utils";
-
-function formatInterest(value?: string | null): string {
-  if (!value) return "No interest status";
-  return value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 function formatDuration(seconds?: number | null): string {
   if (seconds == null || Number.isNaN(seconds)) return "—";
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+function resolveScoreReason(call: CallLog): string | null {
+  if (call.scoreReason?.trim()) return call.scoreReason.trim();
+  const extracted = asRecord(call.extractedFields);
+  const fromExtracted = extracted.score_reason ?? extracted.scoreReason;
+  if (typeof fromExtracted === "string" && fromExtracted.trim()) {
+    return fromExtracted.trim();
+  }
+  return null;
 }
 
 /** Heuristic aligned with LeadAiOutcomeService.createFollowUp when API flag absent. */
@@ -63,12 +78,25 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
 }) => {
   const leadId = call.leadId || call.lead?.id;
   const score = call.lead?.leadScore ?? (call.aiScore != null ? Number(call.aiScore) : null);
+  const temperature = call.lead?.leadTemperature ?? null;
   const band = getLeadScoreBand(score);
-  const bandLabel = band === "hot" ? "Hot Lead" : band === "warm" ? "Warm Lead" : band === "cold" ? "Cold Lead" : "Lead";
+  const tempLabel =
+    temperature?.toUpperCase() ||
+    scoreToTemperature(score) ||
+    (band ? band.toUpperCase() : null);
+  const bandLabel = tempLabel ? `${tempLabel} Lead` : "Lead";
   const nextAction = call.nextAction || "Review and follow up";
-  const interest = formatInterest(call.interestStatus || call.outcome);
+  const interest =
+    formatLeadIntentLabel(call.interestStatus || call.outcome) || "No interest status";
   const summary = call.aiSummary || "No AI summary yet.";
+  const scoreReason = resolveScoreReason(call);
   const followUpCreated = detectAiFollowUpCreated(call);
+  const counsellorName = call.lead?.assignedCounsellor?.name || null;
+  const assignLabel = counsellorName
+    ? `Assigned to ${counsellorName}`
+    : score != null && score > 0
+      ? "Unassigned (below auto-assign threshold or pending)"
+      : "Unassigned";
 
   return (
     <Card
@@ -87,12 +115,14 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
             <p className="text-xs text-muted-foreground font-mono">
               {call.lead?.phoneNumber || call.fromNumber || "—"}
             </p>
+            <p className="text-[11px] text-muted-foreground">{assignLabel}</p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <Badge variant="outline" className="text-[10px] uppercase">
               {call.status.replace(/_/g, " ")}
             </Badge>
-            <LeadScoreBadge score={score} />
+            <LeadIntentBadge intent={call.interestStatus} />
+            <LeadScoreBadge score={score} temperature={temperature} />
           </div>
         </div>
 
@@ -133,6 +163,13 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
             Next: {nextAction}
           </span>
         </p>
+
+        {scoreReason ? (
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            <span className="font-semibold text-foreground/80">Score reason:</span>{" "}
+            {scoreReason}
+          </p>
+        ) : null}
 
         <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
