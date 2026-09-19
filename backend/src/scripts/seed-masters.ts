@@ -96,6 +96,7 @@ const TIER1_MASTERS: MasterSeed[] = [
   { entityType: "feeheads", name: "Registration Fee", code: "REGISTRATION", sortOrder: 3 },
   { entityType: "feeheads", name: "Lab / Kit Fee", code: "LAB_KIT", sortOrder: 4 },
   { entityType: "feeheads", name: "Certification Fee", code: "CERTIFICATION", sortOrder: 5 },
+  { entityType: "feeheads", name: "Application Fee", code: "APPLICATION_FEE", sortOrder: 6 },
 
   // Concession heads
   { entityType: "concessionheads", name: "Early Bird Discount (10%)", code: "EARLY_BIRD", data: { percentage: "10" }, sortOrder: 1 },
@@ -190,20 +191,6 @@ const TIER1_MASTERS: MasterSeed[] = [
   },
   {
     entityType: "numberingseries",
-    name: "Enquiry Number Series",
-    code: "ENQUIRY",
-    data: {
-      target: "ENQUIRY",
-      pattern: "ENQ-{YEAR}-{SEQ:4}",
-      startNumber: 1,
-      currentSequence: 0,
-      resetFrequency: "YEARLY",
-      lastResetPeriod: "",
-    },
-    sortOrder: 4,
-  },
-  {
-    entityType: "numberingseries",
     name: "Application Number Series",
     code: "APPLICATION",
     data: {
@@ -214,7 +201,7 @@ const TIER1_MASTERS: MasterSeed[] = [
       resetFrequency: "YEARLY",
       lastResetPeriod: "",
     },
-    sortOrder: 5,
+    sortOrder: 4,
   },
   {
     entityType: "numberingseries",
@@ -228,7 +215,7 @@ const TIER1_MASTERS: MasterSeed[] = [
       resetFrequency: "YEARLY",
       lastResetPeriod: "",
     },
-    sortOrder: 6,
+    sortOrder: 5,
   },
   {
     entityType: "numberingseries",
@@ -242,7 +229,7 @@ const TIER1_MASTERS: MasterSeed[] = [
       resetFrequency: "YEARLY",
       lastResetPeriod: "",
     },
-    sortOrder: 7,
+    sortOrder: 6,
   },
   {
     entityType: "numberingseries",
@@ -256,7 +243,7 @@ const TIER1_MASTERS: MasterSeed[] = [
       resetFrequency: "YEARLY",
       lastResetPeriod: "",
     },
-    sortOrder: 8,
+    sortOrder: 7,
   },
 
 ];

@@ -1,54 +1,12 @@
-import type { 
-  EnquirySource, 
-  EnquiryStatus, 
-  ApplicationStatus, 
-  FeeStatus, 
-  AdmissionStatus, 
-  FeePlan 
+import type {
+  ApplicationStatus,
+  FeeStatus,
+  AdmissionStatus,
+  FeePlan,
+  ApplicationActivityType,
 } from "@prisma/client";
 
-export { EnquirySource, EnquiryStatus, ApplicationStatus, FeeStatus, AdmissionStatus, FeePlan };
-
-// ─── Enquiry Types ─────────────────────────────────────────────────────────────
-export interface CreateEnquiryDTO {
-  name: string;
-  email?: string;
-  phone: string;
-  courseId: string;
-  source?: EnquirySource;
-  status?: EnquiryStatus;
-  counselorNotes?: string;
-  assignedToId?: string;
-  aiCallStatus?: string;
-  aiCallResult?: string;
-  aiSummary?: string;
-  nextFollowUpAt?: string;
-}
-
-export interface UpdateEnquiryDTO {
-  name?: string;
-  email?: string;
-  phone?: string;
-  courseId?: string;
-  source?: EnquirySource;
-  status?: EnquiryStatus;
-  counselorNotes?: string;
-  assignedToId?: string;
-  aiCallStatus?: string;
-  aiCallResult?: string;
-  aiSummary?: string;
-  nextFollowUpAt?: string;
-}
-
-export interface QueryEnquiriesDTO {
-  search?: string;
-  source?: EnquirySource | "ALL";
-  status?: EnquiryStatus | "ALL";
-  courseId?: string;
-  branchId?: string;
-  page?: number;
-  limit?: number;
-}
+export { ApplicationStatus, FeeStatus, AdmissionStatus, FeePlan, ApplicationActivityType };
 
 // ─── Application Types ─────────────────────────────────────────────────────────
 export interface CreateApplicationDTO {
@@ -56,8 +14,12 @@ export interface CreateApplicationDTO {
   email?: string;
   phone: string;
   courseId: string;
-  enquiryId?: string;
+  leadId?: string;
+  branchId?: string;
   feeStatus?: FeeStatus;
+  applicationFee?: number;
+  paymentModeMasterId?: string;
+  paymentRef?: string;
   status?: ApplicationStatus;
   notes?: string;
 }
@@ -68,8 +30,12 @@ export interface UpdateApplicationDTO {
   phone?: string;
   courseId?: string;
   feeStatus?: FeeStatus;
+  applicationFee?: number | null;
+  paymentModeMasterId?: string | null;
+  paymentRef?: string | null;
   status?: ApplicationStatus;
   notes?: string;
+  rejectReason?: string;
 }
 
 export interface QueryApplicationsDTO {
@@ -80,6 +46,13 @@ export interface QueryApplicationsDTO {
   branchId?: string;
   page?: number;
   limit?: number;
+}
+
+export interface CreateApplicationActivityDTO {
+  type?: ApplicationActivityType;
+  title?: string;
+  description: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ─── Admission Types ───────────────────────────────────────────────────────────
@@ -150,20 +123,4 @@ export interface QueryAdmissionsDTO {
   branchId?: string;
   page?: number;
   limit?: number;
-}
-
-// ─── Conversion Types ──────────────────────────────────────────────────────────
-export interface ConvertEnquiryDTO {
-  feeStatus?: FeeStatus;
-  notes?: string;
-}
-
-export interface ConvertApplicationDTO {
-  batchId?: string;
-  feePlan?: FeePlan;
-  notes?: string;
-  totalFee?: number;
-  amountPaid?: number;
-  installments?: AdmissionInstallmentDTO[];
-  termsAcceptance?: AdmissionTermsAcceptanceDTO[];
 }

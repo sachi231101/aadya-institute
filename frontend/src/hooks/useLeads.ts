@@ -237,6 +237,7 @@ export const useCreateApplicationFromLead = () => {
       leadsApi.createApplicationFromLead(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
   });
 };

@@ -102,12 +102,18 @@ export const BranchRevenueDetails: React.FC = () => {
   const rawMethods = financialReport?.paymentMethodShare || [];
   const paymentMethodsPieData = rawMethods.filter((m) => m.value > 0);
 
-  // 3. Pie Chart Data: Course Share from Backend
-  const rawCourseShare = studentReport?.courseShare || [];
-  const courseSharePieData = rawCourseShare.filter((c) => c.value > 0).map((c, idx) => ({
-    ...c,
-    color: c.color || COURSE_COLORS[idx % COURSE_COLORS.length],
-  }));
+  // 3. Pie Chart Data: Fee collected by course (from financial report)
+  const rawCourseBreakdown = financialReport?.courseBreakdown || [];
+  const courseSharePieData = rawCourseBreakdown
+    .filter((c) => Number(c.collected) > 0 || Number(c.students) > 0)
+    .map((c, idx) => ({
+      name: c.courseName || "Unassigned Course",
+      value: Number(c.collected) || 0,
+      students: Number(c.students) || 0,
+      pending: Number(c.pending) || 0,
+      color: COURSE_COLORS[idx % COURSE_COLORS.length],
+    }))
+    .filter((c) => c.value > 0);
 
   // Monthly trend strictly from backend PostgreSQL data
   const monthlyTrendData = financialReport?.monthlyTrend || [];
@@ -120,6 +126,7 @@ export const BranchRevenueDetails: React.FC = () => {
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0];
+      const isCurrency = activeTab === "collection" || activeTab === "methods" || activeTab === "courses";
       const total = activeTab === "collection"
         ? (collectionPieData.reduce((s, x) => s + x.value, 0))
         : (activeTab === "methods"
@@ -127,6 +134,7 @@ export const BranchRevenueDetails: React.FC = () => {
             : courseSharePieData.reduce((s, x) => s + x.value, 0));
 
       const percent = total > 0 ? ((data.value / total) * 100).toFixed(1) : "0.0";
+      const students = Number(data.payload?.students) || 0;
 
       return (
         <div className="bg-popover text-popover-foreground px-3.5 py-2.5 rounded-xl shadow-xl text-xs border border-border space-y-1.5 z-50">
@@ -135,9 +143,17 @@ export const BranchRevenueDetails: React.FC = () => {
             <span className="font-bold text-foreground">{data.name}</span>
           </div>
           <div className="flex justify-between gap-4 text-muted-foreground font-mono">
-            <span>Amount:</span>
-            <span className="font-bold text-foreground">{formatINR(data.value)}</span>
+            <span>{activeTab === "courses" ? "Fee collected:" : "Amount:"}</span>
+            <span className="font-bold text-foreground">
+              {isCurrency ? formatINR(data.value) : `${data.value}`}
+            </span>
           </div>
+          {activeTab === "courses" && students > 0 ? (
+            <div className="flex justify-between gap-4 text-muted-foreground">
+              <span>Students:</span>
+              <span className="font-bold text-foreground">{students}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between gap-4 text-muted-foreground">
             <span>Share:</span>
             <span className="font-bold text-emerald-500">{percent}%</span>
@@ -520,12 +536,15 @@ export const BranchRevenueDetails: React.FC = () => {
                         const percent = Math.round((c.value / total) * 100);
                         return (
                           <div key={idx} className="p-3 rounded-xl border border-border bg-muted/30 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: c.color || COURSE_COLORS[idx % COURSE_COLORS.length] }} />
-                              <span className="text-xs font-bold text-foreground truncate max-w-[160px]">{c.name}</span>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-foreground truncate block max-w-[160px]">{c.name}</span>
+                                <span className="text-[10px] text-muted-foreground">{c.students} students</span>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <span className="text-xs font-bold text-foreground">{c.value} Students</span>
+                            <div className="text-right shrink-0">
+                              <span className="text-xs font-bold text-foreground">{formatINR(c.value)}</span>
                               <span className="text-[11px] text-muted-foreground ml-2 font-mono">({percent}%)</span>
                             </div>
                           </div>
@@ -533,7 +552,7 @@ export const BranchRevenueDetails: React.FC = () => {
                       })
                     ) : (
                       <div className="p-6 text-center text-muted-foreground text-xs bg-muted/20 rounded-xl border border-dashed border-border">
-                        No student course enrollments found for this branch.
+                        No fee collections recorded by course for this branch yet.
                       </div>
                     )}
                   </div>

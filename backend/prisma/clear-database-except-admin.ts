@@ -54,7 +54,7 @@ async function clearDatabaseExceptAdmin() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE "BatchEnrollment", "BatchModule", "BatchSchedule", "Batch" CASCADE;`).catch(() => {});
 
   // Admissions, Applications, Enquiries
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "Admission", "Application", "Enquiry" CASCADE;`).catch(() => {});
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "Admission", "Application", "ApplicationActivity" CASCADE;`).catch(() => {});
 
   // Course Modules & Courses
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE "CourseModule", "Course" CASCADE;`).catch(() => {});

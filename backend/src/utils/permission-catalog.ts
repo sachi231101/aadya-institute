@@ -73,10 +73,9 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "admission_management",
     label: "Admission Management",
-    description: "Enquiries, applications, and admissions",
+    description: "Applications and admissions",
     category: "ERP Modules",
     items: [
-      { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read", "admission.read"], writePermissions: ["lead.create", "lead.update", "admission.create", "admission.update"] },
       { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
     ],

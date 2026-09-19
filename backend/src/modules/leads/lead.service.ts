@@ -11,6 +11,8 @@ import {
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
 import { SequenceService } from "../masters/sequence.service";
+import { assertActiveMaster } from "../masters/master.validator";
+import { recordApplicationFeePayment } from "../admissions/application-fee-payment.service";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   CreateLeadDTO,
@@ -452,7 +454,15 @@ export const LeadService = {
   async createApplicationFromLead(
     leadId: string,
     currentUser: AuthUser,
-    dto?: { feeStatus?: string; notes?: string; branchId?: string; courseId?: string }
+    dto?: {
+      feeStatus?: string;
+      applicationFee?: number;
+      paymentModeMasterId?: string;
+      paymentRef?: string;
+      notes?: string;
+      branchId?: string;
+      courseId?: string;
+    }
   ) {
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
@@ -486,32 +496,41 @@ export const LeadService = {
       throw new AppError("Course is required to create an application", 400);
     }
 
+    const isPaid = dto?.feeStatus === "PAID";
+    if (isPaid) {
+      if (dto?.applicationFee == null || Number.isNaN(Number(dto.applicationFee))) {
+        throw new AppError("Application fee amount is required when marked as paid", 400);
+      }
+      if (!dto?.paymentModeMasterId) {
+        throw new AppError("Payment mode is required when marked as paid", 400);
+      }
+      await assertActiveMaster({
+        instituteId: lead.instituteId,
+        entityType: "paymentmodes",
+        masterRecordId: dto.paymentModeMasterId,
+        branchId: dto?.branchId || lead.branchId,
+      });
+    }
+
     const applicationNo = await SequenceService.getNextNumber(lead.instituteId, "APPLICATION");
-    const { normalizePhoneDigits } = await import("./services/lead-enquiry-sync.service");
-    const phone = normalizePhoneDigits(lead.phoneNumber);
-    const enquiries = await prisma.enquiry.findMany({
-      where: { instituteId: lead.instituteId },
-      select: { id: true, phone: true },
-    });
-    const matchedEnquiry = enquiries.find(
-      (e) => normalizePhoneDigits(e.phone) === phone
-    );
     const counsellorId = lead.assignedCounsellorId || currentUser.userId || currentUser.id;
 
     const application = await prisma.$transaction(async (tx) => {
-      // 1. Create Application preserving lead data (schema: no leadId/counsellorId columns)
       const newApp = await tx.application.create({
         data: {
           instituteId: lead.instituteId,
           branchId: dto?.branchId || lead.branchId,
           applicationNo,
-          enquiryId: matchedEnquiry?.id || null,
           leadId: lead.id,
           applicantName: lead.name,
           email: lead.email,
           phone: lead.phoneNumber,
           courseId,
-          feeStatus: (dto?.feeStatus === "PAID" ? "PAID" : "PENDING") as any,
+          feeStatus: (isPaid ? "PAID" : "PENDING") as any,
+          applicationFee: isPaid && dto?.applicationFee !== undefined ? dto.applicationFee : null,
+          paymentModeMasterId: isPaid ? dto?.paymentModeMasterId || null : null,
+          paymentRef: isPaid ? dto?.paymentRef || null : null,
+          feePaidAt: isPaid ? new Date() : null,
           status: "SUBMITTED",
           notes:
             dto?.notes ||
@@ -519,11 +538,33 @@ export const LeadService = {
         },
         include: {
           course: { select: { id: true, name: true, code: true } },
-          enquiry: true,
+          lead: { select: { id: true, name: true, source: true } },
+          paymentModeMaster: { select: { id: true, name: true, code: true } },
         },
       });
 
-      // 2. Update Lead stage toward conversion pipeline
+      await tx.applicationActivity.create({
+        data: {
+          applicationId: newApp.id,
+          userId: currentUser.userId || currentUser.id,
+          type: "CREATED",
+          title: "Application created from lead",
+          description: `Created from Lead ${lead.name} (${lead.source || "—"})${
+            isPaid ? `. Fee ₹${dto?.applicationFee} paid.` : ""
+          }`,
+          metadata: {
+            leadId: lead.id,
+            ...(isPaid
+              ? {
+                  applicationFee: dto?.applicationFee,
+                  paymentModeMasterId: dto?.paymentModeMasterId,
+                  paymentRef: dto?.paymentRef || null,
+                }
+              : {}),
+          },
+        },
+      });
+
       await tx.lead.update({
         where: { id: leadId },
         data: {
@@ -531,7 +572,6 @@ export const LeadService = {
         },
       });
 
-      // 3. Log lead activity
       await tx.leadActivity.create({
         data: {
           leadId,
@@ -545,6 +585,57 @@ export const LeadService = {
 
       return newApp;
     });
+
+    if (isPaid && dto?.paymentModeMasterId && dto.applicationFee != null) {
+      const recorded = await recordApplicationFeePayment({
+        instituteId: lead.instituteId,
+        branchId: dto?.branchId || lead.branchId,
+        applicationId: application.id,
+        applicationNo,
+        applicantName: lead.name,
+        courseName: application.course?.name || lead.course?.name || "Course",
+        amount: Number(dto.applicationFee),
+        paymentModeMasterId: dto.paymentModeMasterId,
+        paymentRef: dto.paymentRef,
+        recordedById: currentUser.userId || currentUser.id,
+      });
+
+      await prisma.applicationActivity.create({
+        data: {
+          applicationId: application.id,
+          userId: currentUser.userId || currentUser.id,
+          type: "FEE_STATUS_CHANGED",
+          title: "Application fee recorded",
+          description: `Fee ₹${dto.applicationFee} posted as receipt ${recorded.receiptNo}`,
+          metadata: {
+            paymentId: recorded.paymentId,
+            receiptNo: recorded.receiptNo,
+            applicationFee: dto.applicationFee,
+            paymentModeMasterId: dto.paymentModeMasterId,
+            paymentRef: dto.paymentRef || null,
+          },
+        },
+      });
+
+      return prisma.application.findFirst({
+        where: { id: application.id },
+        include: {
+          course: { select: { id: true, name: true, code: true } },
+          lead: { select: { id: true, name: true, source: true } },
+          paymentModeMaster: { select: { id: true, name: true, code: true } },
+          payment: {
+            select: {
+              id: true,
+              receiptNo: true,
+              amount: true,
+              status: true,
+              transactionRef: true,
+              date: true,
+            },
+          },
+        },
+      });
+    }
 
     return application;
   },

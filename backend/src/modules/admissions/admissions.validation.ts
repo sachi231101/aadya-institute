@@ -1,39 +1,71 @@
 import { z } from "zod";
 
-export const createEnquirySchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(8, "Phone number must be at least 8 digits"),
-  courseId: z.string().min(1, "Course is required"),
-  source: z.enum(["WEBSITE", "WHATSAPP", "WALK_IN", "REFERRAL", "SOCIAL_MEDIA"]).optional(),
-  status: z.enum(["NEW", "IN_PROGRESS", "FOLLOW_UP", "CONVERTED", "REJECTED"]).optional(),
-  counselorNotes: z.string().optional(),
-  assignedToId: z.string().optional(),
-});
-
-export const updateEnquirySchema = createEnquirySchema.partial();
-
-export const queryEnquiriesSchema = z.object({
-  search: z.string().optional(),
-  source: z.string().optional(),
-  status: z.string().optional(),
-  courseId: z.string().optional(),
-  page: z.coerce.number().optional().default(1),
-  limit: z.coerce.number().optional().default(20),
-});
-
-export const createApplicationSchema = z.object({
+const applicationFieldsSchema = z.object({
   applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(8, "Phone number must be at least 8 digits"),
   courseId: z.string().min(1, "Course is required"),
-  enquiryId: z.string().optional(),
+  leadId: z.string().optional(),
+  branchId: z.string().optional(),
   feeStatus: z.enum(["PAID", "PENDING"]).optional(),
+  applicationFee: z.coerce.number().min(0, "Fee must be 0 or more").optional().nullable(),
+  paymentModeMasterId: z.string().optional().nullable(),
+  paymentRef: z.string().optional().nullable(),
   status: z.enum(["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "ADMITTED"]).optional(),
   notes: z.string().optional(),
+  rejectReason: z.string().optional(),
 });
 
-export const updateApplicationSchema = createApplicationSchema.partial();
+const requirePaidFeeFields = (
+  data: {
+    feeStatus?: string;
+    applicationFee?: number | null;
+    paymentModeMasterId?: string | null;
+  },
+  ctx: z.RefinementCtx
+) => {
+  if (data.feeStatus !== "PAID") return;
+  if (
+    data.applicationFee === undefined ||
+    data.applicationFee === null ||
+    Number.isNaN(Number(data.applicationFee))
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Application fee amount is required when marked as paid",
+      path: ["applicationFee"],
+    });
+  }
+  if (!data.paymentModeMasterId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Payment mode is required when marked as paid",
+      path: ["paymentModeMasterId"],
+    });
+  }
+};
+
+export const createApplicationSchema = applicationFieldsSchema.superRefine(requirePaidFeeFields);
+
+export const updateApplicationSchema = applicationFieldsSchema.partial().superRefine((data, ctx) => {
+  if (data.feeStatus === "PAID") {
+    requirePaidFeeFields(
+      {
+        feeStatus: data.feeStatus,
+        applicationFee: data.applicationFee,
+        paymentModeMasterId: data.paymentModeMasterId,
+      },
+      ctx
+    );
+  }
+  if (data.status === "REJECTED" && !data.rejectReason?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Reject reason is required",
+      path: ["rejectReason"],
+    });
+  }
+});
 
 export const queryApplicationsSchema = z.object({
   search: z.string().optional(),
@@ -42,6 +74,13 @@ export const queryApplicationsSchema = z.object({
   courseId: z.string().optional(),
   page: z.coerce.number().optional().default(1),
   limit: z.coerce.number().optional().default(20),
+});
+
+export const createApplicationActivitySchema = z.object({
+  type: z.enum(["NOTE_ADDED", "STATUS_CHANGED", "FEE_STATUS_CHANGED", "CREATED"]).optional(),
+  title: z.string().optional(),
+  description: z.string().min(1, "Note is required"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const installmentItemSchema = z.object({
@@ -102,19 +141,4 @@ export const queryAdmissionsSchema = z.object({
   branchId: z.string().optional(),
   page: z.coerce.number().optional().default(1),
   limit: z.coerce.number().optional().default(20),
-});
-
-export const convertEnquirySchema = z.object({
-  feeStatus: z.enum(["PAID", "PENDING"]).optional(),
-  notes: z.string().optional(),
-});
-
-export const convertApplicationSchema = z.object({
-  batchId: z.string().optional(),
-  feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
-  notes: z.string().optional(),
-  totalFee: z.coerce.number().optional(),
-  amountPaid: z.coerce.number().optional(),
-  installments: z.array(installmentItemSchema).optional(),
-  termsAcceptance: z.array(termsAcceptanceItemSchema).optional(),
 });

@@ -126,7 +126,7 @@ export const TargetCalculationService = {
               ? {
                   OR: [
                     { convertedFromLeads: { some: { assignedCounsellorId: userId } } },
-                    { application: { enquiry: { assignedToId: userId } } },
+                    { application: { lead: { assignedCounsellorId: userId } } },
                   ],
                 }
               : {}),
@@ -162,7 +162,7 @@ export const TargetCalculationService = {
                   OR: [
                     { recordedById: userId },
                     { admission: { convertedFromLeads: { some: { assignedCounsellorId: userId } } } },
-                    { admission: { application: { enquiry: { assignedToId: userId } } } },
+                    { admission: { application: { lead: { assignedCounsellorId: userId } } } },
                   ],
                 }
               : {}),

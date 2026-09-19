@@ -25,25 +25,13 @@ export const useAdmissionById = (id: string) => {
   });
 };
 
-export const useEnquiries = (params?: {
-  search?: string;
-  source?: string;
-  status?: string;
-  courseId?: string;
-  page?: number;
-  limit?: number;
-}) => {
-  return useQuery({
-    queryKey: ["enquiries", params],
-    queryFn: () => admissionsApi.getEnquiries(params),
-  });
-};
-
 export const useApplications = (params?: {
   search?: string;
   feeStatus?: string;
   status?: string;
   courseId?: string;
+  page?: number;
+  limit?: number;
 }) => {
   return useQuery({
     queryKey: ["applications", params],
@@ -55,6 +43,14 @@ export const useApplicationById = (id: string) => {
   return useQuery({
     queryKey: ["applications", id],
     queryFn: () => admissionsApi.getApplicationById(id),
+    enabled: !!id,
+  });
+};
+
+export const useApplicationActivities = (id: string) => {
+  return useQuery({
+    queryKey: ["applications", id, "activities"],
+    queryFn: () => admissionsApi.getApplicationActivities(id),
     enabled: !!id,
   });
 };
@@ -82,6 +78,25 @@ export const useUpdateApplication = () => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["applications", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["applications", variables.id, "activities"] });
+    },
+  });
+};
+
+export const useAddApplicationActivity = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      description,
+    }: {
+      id: string;
+      description: string;
+    }) => admissionsApi.addApplicationActivity(id, { description, type: "NOTE_ADDED" }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["applications", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["applications", variables.id, "activities"] });
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
   });
 };
@@ -109,24 +124,6 @@ export const useUpdateAdmission = () => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admissions"] });
       queryClient.invalidateQueries({ queryKey: ["admissions", variables.id] });
-    },
-  });
-};
-
-export const useConvertApplicationToAdmission = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload?: Parameters<typeof admissionsApi.convertApplicationToAdmission>[1];
-    }) => admissionsApi.convertApplicationToAdmission(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admissions"] });
-      queryClient.invalidateQueries({ queryKey: ["applications"] });
-      queryClient.invalidateQueries({ queryKey: ["students"] });
     },
   });
 };

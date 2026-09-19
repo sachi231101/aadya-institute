@@ -14,7 +14,6 @@ export const COUNSELOR_CATALOG_ITEM_KEYS = [
   "leads.ai_calling",
   "leads.followups",
   "leads.call_history",
-  "admissions.enquiries",
   "admissions.applications",
   "admissions.all",
   "students.all",

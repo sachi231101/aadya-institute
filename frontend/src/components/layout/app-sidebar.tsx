@@ -75,7 +75,6 @@ const data = {
       url: A.ADMISSIONS.ALL,
       icon: Target,
       items: [
-        { title: L["admissions.enquiries"] ?? "Enquiries", url: A.ADMISSIONS.ENQUIRIES },
         { title: L["admissions.applications"] ?? "Admission Applications", url: A.ADMISSIONS.APPLICATIONS },
         { title: L["admissions.all"] ?? "Admissions", url: A.ADMISSIONS.ALL },
       ],

@@ -167,7 +167,7 @@ export const CounselorDashboard: React.FC = () => {
   const canRegisterAdmission = canEditItem("admissions.all");
   const { students, fetchStudents } = useStudentStore();
   const { counselors, fetchCounselors } = useCounselorStore();
-  const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
+  const { admissions, fetchAdmissions } = useAdmissionStore();
   const { data: financialReport } = useFinancialReport(user?.branchId || undefined);
   const { data: discontinuationRiskResponse, isLoading: isRiskLoading } = useDiscontinuationRisk(
     user?.branchId || undefined
@@ -652,7 +652,6 @@ export const CounselorDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchCounselors(user?.branchId || undefined);
-    fetchEnquiries();
     fetchAdmissions({ limit: 100 } as any);
     fetchStudents(user?.branchId || undefined);
   }, [user?.branchId]);

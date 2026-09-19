@@ -26,6 +26,7 @@ import {
   BookMarked,
   CreditCard,
   Percent,
+  Receipt,
   Search,
   ChevronRight,
   ChevronLeft,
@@ -317,6 +318,13 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "percentage", label: "Max Discount" },
       { key: "approvalLevel", label: "Approval Required" },
     ],
+  },
+  tax: {
+    icon: Receipt,
+    iconBgColor: "bg-rose-50 text-rose-600 border-rose-100",
+    iconColor: "text-rose-600",
+    description: "Manage tax rates applied on admissions and fees",
+    columns: MASTER_QUICK_CREATE_FIELDS.tax,
   },
   numberingseries: {
     icon: Hash,
@@ -1373,7 +1381,6 @@ export const MasterSetup: React.FC = () => {
                           <option value="RECEIPT">RECEIPT (Fee Payment Receipt Number)</option>
                           <option value="INVOICE">INVOICE (Student Fee Invoice Number)</option>
                           <option value="OTHER_INVOICE">OTHER_INVOICE (Other / Ad-hoc Invoice Number)</option>
-                          <option value="ENQUIRY">ENQUIRY (Enquiry Number)</option>
                           <option value="APPLICATION">APPLICATION (Application Number)</option>
                         </select>
                       </div>

@@ -142,7 +142,7 @@ describe("Center Manager Notification Module Isolation Tests", () => {
       "admissions"
     );
     assert.strictEqual(
-      inferNotificationModule({ type: "AI_CALL", link: "/center/admissions/enquiries" }),
+      inferNotificationModule({ type: "AI_CALL", link: "/center/admissions/applications" }),
       "admissions"
     );
     assert.strictEqual(

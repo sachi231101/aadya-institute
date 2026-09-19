@@ -48,31 +48,8 @@ async function main() {
     ok.push("Assigned leads reference known counsellor-role users (or none assigned)");
   }
 
-  const enquiries = await prisma.enquiry.findMany({
-    select: { id: true, phone: true, assignedToId: true, instituteId: true },
-  });
-  let mismatch = 0;
-  for (const lead of assignedLeads) {
-    const digits = lead.phoneNumber.replace(/\D/g, "").slice(-10);
-    if (!digits) continue;
-    const matches = enquiries.filter(
-      (e) =>
-        e.instituteId === lead.instituteId &&
-        e.phone.replace(/\D/g, "").slice(-10) === digits
-    );
-    for (const e of matches) {
-      if (e.assignedToId && e.assignedToId !== lead.assignedCounsellorId) {
-        mismatch += 1;
-      }
-    }
-  }
-  if (mismatch) {
-    issues.push(
-      `${mismatch} Lead↔Enquiry assignee mismatches by phone (cleared on next assign sync)`
-    );
-  } else {
-    ok.push("No Lead↔Enquiry assignee mismatches for matched phones");
-  }
+  const applications = await prisma.application.count();
+  ok.push(`Applications total: ${applications}`);
 
   const batches = await prisma.batch.findMany({
     select: {

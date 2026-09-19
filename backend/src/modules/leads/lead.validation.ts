@@ -228,12 +228,37 @@ export const convertLeadSchema = z.object({
   createStudentUser: z.boolean().optional().default(true),
 });
 
-export const createApplicationFromLeadSchema = z.object({
-  courseId: z.string().optional(),
-  branchId: z.string().optional(),
-  feeStatus: z.string().optional(),
-  notes: z.string().optional(),
-});
+export const createApplicationFromLeadSchema = z
+  .object({
+    courseId: z.string().optional(),
+    branchId: z.string().optional(),
+    feeStatus: z.enum(["PAID", "PENDING"]).optional(),
+    applicationFee: z.coerce.number().min(0).optional(),
+    paymentModeMasterId: z.string().optional(),
+    paymentRef: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.feeStatus !== "PAID") return;
+    if (
+      data.applicationFee === undefined ||
+      data.applicationFee === null ||
+      Number.isNaN(Number(data.applicationFee))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Application fee amount is required when marked as paid",
+        path: ["applicationFee"],
+      });
+    }
+    if (!data.paymentModeMasterId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Payment mode is required when marked as paid",
+        path: ["paymentModeMasterId"],
+      });
+    }
+  });
 
 export const createFollowUpSchema = z.object({
   type: FollowUpTypeEnum.optional().default("CALL"),

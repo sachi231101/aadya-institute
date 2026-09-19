@@ -5,17 +5,13 @@ import type { AuthUser } from "../auth/auth.types";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import { sendStudentCredentialsWhatsAppService } from "../students/student.service";
 import type {
-  CreateEnquiryDTO,
-  UpdateEnquiryDTO,
-  QueryEnquiriesDTO,
   CreateApplicationDTO,
   UpdateApplicationDTO,
   QueryApplicationsDTO,
   CreateAdmissionDTO,
   UpdateAdmissionDTO,
   QueryAdmissionsDTO,
-  ConvertEnquiryDTO,
-  ConvertApplicationDTO
+  CreateApplicationActivityDTO,
 } from "./admissions.types";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
@@ -24,6 +20,10 @@ import { SequenceService } from "../masters/sequence.service";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 import { assertActiveMaster } from "../masters/master.validator";
 import * as studentAllocationService from "../students/student-allocation.service";
+import {
+  recordApplicationFeePayment,
+  voidApplicationFeePayment,
+} from "./application-fee-payment.service";
 
 const resolveRequiredTermsAcceptance = async (
   instituteId: string,
@@ -98,173 +98,44 @@ const triggerAdmissionNotification = async (admissionId: string) => {
   }
 };
 
+/** Resolve branch for application create: force user branch for non-admin; require explicit branch for admin. */
+const resolveApplicationBranchId = async (
+  currentUser: AuthUser,
+  dtoBranchId?: string
+): Promise<string> => {
+  const isAdmin = currentUser.roles.includes("ADMIN");
+  const needsForcedBranch =
+    !isAdmin &&
+    (currentUser.roles.includes("CENTER_MANAGER") ||
+      currentUser.roles.includes("COUNSELLOR"));
+
+  if (needsForcedBranch) {
+    if (!currentUser.branchId) {
+      throw new AppError("Your account has no branch assigned — cannot create application", 400);
+    }
+    return currentUser.branchId;
+  }
+
+  const branchId = dtoBranchId || currentUser.branchId;
+  if (!branchId) {
+    throw new AppError("Branch is required to create an application", 400);
+  }
+
+  const branch = await prisma.branch.findFirst({
+    where: { id: branchId, instituteId: currentUser.instituteId },
+    select: { id: true },
+  });
+  if (!branch) {
+    throw new AppError("Selected branch not found for this institute", 400);
+  }
+  return branch.id;
+};
+
 export const AdmissionsService = {
-  // Helper for generating sequential numbers (backward compatible helper)
   async generateNo(prefix: string): Promise<string> {
     const randomDigits = Math.floor(100 + Math.random() * 900);
     const timestamp = Date.now().toString().slice(-4);
     return `${prefix}-2026-${randomDigits}${timestamp}`;
-  },
-
-  // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
-  async getEnquiries(instituteId: string, params: QueryEnquiriesDTO) {
-    return AdmissionsRepository.findEnquiries(instituteId, params);
-  },
-
-  async getEnquiryById(id: string, instituteId: string, currentUser: AuthUser) {
-    const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
-    if (!enquiry) {
-      throw new Error("Enquiry not found");
-    }
-    assertBranchRecordAccess(currentUser, enquiry.branchId);
-    return enquiry;
-  },
-
-  async createEnquiry(instituteId: string, branchId: string | undefined, dto: CreateEnquiryDTO) {
-    const enquiryNo = await SequenceService.getNextNumber(instituteId, "ENQUIRY");
-    const enquiry = await AdmissionsRepository.createEnquiry(instituteId, branchId, enquiryNo, dto);
-
-    if (dto.assignedToId) {
-      const { syncLeadAssigneeFromEnquiry } = await import(
-        "../leads/services/lead-enquiry-sync.service"
-      );
-      await syncLeadAssigneeFromEnquiry({
-        instituteId,
-        phone: dto.phone,
-        counsellorId: dto.assignedToId,
-      });
-    }
-
-    return enquiry;
-  },
-
-  async updateEnquiry(id: string, instituteId: string, dto: UpdateEnquiryDTO) {
-    const existing = await AdmissionsRepository.findEnquiryById(id, instituteId);
-    if (!existing) {
-      throw new Error("Enquiry not found");
-    }
-    await AdmissionsRepository.updateEnquiry(id, instituteId, dto);
-
-    // Keep Lead.assignedCounsellorId in sync when enquiry assignee changes
-    if (dto.assignedToId !== undefined) {
-      const { syncLeadAssigneeFromEnquiry } = await import(
-        "../leads/services/lead-enquiry-sync.service"
-      );
-      await syncLeadAssigneeFromEnquiry({
-        instituteId,
-        phone: existing.phone,
-        counsellorId: dto.assignedToId || null,
-      });
-    }
-
-    return AdmissionsRepository.findEnquiryById(id, instituteId);
-  },
-
-  async triggerEnquiryAiCall(
-    id: string,
-    instituteId: string,
-    createdById: string
-  ) {
-    const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
-    if (!enquiry) {
-      throw new Error("Enquiry not found");
-    }
-
-    const { normalizePhoneDigits } = await import(
-      "../leads/services/lead-enquiry-sync.service"
-    );
-    const phone = normalizePhoneDigits(enquiry.phone);
-    if (!phone) {
-      throw new Error("Enquiry has no valid phone number");
-    }
-
-    const { ensureLeadFromEnquiry } = await import(
-      "../leads/services/lead-enquiry-bridge.service"
-    );
-    const { lead: matchedLead, created: leadCreated } =
-      await ensureLeadFromEnquiry({
-        enquiry,
-        createdById,
-      });
-
-    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
-    const dial = await AiCallingService.enqueueLeadCall({
-      id: matchedLead.id,
-      phoneNumber: matchedLead.phoneNumber,
-      createdById: matchedLead.createdById,
-      instituteId: matchedLead.instituteId,
-      branchId: matchedLead.branchId,
-      importJobId: matchedLead.importJobId,
-    });
-
-    const status = dial.queued
-      ? "INITIATED"
-      : dial.skipped === "telephony_unavailable"
-        ? "FAILED"
-        : dial.skipped || "SKIPPED";
-
-    await AdmissionsRepository.updateEnquiry(id, instituteId, {
-      counselorNotes: [
-        enquiry.counselorNotes,
-        `[AI Call ${status}] Queued ${new Date().toISOString()} callLog=${dial.callLogId || "n/a"}${
-          leadCreated ? ` leadCreated=${matchedLead.id}` : ` leadId=${matchedLead.id}`
-        }`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      status: enquiry.status === "NEW" ? "IN_PROGRESS" : enquiry.status,
-    });
-
-    return AdmissionsRepository.findEnquiryById(id, instituteId);
-  },
-
-  async deleteEnquiry(id: string, instituteId: string) {
-    const existing = await AdmissionsRepository.findEnquiryById(id, instituteId);
-    if (!existing) {
-      throw new Error("Enquiry not found");
-    }
-    await AdmissionsRepository.deleteEnquiry(id, instituteId);
-    return { id };
-  },
-
-  async convertEnquiryToApplication(id: string, instituteId: string, dto: ConvertEnquiryDTO) {
-    const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
-    if (!enquiry) {
-      throw new Error("Enquiry not found");
-    }
-
-    const applicationNo = await SequenceService.getNextNumber(instituteId, "APPLICATION");
-
-    // Perform atomic transaction
-    const application = await prisma.$transaction(async (tx) => {
-      // 1. Update Enquiry status to CONVERTED
-      await tx.enquiry.update({
-        where: { id },
-        data: { status: "CONVERTED" },
-      });
-
-      // 2. Create Application record
-      return tx.application.create({
-        data: {
-          instituteId: enquiry.instituteId,
-          branchId: enquiry.branchId,
-          applicationNo,
-          enquiryId: enquiry.id,
-          applicantName: enquiry.name,
-          email: enquiry.email,
-          phone: enquiry.phone,
-          courseId: enquiry.courseId,
-          feeStatus: dto.feeStatus || "PAID",
-          status: "SUBMITTED",
-          notes: dto.notes || `Converted from Enquiry ${enquiry.enquiryNo || enquiry.id}`,
-        },
-        include: {
-          course: { select: { id: true, name: true, code: true } },
-        },
-      });
-    });
-
-    return application;
   },
 
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
@@ -275,120 +146,268 @@ export const AdmissionsService = {
   async getApplicationById(id: string, instituteId: string, currentUser: AuthUser) {
     const app = await AdmissionsRepository.findApplicationById(id, instituteId);
     if (!app) {
-      throw new Error("Application not found");
+      throw new AppError("Application not found", 404);
     }
     assertBranchRecordAccess(currentUser, app.branchId);
     return app;
   },
 
-  async createApplication(instituteId: string, branchId: string | undefined, dto: CreateApplicationDTO) {
-    const applicationNo = await SequenceService.getNextNumber(instituteId, "APPLICATION");
-    return AdmissionsRepository.createApplication(instituteId, branchId, applicationNo, dto);
+  async createApplication(currentUser: AuthUser, dto: CreateApplicationDTO) {
+    const branchId = await resolveApplicationBranchId(currentUser, dto.branchId);
+
+    if (dto.feeStatus === "PAID") {
+      if (dto.applicationFee == null || Number.isNaN(Number(dto.applicationFee))) {
+        throw new AppError("Application fee amount is required when marked as paid", 400);
+      }
+      if (!dto.paymentModeMasterId) {
+        throw new AppError("Payment mode is required when marked as paid", 400);
+      }
+      await assertActiveMaster({
+        instituteId: currentUser.instituteId,
+        entityType: "paymentmodes",
+        masterRecordId: dto.paymentModeMasterId,
+        branchId,
+      });
+    }
+
+    const applicationNo = await SequenceService.getNextNumber(
+      currentUser.instituteId,
+      "APPLICATION"
+    );
+    const app = await AdmissionsRepository.createApplication(
+      currentUser.instituteId,
+      branchId,
+      applicationNo,
+      { ...dto, status: dto.status || "SUBMITTED" }
+    );
+
+    let receiptNo: string | undefined;
+    let paymentId: string | undefined;
+    if (dto.feeStatus === "PAID" && dto.paymentModeMasterId && dto.applicationFee != null) {
+      const courseName =
+        (
+          await prisma.course.findFirst({
+            where: { id: dto.courseId },
+            select: { name: true },
+          })
+        )?.name || "Course";
+      const recorded = await recordApplicationFeePayment({
+        instituteId: currentUser.instituteId,
+        branchId,
+        applicationId: app.id,
+        applicationNo,
+        applicantName: dto.applicantName,
+        courseName,
+        amount: Number(dto.applicationFee),
+        paymentModeMasterId: dto.paymentModeMasterId,
+        paymentRef: dto.paymentRef,
+        recordedById: currentUser.userId || currentUser.id,
+      });
+      receiptNo = recorded.receiptNo;
+      paymentId = recorded.paymentId;
+    }
+
+    const feeDesc =
+      dto.feeStatus === "PAID"
+        ? ` Fee ₹${dto.applicationFee} paid${receiptNo ? ` (receipt ${receiptNo})` : ""}.`
+        : "";
+    await AdmissionsRepository.createApplicationActivity(app.id, currentUser.userId || currentUser.id, {
+      type: "CREATED",
+      title: "Application created",
+      description: `Application ${applicationNo} created for ${dto.applicantName}.${feeDesc}`,
+      metadata:
+        dto.feeStatus === "PAID"
+          ? {
+              applicationFee: dto.applicationFee,
+              paymentModeMasterId: dto.paymentModeMasterId,
+              paymentRef: dto.paymentRef || null,
+              paymentId: paymentId || null,
+              receiptNo: receiptNo || null,
+            }
+          : undefined,
+    });
+
+    return AdmissionsRepository.findApplicationById(app.id, currentUser.instituteId);
   },
 
-  async updateApplication(id: string, instituteId: string, dto: UpdateApplicationDTO) {
-    const existing = await AdmissionsRepository.findApplicationById(id, instituteId);
+  async updateApplication(
+    id: string,
+    currentUser: AuthUser,
+    dto: UpdateApplicationDTO
+  ) {
+    const existing = await AdmissionsRepository.findApplicationById(
+      id,
+      currentUser.instituteId
+    );
     if (!existing) {
-      throw new Error("Application not found");
+      throw new AppError("Application not found", 404);
     }
-    await AdmissionsRepository.updateApplication(id, instituteId, dto);
-    return AdmissionsRepository.findApplicationById(id, instituteId);
+    assertBranchRecordAccess(currentUser, existing.branchId);
+
+    if (dto.feeStatus === "PAID") {
+      if (dto.applicationFee == null || Number.isNaN(Number(dto.applicationFee))) {
+        throw new AppError("Application fee amount is required when marked as paid", 400);
+      }
+      if (!dto.paymentModeMasterId) {
+        throw new AppError("Payment mode is required when marked as paid", 400);
+      }
+      await assertActiveMaster({
+        instituteId: currentUser.instituteId,
+        entityType: "paymentmodes",
+        masterRecordId: dto.paymentModeMasterId,
+        branchId: existing.branchId,
+      });
+    }
+
+    if (dto.status === "REJECTED") {
+      const reason = dto.rejectReason?.trim();
+      if (!reason) {
+        throw new AppError("Reject reason is required", 400);
+      }
+    }
+
+    const { rejectReason, ...patch } = dto;
+
+    let receiptNo: string | null = existing.payment?.receiptNo ?? null;
+    let paymentId: string | null = existing.paymentId ?? null;
+
+    if (dto.feeStatus === "PENDING") {
+      await voidApplicationFeePayment(currentUser.instituteId, existing.paymentId);
+      paymentId = null;
+      receiptNo = null;
+    }
+
+    await AdmissionsRepository.updateApplication(id, currentUser.instituteId, patch);
+
+    if (dto.feeStatus === "PAID" && dto.paymentModeMasterId && dto.applicationFee != null) {
+      const courseName =
+        existing.course?.name ||
+        (
+          await prisma.course.findFirst({
+            where: { id: dto.courseId || existing.courseId },
+            select: { name: true },
+          })
+        )?.name ||
+        "Course";
+      const recorded = await recordApplicationFeePayment({
+        instituteId: currentUser.instituteId,
+        branchId: existing.branchId,
+        applicationId: id,
+        applicationNo: existing.applicationNo,
+        applicantName: dto.applicantName || existing.applicantName,
+        courseName,
+        amount: Number(dto.applicationFee),
+        paymentModeMasterId: dto.paymentModeMasterId,
+        paymentRef: dto.paymentRef,
+        existingPaymentId: existing.paymentId,
+        recordedById: currentUser.userId || currentUser.id,
+      });
+      receiptNo = recorded.receiptNo;
+      paymentId = recorded.paymentId;
+    }
+
+    if (dto.status !== undefined && dto.status !== existing.status) {
+      await AdmissionsRepository.createApplicationActivity(id, currentUser.userId || currentUser.id, {
+        type: "STATUS_CHANGED",
+        title: dto.status === "REJECTED" ? "Application rejected" : "Status changed",
+        description:
+          dto.status === "REJECTED"
+            ? rejectReason!.trim()
+            : `Status changed from ${existing.status} to ${dto.status}`,
+        metadata: {
+          from: existing.status,
+          to: dto.status,
+          ...(dto.status === "REJECTED" ? { rejectReason: rejectReason!.trim() } : {}),
+        },
+      });
+    }
+    if (dto.feeStatus !== undefined && dto.feeStatus !== existing.feeStatus) {
+      const modeName =
+        dto.feeStatus === "PAID" && dto.paymentModeMasterId
+          ? (
+              await prisma.masterRecord.findFirst({
+                where: { id: dto.paymentModeMasterId },
+                select: { name: true },
+              })
+            )?.name
+          : null;
+      await AdmissionsRepository.createApplicationActivity(id, currentUser.userId || currentUser.id, {
+        type: "FEE_STATUS_CHANGED",
+        title: "Fee status changed",
+        description:
+          dto.feeStatus === "PAID"
+            ? `Marked paid ₹${dto.applicationFee}${modeName ? ` via ${modeName}` : ""}${
+                dto.paymentRef ? ` (ref: ${dto.paymentRef})` : ""
+              }${receiptNo ? ` · receipt ${receiptNo}` : ""}`
+            : "Marked application fee as pending",
+        metadata: {
+          from: existing.feeStatus,
+          to: dto.feeStatus,
+          applicationFee: dto.applicationFee ?? null,
+          paymentModeMasterId: dto.paymentModeMasterId ?? null,
+          paymentModeName: modeName,
+          paymentRef: dto.paymentRef ?? null,
+          paymentId,
+          receiptNo,
+        },
+      });
+    }
+
+    return AdmissionsRepository.findApplicationById(id, currentUser.instituteId);
   },
 
-  async deleteApplication(id: string, instituteId: string) {
-    const existing = await AdmissionsRepository.findApplicationById(id, instituteId);
+  async deleteApplication(id: string, currentUser: AuthUser) {
+    const existing = await AdmissionsRepository.findApplicationById(
+      id,
+      currentUser.instituteId
+    );
     if (!existing) {
-      throw new Error("Application not found");
+      throw new AppError("Application not found", 404);
     }
-    await AdmissionsRepository.deleteApplication(id, instituteId);
+    assertBranchRecordAccess(currentUser, existing.branchId);
+    await AdmissionsRepository.deleteApplication(id, currentUser.instituteId);
     return { id };
   },
 
-  async convertApplicationToAdmission(
-    id: string,
-    instituteId: string,
-    dto: ConvertApplicationDTO,
-    currentUser?: AuthUser
-  ) {
-    const app = await AdmissionsRepository.findApplicationById(id, instituteId);
+  async getApplicationActivities(id: string, currentUser: AuthUser) {
+    const app = await AdmissionsRepository.findApplicationById(id, currentUser.instituteId);
     if (!app) {
       throw new AppError("Application not found", 404);
     }
+    assertBranchRecordAccess(currentUser, app.branchId);
+    return AdmissionsRepository.findApplicationActivities(id);
+  },
 
-    if (
-      currentUser &&
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN") &&
-      currentUser.branchId &&
-      app.branchId &&
-      app.branchId !== currentUser.branchId
-    ) {
+  async createApplicationActivity(
+    id: string,
+    currentUser: AuthUser,
+    dto: CreateApplicationActivityDTO
+  ) {
+    const app = await AdmissionsRepository.findApplicationById(id, currentUser.instituteId);
+    if (!app) {
       throw new AppError("Application not found", 404);
     }
+    assertBranchRecordAccess(currentUser, app.branchId);
 
-    const branchId =
-      app.branchId ||
-      currentUser?.branchId ||
-      (await prisma.branch.findFirst({ where: { instituteId }, orderBy: { createdAt: "asc" } }))?.id;
+    const activity = await AdmissionsRepository.createApplicationActivity(
+      id,
+      currentUser.userId || currentUser.id,
+      {
+        type: dto.type || "NOTE_ADDED",
+        title: dto.title || "Note added",
+        description: dto.description,
+        metadata: dto.metadata,
+      }
+    );
 
-    if (!branchId) {
-      throw new AppError("No branch available for this institute", 400);
+    // Keep latest note as optional summary on Application.notes
+    if ((dto.type || "NOTE_ADDED") === "NOTE_ADDED") {
+      await AdmissionsRepository.updateApplication(id, currentUser.instituteId, {
+        notes: dto.description,
+      });
     }
 
-    const branch = await prisma.branch.findFirst({
-      where: { id: branchId, instituteId },
-      select: { code: true },
-    });
-
-    const admissionNo = await SequenceService.getNextNumber(instituteId, "ADMISSION", {
-      branchCode: branch?.code,
-    });
-
-    const status = dto.totalFee && dto.totalFee > 0 ? "CONFIRMED" : "PROVISIONAL";
-    const termsAcceptance = await resolveRequiredTermsAcceptance(
-      instituteId,
-      branchId,
-      dto.termsAcceptance
-    );
-
-    const admission = await AdmissionsRepository.createAdmission(
-      instituteId,
-      branchId,
-      admissionNo,
-      {
-        studentName: app.applicantName,
-        email: app.email || undefined,
-        phone: app.phone,
-        courseId: app.courseId,
-        batchId: dto.batchId,
-        applicationId: app.id,
-        leadId: app.leadId || undefined,
-        feePlan: dto.feePlan || "INSTALLMENT",
-        status,
-        notes: dto.notes || `Converted from Application ${app.applicationNo}`,
-        totalFee: dto.totalFee,
-        amountPaid: dto.amountPaid,
-        installments: dto.installments,
-        termsAcceptance,
-      },
-      currentUser?.userId
-    );
-
-    setImmediate(() => {
-      triggerAdmissionNotification(admission.id);
-      if (dto.batchId && admission.studentId) {
-        void studentAllocationService
-          .triggerBatchAssignedNotification(admission.studentId, dto.batchId)
-          .catch((err) =>
-            logger.error(
-              { err, admissionId: admission.id },
-              "[admissions] Failed to trigger batch assigned notification on convert"
-            )
-          );
-      }
-    });
-
-    return admission;
+    return activity;
   },
 
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
@@ -493,7 +512,11 @@ export const AdmissionsService = {
       }
       if (dto.sendCredentials && admission.studentId && options?.currentUser) {
         sendStudentCredentialsWhatsAppService(admission.studentId, options.currentUser).catch(
-          (err) => logger.error({ err, admissionId: admission.id }, "[admissions] Failed to send credentials")
+          (err) =>
+            logger.error(
+              { err, admissionId: admission.id },
+              "[admissions] Failed to send credentials"
+            )
         );
       }
     });
@@ -526,11 +549,7 @@ export const AdmissionsService = {
 
     const nextBatchId =
       dto.batchId !== undefined && dto.batchId.trim() !== "" ? dto.batchId.trim() : null;
-    if (
-      nextBatchId &&
-      existing.studentId &&
-      nextBatchId !== existing.batchId
-    ) {
+    if (nextBatchId && existing.studentId && nextBatchId !== existing.batchId) {
       setImmediate(() => {
         void studentAllocationService
           .triggerBatchAssignedNotification(existing.studentId!, nextBatchId)

@@ -10,7 +10,6 @@ export const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
   OTHER_INVOICE: "OI/{YEAR}/{SEQ:4}",
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   EMPLOYEE: "FAC-{YEAR}-{SEQ:4}",
-  ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
 };
 
@@ -21,7 +20,6 @@ export const NUMBERING_SERIES_TARGET_LABELS: Record<string, string> = {
   RECEIPT: "Receipt Number Series",
   INVOICE: "Invoice Number Series",
   OTHER_INVOICE: "Other Invoice Number Series",
-  ENQUIRY: "Enquiry Number Series",
   APPLICATION: "Application Number Series",
 };
 

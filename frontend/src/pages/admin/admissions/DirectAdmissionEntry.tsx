@@ -239,8 +239,34 @@ const buildEqualInstallments = (
     installmentNo: idx + 1,
     dueDate: existing[idx]?.dueDate || addMonthsIso(start, idx === 0 && existing[0]?.dueDate ? 0 : idx + 1),
     amount: idx === 0 ? equalPart + remainder : equalPart,
-    status: existing[idx]?.status || "Pending",
+    status: "Pending" as const,
   }));
+};
+
+/** When an installment amount is edited, put the leftover balance on the next row. */
+const applyInstallmentAmountChange = (
+  items: InstallmentItem[],
+  index: number,
+  rawAmount: number,
+  totalBalance: number
+): InstallmentItem[] => {
+  const updated = items.map((item) => ({ ...item }));
+  const priorSum = updated
+    .slice(0, index)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const maxForThis = Math.max(0, Math.round(totalBalance) - priorSum);
+  const nextAmount = Math.min(Math.max(0, Math.round(Number(rawAmount) || 0)), maxForThis);
+  updated[index] = { ...updated[index], amount: nextAmount };
+
+  const remainingAfter = Math.max(0, Math.round(totalBalance) - priorSum - nextAmount);
+  if (index + 1 < updated.length) {
+    updated[index + 1] = { ...updated[index + 1], amount: remainingAfter };
+    for (let i = index + 2; i < updated.length; i++) {
+      updated[i] = { ...updated[i], amount: 0 };
+    }
+  }
+
+  return updated;
 };
 
 /**
@@ -408,13 +434,13 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [scholarshipAmount, setScholarshipAmount] = useState<number>(0);
   const [concessionHeadMasterId, setConcessionHeadMasterId] = useState("");
-  const [customGstAmount, setCustomGstAmount] = useState<number | null>(null);
+  const [taxMasterId, setTaxMasterId] = useState("");
+  const { options: taxOptions } = useMasterDropdown("tax");
   const [customFinalPayable, setCustomFinalPayable] = useState<number | null>(null);
 
   // Amount Paid at Admission & Mode
   const [amountPaidAtAdmission, setAmountPaidAtAdmission] = useState<number>(0);
   const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
-  const [transactionRef, setTransactionRef] = useState("");
 
   // ─── 5. INSTALLMENT DETAILS STATE ───────────────────────────────────────
   const [paymentMode, setPaymentMode] = useState<"FULL" | "INSTALLMENT">("INSTALLMENT");
@@ -434,7 +460,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const convertingApplicationId = location.state?.applicationId || location.state?.application?.id || location.state?.lead?.applicationId;
   const convertingLeadId = location.state?.leadId || location.state?.lead?.id;
 
-  // Auto-fill student details when converted directly from an Application, Lead or Enquiry
+  // Auto-fill student details when converted directly from an Application or Lead
   useEffect(() => {
     const rawData = location.state?.lead || location.state?.application || location.state;
     if (!rawData) return;
@@ -833,7 +859,7 @@ export const DirectAdmissionEntry: React.FC = () => {
     });
   }, [allDbBatches, batchesLoading, branchId, selectedCoursesList.length]);
 
-  // Auto-select course from Enquiry/Lead/Application when available courses are ready
+  // Auto-select course from Lead/Application when available courses are ready
   useEffect(() => {
     const rawData = location.state?.lead || location.state?.application || location.state;
     if (!rawData || allAvailableCourses.length === 0 || selectedCoursesList.length > 0) return;
@@ -1080,11 +1106,19 @@ export const DirectAdmissionEntry: React.FC = () => {
     return Math.max(0, subTotal - calculatedDiscount - (Number(scholarshipAmount) || 0));
   }, [subTotal, calculatedDiscount, scholarshipAmount]);
 
-  const calculatedGst = useMemo(() => {
-    return Math.round(taxableAmount * 0.18);
-  }, [taxableAmount]);
+  const selectedTaxRate = useMemo(() => {
+    if (!taxMasterId) return 0;
+    const selected = taxOptions.find((opt) => opt.value === taxMasterId);
+    const raw = selected?.data?.percentage;
+    if (raw == null || raw === "") return 0;
+    const parsed = Number(String(raw).replace(/%/g, "").trim());
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [taxMasterId, taxOptions]);
 
-  const gstAmount = customGstAmount !== null ? customGstAmount : calculatedGst;
+  const gstAmount = useMemo(() => {
+    if (selectedTaxRate <= 0) return 0;
+    return Math.round((taxableAmount * selectedTaxRate) / 100);
+  }, [taxableAmount, selectedTaxRate]);
 
   const calculatedFinalPayable = useMemo(() => {
     return Math.max(0, taxableAmount + gstAmount);
@@ -1097,9 +1131,8 @@ export const DirectAdmissionEntry: React.FC = () => {
   }, [finalPayableAmount, amountPaidAtAdmission]);
 
   useEffect(() => {
-    setCustomGstAmount(null);
     setCustomFinalPayable(null);
-  }, [totalBaseCourseFee, registrationFee, additionalCharges, discountValue, discountType, scholarshipAmount]);
+  }, [totalBaseCourseFee, registrationFee, additionalCharges, discountValue, discountType, scholarshipAmount, taxMasterId]);
 
   // Installments cover only what is left after the amount paid today.
   useEffect(() => {
@@ -1142,22 +1175,48 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   const handleAddInstallment = () => {
-    const next = [
-      ...installments,
+    const used = installments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const leftover = Math.max(0, Math.round(balanceToBePaid) - Math.round(used));
+    setInstallments([
+      ...installments.map((item, idx) => ({
+        ...item,
+        installmentNo: idx + 1,
+      })),
       {
         installmentNo: installments.length + 1,
-        dueDate: addMonthsIso(new Date(installments[installments.length - 1]?.dueDate || Date.now()), 1),
-        amount: 0,
+        dueDate: addMonthsIso(
+          new Date(installments[installments.length - 1]?.dueDate || Date.now()),
+          1
+        ),
+        amount: leftover,
         status: "Pending" as const,
       },
-    ];
-    setInstallments(buildEqualInstallments(balanceToBePaid, next.length, next));
+    ]);
   };
 
   const handleRemoveInstallment = (index: number) => {
     if (installments.length <= 1) return;
-    const remaining = installments.filter((_, idx) => idx !== index);
-    setInstallments(buildEqualInstallments(balanceToBePaid, remaining.length, remaining));
+    const removedAmount = Number(installments[index]?.amount) || 0;
+    const remaining = installments
+      .filter((_, idx) => idx !== index)
+      .map((item, idx) => ({
+        ...item,
+        installmentNo: idx + 1,
+      }));
+    if (remaining.length > 0 && removedAmount !== 0) {
+      const targetIdx = Math.min(index, remaining.length - 1);
+      remaining[targetIdx] = {
+        ...remaining[targetIdx],
+        amount: (Number(remaining[targetIdx].amount) || 0) + removedAmount,
+      };
+    }
+    setInstallments(remaining);
+  };
+
+  const handleInstallmentAmountChange = (index: number, rawValue: string) => {
+    setInstallments((prev) =>
+      applyInstallmentAmountChange(prev, index, Number(rawValue), balanceToBePaid)
+    );
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1175,6 +1234,14 @@ export const DirectAdmissionEntry: React.FC = () => {
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       notifyError("Please enter a valid email address.");
+      return false;
+    }
+    if (!dob.trim()) {
+      notifyError("Please enter the student's date of birth.");
+      return false;
+    }
+    if (!address.trim()) {
+      notifyError("Please enter the student's residential address.");
       return false;
     }
     if (statusOverride !== "Draft" && !qualification.trim()) {
@@ -1195,6 +1262,14 @@ export const DirectAdmissionEntry: React.FC = () => {
     }
     if (statusOverride !== "Draft" && !govtIdNumber.trim()) {
       notifyError("Please enter the student's Government ID number (e.g. Aadhaar / PAN Card).");
+      return false;
+    }
+    if (
+      statusOverride !== "Draft" &&
+      govtIdType === "Aadhaar Card" &&
+      !/^\d{12}$/.test(govtIdNumber.trim())
+    ) {
+      notifyError("Aadhaar number must be exactly 12 digits.");
       return false;
     }
     if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0 && installments.length === 0) {
@@ -1232,6 +1307,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       `Academic year: ${getMasterLabel(academicYearOptions, academicYearMasterId)}`,
       counsellorName ? `Counsellor: ${counsellorName}` : null,
       gender ? `Gender: ${gender}` : null,
+      dob ? `DOB: ${dob}` : null,
       sourceMasterId
         ? `Lead source: ${getMasterLabel(leadSourceOptions, sourceMasterId)}`
         : null,
@@ -1302,7 +1378,6 @@ export const DirectAdmissionEntry: React.FC = () => {
       amountPaid: Number(amountPaidAtAdmission) || 0,
       balanceToPay: balanceToBePaid,
       paymentMethod: getMasterLabel(paymentModeOptions, paymentModeMasterId) || "UPI / Online",
-      transactionRef: transactionRef || "",
       status: statusOverride === "Draft" ? "Draft Saved" : "Confirmed",
       date: admissionDate || new Date().toISOString().slice(0, 10),
     };
@@ -1375,7 +1450,6 @@ export const DirectAdmissionEntry: React.FC = () => {
           paymentMethod: mapPaymentMethod(
             paymentModeOptions.find((o) => o.value === paymentModeMasterId)
           ),
-          transactionRef: transactionRef || undefined,
           sendCredentials: isPrimary && status === "CONFIRMED",
           totalFee: isPrimary ? finalPayableAmount : undefined,
           amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
@@ -1416,7 +1490,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 qualificationMasterId: qualificationMasterId || undefined,
                 bloodGroup: bloodGroup || undefined,
                 gender: gender || undefined,
-                dateOfBirth: dob || undefined,
+                dateOfBirth: dob,
                 guardianName: guardianName || undefined,
                 guardianPhone: guardianPhone || undefined,
                 address: address || undefined,
@@ -1527,10 +1601,8 @@ export const DirectAdmissionEntry: React.FC = () => {
           </div>
         )}
 
-        {/* ─── MAIN 2-COLUMN LAYOUT ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* LEFT 8 COLS: FORM WORKSPACE */}
-          <div className="lg:col-span-8 space-y-6">
+        {/* ─── MAIN FORM WORKSPACE ──────────────────────────────────────────── */}
+        <div className="space-y-6">
             {/* ──── 1. STUDENT DETAILS ────────────────────────────────────────── */}
             <Card id="section-student" className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
@@ -1714,8 +1786,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Date of Birth</label>
-                    <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="bg-background border-border text-foreground" />
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      Date of Birth <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      required
+                      className="bg-background border-border text-foreground"
+                    />
                   </div>
 
                   <div>
@@ -1767,8 +1847,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-foreground block mb-1">Residential Address</label>
-                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" className="bg-background border-border text-foreground" />
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      Residential Address <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Street address"
+                      required
+                      className="bg-background border-border text-foreground"
+                    />
                   </div>
 
                   <div>
@@ -1781,17 +1869,6 @@ export const DirectAdmissionEntry: React.FC = () => {
                       className="mt-0 rounded-md"
                     />
                   </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Guardian Name</label>
-                    <Input
-                      value={guardianName}
-                      onChange={(e) => setGuardianName(e.target.value)}
-                      placeholder="Guardian name"
-                      className="bg-background border-border text-foreground"
-                    />
-                  </div>
-
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Guardian Relationship</label>
                     <MasterSelect
@@ -1802,6 +1879,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                       className="mt-0 rounded-md"
                     />
                   </div>
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Guardian Name</label>
+                    <Input
+                      value={guardianName}
+                      onChange={(e) => setGuardianName(e.target.value)}
+                      placeholder="Guardian name"
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+
+                  
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Emergency / Guardian Mobile</label>
@@ -1833,7 +1921,13 @@ export const DirectAdmissionEntry: React.FC = () => {
                       </label>
                       <select
                         value={govtIdType}
-                        onChange={(e) => setGovtIdType(e.target.value)}
+                        onChange={(e) => {
+                          const nextType = e.target.value;
+                          setGovtIdType(nextType);
+                          if (nextType === "Aadhaar Card") {
+                            setGovtIdNumber((prev) => prev.replace(/\D/g, "").slice(0, 12));
+                          }
+                        }}
                         className="w-full px-3 py-2 text-xs rounded-md border border-border bg-background text-foreground focus:ring-1 focus:ring-primary"
                       >
                         <option value="Aadhaar Card">Aadhaar Card</option>
@@ -1851,10 +1945,20 @@ export const DirectAdmissionEntry: React.FC = () => {
                       </label>
                       <Input
                         value={govtIdNumber}
-                        onChange={(e) => setGovtIdNumber(e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (govtIdType === "Aadhaar Card") {
+                            setGovtIdNumber(raw.replace(/\D/g, "").slice(0, 12));
+                            return;
+                          }
+                          setGovtIdNumber(raw);
+                        }}
+                        inputMode={govtIdType === "Aadhaar Card" ? "numeric" : undefined}
+                        maxLength={govtIdType === "Aadhaar Card" ? 12 : undefined}
+                        pattern={govtIdType === "Aadhaar Card" ? "\\d{12}" : undefined}
                         placeholder={
                           govtIdType === "Aadhaar Card"
-                            ? "XXXX XXXX XXXX (12 digits)"
+                            ? "12-digit Aadhaar number"
                             : govtIdType === "PAN Card"
                             ? "ABCDE1234F (10 characters)"
                             : `Enter ${govtIdType} number`
@@ -2499,13 +2603,19 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Tax / GST (18%)</label>
-                    <Input
-                      type="number"
-                      value={gstAmount}
-                      onChange={(e) => setCustomGstAmount(Number(e.target.value))}
-                      className="bg-background border-border font-semibold text-foreground"
+                    <label className="text-xs font-semibold text-foreground block mb-1">Tax</label>
+                    <MasterSelect
+                      entityType="tax"
+                      value={taxMasterId}
+                      onChange={setTaxMasterId}
+                      placeholder="No tax (optional)"
+                      className="mt-0 rounded-md"
                     />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {selectedTaxRate > 0
+                        ? `${selectedTaxRate}% → ₹${gstAmount.toLocaleString()}`
+                        : "Select a tax from Master Setup to apply; otherwise ₹0"}
+                    </p>
                   </div>
 
                   <div className="sm:col-span-2">
@@ -2531,7 +2641,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                     <div>
                       <label className="text-xs font-bold text-foreground block mb-1">
                         Amount Paid at Admission (₹) <span className="text-red-500">*</span>
@@ -2552,16 +2662,6 @@ export const DirectAdmissionEntry: React.FC = () => {
                         onChange={setPaymentModeMasterId}
                         placeholder="Select payment mode"
                         className="mt-0 rounded-md"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-foreground block mb-1">Transaction Ref / Receipt No.</label>
-                      <Input
-                        value={transactionRef}
-                        onChange={(e) => setTransactionRef(e.target.value)}
-                        placeholder="e.g. UPI/61928392182"
-                        className="bg-background border-border text-foreground text-xs"
                       />
                     </div>
 
@@ -2653,156 +2753,191 @@ export const DirectAdmissionEntry: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-1.5 sm:max-w-md">
-                      <p className="font-bold text-foreground">Fee settlement preview</p>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Net payable</span>
-                        <span className="font-semibold">₹{finalPayableAmount.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Pay now</span>
-                        <span className="font-semibold text-emerald-600">
-                          ₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-2 border-t border-border/60 pt-1.5">
-                        <span className="text-muted-foreground">Remaining after pay now</span>
-                        <span className="font-bold text-amber-600">₹{balanceToBePaid.toLocaleString()}</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground pt-1">
-                        Installments must sum to the remaining balance after pay now, not the full net payable.
-                      </p>
-                    </div>
-
-                    {balanceToBePaid <= 0 ? (
-                      <div className="p-4 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                          Nothing left to schedule. Pay now covers the net payable.
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                    {/* Fee settlement */}
+                    <div className="lg:col-span-4 rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-2xs">
+                      <div className="px-4 py-3 border-b border-border bg-muted/40 flex items-center gap-2">
+                        <Wallet className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                          Fee Settlement
                         </p>
                       </div>
-                    ) : (
-                    <>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        Split remaining balance of{" "}
-                        <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> across
-                        installments:
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAutoDistributeInstallments}
-                        className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-8"
-                      >
-                        Auto-Balance Installments
-                      </Button>
-                    </div>
+                      <div className="p-4 space-y-3 flex-1 flex flex-col">
+                        <div className="space-y-2.5 text-xs">
+                          <div className="flex justify-between items-center gap-3">
+                            <span className="text-muted-foreground">Net payable</span>
+                            <span className="font-semibold text-foreground tabular-nums">
+                              ₹{finalPayableAmount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center gap-3">
+                            <span className="text-muted-foreground">Pay now</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              ₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
 
-                    <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
-                      <Table>
-                        <TableHeader className="bg-muted/40">
-                          <TableRow className="text-xs border-border">
-                            <TableHead className="font-semibold text-foreground">Installment No.</TableHead>
-                            <TableHead className="font-semibold text-foreground">Due Date</TableHead>
-                            <TableHead className="font-semibold text-foreground">Amount (₹)</TableHead>
-                            <TableHead className="font-semibold text-foreground">Payment Status</TableHead>
-                            <TableHead className="text-right font-semibold text-foreground pr-4">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {installments.map((inst, index) => (
-                            <TableRow key={index} className="text-xs border-border">
-                              <TableCell className="font-bold text-foreground">Installment {inst.installmentNo}</TableCell>
-                              <TableCell>
-                                <Input
-                                  type="date"
-                                  value={inst.dueDate}
-                                  onChange={(e) => {
-                                    const updated = [...installments];
-                                    updated[index].dueDate = e.target.value;
-                                    setInstallments(updated);
-                                  }}
-                                  className="h-8 text-xs bg-background border-border text-foreground"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  value={inst.amount}
-                                  onChange={(e) => {
-                                    const updated = [...installments];
-                                    updated[index].amount = Number(e.target.value);
-                                    setInstallments(updated);
-                                  }}
-                                  className="h-8 w-28 text-xs font-bold text-foreground bg-background border-border"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <select
-                                  value={inst.status}
-                                  onChange={(e) => {
-                                    const updated = [...installments];
-                                    updated[index].status = e.target.value as any;
-                                    setInstallments(updated);
-                                  }}
-                                  className="px-2.5 py-1 text-xs rounded-md border border-border bg-background text-foreground"
-                                >
-                                  <option value="Pending">Pending</option>
-                                  <option value="Partially Paid">Partially Paid</option>
-                                  <option value="Paid">Paid</option>
-                                  <option value="Overdue">Overdue</option>
-                                </select>
-                              </TableCell>
-                              <TableCell className="text-right pr-4">
-                                {installments.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveInstallment(index)}
-                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddInstallment}
-                        className="text-xs text-primary border-blue-200 hover:bg-blue-50 font-bold h-8 gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Add Installment
-                      </Button>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-slate-800">
-                          Installment total:{" "}
-                          <strong className="text-slate-900 font-semibold">
-                            ₹{totalInstallmentAmount.toLocaleString()}
-                          </strong>
-                          <span className="text-muted-foreground font-medium">
-                            {" "}
-                            / ₹{balanceToBePaid.toLocaleString()}
-                          </span>
-                        </span>
-                        {!installmentSumOk && (
-                          <p className="text-[11px] text-red-600 font-semibold mt-0.5">
-                            Must equal remaining balance. Difference ₹
-                            {Math.abs(totalInstallmentAmount - balanceToBePaid).toLocaleString()}.
+                        <div className="mt-auto rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1">
+                            Remaining to schedule
                           </p>
-                        )}
+                          <p className="text-lg font-bold text-amber-700 dark:text-amber-300 tabular-nums leading-none">
+                            ₹{balanceToBePaid.toLocaleString()}
+                          </p>
+                        </div>
+
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Installments must total the remaining balance after pay now — not the full net payable.
+                        </p>
                       </div>
                     </div>
-                    </>
-                    )}
+
+                    {/* Installment schedule */}
+                    <div className="lg:col-span-8 rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-2xs min-w-0">
+                      {balanceToBePaid <= 0 ? (
+                        <div className="p-8 text-center bg-emerald-500/10 flex-1 flex flex-col items-center justify-center gap-2">
+                          <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            Nothing left to schedule
+                          </p>
+                          <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80">
+                            Pay now covers the net payable.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="px-4 py-3 border-b border-border bg-muted/40 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                                Installment Schedule
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Split{" "}
+                                <strong className="text-foreground">
+                                  ₹{balanceToBePaid.toLocaleString()}
+                                </strong>{" "}
+                                across due dates
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleAutoDistributeInstallments}
+                              className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-8 shrink-0"
+                            >
+                              Auto-Balance
+                            </Button>
+                          </div>
+
+                          <div className="overflow-x-auto flex-1">
+                            <Table>
+                              <TableHeader className="bg-muted/30">
+                                <TableRow className="text-xs border-border hover:bg-transparent">
+                                  <TableHead className="font-semibold text-muted-foreground h-9 pl-4">
+                                    No.
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-muted-foreground h-9">
+                                    Due Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-muted-foreground h-9">
+                                    Amount (₹)
+                                  </TableHead>
+                                  <TableHead className="text-right font-semibold text-muted-foreground h-9 pr-4 w-16">
+                                    <span className="sr-only">Actions</span>
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {installments.map((inst, index) => (
+                                  <TableRow key={index} className="text-xs border-border">
+                                    <TableCell className="font-bold text-foreground pl-4 py-2.5">
+                                      #{inst.installmentNo}
+                                    </TableCell>
+                                    <TableCell className="py-2.5">
+                                      <Input
+                                        type="date"
+                                        value={inst.dueDate}
+                                        onChange={(e) => {
+                                          const updated = [...installments];
+                                          updated[index].dueDate = e.target.value;
+                                          setInstallments(updated);
+                                        }}
+                                        className="h-8 text-xs bg-background border-border text-foreground max-w-[11rem]"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="py-2.5">
+                                      <Input
+                                        type="number"
+                                        value={inst.amount}
+                                        onChange={(e) =>
+                                          handleInstallmentAmountChange(index, e.target.value)
+                                        }
+                                        className="h-8 w-28 text-xs font-bold text-foreground bg-background border-border tabular-nums"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-right pr-3 py-2.5">
+                                      {installments.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveInstallment(index)}
+                                          className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+                                          aria-label={`Remove installment ${inst.installmentNo}`}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+
+                          <div className="px-4 py-3 border-t border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleAddInstallment}
+                              className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-8 gap-1.5"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Add Installment
+                            </Button>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">
+                                Schedule total{" "}
+                                <strong
+                                  className={`tabular-nums ${
+                                    installmentSumOk
+                                      ? "text-foreground"
+                                      : "text-red-600 dark:text-red-400"
+                                  }`}
+                                >
+                                  ₹{totalInstallmentAmount.toLocaleString()}
+                                </strong>
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  / ₹{balanceToBePaid.toLocaleString()}
+                                </span>
+                              </p>
+                              {!installmentSumOk && (
+                                <p className="text-[11px] text-red-600 dark:text-red-400 font-semibold mt-0.5">
+                                  Difference ₹
+                                  {Math.abs(totalInstallmentAmount - balanceToBePaid).toLocaleString()}
+                                </p>
+                              )}
+                              {installmentSumOk && (
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                                  Balances match
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -2881,10 +3016,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* ─── RIGHT 4 COLS: STICKY SIDEBAR ───────────────────────────────── */}
-          <div className="lg:col-span-4 space-y-4 sticky top-20">
+          {/* ─── SUMMARY (after form, before confirm) ───────────────────────── */}
+          <div id="section-summary" className="space-y-4 pt-2">
+            <div>
+              <h2 className="text-base font-bold text-foreground">Review Summary</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Check all details below before confirming the admission.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card 1: Admission Summary */}
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border py-3 px-5">
@@ -3004,7 +3145,10 @@ export const DirectAdmissionEntry: React.FC = () => {
                   <span>- ₹{scholarshipAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Tax / GST (18%)</span>
+                  <span>
+                    Tax
+                    {selectedTaxRate > 0 ? ` (${selectedTaxRate}%)` : ""}
+                  </span>
                   <span>₹{gstAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-border text-sm font-semibold text-emerald-600 dark:text-emerald-400">
@@ -3059,79 +3203,105 @@ export const DirectAdmissionEntry: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
 
+            <div className="flex justify-start pt-2">
+              <Button
+                onClick={() => handleConfirmAdmission("Confirmed")}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50 px-8"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {isSubmitting ? "Checking..." : "Confirm Admission"}
+              </Button>
+            </div>
           </div>
-        </div>
-
-        <div className="mt-8 flex justify-start">
-          <Button
-            onClick={() => handleConfirmAdmission("Confirmed")}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50 px-8"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {isSubmitting ? "Checking..." : "Confirm Admission"}
-          </Button>
         </div>
       </div>
 
       {/* ─── STEP 1 MODAL: REVIEW & VERIFY ADMISSION ────────────────────── */}
       <Dialog open={showReviewStepModal} onOpenChange={setShowReviewStepModal}>
-        <DialogContent className="w-[94vw] max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-xl bg-card border-border text-foreground">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold">
+        <DialogContent className="flex w-[min(94vw,42rem)] max-w-[min(94vw,42rem)] max-h-[min(90dvh,900px)] flex-col gap-0 overflow-hidden p-0 rounded-xl bg-card border-border text-foreground sm:rounded-xl">
+          <DialogHeader className="shrink-0 space-y-2 px-4 pt-5 pb-3 pr-12 sm:px-6 sm:pr-12 text-left">
+            <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+              <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold max-w-full whitespace-normal text-left">
                 Step 1 of 2 • Review & Verify Admission
               </Badge>
-              <span className="font-mono text-xs text-muted-foreground font-semibold">{admissionNo}</span>
+              <span className="font-mono text-[11px] sm:text-xs text-muted-foreground font-semibold truncate max-w-full">
+                {admissionNo}
+              </span>
             </div>
-            <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2 pt-1">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              Confirm Admission Details
+            <DialogTitle className="text-base sm:text-lg font-semibold text-foreground flex items-start gap-2 pt-0.5 min-w-0">
+              <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <span className="min-w-0 break-words">Confirm Admission Details</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs text-muted-foreground break-words">
               Please review the student profile, enrolled courses, batch allocations, fee calculations, and admission desk payment before final registration.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 my-2 text-xs">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 space-y-3.5 text-xs">
             {/* Student Profile Card */}
-            <div className="p-3.5 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5">
-              <div className="flex justify-between items-center font-bold text-foreground border-b border-border pb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-primary" /> Student Profile
+            <div className="p-3 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5 min-w-0">
+              <div className="flex flex-wrap justify-between items-center gap-2 font-bold text-foreground border-b border-border pb-1.5 min-w-0">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <User className="h-3.5 w-3.5 text-primary shrink-0" /> Student Profile
                 </span>
-                <span className="text-[11px] text-muted-foreground font-normal truncate max-w-[200px]">{branchName}</span>
+                <span className="text-[11px] text-muted-foreground font-normal truncate max-w-full sm:max-w-[220px]">
+                  {branchName}
+                </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-muted-foreground">
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Full Name</span><span className="font-bold text-foreground">{firstName} {lastName}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Mobile</span><span className="font-semibold text-foreground">{phone}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Email</span><span className="font-semibold text-foreground truncate block">{email}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Gender & Blood Group</span><span className="font-semibold text-foreground">{gender}{bloodGroup ? ` • ${bloodGroup}` : ""}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Counsellor</span><span className="font-semibold text-foreground">{counsellorName}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold text-foreground">{getMasterLabel(academicYearOptions, academicYearMasterId)}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Admission Date</span><span className="font-semibold text-foreground">{admissionDate}</span></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-muted-foreground min-w-0">
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Full Name</span>
+                  <span className="font-bold text-foreground break-words">{firstName} {lastName}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Mobile</span>
+                  <span className="font-semibold text-foreground break-all">{phone}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Email</span>
+                  <span className="font-semibold text-foreground break-all block">{email}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Gender & Blood Group</span>
+                  <span className="font-semibold text-foreground break-words">{gender}{bloodGroup ? ` • ${bloodGroup}` : ""}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Counsellor</span>
+                  <span className="font-semibold text-foreground break-words">{counsellorName}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span>
+                  <span className="font-semibold text-foreground break-words">{getMasterLabel(academicYearOptions, academicYearMasterId)}</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Admission Date</span>
+                  <span className="font-semibold text-foreground">{admissionDate}</span>
+                </div>
               </div>
             </div>
 
             {/* Courses & Batches Card */}
-            <div className="p-3.5 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-2">
-              <div className="flex justify-between items-center font-bold text-foreground border-b border-blue-500/20 pb-1.5">
-                <span className="flex items-center gap-1.5 text-primary dark:text-blue-400">
-                  <GraduationCap className="h-3.5 w-3.5" /> Enrolled Course(s) & Batch ({selectedCoursesList.length})
+            <div className="p-3 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-2 min-w-0">
+              <div className="flex justify-between items-center font-bold text-foreground border-b border-blue-500/20 pb-1.5 min-w-0">
+                <span className="flex items-center gap-1.5 text-primary dark:text-blue-400 min-w-0 break-words">
+                  <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                  Enrolled Course(s) & Batch ({selectedCoursesList.length})
                 </span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 {selectedCoursesList.map((c) => (
-                  <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 bg-card rounded-lg border border-border text-xs">
-                    <div className="min-w-0">
+                  <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 bg-card rounded-lg border border-border text-xs min-w-0">
+                    <div className="min-w-0 flex-1">
                       <span className="font-bold text-foreground block truncate">{c.courseName}</span>
                       <span className="text-muted-foreground block text-[10px] truncate">
                         {[c.packageProgram !== c.courseName ? c.packageProgram : "", c.facultyName, c.schedule].filter(Boolean).join(" • ")}
                       </span>
                     </div>
                     <div className="sm:text-right shrink-0 flex sm:flex-col items-center sm:items-end justify-between gap-2 sm:gap-0">
-                      <Badge variant="outline" className="font-mono text-[10px] text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30">
+                      <Badge variant="outline" className="font-mono text-[10px] text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30 max-w-full truncate">
                         {c.batchCode}
                       </Badge>
                       <span className="font-bold text-foreground block text-xs sm:mt-0.5">₹{c.fee.toLocaleString()}</span>
@@ -3142,27 +3312,33 @@ export const DirectAdmissionEntry: React.FC = () => {
             </div>
 
             {/* Financial & Settlement Card */}
-            <div className="p-3.5 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5">
-              <div className="flex justify-between items-center font-bold text-foreground border-b border-border pb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5 text-primary" /> Fee & Payment Settlement
+            <div className="p-3 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 font-bold text-foreground border-b border-border pb-1.5 min-w-0">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <CreditCard className="h-3.5 w-3.5 text-primary shrink-0" /> Fee & Payment Settlement
                 </span>
-                <span className="text-xs font-semibold text-foreground">Total Payable: ₹{finalPayableAmount.toLocaleString()}</span>
+                <span className="text-xs font-semibold text-foreground break-words">
+                  Total Payable: ₹{finalPayableAmount.toLocaleString()}
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex items-center justify-between">
-                  <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 min-w-0">
+                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex items-center justify-between gap-2 min-w-0">
+                  <div className="min-w-0">
                     <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Paid at Admission</span>
-                    <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{getMasterLabel(paymentModeOptions, paymentModeMasterId)}</span>
+                    <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 break-words">
+                      {getMasterLabel(paymentModeOptions, paymentModeMasterId)}
+                    </span>
                   </div>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">₹{amountPaidAtAdmission.toLocaleString()}</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm shrink-0">
+                    ₹{amountPaidAtAdmission.toLocaleString()}
+                  </span>
                 </div>
 
-                <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/30 flex items-center justify-between">
-                  <div>
+                <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/30 flex items-center justify-between gap-2 min-w-0">
+                  <div className="min-w-0">
                     <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">Remaining Balance</span>
-                    <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">
+                    <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 break-words">
                       {balanceToBePaid > 0
                         ? paymentMode === "INSTALLMENT"
                           ? `${installments.length} installment(s) on remaining balance`
@@ -3170,24 +3346,26 @@ export const DirectAdmissionEntry: React.FC = () => {
                         : "Fully Settled"}
                     </span>
                   </div>
-                  <span className="font-semibold text-amber-600 dark:text-amber-300 text-sm">₹{balanceToBePaid.toLocaleString()}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-300 text-sm shrink-0">
+                    ₹{balanceToBePaid.toLocaleString()}
+                  </span>
                 </div>
               </div>
 
               {paymentMode === "INSTALLMENT" && installments.length > 0 && (
-                <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
+                <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5 min-w-0 overflow-x-hidden">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Installment schedule (remaining balance)
                   </p>
                   {installments.map((inst) => (
                     <div
                       key={inst.installmentNo}
-                      className="flex justify-between text-xs text-foreground"
+                      className="flex justify-between gap-2 text-xs text-foreground min-w-0"
                     >
-                      <span>
+                      <span className="min-w-0 truncate">
                         #{inst.installmentNo} · {inst.dueDate || "—"}
                       </span>
-                      <span className="font-semibold">₹{Number(inst.amount || 0).toLocaleString()}</span>
+                      <span className="font-semibold shrink-0">₹{Number(inst.amount || 0).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -3195,45 +3373,45 @@ export const DirectAdmissionEntry: React.FC = () => {
             </div>
 
             {/* Verification Checkbox */}
-            <label className="flex items-start gap-2.5 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl cursor-pointer">
+            <label className="flex items-start gap-2.5 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl cursor-pointer min-w-0">
               <input
                 type="checkbox"
                 checked={reviewVerifiedCheck}
                 onChange={(e) => setReviewVerifiedCheck(e.target.checked)}
-                className="mt-0.5 rounded text-primary focus:ring-primary"
+                className="mt-0.5 rounded text-primary focus:ring-primary shrink-0"
               />
-              <span className="text-xs font-semibold text-foreground">
+              <span className="text-xs font-semibold text-foreground break-words min-w-0">
                 I have reviewed all the student admission details and verify that the initial payment collection of ₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()} and batch schedules are accurate.
               </span>
             </label>
+
+            {reviewError && (
+              <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2 min-w-0">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span className="break-words min-w-0">{reviewError}</span>
+              </div>
+            )}
           </div>
 
-          {reviewError && (
-            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{reviewError}</span>
-            </div>
-          )}
-
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between pt-2">
+          <DialogFooter className="shrink-0 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between px-4 py-3 sm:px-6 border-t border-border bg-muted/20">
             <Button
               variant="outline"
               onClick={() => setShowReviewStepModal(false)}
-              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
+              className="w-full sm:w-auto text-xs font-semibold border-border text-foreground hover:bg-muted"
             >
               Back to Edit
             </Button>
             <Button
               onClick={handleFinalSubmitAdmission}
               disabled={isSubmitting || !reviewVerifiedCheck}
-              className="bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 whitespace-normal h-auto min-h-9 py-2"
             >
               {isSubmitting ? (
                 <span>Generating Admission...</span>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Proceed to Final Confirmation →</span>
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span className="text-center">Proceed to Final Confirmation</span>
                 </>
               )}
             </Button>
@@ -3390,9 +3568,9 @@ export const DirectAdmissionEntry: React.FC = () => {
 
       {/* ─── STEP 2 MODAL: ADMISSION CONFIRMED / SUCCESS ──────────────────── */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="w-[94vw] max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-xl bg-card border-border text-foreground text-center">
-          <div className="mx-auto my-1 h-12 w-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
-            <CheckCircle2 className="h-7 w-7" />
+        <DialogContent className="flex w-[min(94vw,36rem)] max-w-[min(94vw,36rem)] max-h-[min(90dvh,900px)] flex-col gap-0 overflow-hidden overflow-x-hidden p-4 sm:p-6 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/40 text-foreground text-center shadow-emerald-500/10">
+          <div className="mx-auto my-1 h-14 w-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
+            <CheckCircle2 className="h-8 w-8" />
           </div>
 
           <DialogHeader className="text-center sm:text-center space-y-1">
@@ -3403,78 +3581,78 @@ export const DirectAdmissionEntry: React.FC = () => {
                   Draft Saved in All Students
                 </Badge>
               ) : (
-                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                <Badge className="bg-emerald-500 text-white border-emerald-600 text-[10px] font-bold">
                   Step 2 of 2 • Admission Confirmed
                 </Badge>
               )}
             </div>
-            <DialogTitle className="text-xl font-semibold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
               {createdAdmissionSummary?.status === "Draft Saved"
                 ? "Student Draft Saved Successfully!"
                 : "Admission Created Successfully!"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs">
+            <DialogDescription className="text-emerald-800/70 dark:text-emerald-200/70 text-xs">
               {createdAdmissionSummary?.status === "Draft Saved"
                 ? "The student information has been recorded in the Student Directory under Draft status."
                 : "The student admission record, batch schedule allocation, and fee installment structure have been registered."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="my-3 p-4 sm:p-4.5 bg-muted/40 border border-border rounded-xl text-xs space-y-3 text-left">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden my-3 p-3 sm:p-4 bg-white/80 dark:bg-emerald-950/50 border border-emerald-500/25 rounded-xl text-xs space-y-3 text-left min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-emerald-500/20">
               <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Admission No</span>
-                <span className="font-mono font-semibold text-foreground text-xs sm:text-sm">
+                <span className="text-emerald-700/70 dark:text-emerald-300/70 block text-[10px] uppercase font-bold tracking-wider">Admission No</span>
+                <span className="font-mono font-semibold text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm">
                   {createdAdmissionSummary?.admissionNo || admissionNo}
                 </span>
               </div>
               <div className="sm:text-right">
-                <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Admission Date</span>
-                <span className="font-semibold text-foreground text-xs">
+                <span className="text-emerald-700/70 dark:text-emerald-300/70 block text-[10px] uppercase font-bold tracking-wider">Admission Date</span>
+                <span className="font-semibold text-emerald-800 dark:text-emerald-200 text-xs">
                   {createdAdmissionSummary?.date || admissionDate}
                 </span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-muted-foreground font-medium shrink-0">Student Name:</span>
+              <span className="text-emerald-700/70 dark:text-emerald-300/70 font-medium shrink-0">Student Name:</span>
               <div className="sm:text-right min-w-0">
-                <span className="font-bold text-foreground block truncate">
+                <span className="font-bold text-emerald-900 dark:text-emerald-100 block truncate">
                   {createdAdmissionSummary?.studentName || `${firstName} ${lastName}`.trim()}
                 </span>
-                <span className="text-[11px] text-muted-foreground block truncate">{phone} • {email}</span>
+                <span className="text-[11px] text-emerald-700/60 dark:text-emerald-300/60 block truncate">{phone} • {email}</span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-muted-foreground font-medium shrink-0">Course(s):</span>
-              <span className="font-semibold text-foreground sm:text-right min-w-0 break-words">
+              <span className="text-emerald-700/70 dark:text-emerald-300/70 font-medium shrink-0">Course(s):</span>
+              <span className="font-semibold text-emerald-900 dark:text-emerald-100 sm:text-right min-w-0 break-words">
                 {createdAdmissionSummary?.course || selectedCoursesList.map((c) => c.courseName).join(", ") || "—"}
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground font-medium shrink-0">Batch Code(s):</span>
-              <span className="font-mono font-bold text-primary dark:text-blue-400 text-right truncate">
-                {createdAdmissionSummary?.batch || selectedCoursesList.map((c) => c.batchCode).join(", ") || "—"}
-              </span>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 min-w-0">
+                <span className="text-emerald-700/70 dark:text-emerald-300/70 font-medium shrink-0">Batch Code(s):</span>
+                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 sm:text-right min-w-0 break-all">
+                  {createdAdmissionSummary?.batch || selectedCoursesList.map((c) => c.batchCode).join(", ") || "—"}
+                </span>
+              </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
-              <span className="text-foreground font-bold">Final Payable Amount:</span>
-              <span className="font-semibold text-foreground text-sm">
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-500/20">
+              <span className="text-emerald-900 dark:text-emerald-100 font-bold">Final Payable Amount:</span>
+              <span className="font-semibold text-emerald-800 dark:text-emerald-200 text-sm">
                 ₹{(createdAdmissionSummary?.finalPayable ?? finalPayableAmount).toLocaleString()}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+            <div className="flex items-center justify-between p-3 bg-emerald-500/15 rounded-xl border border-emerald-500/40">
               <div>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Amount Paid at Admission:</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300 block text-xs">Amount Paid at Admission:</span>
                 <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
                   via {createdAdmissionSummary?.paymentMethod || getMasterLabel(paymentModeOptions, paymentModeMasterId)}
                 </span>
               </div>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-base">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-base">
                 ₹{(createdAdmissionSummary?.amountPaid ?? amountPaidAtAdmission).toLocaleString()}
               </span>
             </div>
@@ -3495,26 +3673,26 @@ export const DirectAdmissionEntry: React.FC = () => {
 
             {/* Student Login Credentials Box */}
             {createdAdmissionSummary?.status !== "Draft Saved" && (
-              <div className="p-3.5 bg-primary/5 rounded-xl border border-primary/20 space-y-2.5">
+              <div className="p-3.5 bg-emerald-500/10 rounded-xl border border-emerald-500/30 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-primary tracking-wider flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 tracking-wider flex items-center gap-1.5">
                     <UserCheck className="h-3.5 w-3.5" />
                     Student Account Credentials
                   </span>
-                  <Badge variant="outline" className="text-[10px] bg-card text-emerald-600 border-emerald-500/30">
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500 text-white border-emerald-600">
                     Active & Created
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2 bg-card rounded-lg border border-border">
-                    <span className="text-[10px] text-muted-foreground block">Student ID / Login ID:</span>
-                    <span className="font-mono font-semibold text-foreground block mt-0.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs min-w-0">
+                  <div className="p-2 bg-white dark:bg-emerald-950/60 rounded-lg border border-emerald-500/20 min-w-0">
+                    <span className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70 block">Student ID / Login ID:</span>
+                    <span className="font-mono font-semibold text-emerald-900 dark:text-emerald-100 block mt-0.5 break-all">
                       {createdAdmissionSummary?.studentCode || createdAdmissionSummary?.admissionNo || admissionNo}
                     </span>
                   </div>
-                  <div className="p-2 bg-card rounded-lg border border-border">
-                    <span className="text-[10px] text-muted-foreground block">Initial Password:</span>
-                    <span className="font-mono font-semibold text-foreground block mt-0.5">
+                  <div className="p-2 bg-white dark:bg-emerald-950/60 rounded-lg border border-emerald-500/20 min-w-0">
+                    <span className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70 block">Initial Password:</span>
+                    <span className="font-mono font-semibold text-emerald-900 dark:text-emerald-100 block mt-0.5 break-all">
                       Aadya@123
                     </span>
                   </div>
@@ -3529,7 +3707,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                     navigator.clipboard.writeText(creds);
                     notifySuccess("Student login credentials copied to clipboard!");
                   }}
-                  className="w-full h-8.5 text-xs font-bold text-primary border-primary/30 hover:bg-primary/10 gap-1.5 cursor-pointer shadow-2xs"
+                  className="w-full h-8.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/15 gap-1.5 cursor-pointer shadow-2xs"
                 >
                   <Copy className="h-3.5 w-3.5" />
                   <span>Copy Credentials</span>
@@ -3544,7 +3722,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 setShowSuccessModal(false);
                 navigate(`${basePath}/admissions/all`);
               }}
-              className="w-full bg-primary hover:bg-primary/90 text-white text-xs font-bold"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
             >
               Done
             </Button>

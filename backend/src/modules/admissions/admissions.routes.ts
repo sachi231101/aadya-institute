@@ -8,55 +8,6 @@ const router = Router();
 
 router.use(authMiddleware);
 
-// ─── ENQUIRIES ROUTES ────────────────────────────────────────────────────────
-router.get(
-  "/enquiries",
-  requirePermission("admission.read"),
-  AdmissionsController.getEnquiries
-);
-
-router.get(
-  "/enquiries/:id",
-  requirePermission("admission.read"),
-  AdmissionsController.getEnquiryById
-);
-
-router.post(
-  "/enquiries",
-  requirePermission("admission.create"),
-  AdmissionsController.createEnquiry
-);
-
-router.patch(
-  "/enquiries/:id",
-  requirePermission("admission.update"),
-  AdmissionsController.updateEnquiry
-);
-
-router.post(
-  "/enquiries/:id/ai-call",
-  requirePermission("admission.update"),
-  AdmissionsController.triggerEnquiryAiCall
-);
-
-router.delete(
-  "/enquiries/:id",
-  requirePermission("admission.update"),
-  AdmissionsController.deleteEnquiry
-);
-
-router.post(
-  "/enquiries/:id/convert",
-  requirePermission("admission.create"),
-  AdmissionsController.convertEnquiryToApplication
-);
-
-router.post(
-  "/enquiries/:id/create-application",
-  requirePermission("admission.create"),
-  AdmissionsController.convertEnquiryToApplication
-);
-
 // ─── APPLICATIONS ROUTES ─────────────────────────────────────────────────────
 router.get(
   "/applications",
@@ -88,10 +39,16 @@ router.delete(
   AdmissionsController.deleteApplication
 );
 
+router.get(
+  "/applications/:id/activities",
+  requirePermission("admission.read"),
+  AdmissionsController.getApplicationActivities
+);
+
 router.post(
-  "/applications/:id/convert",
-  requirePermission("admission.create"),
-  AdmissionsController.convertApplicationToAdmission
+  "/applications/:id/activities",
+  requirePermission("admission.update"),
+  AdmissionsController.createApplicationActivity
 );
 
 // ─── ADMISSIONS ROUTES ───────────────────────────────────────────────────────

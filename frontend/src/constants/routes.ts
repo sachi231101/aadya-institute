@@ -15,7 +15,6 @@ export const ROUTES = {
       CALL_HISTORY: "/admin/leads/call-history",
     },
     ADMISSIONS: {
-      ENQUIRIES: "/admin/admissions/enquiries",
       APPLICATIONS: "/admin/admissions/applications",
       ALL: "/admin/admissions/all",
       DIRECT: "/admin/admissions/direct-entry",

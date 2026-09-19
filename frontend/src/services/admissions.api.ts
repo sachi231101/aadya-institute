@@ -1,13 +1,10 @@
 import { api } from "./api";
 import type {
-  Enquiry,
   Application,
+  ApplicationActivity,
   Admission,
-  CreateEnquiryPayload,
   CreateApplicationPayload,
   CreateAdmissionPayload,
-  ConvertEnquiryPayload,
-  ConvertApplicationPayload,
 } from "../types/admission.types";
 
 export interface ApiResponse<T> {
@@ -23,55 +20,14 @@ export interface ApiResponse<T> {
 }
 
 export const admissionsApi = {
-  // ─── ENQUIRIES API ─────────────────────────────────────────────────────────
-  getEnquiries: async (params?: {
-    search?: string;
-    source?: string;
-    status?: string;
-    courseId?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<Enquiry[]>> => {
-    const response = await api.get<ApiResponse<Enquiry[]>>("/admissions/enquiries", { params });
-    return response.data;
-  },
-
-  getEnquiryById: async (id: string): Promise<ApiResponse<Enquiry>> => {
-    const response = await api.get<ApiResponse<Enquiry>>(`/admissions/enquiries/${id}`);
-    return response.data;
-  },
-
-  createEnquiry: async (payload: CreateEnquiryPayload): Promise<ApiResponse<Enquiry>> => {
-    const response = await api.post<ApiResponse<Enquiry>>("/admissions/enquiries", payload);
-    return response.data;
-  },
-
-  updateEnquiry: async (id: string, payload: Partial<CreateEnquiryPayload>): Promise<ApiResponse<Enquiry>> => {
-    const response = await api.patch<ApiResponse<Enquiry>>(`/admissions/enquiries/${id}`, payload);
-    return response.data;
-  },
-
-  deleteEnquiry: async (id: string): Promise<ApiResponse<{ id: string }>> => {
-    const response = await api.delete<ApiResponse<{ id: string }>>(`/admissions/enquiries/${id}`);
-    return response.data;
-  },
-
-  convertEnquiryToApplication: async (id: string, payload?: ConvertEnquiryPayload): Promise<ApiResponse<Application>> => {
-    const response = await api.post<ApiResponse<Application>>(`/admissions/enquiries/${id}/convert`, payload || {});
-    return response.data;
-  },
-
-  triggerEnquiryAiCall: async (id: string): Promise<ApiResponse<Enquiry>> => {
-    const response = await api.post<ApiResponse<Enquiry>>(`/admissions/enquiries/${id}/ai-call`);
-    return response.data;
-  },
-
   // ─── APPLICATIONS API ──────────────────────────────────────────────────────
   getApplications: async (params?: {
     search?: string;
     feeStatus?: string;
     status?: string;
     courseId?: string;
+    page?: number;
+    limit?: number;
   }): Promise<ApiResponse<Application[]>> => {
     const response = await api.get<ApiResponse<Application[]>>("/admissions/applications", { params });
     return response.data;
@@ -97,8 +53,21 @@ export const admissionsApi = {
     return response.data;
   },
 
-  convertApplicationToAdmission: async (id: string, payload?: ConvertApplicationPayload): Promise<ApiResponse<Admission>> => {
-    const response = await api.post<ApiResponse<Admission>>(`/admissions/applications/${id}/convert`, payload || {});
+  getApplicationActivities: async (id: string): Promise<ApiResponse<ApplicationActivity[]>> => {
+    const response = await api.get<ApiResponse<ApplicationActivity[]>>(
+      `/admissions/applications/${id}/activities`
+    );
+    return response.data;
+  },
+
+  addApplicationActivity: async (
+    id: string,
+    payload: { description: string; type?: string; title?: string }
+  ): Promise<ApiResponse<ApplicationActivity>> => {
+    const response = await api.post<ApiResponse<ApplicationActivity>>(
+      `/admissions/applications/${id}/activities`,
+      payload
+    );
     return response.data;
   },
 

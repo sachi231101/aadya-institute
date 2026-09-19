@@ -315,10 +315,6 @@ export const deleteUser = async (id: string, instituteId: string) => {
       where: { counsellorId: id, isCurrent: true },
       data: { isCurrent: false, unassignedAt: new Date() },
     }),
-    prisma.enquiry.updateMany({
-      where: { assignedToId: id },
-      data: { assignedToId: null },
-    }),
     prisma.leadFollowUp.updateMany({
       where: {
         counsellorId: id,

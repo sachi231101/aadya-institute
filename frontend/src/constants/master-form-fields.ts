@@ -109,6 +109,10 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "percentage", label: "Max Discount" },
     { key: "approvalLevel", label: "Approval Required" },
   ],
+  tax: [
+    { key: "name", label: "Tax Name", required: true },
+    { key: "percentage", label: "Tax Percentage (%)", required: true, inputType: "number" },
+  ],
   /** Numbering series only — `code` is the document target (STUDENT, ADMISSION, INVOICE, …) */
   numberingseries: [
     { key: "code", label: "Target Document", required: true },
