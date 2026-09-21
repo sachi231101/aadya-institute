@@ -30,6 +30,7 @@ import {
   RefreshCw,
   ArrowLeft,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { admissionsApi } from "../../../services/admissions.api";
@@ -61,10 +62,11 @@ import { ViewAdmissionInfo } from "./ViewAdmissionInfo";
 import { CourseChips } from "@/components/common/CourseChips";
 import {
   groupAdmissionsByStudent,
+  deriveAdmissionFeeSummary,
   type PackageCourseRef,
 } from "@/utils/admission-package.utils";
-
-// ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
+import { useBatches } from "@/hooks/useBatches";
+import { batchIncludesCourse } from "@/utils/batch.utils";// ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
 
 export type AdmissionRecordStatus = "Confirmed" | "Provisional" | "Admission Pending" | "Cancelled";
 export type BatchType = "Morning Batch" | "Evening Batch" | "Weekend Batch";
@@ -203,7 +205,9 @@ export const AllAdmissions: React.FC = () => {
       return match ? match[1].trim() : null;
     };
 
-    const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => ({
+    const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => {
+      const fees = deriveAdmissionFeeSummary(adm);
+      return {
       id: adm.id,
       admissionNo: adm.admissionNo || `ADM-${adm.id.slice(-6).toUpperCase()}`,
       studentId: adm.studentId || adm.student?.id || "",
@@ -258,19 +262,20 @@ export const AllAdmissions: React.FC = () => {
       batchCapacity: adm.batch?.capacity || 0,
       enrolledCount: 0,
       feePlan: adm.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
-      feePaymentStatus: (adm.payments?.length || 0) > 0 ? "Paid" : "Due",
-      totalCourseFee: Number(adm.course?.fee || 0),
+      feePaymentStatus:
+        (fees.amountDue <= 0 && fees.totalCourseFee > 0) || fees.amountPaid > 0 ? "Paid" : "Due",
+      totalCourseFee: fees.totalCourseFee,
       discountAmount: 0,
-      finalFee: Number(adm.course?.fee || 0),
-      amountPaid: (adm.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
-      amountDue: (adm.pendingFees || []).reduce((sum: number, p: any) => sum + Number(p.dueAmount || 0), 0),
+      finalFee: fees.finalFee,
+      amountPaid: fees.amountPaid,
+      amountDue: fees.amountDue,
       paymentHistory: (adm.payments || []).map((p: any) => ({
         id: p.id,
         receiptNo: p.receiptNo || `REC-${p.id.slice(-6).toUpperCase()}`,
         amount: Number(p.amount || 0),
-        paymentMode: p.mode || "UPI / QR",
-        transactionId: p.transactionId || `TXN/${p.id.slice(-8)}`,
-        date: new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        paymentMode: p.method || p.mode || "UPI / QR",
+        transactionId: p.transactionRef || p.transactionId || `TXN/${p.id.slice(-8)}`,
+        date: new Date(p.date || p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
         status: p.status === "SUCCESS" ? "Completed" : "Pending",
       })),
       status: adm.status === "CONFIRMED" ? "Confirmed" : "Provisional",
@@ -290,7 +295,8 @@ export const AllAdmissions: React.FC = () => {
         verified: !!d.verified,
       })),
       counsellorNotes: adm.notes ? [{ id: `n-${adm.id}`, author: adm.counselorName || "Counsellor", role: "Counsellor", date: "Today", time: "Now", text: adm.notes }] : [],
-    }));
+    };
+    });
 
     // One list row per student — package multi-course admissions collapse together
     const groupedList = groupAdmissionsByStudent(
@@ -299,13 +305,22 @@ export const AllAdmissions: React.FC = () => {
         paymentCount: a.paymentHistory?.length || 0,
         sortAt: a._sortAt,
       }))
-    ).map((g) => ({
-      ...g,
-      feePaymentStatus: (g.amountPaid > 0 ? "Paid" : g.feePaymentStatus) as FeePaymentStatus,
-      documents: g.documents || [],
-      counsellorNotes: g.counsellorNotes || [],
-      paymentHistory: g.paymentHistory || [],
-    })) as EnrichedAdmission[];
+    ).map((g) => {
+      const hasFees = (g.totalCourseFee || 0) > 0 || (g.amountPaid || 0) > 0;
+      const feePaymentStatus: FeePaymentStatus =
+        hasFees && (g.amountDue || 0) <= 0 && (g.totalCourseFee || 0) > 0
+          ? "Paid"
+          : (g.amountPaid || 0) > 0
+            ? "Paid"
+            : "Due";
+      return {
+        ...g,
+        feePaymentStatus,
+        documents: g.documents || [],
+        counsellorNotes: g.counsellorNotes || [],
+        paymentHistory: g.paymentHistory || [],
+      };
+    }) as EnrichedAdmission[];
 
     setAdmissionsList(groupedList);
   }, [dbAdmissionsRes]);
@@ -322,7 +337,25 @@ export const AllAdmissions: React.FC = () => {
         (!!detail.studentId && a.studentId === detail.studentId)
     );
     if (fromList) {
-      setSelectedAdmission(fromList);
+      const detailFees = deriveAdmissionFeeSummary(detail);
+      const listHasNoFees =
+        (fromList.totalCourseFee || 0) <= 0 &&
+        (fromList.amountPaid || 0) <= 0 &&
+        (fromList.amountDue || 0) <= 0;
+      setSelectedAdmission(
+        listHasNoFees && detailFees.totalCourseFee > 0
+          ? {
+              ...fromList,
+              totalCourseFee: detailFees.totalCourseFee,
+              finalFee: detailFees.finalFee,
+              amountPaid: detailFees.amountPaid,
+              amountDue: detailFees.amountDue,
+              branchName: fromList.branchName && fromList.branchName !== "—"
+                ? fromList.branchName
+                : detail.branch?.name || fromList.branchName,
+            }
+          : fromList
+      );
       return;
     }
 
@@ -383,12 +416,22 @@ export const AllAdmissions: React.FC = () => {
       batchCapacity: 0,
       enrolledCount: 0,
       feePlan: detail.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
-      feePaymentStatus: (detail.payments?.length || 0) > 0 ? "Paid" : "Due",
-      totalCourseFee: Number(detail.course?.fee || 0),
-      discountAmount: 0,
-      finalFee: Number(detail.course?.fee || 0),
-      amountPaid: (detail.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0),
-      amountDue: (detail.pendingFees || []).reduce((sum, p) => sum + Number(p.dueAmount || 0), 0),
+      feePaymentStatus: (() => {
+        const fees = deriveAdmissionFeeSummary(detail);
+        if (fees.amountDue <= 0 && fees.totalCourseFee > 0) return "Paid";
+        if (fees.amountPaid > 0) return "Paid";
+        return "Due";
+      })(),
+      ...(() => {
+        const fees = deriveAdmissionFeeSummary(detail);
+        return {
+          totalCourseFee: fees.totalCourseFee,
+          discountAmount: 0,
+          finalFee: fees.finalFee,
+          amountPaid: fees.amountPaid,
+          amountDue: fees.amountDue,
+        };
+      })(),
       paymentHistory: (detail.payments || []).map((p) => ({
         id: p.id,
         receiptNo: p.receiptNo,
@@ -456,7 +499,26 @@ export const AllAdmissions: React.FC = () => {
   // Change Batch Modal
   const [isChangeBatchOpen, setIsChangeBatchOpen] = useState(false);
   const [targetBatchId, setTargetBatchId] = useState("");
+  const [isChangingBatch, setIsChangingBatch] = useState(false);
+  const [changeBatchError, setChangeBatchError] = useState<string | null>(null);
 
+  const changeBatchCourseId = selectedAdmission?.courseId || undefined;
+  const { batches: availableBatches, loading: batchesLoading } = useBatches(
+    changeBatchCourseId ? { courseId: changeBatchCourseId } : undefined
+  );
+
+  const changeBatchOptions = useMemo(() => {
+    if (!selectedAdmission) return [];
+    const courseIds = [
+      selectedAdmission.courseId,
+      ...(selectedAdmission.courses || []).map((c) => c.id),
+    ].filter(Boolean) as string[];
+
+    return availableBatches.filter((b) => {
+      if (courseIds.length === 0) return true;
+      return courseIds.some((cid) => batchIncludesCourse(b, cid));
+    });
+  }, [availableBatches, selectedAdmission]);
   // Note addition state in Drawer
   const [newNoteText, setNewNoteText] = useState("");
 
@@ -676,16 +738,58 @@ export const AllAdmissions: React.FC = () => {
     showToast(`Direct Admission created successfully for ${formName}! (${newAdmNo})`);
   };
 
-  const handleChangeBatchConfirm = () => {
+  const handleChangeBatchConfirm = async () => {
     if (!selectedAdmission || !targetBatchId) return;
-    const updated = {
-      ...selectedAdmission,
-      batchCode: targetBatchId,
-    };
-    setSelectedAdmission(updated);
-    setAdmissionsList((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-    setIsChangeBatchOpen(false);
-    showToast(`Batch updated to ${targetBatchId} for ${selectedAdmission.studentName}!`);
+    const batch = changeBatchOptions.find((b) => b.id === targetBatchId);
+    if (!batch) {
+      setChangeBatchError("Please select a valid batch.");
+      return;
+    }
+
+    setIsChangingBatch(true);
+    setChangeBatchError(null);
+    try {
+      const ids =
+        selectedAdmission.admissionIds && selectedAdmission.admissionIds.length > 0
+          ? selectedAdmission.admissionIds
+          : [selectedAdmission.id];
+
+      await Promise.all(
+        ids.map((admissionId) =>
+          admissionsApi.updateAdmission(admissionId, { batchId: batch.id })
+        )
+      );
+
+      const updated: EnrichedAdmission = {
+        ...selectedAdmission,
+        batchId: batch.id,
+        batchCode: batch.code || batch.name,
+        batchTiming: batch.timeSlot || selectedAdmission.batchTiming,
+        batchStartDate: batch.startDate
+          ? new Date(batch.startDate).toLocaleDateString()
+          : selectedAdmission.batchStartDate,
+        assignedFaculty: batch.faculty?.user?.name || selectedAdmission.assignedFaculty,
+        batchCapacity: batch.capacity ?? selectedAdmission.batchCapacity,
+        courses: (selectedAdmission.courses || []).map((c) => ({
+          ...c,
+          batchCode: batch.code || batch.name,
+        })),
+      };
+
+      setSelectedAdmission(updated);
+      setAdmissionsList((prev) =>
+        prev.map((a) => (a.id === updated.id || ids.includes(a.id) ? { ...a, ...updated, id: a.id } : a))
+      );
+      setIsChangeBatchOpen(false);
+      setTargetBatchId("");
+      showToast(`Batch updated to ${batch.code || batch.name} for ${selectedAdmission.studentName}.`);
+    } catch (err: any) {
+      setChangeBatchError(
+        err?.response?.data?.message || err?.message || "Failed to update batch assignment."
+      );
+    } finally {
+      setIsChangingBatch(false);
+    }
   };
 
   // Helper for Status Badge
@@ -747,7 +851,8 @@ export const AllAdmissions: React.FC = () => {
           onBack={() => setSelectedAdmission(null)}
           onOpenManageAdmission={() => setIsManageAdmissionOpen(true)}
           onOpenChangeBatch={() => {
-            setTargetBatchId(selectedAdmission.batchCode);
+            setTargetBatchId(selectedAdmission.batchId || "");
+            setChangeBatchError(null);
             setIsChangeBatchOpen(true);
           }}
           onOpenFeeDetails={() => setIsFeeDetailsModalOpen(true)}
@@ -1449,31 +1554,64 @@ export const AllAdmissions: React.FC = () => {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Current Batch: <strong className="text-foreground">{selectedAdmission.batchCode} ({selectedAdmission.batchType})</strong>
+              Current Batch:{" "}
+              <strong className="text-foreground">
+                {selectedAdmission.batchCode && selectedAdmission.batchCode !== "—"
+                  ? selectedAdmission.batchCode
+                  : "Not assigned"}
+                {selectedAdmission.batchTiming && selectedAdmission.batchTiming !== "—"
+                  ? ` · ${selectedAdmission.batchTiming}`
+                  : ""}
+              </strong>
             </p>
 
             <div className="space-y-3 pt-1">
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1">Select New Target Batch</label>
-                <select
-                  value={targetBatchId}
-                  onChange={(e) => setTargetBatchId(e.target.value)}
-                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
-                >
-                  <option value="DM-JUN-2025" className="bg-card text-foreground py-1.5">DM-JUN-2025 (Morning Batch • 9:00 AM – 11:00 AM)</option>
-                  <option value="DM-JUL-2025" className="bg-card text-foreground py-1.5">DM-JUL-2025 (Evening Batch • 5:00 PM – 7:00 PM)</option>
-                  <option value="EXCEL-MAY-2025" className="bg-card text-foreground py-1.5">EXCEL-MAY-2025 (Evening Batch • 5:00 PM – 7:00 PM)</option>
-                  <option value="TALLY-JUN-2025" className="bg-card text-foreground py-1.5">TALLY-JUN-2025 (Weekend Batch • 11:00 AM – 01:00 PM)</option>
-                  <option value="WD-JUN-2025" className="bg-card text-foreground py-1.5">WD-JUN-2025 (Morning Batch • 9:00 AM – 10:30 AM)</option>
-                  <option value="PY-JUN-2025" className="bg-card text-foreground py-1.5">PY-JUN-2025 (Evening Batch • 5:30 PM – 7:30 PM)</option>
-                </select>
+                {batchesLoading ? (
+                  <div className="flex items-center gap-2 h-10 px-3 text-xs text-muted-foreground border border-border rounded-xl">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading batches...
+                  </div>
+                ) : (
+                  <select
+                    value={targetBatchId}
+                    onChange={(e) => {
+                      setTargetBatchId(e.target.value);
+                      setChangeBatchError(null);
+                    }}
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select a batch</option>
+                    {changeBatchOptions.map((batch) => (
+                      <option key={batch.id} value={batch.id} className="bg-card text-foreground py-1.5">
+                        {batch.code || batch.name}
+                        {batch.timeSlot ? ` · ${batch.timeSlot}` : ""}
+                        {batch.course?.name ? ` · ${batch.course.name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!batchesLoading && changeBatchOptions.length === 0 && (
+                  <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                    No batches found for this course. Create a batch first in Batches.
+                  </p>
+                )}
+                {changeBatchError && (
+                  <p className="mt-1.5 text-[11px] font-semibold text-rose-600">{changeBatchError}</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsChangeBatchOpen(false)}
+                  onClick={() => {
+                    setIsChangeBatchOpen(false);
+                    setChangeBatchError(null);
+                    setTargetBatchId("");
+                  }}
+                  disabled={isChangingBatch}
                   className="h-10 text-xs font-semibold text-foreground border-border hover:bg-muted/50 cursor-pointer"
                 >
                   Cancel
@@ -1482,9 +1620,17 @@ export const AllAdmissions: React.FC = () => {
                   <Button
                     type="button"
                     onClick={handleChangeBatchConfirm}
+                    disabled={!targetBatchId || isChangingBatch || batchesLoading}
                     className="bg-purple-600 hover:bg-purple-700 text-white h-10 text-xs font-bold px-5 cursor-pointer"
                   >
-                    Confirm Batch Transfer
+                    {isChangingBatch ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Confirm Batch Transfer"
+                    )}
                   </Button>
                 </PermissionGate>
               </div>

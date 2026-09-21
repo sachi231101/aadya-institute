@@ -124,6 +124,17 @@ export const usersApi = {
     return response.data;
   },
 
+  resetUserPassword: async (
+    id: string,
+    password: string
+  ): Promise<SingleResponse<{ id: string; temporaryPassword: string }>> => {
+    const response = await api.post<SingleResponse<{ id: string; temporaryPassword: string }>>(
+      `/users/${id}/reset-password`,
+      { password }
+    );
+    return response.data;
+  },
+
   getPermissionCatalog: async (role: "CENTER_MANAGER" | "COUNSELLOR") => {
     const response = await api.get("/users/permission-catalog", { params: { role } });
     return response.data;

@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useUser, useUpdateUserStatus, useUpdateUser } from "@/hooks/useUsers";
+import { useUser, useUpdateUserStatus, useUpdateUser, useResetUserPassword } from "@/hooks/useUsers";
 import { usersApi } from "@/services/users.api";
 import {
   permissionsToAccessState,
@@ -10,6 +10,8 @@ import {
 } from "@/utils/permission-utils";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import { useNotificationStore } from "@/store/notification.store";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
+import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
 import { PageContainer, PageHeader } from "@/components/layout";
 import {
   ArrowLeft,
@@ -34,6 +36,8 @@ import {
   ExternalLink,
   Lock,
   UserCheck,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +84,8 @@ export const ViewAdmin: React.FC = () => {
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const updateStatusMutation = useUpdateUserStatus();
   const updateUserMutation = useUpdateUser();
+  const resetPasswordMutation = useResetUserPassword();
+  const { policy, requirements } = usePasswordRequirements();
 
   const admin = userResponse?.data;
   const branches = branchesResponse?.data ?? [];
@@ -128,6 +134,18 @@ export const ViewAdmin: React.FC = () => {
   const [newBranchId, setNewBranchId] = useState<string>("");
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+
+  const closeResetPasswordModal = () => {
+    setModalType(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setRevealedPassword(null);
+    setPasswordCopied(false);
+    setResetPasswordError(null);
+  };
 
   const USERS_PATH = "/admin/administration/users";
 
@@ -198,23 +216,47 @@ export const ViewAdmin: React.FC = () => {
 
   const handleResetPasswordSubmit = () => {
     if (!newPassword || newPassword !== confirmPassword) {
-      addNotification("Passwords do not match.", "error");
+      setResetPasswordError("Passwords do not match.");
       return;
     }
-    updateUserMutation.mutate(
-      { id: admin.id, data: { password: newPassword } as any },
+    const policyError = validatePasswordAgainstPolicy(newPassword, policy);
+    if (policyError) {
+      setResetPasswordError(policyError);
+      return;
+    }
+    setResetPasswordError(null);
+    resetPasswordMutation.mutate(
+      { id: admin.id, password: newPassword },
       {
-        onSuccess: () => {
-          addNotification("Password reset successfully.", "success");
-          setModalType(null);
+        onSuccess: (res) => {
+          const temp = res.data?.temporaryPassword || newPassword;
+          setRevealedPassword(temp);
           setNewPassword("");
           setConfirmPassword("");
+          addNotification(
+            "Password reset successfully. Copy it now — it won't be shown again.",
+            "success"
+          );
         },
         onError: (err: any) => {
-          addNotification(err?.response?.data?.message || "Failed to reset password.", "error");
+          setResetPasswordError(
+            err?.response?.data?.message || "Failed to reset password."
+          );
         },
       }
     );
+  };
+
+  const handleCopyRevealedPassword = async () => {
+    if (!revealedPassword) return;
+    try {
+      await navigator.clipboard.writeText(revealedPassword);
+      setPasswordCopied(true);
+      addNotification("Password copied to clipboard.", "success");
+      setTimeout(() => setPasswordCopied(false), 2000);
+    } catch {
+      addNotification("Could not copy password.", "error");
+    }
   };
 
   return (
@@ -261,6 +303,9 @@ export const ViewAdmin: React.FC = () => {
             onClick={() => {
               setNewPassword("");
               setConfirmPassword("");
+              setRevealedPassword(null);
+              setPasswordCopied(false);
+              setResetPasswordError(null);
               setModalType("resetPassword");
             }}
             className="border-slate-200 text-slate-700 hover:bg-white text-xs font-bold h-9"
@@ -730,44 +775,117 @@ export const ViewAdmin: React.FC = () => {
       </Dialog>
 
       {/* Modal 3: Reset Password */}
-      <Dialog open={modalType === "resetPassword"} onOpenChange={(open) => !open && setModalType(null)}>
+      <Dialog
+        open={modalType === "resetPassword"}
+        onOpenChange={(open) => {
+          if (!open) closeResetPasswordModal();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
+            <DialogTitle>
+              {revealedPassword ? "Password Reset Successfully" : "Reset Password"}
+            </DialogTitle>
             <DialogDescription>
-              Set a new secure password for <strong>{admin.name}</strong>.
+              {revealedPassword ? (
+                <>
+                  Copy the new password for <strong>{admin.name}</strong>. It will not be shown again.
+                </>
+              ) : (
+                <>
+                  Set a new secure password for <strong>{admin.name}</strong>.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-xs font-medium text-slate-700 mb-1 block">New Password</label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+
+          {revealedPassword ? (
+            <div className="space-y-4 py-2">
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
+                  New Password (shown once)
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 min-w-0 font-mono text-sm font-semibold text-foreground bg-card border border-border rounded-lg px-3 py-2 break-all">
+                    {revealedPassword}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyRevealedPassword}
+                    className="shrink-0 gap-1.5"
+                  >
+                    {passwordCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {passwordCopied ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button className="bg-primary hover:bg-primary text-white" onClick={closeResetPasswordModal}>
+                  Done
+                </Button>
+              </DialogFooter>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-700 mb-1 block">Confirm New Password</label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalType(null)}>Cancel</Button>
-            <Button
-              className="bg-primary hover:bg-primary text-white"
-              onClick={handleResetPasswordSubmit}
-              disabled={!newPassword || newPassword !== confirmPassword || updateUserMutation.isPending}
-            >
-              {updateUserMutation.isPending ? "Updating..." : "Reset Password"}
-            </Button>
-          </DialogFooter>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-700 mb-1 block">New Password</label>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setResetPasswordError(null);
+                    }}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-700 mb-1 block">Confirm New Password</label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setResetPasswordError(null);
+                    }}
+                    placeholder="••••••••"
+                  />
+                </div>
+                {requirements.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">{requirements.join(" · ")}</p>
+                )}
+                {resetPasswordError && (
+                  <p className="text-xs font-semibold text-rose-600">{resetPasswordError}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeResetPasswordModal}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-primary hover:bg-primary text-white"
+                  onClick={handleResetPasswordSubmit}
+                  disabled={
+                    !newPassword ||
+                    newPassword !== confirmPassword ||
+                    resetPasswordMutation.isPending
+                  }
+                >
+                  {resetPasswordMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </PageContainer>

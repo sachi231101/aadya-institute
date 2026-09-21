@@ -96,6 +96,14 @@ export const updateUserStatusSchema = z.object({
   status: statusEnum,
 });
 
+export const resetUserPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+});
+
 export const userListQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
@@ -109,6 +117,7 @@ export const userListQuerySchema = z.object({
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
+export type ResetUserPasswordDto = z.infer<typeof resetUserPasswordSchema>;
 export type UpdateUserPermissionsDto = z.infer<typeof updateUserPermissionsSchema>;
 export type UpdateUserBranchAccessDto = z.infer<typeof updateUserBranchAccessSchema>;
 export type UserListQueryDto = z.infer<typeof userListQuerySchema>;

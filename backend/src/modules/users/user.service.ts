@@ -37,6 +37,7 @@ import {
   updateUser,
   updateUserStatus,
   updateWhatsappPreference,
+  updateUserPasswordHash,
   deleteUser,
   hardDeleteUser,
   replaceUserBranchAccess,
@@ -296,6 +297,57 @@ export const updateUserService = async (
   });
 
   return updated;
+};
+
+// ─── Reset User Password (admin) ─────────────────────────────────────────────
+
+export const resetUserPasswordService = async (
+  currentUser: AuthUser,
+  userId: string,
+  password: string
+) => {
+  const instituteId = getInstituteId(currentUser);
+  const actor = actorId(currentUser);
+
+  if (userId === actor) {
+    throw new AppError(
+      "Use Settings to change your own password",
+      400
+    );
+  }
+
+  const existing = await findUserById(userId, instituteId);
+  if (!existing) throw new AppError("User not found", 404);
+
+  if (
+    currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("SUPER_ADMIN") &&
+    currentUser.branchId &&
+    existing.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("User not found", 404);
+  }
+
+  await assertPasswordMeetsInstitutePolicy(instituteId, password);
+  const passwordHash = await hashPassword(password);
+  const updated = await updateUserPasswordHash(userId, instituteId, passwordHash);
+  if (!updated) throw new AppError("User not found", 404);
+
+  await createAuditLog({
+    userId: actor,
+    instituteId,
+    branchId: existing.branchId,
+    action: "USER_PASSWORD_RESET",
+    entityType: "User",
+    entityId: userId,
+    newData: { resetBy: actor, targetUserId: userId },
+  });
+
+  return {
+    id: userId,
+    temporaryPassword: password,
+  };
 };
 
 // ─── Update User Permissions ─────────────────────────────────────────────────

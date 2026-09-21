@@ -214,10 +214,51 @@ export const AdmissionsRepository = {
       prisma.admission.findMany({
         where,
         include: {
-          course: { select: { id: true, name: true, code: true } },
-          batch: { select: { id: true, name: true, code: true } },
-          student: { select: { id: true, studentCode: true, dateOfBirth: true, gender: true, qualification: true } },
+          course: { select: { id: true, name: true, code: true, fee: true, duration: true } },
+          batch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              timeSlot: true,
+              startDate: true,
+              capacity: true,
+            },
+          },
+          branch: { select: { id: true, name: true, code: true } },
+          student: {
+            select: {
+              id: true,
+              studentCode: true,
+              dateOfBirth: true,
+              gender: true,
+              qualification: true,
+            },
+          },
           application: { select: { id: true, applicationNo: true } },
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              receiptNo: true,
+              method: true,
+              transactionRef: true,
+              status: true,
+              date: true,
+              createdAt: true,
+            },
+            orderBy: { date: "desc" },
+          },
+          pendingFees: {
+            select: {
+              id: true,
+              totalFee: true,
+              amountPaid: true,
+              dueAmount: true,
+              dueDate: true,
+            },
+            orderBy: { dueDate: "asc" },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
