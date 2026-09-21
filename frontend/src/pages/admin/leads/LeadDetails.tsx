@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -48,8 +48,6 @@ import {
   useUpdateLead,
   useUpdateLeadTags,
   useUpdateLeadScore,
-  useCreateApplicationFromLead,
-  useConvertLead,
   useCreateManualCallLog,
 } from "@/hooks/useLeads";
 import { leadsApi, type CallLog, type LeadActivity } from "@/services/leads.api";
@@ -57,6 +55,7 @@ import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useAdminUsers } from "@/hooks/useUsers";
 import { useCourses } from "@/hooks/useCourses";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { getApiErrorMessage } from "@/utils/api-error";
 import {
   DEFAULT_LEAD_STAGE_PIPELINE,
   LeadStageBadge,
@@ -77,27 +76,20 @@ import { LeadScoreBadge } from "./components/LeadScoreBadge";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
 import { LeadIntentBadge } from "./components/LeadIntentBadge";
 import { LeadAiInsightsPanel } from "./components/LeadAiInsightsPanel";
+import { LeadDataSurface, LeadListState } from "./components/LeadDataSurface";
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString("en-IN");
 }
 
-function isCommActivity(type?: string) {
-  const t = (type || "").toUpperCase();
-  return (
-    t.includes("CALL") ||
-    t.includes("WHATSAPP") ||
-    t.includes("SMS") ||
-    t.includes("EMAIL") ||
-    t.includes("MESSAGE") ||
-    t.includes("NOTE")
-  );
-}
-
 function isNoteActivity(type?: string) {
   const t = (type || "").toUpperCase();
-  return t.includes("NOTE");
+  return (
+    t.includes("NOTE") ||
+    t.startsWith("FOLLOW_UP_") ||
+    t === "STAGE_CHANGED"
+  );
 }
 
 export const LeadDetails: React.FC = () => {
@@ -116,44 +108,50 @@ export const LeadDetails: React.FC = () => {
     roles.includes("SUPER_ADMIN") ||
     roles.includes("CENTER_MANAGER");
 
-  const [convertError, setConvertError] = useState<string | null>(null);
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const tabFromUrl = searchParams.get("tab") || "profile";
   const allowedTabs = new Set([
     "profile",
     "calls",
     "follow-ups",
-    "communication",
     "notes",
     "timeline",
   ]);
-  const initialTab = allowedTabs.has(tabFromUrl) ? tabFromUrl : "profile";
+  const normalizedTab =
+    tabFromUrl === "communication" ? "timeline" : tabFromUrl;
+  const initialTab = allowedTabs.has(normalizedTab) ? normalizedTab : "profile";
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [assignCounsellorId, setAssignCounsellorId] = useState("");
+  const [assignConfirmReassign, setAssignConfirmReassign] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [showManualCallDialog, setShowManualCallDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedCall, setSelectedCall] = useState<CallLog | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [remarksDraft, setRemarksDraft] = useState("");
   const [tagsDraft, setTagsDraft] = useState("");
   const [scoreDraft, setScoreDraft] = useState("");
   const [probDraft, setProbDraft] = useState("");
   const [nextActionDraft, setNextActionDraft] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [appCourseId, setAppCourseId] = useState("");
-  const [appNotes, setAppNotes] = useState("");
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   useEffect(() => {
     const fromUrl = searchParams.get("tab") || "profile";
-    if (allowedTabs.has(fromUrl) && fromUrl !== activeTab) {
-      setActiveTab(fromUrl);
+    const nextTab = fromUrl === "communication" ? "timeline" : fromUrl;
+    if (allowedTabs.has(nextTab) && nextTab !== activeTab) {
+      setActiveTab(nextTab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL → tab
   }, [searchParams]);
 
-  const { data: leadResponse, isLoading } = useLeadById(id || "");
+  const { data: leadResponse, isLoading, isError, error, refetch } = useLeadById(id || "");
   const { options: leadStageOptions } = useMasterDropdown("leadstage");
   const { data: usersData } = useAdminUsers({ role: "COUNSELLOR", limit: 100 });
   const { courses } = useCourses({ status: "ACTIVE" });
@@ -175,8 +173,6 @@ export const LeadDetails: React.FC = () => {
     limit: 50,
   });
 
-  const createAppMutation = useCreateApplicationFromLead();
-  const convertLeadMutation = useConvertLead();
   const createFollowUpMutation = useCreateFollowUp();
   const updateFollowUpMutation = useUpdateFollowUp();
   const triggerCallMutation = useTriggerLeadCall();
@@ -192,37 +188,18 @@ export const LeadDetails: React.FC = () => {
     mutationFn: (description: string) =>
       leadsApi.addActivity(id!, {
         type: "NOTE_ADDED",
-        title: "Note added",
+        title: "Remark added",
         description,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads", id] });
       queryClient.invalidateQueries({ queryKey: ["leads", id, "history"] });
       setNoteDraft("");
+      setRemarksDraft("");
     },
   });
 
   const lead = leadResponse?.data;
-
-  const navigateToDirectAdmission = () => {
-    if (!lead) return;
-    navigate(`${basePath}/admissions/direct-entry`, {
-      state: {
-        lead: {
-          id: lead.id,
-          name: lead.name,
-          phone: lead.phoneNumber,
-          email: lead.email,
-          courseId: lead.courseId,
-          course: lead.course?.name || lead.interestedIn,
-          source: lead.source,
-          notes: lead.notes,
-          branchId: lead.branchId,
-        },
-        leadId: lead.id,
-      },
-    });
-  };
 
   const followUps: Array<{
     id: string;
@@ -248,7 +225,6 @@ export const LeadDetails: React.FC = () => {
   }, [callHistoryResponse, lead?.callLogs]);
 
   const noteActivities = activities.filter((a) => isNoteActivity(a.type));
-  const commActivities = activities.filter((a) => isCommActivity(a.type));
 
   const latestCall = callLogs[0] || lead?.callLogs?.[0];
   const aiReady = Boolean(
@@ -260,81 +236,55 @@ export const LeadDetails: React.FC = () => {
   const canAssign = (aiReady || canBypassAiAssignGate) && !isClosed;
   const canAct = isAssigned && !isClosed;
 
-  const openApplication = () => {
-    setAppCourseId(lead?.courseId || "");
-    setAppNotes("");
-    setShowApplicationDialog(true);
-  };
-
-  const openConvertDialog = () => {
-    setAppCourseId(lead?.courseId || "");
-    setAppNotes("");
-    setConvertError(null);
-    setShowConvertDialog(true);
-  };
-
-  const handleConvertLead = () => {
-    if (!id) return;
-    if (!appCourseId && !lead?.courseId) {
-      setConvertError("Select a course before converting this lead.");
-      return;
-    }
-    setConvertError(null);
-    convertLeadMutation.mutate(
-      {
-        id,
-        data: {
-          courseId: appCourseId || lead?.courseId || undefined,
-          notes: appNotes || undefined,
-          feePlan: "INSTALLMENT",
-          createStudentUser: true,
+  const openDirectAdmission = () => {
+    if (!lead) return;
+    navigate(`${basePath}/admissions/direct-entry`, {
+      state: {
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phoneNumber,
+          phoneNumber: lead.phoneNumber,
+          email: lead.email,
+          courseId: lead.courseId,
+          course: lead.course?.name || lead.interestedIn,
+          interestedIn: lead.interestedIn,
+          source: lead.source,
+          notes: lead.notes,
+          branchId: lead.branchId,
+          counsellor: lead.assignedCounsellor?.name,
+          assignedCounselor: lead.assignedCounsellor?.name,
         },
+        leadId: lead.id,
       },
-      {
-        onSuccess: (res) => {
-          setShowConvertDialog(false);
-          const admissionId =
-            res?.data?.admission?.id || res?.data?.lead?.convertedAdmissionId;
-          navigate(`${basePath}/admissions/all`, {
-            state: { admissionId },
-          });
-        },
-        onError: (err: unknown) => {
-          const msg =
-            (err as { response?: { data?: { message?: string } } })?.response?.data
-              ?.message ||
-            (err as Error)?.message ||
-            "Failed to convert lead";
-          setConvertError(msg);
-        },
-      }
-    );
-  };
-
-  const handleCreateApplication = () => {
-    if (!id || !appCourseId) return;
-    createAppMutation.mutate(
-      { id, data: { courseId: appCourseId, notes: appNotes || undefined } },
-      {
-        onSuccess: (res) => {
-          setShowApplicationDialog(false);
-          const applicationId = res?.data?.id;
-          navigate(`${basePath}/admissions/applications`, {
-            state: { applicationId },
-          });
-        },
-      }
-    );
+    });
   };
 
   const handleStageChange = (newStage: string) => {
     if (!id || !lead || newStage === lead.stage) return;
     if (newStage === "CONVERTED") {
-      if (canAct) navigateToDirectAdmission();
+      if (!canAct) {
+        showToast("Assign a counsellor first");
+        return;
+      }
+      openDirectAdmission();
       return;
     }
     if (newStage === "LOST") {
-      if (canAct) setShowLostDialog(true);
+      if (!canAct) {
+        showToast("Assign a counsellor first");
+        return;
+      }
+      setShowLostDialog(true);
+      return;
+    }
+    // FOLLOW_UP requires a scheduled task — open Schedule dialog (not bare changeStage)
+    if (newStage === "FOLLOW_UP") {
+      if (!canAct) {
+        showToast("Assign a counsellor first");
+        return;
+      }
+      setShowFollowUpDialog(true);
       return;
     }
     changeStageMutation.mutate({
@@ -378,6 +328,29 @@ export const LeadDetails: React.FC = () => {
         <div className="text-center">
           <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-text-secondary">Loading lead details...</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageContainer maxWidth="narrow" className="py-10">
+        <LeadDataSurface>
+          <LeadListState
+            kind="error"
+            message={getApiErrorMessage(error, "Failed to load lead details.")}
+            onRetry={() => refetch()}
+          />
+        </LeadDataSurface>
+        <div className="mt-4 flex justify-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`${basePath}/leads`)}
+            className="gap-2"
+          >
+            <ArrowLeft size={16} /> Back to Leads
+          </Button>
         </div>
       </PageContainer>
     );
@@ -429,8 +402,7 @@ export const LeadDetails: React.FC = () => {
         <PermissionGate itemKey="leads.all" mode="write">
           <Button
             className="gap-2"
-            onClick={openConvertDialog}
-            disabled={convertLeadMutation.isPending}
+            onClick={openDirectAdmission}
           >
             <GraduationCap size={14} /> Convert to Admission
           </Button>
@@ -470,6 +442,11 @@ export const LeadDetails: React.FC = () => {
 
   return (
     <PageContainer>
+      {toastMessage ? (
+        <div className="fixed top-4 right-4 z-50 rounded-lg bg-slate-900 text-white text-sm px-4 py-2.5 shadow-lg">
+          {toastMessage}
+        </div>
+      ) : null}
       <Button
         variant="ghost"
         onClick={() => navigate(`${basePath}/leads`)}
@@ -483,13 +460,10 @@ export const LeadDetails: React.FC = () => {
         description={headerDescription}
         actions={
           <>
-            <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-              {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
-            </span>
             <LeadScoreBadge
               score={lead.leadScore}
               temperature={lead.leadTemperature}
-              showScore={false}
+              showScore
             />
             <LeadStageBadge stage={lead.stage} />
             <LeadIntentBadge
@@ -527,28 +501,28 @@ export const LeadDetails: React.FC = () => {
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
-                    onClick={() => setShowFollowUpDialog(true)}
-                    disabled={!canAct}
+                    onClick={() => {
+                      if (!canAct) {
+                        showToast("Assign a counsellor first");
+                        return;
+                      }
+                      setShowFollowUpDialog(true);
+                    }}
                   >
                     <Calendar size={14} className="mr-2" /> Follow-Up
                   </DropdownMenuItem>
-                  {canAct && lead.stage !== "CONVERTED" && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={navigateToDirectAdmission}>
-                        <GraduationCap size={14} className="mr-2" /> Continue to Admission Form
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={openApplication}>
-                        <FileText size={14} className="mr-2" /> Create Application
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {canAct && (
+                  {!isClosed && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
-                        onClick={() => setShowLostDialog(true)}
+                        onClick={() => {
+                          if (!canAct) {
+                            showToast("Assign a counsellor first");
+                            return;
+                          }
+                          setShowLostDialog(true);
+                        }}
                       >
                         <XCircle size={14} className="mr-2" /> Mark Lost
                       </DropdownMenuItem>
@@ -641,14 +615,11 @@ export const LeadDetails: React.FC = () => {
           <TabsTrigger value="follow-ups" className="gap-1.5">
             <Calendar size={14} /> Follow-ups ({followUps.length})
           </TabsTrigger>
-          <TabsTrigger value="communication" className="gap-1.5">
-            <MessageCircle size={14} /> Communication
-          </TabsTrigger>
           <TabsTrigger value="notes" className="gap-1.5">
-            <StickyNote size={14} /> Notes
+            <StickyNote size={14} /> Remarks
           </TabsTrigger>
           <TabsTrigger value="timeline" className="gap-1.5">
-            <Activity size={14} /> Activity Timeline
+            <Activity size={14} /> Timeline
           </TabsTrigger>
         </TabsList>
 
@@ -816,7 +787,7 @@ export const LeadDetails: React.FC = () => {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Notes</Label>
+                    <Label>Remarks</Label>
                     <Textarea name="notes" defaultValue={lead.notes || ""} className="mt-1" />
                   </div>
                   <div className="md:col-span-2">
@@ -862,16 +833,10 @@ export const LeadDetails: React.FC = () => {
                   <div>
                     <dt className="text-text-muted">Lead score</dt>
                     <dd className="font-medium mt-0.5">
-                      {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-text-muted">Temperature</dt>
-                    <dd className="font-medium mt-0.5">
                       <LeadScoreBadge
                         score={lead.leadScore}
                         temperature={lead.leadTemperature}
-                        showScore={false}
+                        showScore
                       />
                     </dd>
                   </div>
@@ -920,7 +885,7 @@ export const LeadDetails: React.FC = () => {
                   </div>
                   {lead.notes && (
                     <div className="md:col-span-2">
-                      <dt className="text-text-muted">Notes</dt>
+                      <dt className="text-text-muted">Remarks</dt>
                       <dd className="mt-1 whitespace-pre-wrap">{lead.notes}</dd>
                     </div>
                   )}
@@ -1010,8 +975,13 @@ export const LeadDetails: React.FC = () => {
                   size="sm"
                   variant="outline"
                   className="gap-1"
-                  onClick={() => setShowFollowUpDialog(true)}
-                  disabled={!canAct}
+                  onClick={() => {
+                    if (!canAct) {
+                      showToast("Assign a counsellor first");
+                      return;
+                    }
+                    setShowFollowUpDialog(true);
+                  }}
                 >
                   <Calendar size={14} /> Schedule
                 </Button>
@@ -1072,89 +1042,41 @@ export const LeadDetails: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Communication */}
-        <TabsContent value="communication">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Communication</CardTitle>
-              <PermissionGate itemKey="leads.all" mode="write">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1"
-                  onClick={() => void handleWhatsApp()}
-                >
-                  <MessageCircle size={14} /> Open WhatsApp
-                </Button>
-              </PermissionGate>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {commActivities.length === 0 ? (
-                <p className="text-sm text-text-secondary py-8 text-center">
-                  No communication activity yet.
-                </p>
-              ) : (
-                commActivities.map((act) => (
-                  <div key={act.id} className="border-b last:border-0 pb-3">
-                    <p className="text-sm font-medium">{act.title}</p>
-                    <p className="text-xs text-text-secondary">
-                      {act.type} · {formatDateTime(act.createdAt)}
-                      {act.user?.name ? ` · ${act.user.name}` : ""}
-                    </p>
-                    {act.description && (
-                      <p className="text-xs mt-1">{act.description}</p>
-                    )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Notes */}
+        {/* Remarks — append-only (same as All Leads Add Remark); never full-replace notes */}
         <TabsContent value="notes">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Lead notes</CardTitle>
+                <CardTitle className="text-base">Lead remarks</CardTitle>
               </CardHeader>
-              <CardContent>
-                <PermissionGate
-                  itemKey="leads.all"
-                  mode="write"
-                  fallback={
-                    <p className="text-sm whitespace-pre-wrap">
-                      {lead.notes || "No notes."}
-                    </p>
-                  }
-                >
+              <CardContent className="space-y-3">
+                <p className="text-sm whitespace-pre-wrap rounded-md border border-border/60 bg-muted/30 p-3 min-h-[4.5rem]">
+                  {lead.notes || "No remarks yet."}
+                </p>
+                <PermissionGate itemKey="leads.all" mode="write">
                   <form
                     className="space-y-3"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      if (!id) return;
-                      const form = new FormData(e.currentTarget);
-                      updateLeadMutation.mutate({
-                        id,
-                        data: {
-                          notes: String(form.get("notes") || "") || undefined,
-                        },
-                      });
+                      if (!id || !remarksDraft.trim()) return;
+                      addNoteMutation.mutate(remarksDraft.trim());
                     }}
                   >
                     <Textarea
                       name="notes"
-                      defaultValue={lead.notes || ""}
-                      rows={6}
+                      value={remarksDraft}
+                      onChange={(e) => setRemarksDraft(e.target.value)}
+                      rows={3}
                       className="text-sm"
+                      placeholder="Add a remark (appended to history)…"
                     />
                     <Button
                       type="submit"
                       size="sm"
                       className="bg-primary text-white"
-                      disabled={updateLeadMutation.isPending}
+                      disabled={!remarksDraft.trim() || addNoteMutation.isPending}
                     >
-                      {updateLeadMutation.isPending ? "Saving..." : "Save notes"}
+                      {addNoteMutation.isPending ? "Adding..." : "Add remark"}
                     </Button>
                   </form>
                 </PermissionGate>
@@ -1162,7 +1084,7 @@ export const LeadDetails: React.FC = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Activity notes</CardTitle>
+                <CardTitle className="text-base">Activity remarks</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <PermissionGate itemKey="leads.all" mode="write">
@@ -1170,7 +1092,7 @@ export const LeadDetails: React.FC = () => {
                     <Textarea
                       value={noteDraft}
                       onChange={(e) => setNoteDraft(e.target.value)}
-                      placeholder="Add a note..."
+                      placeholder="Add a remark..."
                       rows={2}
                       className="text-sm"
                     />
@@ -1186,7 +1108,7 @@ export const LeadDetails: React.FC = () => {
                 </PermissionGate>
                 {noteActivities.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">
-                    No note activities yet.
+                    No remark activities yet.
                   </p>
                 ) : (
                   noteActivities.map((act) => (
@@ -1207,10 +1129,20 @@ export const LeadDetails: React.FC = () => {
         {/* Timeline */}
         <TabsContent value="timeline">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <Clock size={16} /> Activity timeline
+                <Clock size={16} /> Timeline
               </CardTitle>
+              <PermissionGate itemKey="leads.all" mode="write">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => void handleWhatsApp()}
+                >
+                  <MessageCircle size={14} /> Open WhatsApp
+                </Button>
+              </PermissionGate>
             </CardHeader>
             <CardContent className="space-y-3">
               {activities.length === 0 ? (
@@ -1249,116 +1181,6 @@ export const LeadDetails: React.FC = () => {
       />
 
       {/* Dialogs reused from previous Lead Details */}
-      <Dialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Application</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-text-secondary">
-              Creates an application for paperwork and fees. The lead stays open.
-            </p>
-            <div>
-              <Label>Course *</Label>
-              <select
-                value={appCourseId}
-                onChange={(e) => setAppCourseId(e.target.value)}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="">Select course</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={appNotes}
-                onChange={(e) => setAppNotes(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApplicationDialog(false)}>
-              Cancel
-            </Button>
-            <PermissionGate itemKey="leads.all" mode="write">
-              <Button
-                onClick={handleCreateApplication}
-                disabled={!appCourseId || createAppMutation.isPending}
-                className="bg-primary text-white"
-              >
-                {createAppMutation.isPending ? "Creating..." : "Create Application"}
-              </Button>
-            </PermissionGate>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Convert to Admission</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-text-secondary">
-              Creates a student and admission from this lead, then marks the lead as converted.
-            </p>
-            {convertError ? (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-                {convertError}
-              </p>
-            ) : null}
-            <div>
-              <Label>Course *</Label>
-              <select
-                value={appCourseId}
-                onChange={(e) => setAppCourseId(e.target.value)}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="">Select course</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {!lead?.courseId && !appCourseId ? (
-                <p className="text-xs text-amber-700 mt-1">
-                  This lead has no matched course yet — select one to convert.
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={appNotes}
-                onChange={(e) => setAppNotes(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>
-              Cancel
-            </Button>
-            <PermissionGate itemKey="leads.all" mode="write">
-              <Button
-                onClick={handleConvertLead}
-                disabled={(!appCourseId && !lead?.courseId) || convertLeadMutation.isPending}
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                {convertLeadMutation.isPending ? "Converting..." : "Convert to Admission"}
-              </Button>
-            </PermissionGate>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={showFollowUpDialog} onOpenChange={setShowFollowUpDialog}>
         <DialogContent>
           <DialogHeader>
@@ -1369,13 +1191,15 @@ export const LeadDetails: React.FC = () => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               if (!id) return;
+              const notes = String(formData.get("notes") || "").trim();
+              if (!notes) return;
               createFollowUpMutation.mutate(
                 {
                   id,
                   data: {
                     type: formData.get("type") as string,
                     scheduledAt: formData.get("scheduledAt") as string,
-                    notes: formData.get("notes") as string,
+                    notes,
                     counsellorId: lead.assignedCounsellorId || lead.createdById,
                     priority: (formData.get("priority") as string) || "MEDIUM",
                   },
@@ -1414,8 +1238,8 @@ export const LeadDetails: React.FC = () => {
               </select>
             </div>
             <div>
-              <Label>Notes</Label>
-              <Input name="notes" className="mt-1" />
+              <Label>Notes *</Label>
+              <Input name="notes" className="mt-1" required />
             </div>
             <DialogFooter>
               <Button
@@ -1441,7 +1265,22 @@ export const LeadDetails: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+      <Dialog
+        open={showAssignDialog}
+        onOpenChange={(open) => {
+          setShowAssignDialog(open);
+          if (open && lead) {
+            setAssignCounsellorId(lead.assignedCounsellorId || "");
+            setAssignConfirmReassign(false);
+            setAssignError(null);
+          }
+          if (!open) {
+            setAssignCounsellorId("");
+            setAssignConfirmReassign(false);
+            setAssignError(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Lead to Counsellor</DialogTitle>
@@ -1451,64 +1290,139 @@ export const LeadDetails: React.FC = () => {
               Wait for the AI call to finish before assigning.
             </p>
           ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const counsellorId = formData.get("counsellorId") as string;
-                if (!id || !counsellorId) return;
-                assignMutation.mutate(
-                  {
-                    id,
-                    data: {
-                      counsellorId,
-                      notes: (formData.get("notes") as string) || undefined,
-                    },
-                  },
-                  { onSuccess: () => setShowAssignDialog(false) }
-                );
-              }}
-              className="space-y-4 py-2"
-            >
-              <div>
-                <Label>Counsellor</Label>
-                <select
-                  name="counsellorId"
-                  className="w-full mt-1 h-10 px-3 rounded-md border text-sm bg-background"
-                  required
-                  defaultValue={lead.assignedCounsellorId || ""}
+            (() => {
+              const currentAssignee = lead?.assignedCounsellor;
+              const currentAssigneeId =
+                lead?.assignedCounsellorId || currentAssignee?.id || "";
+              const currentAssigneeName =
+                currentAssignee?.name || "another counsellor";
+              const selectedCounsellor = counsellors.find(
+                (c) => c.id === assignCounsellorId
+              );
+              const isSameCounsellor =
+                Boolean(currentAssigneeId) &&
+                assignCounsellorId === currentAssigneeId;
+              const isReassign =
+                Boolean(currentAssigneeId) &&
+                Boolean(assignCounsellorId) &&
+                assignCounsellorId !== currentAssigneeId;
+              const canSubmitAssign =
+                Boolean(assignCounsellorId) &&
+                !isSameCounsellor &&
+                (!isReassign || assignConfirmReassign) &&
+                !assignMutation.isPending;
+
+              return (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!id || !canSubmitAssign) return;
+                    setAssignError(null);
+                    const formData = new FormData(e.currentTarget);
+                    assignMutation.mutate(
+                      {
+                        id,
+                        data: {
+                          counsellorId: assignCounsellorId,
+                          notes:
+                            (formData.get("notes") as string) || undefined,
+                        },
+                      },
+                      {
+                        onSuccess: () => setShowAssignDialog(false),
+                        onError: (err: unknown) => {
+                          setAssignError(
+                            getApiErrorMessage(err, "Assign failed")
+                          );
+                        },
+                      }
+                    );
+                  }}
+                  className="space-y-4 py-2"
                 >
-                  <option value="">Select counsellor</option>
-                  {counsellors.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>Assignment Notes</Label>
-                <Input name="notes" className="mt-1" />
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAssignDialog(false)}
-                >
-                  Cancel
-                </Button>
-                <PermissionGate itemKey="leads.all" mode="write">
-                  <Button
-                    type="submit"
-                    className="bg-primary text-white"
-                    disabled={assignMutation.isPending}
-                  >
-                    {assignMutation.isPending ? "Assigning..." : "Assign Counsellor"}
-                  </Button>
-                </PermissionGate>
-              </DialogFooter>
-            </form>
+                  {currentAssigneeId ? (
+                    <p className="text-sm text-muted-foreground">
+                      Currently assigned to{" "}
+                      <strong>{currentAssigneeName}</strong>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Unassigned</p>
+                  )}
+                  <div>
+                    <Label>Counsellor</Label>
+                    <select
+                      name="counsellorId"
+                      className="w-full mt-1 h-10 px-3 rounded-md border text-sm bg-background"
+                      required
+                      value={assignCounsellorId}
+                      onChange={(e) => {
+                        setAssignCounsellorId(e.target.value);
+                        setAssignConfirmReassign(false);
+                        setAssignError(null);
+                      }}
+                    >
+                      <option value="">Select counsellor</option>
+                      {counsellors.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {isSameCounsellor && (
+                    <p className="text-sm text-muted-foreground">
+                      Already assigned to this counsellor.
+                    </p>
+                  )}
+                  {isReassign && (
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={assignConfirmReassign}
+                        onChange={(e) => {
+                          setAssignConfirmReassign(e.target.checked);
+                          setAssignError(null);
+                        }}
+                      />
+                      <span>
+                        Reassign from {currentAssigneeName} to{" "}
+                        {selectedCounsellor?.name || "selected counsellor"}
+                      </span>
+                    </label>
+                  )}
+                  <div>
+                    <Label>Assignment Notes</Label>
+                    <Input name="notes" className="mt-1" />
+                  </div>
+                  {assignError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {assignError}
+                    </p>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowAssignDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <PermissionGate itemKey="leads.all" mode="write">
+                      <Button
+                        type="submit"
+                        className="bg-primary text-white"
+                        disabled={!canSubmitAssign}
+                      >
+                        {assignMutation.isPending
+                          ? "Assigning..."
+                          : "Assign Counsellor"}
+                      </Button>
+                    </PermissionGate>
+                  </DialogFooter>
+                </form>
+              );
+            })()
           )}
         </DialogContent>
       </Dialog>

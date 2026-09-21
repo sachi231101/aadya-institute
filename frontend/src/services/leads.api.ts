@@ -116,6 +116,7 @@ export interface LeadFollowUp {
     stage: string;
     leadScore?: number | null;
     priority?: string;
+    notes?: string | null;
   };
 }
 
@@ -153,6 +154,8 @@ export interface LeadQueryParams {
   limit?: number;
   search?: string;
   stage?: string;
+  /** Comma-separated stages for multi-stage list filters (e.g. AI Calling queue) */
+  stages?: string;
   stageMasterId?: string;
   status?: string;
   source?: string;
@@ -164,6 +167,7 @@ export interface LeadQueryParams {
   sortOrder?: string;
   scoreBand?: "hot" | "warm" | "cold" | "unscored";
   unassigned?: boolean;
+  hasRemarks?: boolean;
   tag?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -181,6 +185,8 @@ export interface CallHistoryQueryParams {
   statuses?: string;
   callType?: "ALL" | "AI" | "MANUAL";
   view?: "queue" | "active" | "results";
+  /** Server-side search on lead name/phone (planned API contract). */
+  search?: string;
 }
 
 export const leadsApi = {
@@ -373,7 +379,11 @@ export const leadsApi = {
     return response.data;
   },
 
-  getFollowUpDashboard: async (params?: { branchId?: string }) => {
+  getFollowUpDashboard: async (params?: {
+    branchId?: string;
+    page?: number;
+    limit?: number;
+  }) => {
     const response = await api.get("/leads/dashboard/follow-ups", { params });
     return response.data;
   },

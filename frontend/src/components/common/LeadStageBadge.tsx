@@ -2,13 +2,18 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils";
 
 const STAGE_STYLES: Record<string, string> = {
-  NEW: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300",
-  CONTACTED: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300",
-  ASSIGNED: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300",
-  INTERESTED: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300",
-  FOLLOW_UP: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
-  CONVERTED: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300",
-  LOST: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300",
+  NEW: "border border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  CONTACTED:
+    "border border-cyan-300 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
+  ASSIGNED:
+    "border border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  INTERESTED:
+    "border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  FOLLOW_UP:
+    "border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  CONVERTED:
+    "border border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300",
+  LOST: "border border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -51,15 +56,24 @@ interface LeadStageBadgeProps {
   stage: string;
   label?: string;
   className?: string;
+  /** Compact badge for dense tables. */
+  size?: "default" | "sm";
 }
 
-export function LeadStageBadge({ stage, label, className }: LeadStageBadgeProps) {
+export function LeadStageBadge({
+  stage,
+  label,
+  className,
+  size = "default",
+}: LeadStageBadgeProps) {
   return (
     <Badge
       variant="outline"
       className={cn(
-        "font-semibold",
-        STAGE_STYLES[stage] ?? "bg-slate-100 text-slate-700",
+        "font-semibold whitespace-nowrap border",
+        size === "sm" && "h-5 px-1.5 py-0 text-[10px] leading-none font-medium",
+        STAGE_STYLES[stage] ??
+          "border border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
         className
       )}
     >

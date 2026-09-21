@@ -43,6 +43,13 @@ export const LeadConversionService = {
       throw new AppError("Lead not found", 404);
     }
 
+    if (!lead.assignedCounsellorId) {
+      throw new AppError(
+        "Lead must be assigned to a counsellor before conversion",
+        400
+      );
+    }
+
     const courseId = dto.courseId || lead.courseId;
     if (!courseId) {
       throw new AppError("Course is required to convert this lead", 400);

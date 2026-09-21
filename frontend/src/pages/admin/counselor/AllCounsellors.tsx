@@ -144,7 +144,11 @@ export const AllCounsellors: React.FC = () => {
       ? undefined
       : selectedBranchId;
 
-  const { data: leadsResponse } = useLeads({ limit: 500, branchId: leadsBranchId });
+  const { data: leadsResponse } = useLeads({
+    limit: 500,
+    status: "ACTIVE",
+    branchId: leadsBranchId,
+  });
   const allLeads: Lead[] = Array.isArray(leadsResponse?.data?.data)
     ? leadsResponse.data.data
     : Array.isArray(leadsResponse?.data)

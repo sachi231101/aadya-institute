@@ -194,6 +194,7 @@ export const CounselorDashboard: React.FC = () => {
   // Real Database Leads + mutations (PostgreSQL source of truth)
   const { data: dbLeadsResponse, isLoading: loadingLeads } = useLeads({
     limit: 100,
+    status: "ACTIVE",
     branchId: user?.branchId || undefined,
   });
   const createLeadMutation = useCreateLead();
@@ -327,7 +328,7 @@ export const CounselorDashboard: React.FC = () => {
         ? new Date(l.nextFollowUpAt).toLocaleDateString()
         : "—",
       attemptsCount: attempts,
-      latestResponse: l.notes || "Inbound enquiry logged in database.",
+      latestResponse: l.notes || "",
       assignedCounsellor: l.assignedCounsellor?.name || user?.name || "—",
       assignedDate: l.createdAt
         ? new Date(l.createdAt).toLocaleDateString()
@@ -788,7 +789,8 @@ export const CounselorDashboard: React.FC = () => {
     setFollowUpDate(tomorrow.toISOString().slice(0, 10));
     setFollowUpTime("11:00 AM");
     setSetReminder(true);
-    setFollowUpNotes(lead.latestResponse || lead.aiSummaryShort || "");
+    // New remark only — never prefill with full lead.notes history (that re-appends on save).
+    setFollowUpNotes("");
     setShowFollowUpModal(true);
   };
 
@@ -812,9 +814,37 @@ export const CounselorDashboard: React.FC = () => {
     }
   };
 
+  const openDirectAdmission = (lead: UnifiedLead) => {
+    navigate("/counselor/admissions/direct-entry", {
+      state: {
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phone,
+          phoneNumber: lead.phone,
+          email: lead.email,
+          course: lead.course,
+          interestedIn: lead.course,
+          source: lead.source,
+          branchId: user?.branchId,
+          counsellor: lead.assignedCounsellor,
+          assignedCounselor: lead.assignedCounsellor,
+        },
+        leadId: lead.id,
+      },
+    });
+  };
+
   const handleSaveFollowUpModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeLead || !user?.id) return;
+
+    const remark = followUpNotes.trim();
+    if (!remark) {
+      setFollowUpSuccessMsg("Follow-up remark is required");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+      return;
+    }
 
     const formattedNextDate =
       followUpDate === new Date().toISOString().slice(0, 10)
@@ -822,18 +852,15 @@ export const CounselorDashboard: React.FC = () => {
         : `${followUpDate}, ${followUpTime}`;
 
     try {
+      // createFollowUp owns stage move to FOLLOW_UP when appropriate — do not call changeStage.
       await createFollowUpMutation.mutateAsync({
         id: activeLead.id,
         data: {
           type: followUpType === "WHATSAPP" ? "WHATSAPP" : followUpType === "EMAIL" ? "REMINDER" : "CALL",
           scheduledAt: parseFollowUpToIso(followUpDate, followUpTime),
-          notes: followUpNotes || undefined,
+          notes: remark,
           counsellorId: user.id,
         },
-      });
-      await changeStageMutation.mutateAsync({
-        id: activeLead.id,
-        data: { stage: "FOLLOW_UP", notes: followUpNotes || undefined },
       });
       setFollowUpSuccessMsg(`✓ Follow-up scheduled for ${activeLead.name} on ${formattedNextDate}`);
       setTimeout(() => setFollowUpSuccessMsg(null), 4500);
@@ -874,17 +901,25 @@ export const CounselorDashboard: React.FC = () => {
     }
   };
 
-  // Checkbox stage toggle helper
+  // Checkbox stage toggle helper — mirrors Admin LeadDetails handleStageChange
   const handleToggleStageCheckbox = async (leadId: string, targetStage: any) => {
     const lead = combinedLeadsList.find((l) => l.id === leadId);
     if (!lead) return;
 
-    if (targetStage === "FOLLOW_UP") {
+    const normalized = String(targetStage || "").toUpperCase().replace(/\s+/g, "_");
+    if (normalized === lead.stage || normalized === lead.pipelineStage) return;
+
+    if (normalized === "CONVERTED") {
+      openDirectAdmission(lead);
+      return;
+    }
+
+    if (normalized === "FOLLOW_UP") {
       handleOpenFollowUp(lead);
       return;
     }
 
-    if (targetStage === "LOST") {
+    if (normalized === "LOST") {
       handleOpenLostModal(lead);
       return;
     }
@@ -892,7 +927,7 @@ export const CounselorDashboard: React.FC = () => {
     try {
       await changeStageMutation.mutateAsync({
         id: leadId,
-        data: { stage: targetStage },
+        data: { stage: normalized },
       });
     } catch (err: any) {
       setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to update stage");
@@ -946,10 +981,27 @@ export const CounselorDashboard: React.FC = () => {
     }
   };
 
-  // Log Attempt handler — records note + optional stage bump via API
+  // Log Attempt handler — safe stages only via changeStage; route terminal/follow-up flows
   const handleSaveAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeLead) return;
+
+    const stage = String(attemptNewStage || "").toUpperCase();
+    if (stage === "CONVERTED") {
+      setShowLogAttemptModal(false);
+      openDirectAdmission(activeLead);
+      return;
+    }
+    if (stage === "LOST") {
+      setShowLogAttemptModal(false);
+      handleOpenLostModal(activeLead);
+      return;
+    }
+    if (stage === "FOLLOW_UP") {
+      setShowLogAttemptModal(false);
+      handleOpenFollowUp(activeLead);
+      return;
+    }
 
     try {
       await changeStageMutation.mutateAsync({
@@ -2350,7 +2402,7 @@ export const CounselorDashboard: React.FC = () => {
               </DialogTitle>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Set next follow-up touchpoint, reminders, and interaction notes for this candidate.
+              Set next follow-up touchpoint, reminders, and interaction remarks for this candidate.
             </p>
           </DialogHeader>
 
@@ -2515,13 +2567,17 @@ export const CounselorDashboard: React.FC = () => {
                 </label>
               </div>
 
-              {/* 4. Follow-up Notes Textarea */}
+              {/* 4. Follow-up Remarks Textarea */}
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Follow-up Notes</Label>
+                <Label className="text-slate-700 font-bold text-xs">New remark *</Label>
+                <p className="text-[10px] text-slate-500 leading-snug">
+                  Add only this visit&apos;s remark. Existing remarks are shown above and stay on the lead.
+                </p>
                 <textarea
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
-                  placeholder="Add notes about this conversation, discussed points, or reason for the next follow-up…"
+                  required
+                  placeholder="Add remarks about this conversation, discussed points, or reason for the next follow-up…"
                   className="w-full min-h-[85px] p-3 border border-slate-200 rounded-2xl text-xs bg-white font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] shadow-2xs"
                 />
               </div>
@@ -2687,11 +2743,9 @@ export const CounselorDashboard: React.FC = () => {
                   onChange={(e: any) => setAttemptNewStage(e.target.value)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
                 >
+                  <option value="NEW">New</option>
                   <option value="CONTACTED">Contacted</option>
                   <option value="INTERESTED">Interested</option>
-                  <option value="FOLLOW_UP">Follow-up Due</option>
-                  <option value="CONVERTED">Converted to Admission</option>
-                  <option value="LOST">Marked as Lost</option>
                 </select>
               </div>
             </div>

@@ -211,6 +211,11 @@ export const changeLeadStageSchema = z.object({
   stage: z.string().optional(),
   stageMasterId: z.string().optional(),
   notes: z.string().optional(),
+  scheduledAt: z
+    .string()
+    .or(z.date())
+    .optional()
+    .transform((val) => (val ? new Date(val) : undefined)),
 }).refine((d) => d.stageMasterId || d.stage, {
   message: "stageMasterId or stage is required",
 });
@@ -263,7 +268,11 @@ export const createApplicationFromLeadSchema = z
 export const createFollowUpSchema = z.object({
   type: FollowUpTypeEnum.optional().default("CALL"),
   scheduledAt: z.string().or(z.date()).transform((val) => new Date(val)),
-  notes: z.string().optional(),
+  notes: z
+    .string()
+    .trim()
+    .min(1, "Follow-up remark is required")
+    .max(2000),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().default("MEDIUM"),
   counsellorId: z.string().optional(),
 });
@@ -297,6 +306,13 @@ export const queryCallHistorySchema = z.object({
   statuses: z.string().optional(),
   callType: CallHistoryCallTypeFilterEnum.optional().default("ALL"),
   view: CallHistoryViewEnum.optional(),
+  search: z.string().trim().optional(),
+});
+
+export const queryFollowUpDashboardSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  branchId: z.string().trim().optional(),
 });
 
 export const queryLeadsSchema = z.object({
@@ -304,6 +320,8 @@ export const queryLeadsSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().trim().optional(),
   stage: z.string().optional(),
+  /** Comma-separated stages (e.g. AI Calling queue: NEW,ASSIGNED,CONTACTED,...) */
+  stages: z.string().optional(),
   stageMasterId: z.string().optional(),
   status: LeadStatusEnum.optional(),
   source: z.string().optional(),
@@ -318,6 +336,10 @@ export const queryLeadsSchema = z.object({
   followUpTo: z.string().optional(),
   scoreBand: ScoreBandEnum.optional(),
   unassigned: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .optional()
+    .transform((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined)),
+  hasRemarks: z
     .union([z.boolean(), z.enum(["true", "false"])])
     .optional()
     .transform((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined)),

@@ -5,7 +5,6 @@ import {
   Search,
   Plus,
   Loader2,
-  AlertCircle,
   Users,
   LayoutList,
   Columns3,
@@ -14,28 +13,22 @@ import {
   Download,
   MoreHorizontal,
   Check,
-  MessageCircle,
-  Phone,
-  PhoneCall,
-  Bot,
-  Tag,
   StickyNote,
   Calendar,
   UserCheck,
   Archive,
   GitMerge,
-  GraduationCap,
+  Eye,
+  GitBranch,
 } from "lucide-react";
 import {
   useLeads,
   useLeadDashboard,
   useAssignLead,
   useChangeLeadStage,
-  useUpdateLeadTags,
   useArchiveLead,
-  useTriggerLeadCall,
   useCreateFollowUp,
-  useCreateManualCallLog,
+  useMarkLeadLost,
 } from "@/hooks/useLeads";
 import {
   useConfirmImport,
@@ -46,11 +39,9 @@ import {
 import { useAdminUsers } from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { MasterSelect } from "@/components/common/MasterSelect";
 import { useAuthStore } from "@/store/auth.store";
 import { getPortalBasePath } from "@/utils/portal-path";
-import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
-import { Card, CardContent } from "@/components/ui/card";
+import { FilterToolbar } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -94,18 +85,12 @@ import {
 import { BulkAssignDialog } from "./components/BulkAssignDialog";
 import { MergeLeadsDialog } from "./components/MergeLeadsDialog";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
-import { LeadIntentBadge } from "./components/LeadIntentBadge";
-import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
+import { LeadWorkspaceShell } from "./components/LeadWorkspaceShell";
+import { LeadDataSurface, LeadListState } from "./components/LeadDataSurface";
+import { getApiErrorMessage } from "@/utils/api-error";
 
 type ViewMode = "list" | "kanban";
-type RowAction =
-  | "assign"
-  | "stage"
-  | "note"
-  | "tags"
-  | "manualCall"
-  | "followUp"
-  | null;
+type RowAction = "assign" | "stage" | "note" | "followUp" | null;
 
 type ImportFileJob = {
   fileName: string;
@@ -115,19 +100,6 @@ type ImportFileJob = {
   errorRows?: number;
   message?: string;
 };
-
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatShortDate(value?: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
@@ -157,6 +129,7 @@ export const AllLeadsList: React.FC = () => {
   );
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [kanbanLimit, setKanbanLimit] = useState(100);
   const [view, setView] = useState<ViewMode>("list");
   const [activeKpi, setActiveKpi] = useState<LeadKpiKey | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -167,6 +140,9 @@ export const AllLeadsList: React.FC = () => {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [actionLead, setActionLead] = useState<Lead | null>(null);
   const [rowAction, setRowAction] = useState<RowAction>(null);
+  const [assignCounsellorId, setAssignCounsellorId] = useState("");
+  const [assignConfirmReassign, setAssignConfirmReassign] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [showImportModal, setShowImportModal] = useState(false);
@@ -197,11 +173,9 @@ export const AllLeadsList: React.FC = () => {
 
   const assignMutation = useAssignLead();
   const changeStageMutation = useChangeLeadStage();
-  const updateTagsMutation = useUpdateLeadTags();
   const archiveMutation = useArchiveLead();
-  const triggerCallMutation = useTriggerLeadCall();
   const createFollowUpMutation = useCreateFollowUp();
-  const manualCallMutation = useCreateManualCallLog();
+  const markLostMutation = useMarkLeadLost();
 
   useEffect(() => {
     const fromUrl = searchParams.get("assignedCounsellorId");
@@ -212,22 +186,58 @@ export const AllLeadsList: React.FC = () => {
   }, [searchParams]);
 
   const stagePipeline = useMemo(() => {
-    if (stageOptions.length > 0) {
-      return stageOptions.map((opt) => ({
-        key: opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"),
-        label: opt.label,
-      }));
-    }
-    return [...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"].map((s) => ({
+    const fromMasters =
+      stageOptions.length > 0
+        ? stageOptions.map((opt) => ({
+            key: opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"),
+            label: opt.label,
+          }))
+        : [];
+
+    const fallback = [...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"].map((s) => ({
       key: s,
       label: s.replace(/_/g, " "),
     }));
+
+    const base = fromMasters.length > 0 ? fromMasters : fallback;
+    const seen = new Set(base.map((s) => s.key));
+    // Always keep terminal stages visible (converted leads must remain findable).
+    for (const required of [
+      { key: "CONVERTED", label: "Converted" },
+      { key: "LOST", label: "Lost" },
+    ]) {
+      if (!seen.has(required.key)) {
+        base.push(required);
+        seen.add(required.key);
+      }
+    }
+    return base;
   }, [stageOptions]);
+
+  // Default ACTIVE pipeline: hide terminal columns on kanban; keep in stage dropdown / deep-link.
+  const kanbanColumns = useMemo(() => {
+    const hideTerminal = stageFilter === "ALL" && !advancedApplied.status;
+    if (!hideTerminal) return stagePipeline;
+    return stagePipeline.filter(
+      (s) => s.key !== "CONVERTED" && s.key !== "LOST"
+    );
+  }, [stagePipeline, stageFilter, advancedApplied.status]);
+
+  // Deep-link: /leads?stage=CONVERTED after admission conversion
+  useEffect(() => {
+    const stageFromUrl = searchParams.get("stage");
+    if (!stageFromUrl) return;
+    const normalized = stageFromUrl.toUpperCase().replace(/\s+/g, "_");
+    if (normalized === stageFilter) return;
+    setStageFilter(normalized);
+    setStageMasterId("");
+    setPage(1);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps -- hydrate stage from URL
 
   const listParams = useMemo((): LeadQueryParams => {
     const params: LeadQueryParams = {
       page: view === "list" ? page : 1,
-      limit: view === "kanban" ? 100 : 20,
+      limit: view === "kanban" ? kanbanLimit : 20,
       search: searchTerm || undefined,
       stage: stageFilter !== "ALL" ? stageFilter : undefined,
       assignedCounsellorId:
@@ -235,7 +245,6 @@ export const AllLeadsList: React.FC = () => {
       branchId: isAdmin && branchFilter !== "ALL" ? branchFilter : undefined,
       source: advancedApplied.source,
       sourceMasterId: advancedApplied.sourceMasterId,
-      status: advancedApplied.status,
       priority: advancedApplied.priority,
       scoreBand: advancedApplied.scoreBand,
       tag: advancedApplied.tag,
@@ -248,10 +257,24 @@ export const AllLeadsList: React.FC = () => {
       params.followUpTo = new Date().toISOString();
     }
 
+    // Default Lead Management = open pipeline only (ACTIVE).
+    // Admitted leads are CONVERTED and must not clutter All Leads unless
+    // user explicitly filters Stage/Status = Converted (or Lost).
+    if (advancedApplied.status) {
+      params.status = advancedApplied.status;
+    } else if (stageFilter === "CONVERTED") {
+      params.status = "CONVERTED";
+    } else if (stageFilter === "LOST") {
+      params.status = "LOST";
+    } else {
+      params.status = "ACTIVE";
+    }
+
     return params;
   }, [
     view,
     page,
+    kanbanLimit,
     searchTerm,
     stageFilter,
     counsellorFilter,
@@ -269,6 +292,12 @@ export const AllLeadsList: React.FC = () => {
       : [];
   const meta = data?.data?.meta || data?.meta || { totalPages: 1, page: 1 };
 
+  // Avoid multi-page bulk assign/merge acting on stale selections
+  useEffect(() => {
+    setSelectedIds([]);
+    setKanbanLimit(100);
+  }, [page, searchTerm, stageFilter, counsellorFilter, branchFilter, advancedApplied, view]);
+
   const selectedLeads = useMemo(
     () => leads.filter((l) => selectedIds.includes(l.id)),
     [leads, selectedIds]
@@ -279,7 +308,10 @@ export const AllLeadsList: React.FC = () => {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const openLead = (id: string) => navigate(`${basePath}/leads/${id}`);
+  const openLead = (id: string, tab?: string) => {
+    const qs = tab ? `?tab=${encodeURIComponent(tab)}` : "";
+    navigate(`${basePath}/leads/${id}${qs}`);
+  };
 
   const clearKpiAndAdvancedOverlaps = () => {
     setActiveKpi(null);
@@ -315,7 +347,6 @@ export const AllLeadsList: React.FC = () => {
     setStageFilter("ALL");
     setStageMasterId("");
 
-    const today = todayIsoDate();
     const nextAdv: LeadAdvancedFilterValues = {
       ...advancedApplied,
       scoreBand: undefined,
@@ -330,19 +361,10 @@ export const AllLeadsList: React.FC = () => {
       setAdvancedDraft(nextAdv);
       return;
     }
-    if (key === "new") {
-      setStageFilter("NEW");
-      setAdvancedApplied(nextAdv);
-      setAdvancedDraft(nextAdv);
-      return;
-    }
-    if (key === "hot" || key === "warm" || key === "cold") {
+    if (key === "hot") {
       nextAdv.scoreBand = key;
     } else if (key === "unassigned") {
       nextAdv.unassigned = true;
-    } else if (key === "today") {
-      nextAdv.dateFrom = today;
-      nextAdv.dateTo = today;
     } else if (key === "overdue") {
       navigate(`${basePath}/leads/follow-ups?tab=overdue`);
       return;
@@ -368,11 +390,19 @@ export const AllLeadsList: React.FC = () => {
   const openRowAction = (lead: Lead, action: RowAction) => {
     setActionLead(lead);
     setRowAction(action);
+    if (action === "assign") {
+      setAssignCounsellorId(lead.assignedCounsellorId || "");
+      setAssignConfirmReassign(false);
+      setAssignError(null);
+    }
   };
 
   const closeRowAction = () => {
     setActionLead(null);
     setRowAction(null);
+    setAssignCounsellorId("");
+    setAssignConfirmReassign(false);
+    setAssignError(null);
   };
 
   const handleExport = async () => {
@@ -499,22 +529,6 @@ export const AllLeadsList: React.FC = () => {
     showToast("Import confirmed — leads refreshed");
   };
 
-  const handleWhatsApp = async (lead: Lead) => {
-    const phone = lead.phoneNumber.replace(/\D/g, "");
-    const digits = phone.startsWith("91") ? phone : `91${phone}`;
-    try {
-      await leadsApi.addActivity(lead.id, {
-        type: "WHATSAPP_SENT",
-        title: "WhatsApp opened",
-        description: `Opened WhatsApp chat for ${lead.phoneNumber}`,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
-    } catch {
-      // Non-blocking
-    }
-    window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
-  };
-
   const handleArchive = (lead: Lead) => {
     if (!window.confirm(`Archive lead "${lead.name}"?`)) return;
     archiveMutation.mutate(lead.id, {
@@ -534,73 +548,73 @@ export const AllLeadsList: React.FC = () => {
   const activeFilterCount = countActiveAdvancedFilters(advancedApplied);
 
   return (
-    <PageContainer>
-      <ReadOnlyBanner itemKey="leads.all" label="All Leads" />
-
-      {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 rounded-lg bg-slate-900 text-white text-sm px-4 py-2.5 shadow-lg">
-          {toastMessage}
-        </div>
-      )}
-
-      <PageHeader
-        title="All Leads"
-        description="Lead pipeline, assignment, and follow-up."
-        actions={
-          <PermissionGate itemKey="leads.all" mode="write">
-            <Button
-              onClick={() =>
-                navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
-              }
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Create
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="More actions">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setImportJobs([]);
-                    setShowImportModal(true);
-                  }}
-                >
-                  <Upload className="h-4 w-4 mr-2" /> Import
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
-                  {exportMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  Export
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </PermissionGate>
-        }
-      />
-      <LeadModuleNavLinks className="mt-1" />
-
-      <LeadSummaryCards
-        summary={summary}
-        activeKey={activeKpi}
-        onSelect={applyKpi}
-        isLoading={dashboardLoading}
-      />
-
-      <FilterToolbar className="flex flex-col gap-3">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-            <div className="flex rounded-md border border-border bg-muted/40 p-0.5 shrink-0">
+    <LeadWorkspaceShell
+      title="All Leads"
+      description="Lead pipeline, assignment, and follow-up."
+      banner={
+        <>
+          <ReadOnlyBanner itemKey="leads.all" label="All Leads" />
+          {toastMessage ? (
+            <div className="fixed top-4 right-4 z-50 rounded-lg bg-slate-900 text-white text-sm px-4 py-2.5 shadow-lg">
+              {toastMessage}
+            </div>
+          ) : null}
+        </>
+      }
+      primaryAction={
+        <PermissionGate itemKey="leads.all" mode="write">
+          <Button
+            onClick={() =>
+              navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)
+            }
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Create
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="More actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setImportJobs([]);
+                  setShowImportModal(true);
+                }}
+              >
+                <Upload className="h-4 w-4 mr-2" /> Import
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+                {exportMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Export
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </PermissionGate>
+      }
+      metrics={
+        <LeadSummaryCards
+          summary={summary}
+          activeKey={activeKpi}
+          onSelect={applyKpi}
+          isLoading={dashboardLoading}
+        />
+      }
+      toolbar={
+        <FilterToolbar className="!py-0 gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <div className="flex h-9 shrink-0 items-center rounded-md border border-border bg-muted/40 p-0.5">
               <Button
                 type="button"
                 variant={view === "list" ? "secondary" : "ghost"}
                 size="sm"
-                className="rounded-sm text-xs font-semibold h-8 px-3"
+                className="h-8 rounded-sm px-2.5 text-xs font-semibold"
                 onClick={() => setView("list")}
               >
                 <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
@@ -609,48 +623,67 @@ export const AllLeadsList: React.FC = () => {
                 type="button"
                 variant={view === "kanban" ? "secondary" : "ghost"}
                 size="sm"
-                className="rounded-sm text-xs font-semibold h-8 px-3"
+                className="h-8 rounded-sm px-2.5 text-xs font-semibold"
                 onClick={() => setView("kanban")}
               >
                 <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
               </Button>
             </div>
-            <div className="relative flex-1 w-full min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
+            <div className="relative min-w-[180px] flex-1 basis-[220px]">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by name, phone, email..."
+                placeholder="Search name, phone, email…"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="pl-9 h-9 rounded-md bg-background border-border"
+                className="h-9 rounded-md border-border bg-background pl-8"
               />
             </div>
-            <div className="w-full sm:w-[170px]">
-              <MasterSelect
-                entityType="leadstage"
-                value={stageMasterId}
-                allowCreate={false}
-                onChange={(id) => {
+
+            <select
+              value={stageMasterId || (stageFilter === "ALL" ? "" : stageFilter)}
+              onChange={(e) => {
+                const id = e.target.value;
+                setPage(1);
+                clearKpiAndAdvancedOverlaps();
+                if (!id) {
+                  setStageMasterId("");
+                  setStageFilter("ALL");
+                  return;
+                }
+                const byId = stageOptions.find((o) => o.value === id);
+                if (byId) {
                   setStageMasterId(id);
-                  setPage(1);
-                  clearKpiAndAdvancedOverlaps();
-                  if (!id) {
-                    setStageFilter("ALL");
-                    return;
-                  }
-                  const opt = stageOptions.find((o) => o.value === id);
                   setStageFilter(
-                    opt?.code ||
-                      opt?.label.toUpperCase().replace(/\s+/g, "_") ||
+                    byId.code ||
+                      byId.label.toUpperCase().replace(/\s+/g, "_") ||
                       "ALL"
                   );
-                }}
-                placeholder="All Stages"
-                className="mt-0"
-              />
-            </div>
+                  return;
+                }
+                setStageMasterId("");
+                setStageFilter(id);
+              }}
+              className="h-9 w-[140px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+              aria-label="Filter by stage"
+            >
+              <option value="">All stages</option>
+              {stagePipeline.map((s) => {
+                const master = stageOptions.find(
+                  (o) =>
+                    (o.code || o.label.toUpperCase().replace(/\s+/g, "_")) === s.key
+                );
+                return (
+                  <option key={s.key} value={master?.value || s.key}>
+                    {s.label}
+                  </option>
+                );
+              })}
+            </select>
+
             <select
               value={counsellorFilter}
               onChange={(e) => {
@@ -662,15 +695,17 @@ export const AllLeadsList: React.FC = () => {
                 else next.set("assignedCounsellorId", value);
                 setSearchParams(next, { replace: true });
               }}
-              className="h-9 px-3 border border-border rounded-md text-sm bg-background font-medium text-foreground w-full sm:w-auto"
+              className="h-9 w-[150px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+              aria-label="Filter by counsellor"
             >
-              <option value="ALL">All Counsellors</option>
+              <option value="ALL">All counsellors</option>
               {counsellors.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
+
             {isAdmin && (
               <select
                 value={branchFilter}
@@ -678,9 +713,10 @@ export const AllLeadsList: React.FC = () => {
                   setBranchFilter(e.target.value);
                   setPage(1);
                 }}
-                className="h-9 px-3 border border-border rounded-md text-sm bg-background font-medium text-foreground w-full sm:w-auto"
+                className="h-9 w-[150px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+                aria-label="Filter by branch"
               >
-                <option value="ALL">All Branches</option>
+                <option value="ALL">All branches</option>
                 {branches.map((b: { id: string; name: string }) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -688,28 +724,30 @@ export const AllLeadsList: React.FC = () => {
                 ))}
               </select>
             )}
+
             <Button
               type="button"
               variant="outline"
-              className="h-9 gap-1.5 rounded-md relative"
+              className="h-9 shrink-0 gap-1.5 rounded-md px-3"
               onClick={() => {
                 setAdvancedDraft(advancedApplied);
                 setAdvancedOpen(true);
               }}
             >
-              <Filter className="h-4 w-4" />
-              Filters
+              <Filter className="h-3.5 w-3.5" />
+              More
               {activeFilterCount > 0 && (
-                <Badge className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
+                <Badge className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
                   {activeFilterCount}
                 </Badge>
               )}
             </Button>
           </div>
-      </FilterToolbar>
-
+        </FilterToolbar>
+      }
+    >
           {selectedIds.length > 0 && view === "list" && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2">
               <span className="text-sm font-semibold">
                 {selectedIds.length} selected
               </span>
@@ -746,24 +784,19 @@ export const AllLeadsList: React.FC = () => {
             </div>
           )}
 
-          <Card className="border-border/60 shadow-xs rounded-xl overflow-hidden">
-            <CardContent className="p-0">
+          <LeadDataSurface>
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground px-4">
-              <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-              Loading leads...
-            </div>
+            <LeadListState kind="loading" message="Loading leads..." />
           ) : isError ? (
-            <div className="text-center py-12 text-red-600 px-4">
-              <AlertCircle className="w-5 h-5 inline mr-2" />
-              Failed to load leads.
-              <Button variant="link" onClick={() => refetch()}>
-                Retry
-              </Button>
-            </div>
+            <LeadListState
+              kind="error"
+              message="Failed to load leads."
+              onRetry={() => refetch()}
+            />
           ) : view === "kanban" ? (
-            <div className="flex gap-3 overflow-x-auto p-4 pb-2">
-              {stagePipeline.map(({ key: stage, label }) => {
+            <div className="flex flex-col gap-3 p-4 pb-2">
+              <div className="flex gap-3 overflow-x-auto">
+              {kanbanColumns.map(({ key: stage, label }) => {
                 const columnLeads = leads.filter((l) => l.stage === stage);
                 return (
                   <div
@@ -793,20 +826,14 @@ export const AllLeadsList: React.FC = () => {
                               <p className="font-bold text-sm text-foreground">
                                 {lead.name}
                               </p>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <LeadScoreBadge
-                                  score={lead.leadScore}
-                                  temperature={lead.leadTemperature}
-                                  showScore={false}
-                                />
-                                <LeadIntentBadge intent={lead.leadIntent} />
-                              </div>
+                              <LeadScoreBadge
+                                score={lead.leadScore}
+                                temperature={lead.leadTemperature}
+                                showScore={false}
+                              />
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {lead.phoneNumber}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1 font-medium">
-                              {lead.course?.name || lead.interestedIn}
                             </p>
                             <p className="text-[11px] text-muted-foreground mt-1">
                               {lead.assignedCounsellor?.name || "Unassigned"}
@@ -818,13 +845,31 @@ export const AllLeadsList: React.FC = () => {
                   </div>
                 );
               })}
+              </div>
+              {(meta.total ?? 0) > leads.length ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Showing {leads.length} of {meta.total}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled={isLoading}
+                    onClick={() => setKanbanLimit((n) => n + 100)}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent border-0">
                       <TableHead className="w-10">
                         <input
                           type="checkbox"
@@ -832,48 +877,45 @@ export const AllLeadsList: React.FC = () => {
                             leads.length > 0 && selectedIds.length === leads.length
                           }
                           onChange={toggleSelectAll}
-                          className="h-4 w-4 rounded border-border"
+                          className="h-3.5 w-3.5 rounded border-border"
                           aria-label="Select all"
                         />
                       </TableHead>
-                      <TableHead>Lead</TableHead>
-                      <TableHead>Course/Program</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Stage</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Score / Temp</TableHead>
-                      <TableHead>Intent</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Counsellor</TableHead>
-                      <TableHead>Last Contact</TableHead>
-                      <TableHead>Next Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="w-12">Actions</TableHead>
+                      <TableHead className="min-w-[140px]">Lead</TableHead>
+                      <TableHead className="w-[92px]">Stage</TableHead>
+                      <TableHead className="w-[72px]">Score</TableHead>
+                      <TableHead className="min-w-[120px]">Course</TableHead>
+                      <TableHead className="min-w-[110px]">Counsellor</TableHead>
+                      <TableHead className="w-[100px]">Follow-up</TableHead>
+                      <TableHead className="w-10 text-right"> </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {leads.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={14}
-                          className="text-center py-8 text-text-secondary"
-                        >
-                          <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                          No leads found.
+                      <TableRow className="hover:bg-transparent border-0">
+                        <TableCell colSpan={8} className="p-0 border-0">
+                          <LeadListState
+                            kind="empty"
+                            message="No leads found."
+                            icon={Users}
+                          />
                         </TableCell>
                       </TableRow>
                     ) : (
                       leads.map((lead) => (
                         <TableRow
                           key={lead.id}
-                          className="hover:bg-bg-secondary/30"
+                          className="group border-0"
                         >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell
+                            className="w-10"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(lead.id)}
                               onChange={() => toggleSelect(lead.id)}
-                              className="h-4 w-4 rounded border-border"
+                              className="h-3.5 w-3.5 rounded border-border"
                               aria-label={`Select ${lead.name}`}
                             />
                           </TableCell>
@@ -881,21 +923,18 @@ export const AllLeadsList: React.FC = () => {
                             className="cursor-pointer"
                             onClick={() => openLead(lead.id)}
                           >
-                            <div>
-                              <p className="font-medium">{lead.name}</p>
-                              <p className="text-xs text-muted-foreground">
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground text-[13px] leading-tight truncate">
+                                {lead.name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
                                 {lead.phoneNumber}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">
-                            {lead.course?.name || lead.interestedIn || "—"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {lead.source || "—"}
-                          </TableCell>
-                          <TableCell>
+                          <TableCell className="w-[92px]">
                             <LeadStageBadge
+                              size="sm"
                               stage={lead.stage}
                               label={
                                 stageOptions.find(
@@ -905,53 +944,50 @@ export const AllLeadsList: React.FC = () => {
                               }
                             />
                           </TableCell>
-                          <TableCell className="text-sm">
-                            {lead.status || "—"}
+                          <TableCell className="w-[72px]">
+                            <LeadScoreBadge
+                              score={lead.leadScore}
+                              temperature={lead.leadTemperature}
+                              showScore
+                              className="h-5 px-1.5 py-0 text-[10px] leading-none font-medium"
+                            />
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className="text-xs tabular-nums text-muted-foreground">
-                                {lead.leadScore != null ? `${lead.leadScore}/100` : "—"}
+                          <TableCell className="text-[13px] text-foreground/90 max-w-[160px]">
+                            <span className="line-clamp-2">
+                              {lead.course?.name || lead.interestedIn || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-[13px] whitespace-nowrap">
+                            {lead.assignedCounsellor?.name ? (
+                              <span className="text-foreground/90">
+                                {lead.assignedCounsellor.name}
                               </span>
-                              <LeadScoreBadge
-                                score={lead.leadScore}
-                                temperature={lead.leadTemperature}
-                                showScore={false}
-                              />
-                            </div>
+                            ) : (
+                              <span className="text-muted-foreground text-[12px]">
+                                Unassigned
+                              </span>
+                            )}
                           </TableCell>
-                          <TableCell>
-                            <LeadIntentBadge intent={lead.leadIntent} emptyLabel="—" />
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {lead.priority || "—"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {lead.assignedCounsellor?.name || "Unassigned"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {formatDateTime(lead.lastContactedAt)}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
                             {formatDateTime(lead.nextFollowUpAt)}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {formatShortDate(lead.createdAt)}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell
+                            className="w-10 text-right"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-7 w-7 opacity-60 group-hover:opacity-100"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuContent align="end" className="w-52">
                                 <DropdownMenuItem onClick={() => openLead(lead.id)}>
-                                  Open Lead 360
+                                  <Eye className="h-4 w-4" /> Open Lead 360
                                 </DropdownMenuItem>
                                 <PermissionGate itemKey="leads.all" mode="write">
                                   <DropdownMenuSeparator />
@@ -963,83 +999,21 @@ export const AllLeadsList: React.FC = () => {
                                   <DropdownMenuItem
                                     onClick={() => openRowAction(lead, "stage")}
                                   >
-                                    Change Stage
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => openRowAction(lead, "note")}
-                                  >
-                                    <StickyNote className="h-4 w-4" /> Add Note
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => openRowAction(lead, "tags")}
-                                  >
-                                    <Tag className="h-4 w-4" /> Tags
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => openRowAction(lead, "manualCall")}
-                                  >
-                                    <Phone className="h-4 w-4" /> Log Manual Call
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      triggerCallMutation.mutate(lead.id, {
-                                        onSuccess: () =>
-                                          showToast(`AI call queued for ${lead.name}`),
-                                        onError: (err: unknown) =>
-                                          showToast(
-                                            (err as { response?: { data?: { message?: string } } })
-                                              ?.response?.data?.message ||
-                                              "AI call failed"
-                                          ),
-                                      })
-                                    }
-                                  >
-                                    <Bot className="h-4 w-4" /> AI Call
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => void handleWhatsApp(lead)}
-                                  >
-                                    <MessageCircle className="h-4 w-4" /> Open WhatsApp
+                                    <GitBranch className="h-4 w-4" /> Change Stage
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => openRowAction(lead, "followUp")}
                                   >
-                                    <Calendar className="h-4 w-4" /> Follow-up
+                                    <Calendar className="h-4 w-4" /> Schedule Follow-up
                                   </DropdownMenuItem>
-                                  {lead.assignedCounsellorId &&
-                                    lead.stage !== "CONVERTED" &&
-                                    lead.stage !== "LOST" && (
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          navigate(
-                                            `${basePath}/admissions/direct-entry`,
-                                            {
-                                              state: {
-                                                lead: {
-                                                  id: lead.id,
-                                                  name: lead.name,
-                                                  phone: lead.phoneNumber,
-                                                  email: lead.email,
-                                                  courseId: lead.courseId,
-                                                  course:
-                                                    lead.course?.name ||
-                                                    lead.interestedIn,
-                                                  source: lead.source,
-                                                  notes: lead.notes,
-                                                  branchId: lead.branchId,
-                                                },
-                                                leadId: lead.id,
-                                              },
-                                            }
-                                          )
-                                        }
-                                      >
-                                        <GraduationCap className="h-4 w-4" /> Convert
-                                      </DropdownMenuItem>
-                                    )}
+                                  <DropdownMenuItem
+                                    onClick={() => openRowAction(lead, "note")}
+                                  >
+                                    <StickyNote className="h-4 w-4" /> Add Remark
+                                  </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600"
+                                    className="text-destructive focus:text-destructive"
                                     onClick={() => handleArchive(lead)}
                                   >
                                     <Archive className="h-4 w-4" /> Archive
@@ -1081,8 +1055,7 @@ export const AllLeadsList: React.FC = () => {
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+          </LeadDataSurface>
 
       <LeadAdvancedFilters
         open={advancedOpen}
@@ -1106,11 +1079,21 @@ export const AllLeadsList: React.FC = () => {
       <BulkAssignDialog
         open={bulkAssignOpen}
         onOpenChange={setBulkAssignOpen}
-        leadIds={selectedIds}
+        leads={selectedLeads}
         counsellors={counsellors}
-        onSuccess={() => {
-          setSelectedIds([]);
-          showToast("Leads assigned");
+        onSuccess={({ succeeded, failed }) => {
+          if (failed === 0) {
+            setSelectedIds([]);
+            showToast(
+              succeeded === 1
+                ? "Lead assigned"
+                : `${succeeded} leads assigned`
+            );
+            return;
+          }
+          if (succeeded > 0) {
+            showToast(`${succeeded} assigned, ${failed} failed`);
+          }
         }}
       />
 
@@ -1134,64 +1117,131 @@ export const AllLeadsList: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Assign {actionLead?.name}</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!actionLead) return;
-              const form = new FormData(e.currentTarget);
-              const counsellorId = String(form.get("counsellorId") || "");
-              if (!counsellorId) return;
-              assignMutation.mutate(
-                {
-                  id: actionLead.id,
-                  data: {
-                    counsellorId,
-                    notes: String(form.get("notes") || "") || undefined,
-                  },
-                },
-                {
-                  onSuccess: () => {
-                    showToast("Lead assigned");
-                    closeRowAction();
-                  },
-                }
-              );
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <Label>Counsellor</Label>
-              <select
-                name="counsellorId"
-                required
-                defaultValue={actionLead?.assignedCounsellorId || ""}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
+          {(() => {
+            const currentAssignee = actionLead?.assignedCounsellor;
+            const currentAssigneeId =
+              actionLead?.assignedCounsellorId || currentAssignee?.id || "";
+            const currentAssigneeName = currentAssignee?.name || "another counsellor";
+            const selectedCounsellor = counsellors.find(
+              (c) => c.id === assignCounsellorId
+            );
+            const isSameCounsellor =
+              Boolean(currentAssigneeId) &&
+              assignCounsellorId === currentAssigneeId;
+            const isReassign =
+              Boolean(currentAssigneeId) &&
+              Boolean(assignCounsellorId) &&
+              assignCounsellorId !== currentAssigneeId;
+            const canSubmitAssign =
+              Boolean(assignCounsellorId) &&
+              !isSameCounsellor &&
+              (!isReassign || assignConfirmReassign) &&
+              !assignMutation.isPending;
+
+            return (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!actionLead || !canSubmitAssign) return;
+                  setAssignError(null);
+                  const form = new FormData(e.currentTarget);
+                  assignMutation.mutate(
+                    {
+                      id: actionLead.id,
+                      data: {
+                        counsellorId: assignCounsellorId,
+                        notes: String(form.get("notes") || "") || undefined,
+                      },
+                    },
+                    {
+                      onSuccess: () => {
+                        showToast("Lead assigned");
+                        closeRowAction();
+                      },
+                      onError: (err: unknown) => {
+                        const msg = getApiErrorMessage(err, "Assign failed");
+                        setAssignError(msg);
+                        showToast(msg);
+                      },
+                    }
+                  );
+                }}
+                className="space-y-4"
               >
-                <option value="">Select counsellor</option>
-                {counsellors.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Input name="notes" className="mt-1" />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeRowAction}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-primary text-white"
-                disabled={assignMutation.isPending}
-              >
-                {assignMutation.isPending ? "Assigning..." : "Assign"}
-              </Button>
-            </DialogFooter>
-          </form>
+                {currentAssigneeId ? (
+                  <p className="text-sm text-muted-foreground">
+                    Currently assigned to <strong>{currentAssigneeName}</strong>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Unassigned</p>
+                )}
+                <div>
+                  <Label>Counsellor</Label>
+                  <select
+                    name="counsellorId"
+                    required
+                    value={assignCounsellorId}
+                    onChange={(e) => {
+                      setAssignCounsellorId(e.target.value);
+                      setAssignConfirmReassign(false);
+                      setAssignError(null);
+                    }}
+                    className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
+                  >
+                    <option value="">Select counsellor</option>
+                    {counsellors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {isSameCounsellor && (
+                  <p className="text-sm text-muted-foreground">
+                    Already assigned to this counsellor.
+                  </p>
+                )}
+                {isReassign && (
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={assignConfirmReassign}
+                      onChange={(e) => {
+                        setAssignConfirmReassign(e.target.checked);
+                        setAssignError(null);
+                      }}
+                    />
+                    <span>
+                      Reassign from {currentAssigneeName} to{" "}
+                      {selectedCounsellor?.name || "selected counsellor"}
+                    </span>
+                  </label>
+                )}
+                <div>
+                  <Label>Notes</Label>
+                  <Input name="notes" className="mt-1" />
+                </div>
+                {assignError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {assignError}
+                  </p>
+                )}
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={closeRowAction}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-primary text-white"
+                    disabled={!canSubmitAssign}
+                  >
+                    {assignMutation.isPending ? "Assigning..." : "Assign"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1230,6 +1280,32 @@ export const AllLeadsList: React.FC = () => {
                 });
                 return;
               }
+              if (stage === "LOST") {
+                markLostMutation.mutate(
+                  {
+                    id: actionLead.id,
+                    data: {
+                      reason: "OTHER",
+                      notes: String(form.get("notes") || "") || undefined,
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      showToast("Lead marked as Lost");
+                      closeRowAction();
+                    },
+                    onError: (err: unknown) => {
+                      showToast(getApiErrorMessage(err, "Mark lost failed"));
+                    },
+                  }
+                );
+                return;
+              }
+              // FOLLOW_UP requires a scheduled task — open Schedule dialog (not bare changeStage)
+              if (stage === "FOLLOW_UP") {
+                setRowAction("followUp");
+                return;
+              }
               changeStageMutation.mutate(
                 {
                   id: actionLead.id,
@@ -1242,6 +1318,9 @@ export const AllLeadsList: React.FC = () => {
                   onSuccess: () => {
                     showToast("Stage updated");
                     closeRowAction();
+                  },
+                  onError: (err: unknown) => {
+                    showToast(getApiErrorMessage(err, "Stage update failed"));
                   },
                 }
               );
@@ -1274,9 +1353,13 @@ export const AllLeadsList: React.FC = () => {
               <Button
                 type="submit"
                 className="bg-primary text-white"
-                disabled={changeStageMutation.isPending}
+                disabled={
+                  changeStageMutation.isPending || markLostMutation.isPending
+                }
               >
-                {changeStageMutation.isPending ? "Saving..." : "Update"}
+                {changeStageMutation.isPending || markLostMutation.isPending
+                  ? "Saving..."
+                  : "Update"}
               </Button>
             </DialogFooter>
           </form>
@@ -1289,7 +1372,7 @@ export const AllLeadsList: React.FC = () => {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add note — {actionLead?.name}</DialogTitle>
+            <DialogTitle>Add remark — {actionLead?.name}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={async (e) => {
@@ -1301,182 +1384,37 @@ export const AllLeadsList: React.FC = () => {
               try {
                 await leadsApi.addActivity(actionLead.id, {
                   type: "NOTE_ADDED",
-                  title: "Note added",
+                  title: "Remark added",
                   description,
                 });
                 await queryClient.invalidateQueries({ queryKey: ["leads"] });
-                showToast("Note added");
+                showToast("Remark added");
                 closeRowAction();
               } catch (err: unknown) {
                 showToast(
                   (err as { response?: { data?: { message?: string } } })?.response
-                    ?.data?.message || "Failed to add note"
+                    ?.data?.message || "Failed to add remark"
                 );
               }
             }}
             className="space-y-4"
           >
             <div>
-              <Label>Note</Label>
-              <Textarea name="description" className="mt-1" required rows={4} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeRowAction}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-primary text-white">
-                Save note
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={rowAction === "tags" && !!actionLead}
-        onOpenChange={(o) => !o && closeRowAction()}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tags — {actionLead?.name}</DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!actionLead) return;
-              const form = new FormData(e.currentTarget);
-              const raw = String(form.get("tags") || "");
-              const tags = raw
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean);
-              updateTagsMutation.mutate(
-                { id: actionLead.id, data: { tags } },
-                {
-                  onSuccess: () => {
-                    showToast("Tags updated");
-                    closeRowAction();
-                  },
-                }
-              );
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <Label>Tags (comma-separated)</Label>
-              <Input
-                name="tags"
+              <Label>Remark</Label>
+              <Textarea
+                name="description"
                 className="mt-1"
-                defaultValue={(actionLead?.tags || []).join(", ")}
-                placeholder="NEET, callback, fees"
+                required
+                rows={4}
+                placeholder="Counsellor or admin remark for this lead…"
               />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeRowAction}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="bg-primary text-white"
-                disabled={updateTagsMutation.isPending}
-              >
-                {updateTagsMutation.isPending ? "Saving..." : "Save tags"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={rowAction === "manualCall" && !!actionLead}
-        onOpenChange={(o) => !o && closeRowAction()}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <PhoneCall className="h-4 w-4" />
-              Log manual call — {actionLead?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!actionLead) return;
-              const form = new FormData(e.currentTarget);
-              manualCallMutation.mutate(
-                {
-                  leadId: actionLead.id,
-                  status: String(form.get("status") || "COMPLETED"),
-                  duration: Number(form.get("duration") || 0) || undefined,
-                  outcome: String(form.get("outcome") || "") || null,
-                  notes: String(form.get("notes") || "") || null,
-                  interestStatus: String(form.get("interestStatus") || "") || null,
-                },
-                {
-                  onSuccess: () => {
-                    showToast("Manual call logged");
-                    closeRowAction();
-                  },
-                  onError: (err: unknown) =>
-                    showToast(
-                      (err as { response?: { data?: { message?: string } } })
-                        ?.response?.data?.message || "Failed to log call"
-                    ),
-                }
-              );
-            }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Status</Label>
-                <select
-                  name="status"
-                  defaultValue="COMPLETED"
-                  className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-                >
-                  <option value="COMPLETED">Completed</option>
-                  <option value="NO_ANSWER">No answer</option>
-                  <option value="BUSY">Busy</option>
-                  <option value="FAILED">Failed</option>
-                </select>
-              </div>
-              <div>
-                <Label>Duration (sec)</Label>
-                <Input name="duration" type="number" min={0} className="mt-1" />
-              </div>
-            </div>
-            <div>
-              <Label>Interest</Label>
-              <select
-                name="interestStatus"
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="">—</option>
-                <option value="INTERESTED">Interested</option>
-                <option value="NOT_INTERESTED">Not interested</option>
-                <option value="CALLBACK">Callback</option>
-                <option value="NEUTRAL">Neutral</option>
-              </select>
-            </div>
-            <div>
-              <Label>Outcome</Label>
-              <Input name="outcome" className="mt-1" />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea name="notes" className="mt-1" rows={3} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeRowAction}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-primary text-white"
-                disabled={manualCallMutation.isPending}
-              >
-                {manualCallMutation.isPending ? "Saving..." : "Log call"}
+              <Button type="submit" className="bg-primary text-white">
+                Save remark
               </Button>
             </DialogFooter>
           </form>
@@ -1496,13 +1434,19 @@ export const AllLeadsList: React.FC = () => {
               e.preventDefault();
               if (!actionLead) return;
               const form = new FormData(e.currentTarget);
+              const scheduledRaw = String(form.get("scheduledAt") || "");
+              const notes = String(form.get("notes") || "").trim();
+              if (!scheduledRaw || !notes) {
+                if (!notes) showToast("Follow-up remark is required");
+                return;
+              }
               createFollowUpMutation.mutate(
                 {
                   id: actionLead.id,
                   data: {
                     type: String(form.get("type") || "CALL"),
-                    scheduledAt: String(form.get("scheduledAt") || ""),
-                    notes: String(form.get("notes") || "") || undefined,
+                    scheduledAt: new Date(scheduledRaw).toISOString(),
+                    notes,
                     priority: String(form.get("priority") || "MEDIUM"),
                     counsellorId:
                       actionLead.assignedCounsellorId || undefined,
@@ -1547,8 +1491,8 @@ export const AllLeadsList: React.FC = () => {
               </select>
             </div>
             <div>
-              <Label>Notes</Label>
-              <Input name="notes" className="mt-1" />
+              <Label>Notes *</Label>
+              <Input name="notes" className="mt-1" required />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeRowAction}>
@@ -1642,6 +1586,6 @@ export const AllLeadsList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PageContainer>
+    </LeadWorkspaceShell>
   );
 };

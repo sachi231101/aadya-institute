@@ -222,10 +222,10 @@ export const LeadAllocation: React.FC = () => {
       <BulkAssignDialog
         open={bulkAssignOpen}
         onOpenChange={setBulkAssignOpen}
-        leadIds={selectedIds}
+        leads={visible.filter((l) => selectedIds.includes(l.id))}
         counsellors={counsellors}
-        onSuccess={() => {
-          setSelectedIds([]);
+        onSuccess={({ failed }) => {
+          if (failed === 0) setSelectedIds([]);
           refetch();
         }}
       />

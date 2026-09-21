@@ -36,7 +36,7 @@ import type { SarvamWebhookPayload } from "../../integrations/sarvam/sarvam.type
 
 const CALL_HISTORY_VIEW_STATUSES: Record<string, string[]> = {
   queue: ["INITIATED"],
-  active: ["RINGING", "ANSWERED"],
+  active: ["INITIATED", "RINGING", "ANSWERED"],
   results: ["COMPLETED", "NO_ANSWER", "BUSY", "FAILED", "CALLBACK_REQUESTED"],
 };
 
@@ -141,6 +141,7 @@ export const LeadService = {
       limit = 20,
       search,
       stage,
+      stages: stagesRaw,
       status,
       source,
       stageMasterId,
@@ -154,8 +155,16 @@ export const LeadService = {
       followUpTo,
       scoreBand,
       unassigned,
+      hasRemarks,
       tag,
     } = query;
+
+    const stages = stagesRaw
+      ? stagesRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
 
     const scope = getBranchScopeFilter(currentUser, query.branchId);
     const skip = (page - 1) * limit;
@@ -170,10 +179,12 @@ export const LeadService = {
     const { leads, total } = await LeadRepository.findLeads({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
+      branchIds: scope.branchIds,
       assignedCounsellorId: isCounsellorOnly ? undefined : assignedCounsellorId,
       counsellorVisibleId: isCounsellorOnly ? counsellorId : undefined,
       courseId,
       stage,
+      stages,
       stageMasterId,
       status,
       source,
@@ -186,6 +197,7 @@ export const LeadService = {
       followUpTo,
       scoreBand,
       unassigned: isCounsellorOnly ? undefined : unassigned,
+      hasRemarks,
       tag,
       skip,
       take: limit,
@@ -245,7 +257,10 @@ export const LeadService = {
       "Lead details updated",
       {
         userId: currentUser.userId || currentUser.id,
-        description: `Updated by ${currentUser.name ?? (currentUser.userId || currentUser.id)}`,
+        description:
+          dto.notes !== undefined
+            ? dto.notes?.trim() || "Remarks cleared"
+            : `Updated by ${currentUser.name ?? (currentUser.userId || currentUser.id)}`,
       }
     );
 
@@ -421,6 +436,47 @@ export const LeadService = {
       });
       stageMasterId = resolved.masterId;
       stageCode = resolved.code || resolved.label;
+    }
+
+    if (stageCode === "CONVERTED") {
+      throw new AppError(
+        "Use Direct Admission to convert a lead. Stage cannot be set to CONVERTED directly.",
+        400
+      );
+    }
+    if (stageCode === "LOST") {
+      throw new AppError(
+        "Use Mark Lost to mark a lead as lost. Stage cannot be set to LOST directly.",
+        400
+      );
+    }
+
+    if (stageCode === "FOLLOW_UP") {
+      const pendingCount = await prisma.leadFollowUp.count({
+        where: { leadId, status: "PENDING" },
+      });
+
+      if (pendingCount === 0 && !dto.scheduledAt) {
+        throw new AppError(
+          "Cannot set stage to FOLLOW_UP without a scheduled follow-up. Provide scheduledAt or create a follow-up task first.",
+          400
+        );
+      }
+
+      if (dto.scheduledAt) {
+        await LeadFollowupService.createFollowUp(leadId, currentUser, {
+          scheduledAt: dto.scheduledAt,
+          notes: dto.notes,
+          type: "CALL",
+        });
+        if (stageMasterId) {
+          await prisma.lead.update({
+            where: { id: leadId },
+            data: { stageMasterId },
+          });
+        }
+        return this.getLeadById(leadId, currentUser);
+      }
     }
 
     const updated = await LeadRepository.changeStage(
@@ -651,28 +707,54 @@ export const LeadService = {
     return LeadFollowupService.getFollowUpsByLeadId(leadId);
   },
 
-  async getFollowUpDashboard(currentUser: AuthUser, branchId?: string) {
+  async getFollowUpDashboard(
+    currentUser: AuthUser,
+    branchId?: string,
+    pagination?: { page?: number; limit?: number }
+  ) {
     const scope = getBranchScopeFilter(currentUser, branchId);
+    const isCounsellorOnly =
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER");
     return LeadFollowupService.getFollowUpDashboard(
       scope.instituteId,
       scope.branchId,
-      currentUser.userId || currentUser.id
+      currentUser.userId || currentUser.id,
+      {
+        branchIds: scope.branchIds,
+        scopeToAssignee: isCounsellorOnly,
+        page: pagination?.page,
+        limit: pagination?.limit,
+      }
     );
   },
 
   // ─── Activities & History ───────────────────────────────────────────────────
   async addActivity(leadId: string, currentUser: AuthUser, dto: AddActivityDTO) {
-    await this.getLeadById(leadId, currentUser);
-    return LeadActivityService.logActivity(
-      leadId,
-      dto.type ?? "NOTE_ADDED",
-      dto.title,
-      {
-        userId: currentUser.userId || currentUser.id,
-        description: dto.description,
-        metadata: dto.metadata,
+    const lead = await this.getLeadById(leadId, currentUser);
+    const type = dto.type ?? "NOTE_ADDED";
+
+    // Keep Lead.notes in sync when staff add a remark from the Activity remarks panel.
+    if (type === "NOTE_ADDED" && dto.description?.trim()) {
+      const { appendLeadRemarks } = await import("./utils/append-lead-notes");
+      const roles = (currentUser.roles || []).map((r) => String(r).toUpperCase());
+      const actor = roles.includes("COUNSELLOR")
+        ? "counsellor"
+        : roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")
+          ? "admin"
+          : "staff";
+      const appended = appendLeadRemarks(lead.notes, dto.description, actor);
+      if (appended !== undefined) {
+        await LeadRepository.updateLead(leadId, { notes: appended });
       }
-    );
+    }
+
+    return LeadActivityService.logActivity(leadId, type, dto.title, {
+      userId: currentUser.userId || currentUser.id,
+      description: dto.description,
+      metadata: dto.metadata,
+    });
   },
 
   async getLeadHistory(leadId: string, currentUser: AuthUser) {
@@ -691,12 +773,20 @@ export const LeadService = {
   // ─── Dashboards ─────────────────────────────────────────────────────────────
   async getDashboardSummary(currentUser: AuthUser, branchId?: string) {
     const scope = getBranchScopeFilter(currentUser, branchId);
-    return LeadRepository.getDashboardSummary(scope.instituteId, scope.branchId);
+    return LeadRepository.getDashboardSummary(
+      scope.instituteId,
+      scope.branchId,
+      scope.branchIds
+    );
   },
 
   async getCounsellorPerformance(currentUser: AuthUser, branchId?: string) {
     const scope = getBranchScopeFilter(currentUser, branchId);
-    return LeadRepository.getCounsellorPerformance(scope.instituteId, scope.branchId);
+    return LeadRepository.getCounsellorPerformance(
+      scope.instituteId,
+      scope.branchId,
+      scope.branchIds
+    );
   },
 
   // ─── Sarvam AI Webhook Integration (delegates to multi-tenant module) ────────
@@ -717,6 +807,12 @@ export const LeadService = {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const isCounsellorOnly =
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER");
+    const counsellorId = currentUser.userId || currentUser.id;
+
     const viewStatuses = query.view
       ? CALL_HISTORY_VIEW_STATUSES[query.view]
       : undefined;
@@ -731,11 +827,14 @@ export const LeadService = {
     const { total, data } = await LeadRepository.findCallHistory({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
+      branchIds: scope.branchIds,
+      counsellorVisibleId: isCounsellorOnly ? counsellorId : undefined,
       leadId: query.leadId,
       studentId: query.studentId,
       status: statuses ? undefined : query.status,
       statuses,
       callType: query.callType,
+      search: query.search,
       skip,
       take: limit,
     });

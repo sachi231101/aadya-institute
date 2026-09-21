@@ -14,7 +14,7 @@ import {
 } from "../../utils/permission-catalog";
 import { createAuditLog } from "../../utils/audit-log.util";
 import type { AuthUser } from "../auth/auth.types";
-import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -51,11 +51,44 @@ const getInstituteId = (currentUser: AuthUser): string => {
   return currentUser.instituteId;
 };
 
+type BranchScopedUser = {
+  branchId?: string | null;
+  branchAccesses?: Array<{ branchId: string }>;
+};
+
 /**
- * Branch filter for user listing — non-admins are locked to their assigned branch.
+ * CENTER_MANAGER may see a user when any of the target's primary branch or
+ * UserBranchAccess rows intersects the actor's allowed branch scope.
  */
-const getBranchFilter = (currentUser: AuthUser, requestedBranchId?: string): string | undefined => {
-  return getBranchScopeFilter(currentUser, requestedBranchId).branchId;
+const isUserVisibleToCenterManager = (
+  currentUser: AuthUser,
+  target: BranchScopedUser
+): boolean => {
+  if (
+    currentUser.roles.includes("ADMIN") ||
+    currentUser.roles.includes("SUPER_ADMIN") ||
+    !currentUser.roles.includes("CENTER_MANAGER")
+  ) {
+    return true;
+  }
+
+  const targetBranchIds = new Set<string>();
+  if (target.branchId) targetBranchIds.add(target.branchId);
+  for (const access of target.branchAccesses ?? []) {
+    if (access.branchId) targetBranchIds.add(access.branchId);
+  }
+
+  if (targetBranchIds.size === 0) return false;
+  return [...targetBranchIds].some((id) => hasBranchAccess(currentUser, id));
+};
+
+const assertUserVisibleToCenterManager = (
+  currentUser: AuthUser,
+  target: BranchScopedUser
+): void => {
+  if (!isUserVisibleToCenterManager(currentUser, target)) {
+    throw new AppError("User not found", 404);
+  }
 };
 
 const actorId = (currentUser: AuthUser) => currentUser.userId || currentUser.id;
@@ -68,12 +101,13 @@ export const listUsersService = async (
 ) => {
   const { page = 1, limit = 20, search, role, status } = query;
   const instituteId = getInstituteId(currentUser);
-  const branchId = getBranchFilter(currentUser, query.branchId);
+  const scope = getBranchScopeFilter(currentUser, query.branchId);
   const skip = (page - 1) * limit;
 
   const { users, total } = await findUsers({
     instituteId,
-    branchId,
+    branchId: scope.branchId,
+    branchIds: scope.branchIds,
     search,
     role,
     status: status as UserStatus | undefined,
@@ -98,15 +132,8 @@ export const getUserService = async (
 
   if (!user) throw new AppError("User not found", 404);
 
-  // CENTER_MANAGER can only see users from their branch
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    user.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("User not found", 404); // Return 404 instead of 403 to avoid leaking existence
-  }
+  // CENTER_MANAGER can only see users from their branch (primary or access)
+  assertUserVisibleToCenterManager(currentUser, user);
 
   return user;
 };
@@ -194,8 +221,19 @@ export const createUserService = async (
     roleIds: foundRoles.map((r) => r.id),
   });
 
+  // Keep UserBranchAccess aligned with primary branch for CM / Counsellor.
+  if (isBranchRole && branchId) {
+    const withAccess = await replaceUserBranchAccess(user.id, instituteId, [
+      branchId,
+    ]);
+    if (!withAccess) {
+      await hardDeleteUser(user.id);
+      throw new AppError("Invalid branch for this institute", 400);
+    }
+  }
+
   // If creating a CENTER_MANAGER or COUNSELLOR, set granular permissions
-  let result = user;
+  let result = (await findUserById(user.id, instituteId)) ?? user;
   let omittedPermissions: string[] = [];
   if (input.roles.includes("CENTER_MANAGER") || input.roles.includes("COUNSELLOR")) {
     const roleScope: PermissionRoleScope = input.roles.includes("COUNSELLOR")
@@ -263,14 +301,7 @@ export const updateUserService = async (
   if (!existing) throw new AppError("User not found", 404);
 
   // Branch isolation check
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("User not found", 404);
-  }
+  assertUserVisibleToCenterManager(currentUser, existing);
 
   const updated = await updateUser(userId, instituteId, input);
 
@@ -317,13 +348,8 @@ export const updateUserPermissionsService = async (
   // Branch isolation for CENTER_MANAGER
   const isAdminActor =
     currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !isAdminActor &&
-    currentUser.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("User not found", 404);
+  if (!isAdminActor) {
+    assertUserVisibleToCenterManager(currentUser, existing);
   }
 
   // Non-admin cannot escalate a Counsellor into CM-level catalog via permission update target
@@ -492,14 +518,7 @@ export const deleteUserService = async (
   }
 
   // Branch isolation for CENTER_MANAGER
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("User not found", 404);
-  }
+  assertUserVisibleToCenterManager(currentUser, existing);
 
   await deleteUser(userId, instituteId);
 

@@ -63,6 +63,7 @@ export const CounsellorOverview: React.FC = () => {
   const { data: leadsResponse, isLoading: loadingLeads } = useLeads({
     limit: 100,
     branchId: activeBranchId,
+    status: "ACTIVE",
   });
 
   const [selectedCounsellor, setSelectedCounsellor] = useState<CounsellorPerf | null>(null);

@@ -82,6 +82,8 @@ export interface ChangeLeadStageDTO {
   stage?: string;
   stageMasterId?: string;
   notes?: string;
+  /** When setting FOLLOW_UP, create a pending task in the same flow */
+  scheduledAt?: string | Date;
 }
 
 export interface MarkLeadLostDTO {
@@ -130,6 +132,8 @@ export interface QueryLeadsDTO {
   limit?: number;
   search?: string;
   stage?: string;
+  /** Comma-separated stages for multi-stage list filters */
+  stages?: string;
   stageMasterId?: string;
   status?: LeadStatus;
   source?: string;
@@ -144,7 +148,14 @@ export interface QueryLeadsDTO {
   followUpTo?: string;
   scoreBand?: "hot" | "warm" | "cold" | "unscored";
   unassigned?: boolean;
+  hasRemarks?: boolean;
   tag?: string;
+}
+
+export interface QueryFollowUpDashboardDTO {
+  page?: number;
+  limit?: number;
+  branchId?: string;
 }
 
 export type CallHistoryView = "queue" | "active" | "results";
@@ -161,4 +172,6 @@ export interface QueryCallHistoryDTO {
   callType?: "ALL" | "AI" | "MANUAL";
   /** Convenience buckets for AI Calling tabs */
   view?: CallHistoryView;
+  /** Filter by lead name / phone */
+  search?: string;
 }

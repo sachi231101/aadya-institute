@@ -65,20 +65,62 @@ export const mapUserToResponse = (user: UserWithRoles) => {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
+/**
+ * Match users by primary branchId OR UserBranchAccess for the given scope.
+ * Single branchId and multi branchIds follow the same OR pattern as leads.
+ */
+const userBranchScopeWhere = (
+  branchId?: string,
+  branchIds?: string[]
+): Prisma.UserWhereInput | undefined => {
+  if (branchId) {
+    return {
+      OR: [
+        { branchId },
+        { branchAccesses: { some: { branchId } } },
+      ],
+    };
+  }
+  if (branchIds && branchIds.length > 0) {
+    return {
+      OR: [
+        { branchId: { in: branchIds } },
+        { branchAccesses: { some: { branchId: { in: branchIds } } } },
+      ],
+    };
+  }
+  return undefined;
+};
+
 export const findUsers = async (params: {
   instituteId: string;
   branchId?: string;
+  /** Multi-branch scope when getBranchScopeFilter returns branchIds. */
+  branchIds?: string[];
   search?: string;
   role?: string;
   status?: UserStatus;
   skip: number;
   take: number;
 }) => {
-  const { instituteId, branchId, search, role, status, skip, take } = params;
+  const { instituteId, branchId, branchIds, search, role, status, skip, take } =
+    params;
+
+  const branchScope = userBranchScopeWhere(branchId, branchIds);
+  const andClauses: Prisma.UserWhereInput[] = [];
+  if (branchScope) andClauses.push(branchScope);
+  if (search) {
+    andClauses.push({
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search } },
+      ],
+    });
+  }
 
   const where: Prisma.UserWhereInput = {
     instituteId,
-    ...(branchId && { branchId }),
     ...(status && { status }),
     ...(role && {
       userRoles: {
@@ -92,13 +134,7 @@ export const findUsers = async (params: {
         },
       },
     }),
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search } },
-      ],
-    }),
+    ...(andClauses.length > 0 ? { AND: andClauses } : {}),
   };
 
   const [users, total] = await prisma.$transaction([
@@ -289,16 +325,36 @@ export const replaceUserBranchAccess = async (
     }
   }
 
-  await prisma.$transaction([
-    prisma.userBranchAccess.deleteMany({ where: { userId } }),
-    ...(uniqueIds.length > 0
-      ? [
-          prisma.userBranchAccess.createMany({
-            data: uniqueIds.map((branchId) => ({ userId, branchId })),
-          }),
-        ]
-      : []),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.userBranchAccess.deleteMany({ where: { userId } });
+    if (uniqueIds.length > 0) {
+      await tx.userBranchAccess.createMany({
+        data: uniqueIds.map((branchId) => ({ userId, branchId })),
+      });
+    }
+
+    // Keep User.branchId inside the allowed set so JWT primary + access stay aligned.
+    const existing = await tx.user.findFirst({
+      where: { id: userId, instituteId },
+      select: { branchId: true },
+    });
+    if (!existing) return;
+
+    let nextBranchId: string | null = null;
+    if (uniqueIds.length > 0) {
+      nextBranchId =
+        existing.branchId && uniqueIds.includes(existing.branchId)
+          ? existing.branchId
+          : uniqueIds[0];
+    }
+
+    if (existing.branchId !== nextBranchId) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { branchId: nextBranchId },
+      });
+    }
+  });
 
   return findUserById(userId, instituteId);
 };

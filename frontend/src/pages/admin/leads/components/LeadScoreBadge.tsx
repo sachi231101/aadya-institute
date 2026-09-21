@@ -49,10 +49,10 @@ export function normalizeLeadTemperature(
 }
 
 const BAND_STYLES: Record<NonNullable<LeadScoreBand>, string> = {
-  hot: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300",
-  warm: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
-  cool: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300",
-  cold: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300",
+  hot: "border border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300",
+  warm: "border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  cool: "border border-cyan-300 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
+  cold: "border border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
 };
 
 const BAND_LABELS: Record<NonNullable<LeadScoreBand>, string> = {
@@ -86,7 +86,12 @@ export function LeadScoreBadge({
 
   if (!band) {
     return (
-      <span className={cn("text-xs text-muted-foreground", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full border border-border px-1.5 h-5 text-[10px] text-muted-foreground",
+          className
+        )}
+      >
         {showScore && score != null ? `${score}` : "—"}
       </span>
     );
@@ -95,7 +100,7 @@ export function LeadScoreBadge({
   return (
     <Badge
       variant="outline"
-      className={cn("font-semibold gap-1", BAND_STYLES[band], className)}
+      className={cn("font-semibold gap-1 border", BAND_STYLES[band], className)}
       title={score != null ? `Score: ${score}/100 · ${BAND_LABELS[band]}` : BAND_LABELS[band]}
     >
       {BAND_LABELS[band]}

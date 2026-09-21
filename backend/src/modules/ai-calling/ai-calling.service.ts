@@ -328,6 +328,28 @@ export const AiCallingService = {
     },
     options: { attemptNumber?: number } = {}
   ): Promise<{ queued: boolean; callLogId?: string; skipped?: string }> {
+    // Same ~15m stale rule as enqueueInitialLeadCall — frees redial after worker/webhook gaps.
+    const staleCutoff = new Date(Date.now() - 15 * 60 * 1000);
+    const expired = await prisma.callLog.updateMany({
+      where: {
+        leadId: lead.id,
+        status: { in: ["INITIATED", "RINGING"] },
+        createdAt: { lt: staleCutoff },
+      },
+      data: {
+        status: "FAILED",
+        failureReason:
+          "Stale in-flight call expired (no provider completion within 15 minutes)",
+        endedAt: new Date(),
+      },
+    });
+    if (expired.count > 0) {
+      logger.warn(
+        { leadId: lead.id, expired: expired.count },
+        "[AiCalling] Expired stale in-flight call logs before manual enqueue"
+      );
+    }
+
     const config = await resolveAiCallingConfig(lead.instituteId);
 
     let attemptNumber = options.attemptNumber;

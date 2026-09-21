@@ -3,8 +3,18 @@ import { AppError } from "../../../middlewares/error.middleware";
 import { LeadActivityService } from "./lead-activity.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { CreateFollowUpDTO, UpdateFollowUpDTO } from "../lead.types";
+import { appendCounsellorLeadNotes } from "../utils/append-lead-notes";
+import { recomputeNextFollowUpAt } from "../utils/recompute-next-follow-up-at";
 import { triggerNotification } from "../../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../../whatsapp/whatsapp.constants";
+
+/** Non-terminal stages that move to FOLLOW_UP when a task is scheduled. */
+const STAGES_TO_FOLLOW_UP = new Set([
+  "NEW",
+  "ASSIGNED",
+  "CONTACTED",
+  "INTERESTED",
+]);
 
 const followUpInclude = {
   lead: {
@@ -15,7 +25,7 @@ const followUpInclude = {
       stage: true,
       branchId: true,
       leadScore: true,
-      priority: true,
+      notes: true,
       assignedCounsellorId: true,
     },
   },
@@ -48,6 +58,13 @@ export const LeadFollowupService = {
 
     if (!lead) {
       throw new AppError("Lead not found", 404);
+    }
+
+    if (lead.status === "CONVERTED" || lead.status === "LOST") {
+      throw new AppError(
+        "Cannot create follow-up for a converted or lost lead",
+        400
+      );
     }
 
     if (
@@ -85,20 +102,47 @@ export const LeadFollowupService = {
         },
       });
 
-      const earliestPending = await tx.leadFollowUp.findFirst({
-        where: { leadId, status: "PENDING" },
-        orderBy: { scheduledAt: "asc" },
-      });
+      const appendedNotes = appendCounsellorLeadNotes(lead.notes, dto.notes);
+      const moveToFollowUp = STAGES_TO_FOLLOW_UP.has(lead.stage);
+      const nextStage = moveToFollowUp ? "FOLLOW_UP" : lead.stage;
 
       await tx.lead.update({
         where: { id: leadId },
         data: {
-          nextFollowUpAt: earliestPending?.scheduledAt ?? scheduledDate,
-          stage: ["NEW", "ASSIGNED", "CONTACTED"].includes(lead.stage)
-            ? "FOLLOW_UP"
-            : lead.stage,
+          stage: nextStage,
+          ...(appendedNotes !== undefined ? { notes: appendedNotes } : {}),
         },
       });
+
+      // Required so last-FU complete can restore INTERESTED/CONTACTED/etc.
+      if (moveToFollowUp) {
+        await tx.leadStageHistory.create({
+          data: {
+            leadId,
+            fromStage: lead.stage,
+            toStage: "FOLLOW_UP",
+            changedById: currentUser.userId || currentUser.id,
+            notes: "Follow-up scheduled",
+          },
+        });
+        await LeadActivityService.logActivity(
+          leadId,
+          "STAGE_CHANGED",
+          `Stage changed from ${lead.stage} to FOLLOW_UP`,
+          {
+            userId: currentUser.userId,
+            description: "Follow-up scheduled",
+            metadata: {
+              fromStage: lead.stage,
+              toStage: "FOLLOW_UP",
+              followUpId: followUp.id,
+            },
+            tx,
+          }
+        );
+      }
+
+      await recomputeNextFollowUpAt(leadId, tx);
 
       await LeadActivityService.logActivity(
         leadId,
@@ -181,13 +225,62 @@ export const LeadFollowupService = {
         orderBy: { scheduledAt: "asc" },
       });
 
+      const appendedNotes = appendCounsellorLeadNotes(
+        followUp.lead.notes,
+        dto.notes
+      );
+
+      const completedLastPending =
+        isCompleted && !nextPending && followUp.lead.stage === "FOLLOW_UP";
+
+      let restoreStage: string | undefined;
+      if (completedLastPending) {
+        const priorHistory = await tx.leadStageHistory.findFirst({
+          where: { leadId: followUp.leadId, toStage: "FOLLOW_UP" },
+          orderBy: { createdAt: "desc" },
+        });
+        const fromStage = priorHistory?.fromStage;
+        restoreStage =
+          fromStage && fromStage !== "FOLLOW_UP" ? fromStage : "CONTACTED";
+      }
+
       await tx.lead.update({
         where: { id: followUp.leadId },
         data: {
-          nextFollowUpAt: nextPending?.scheduledAt ?? null,
           ...(isCompleted ? { lastContactedAt: new Date() } : {}),
+          ...(restoreStage ? { stage: restoreStage } : {}),
+          ...(appendedNotes !== undefined ? { notes: appendedNotes } : {}),
         },
       });
+
+      await recomputeNextFollowUpAt(followUp.leadId, tx);
+
+      if (completedLastPending && restoreStage) {
+        await tx.leadStageHistory.create({
+          data: {
+            leadId: followUp.leadId,
+            fromStage: "FOLLOW_UP",
+            toStage: restoreStage,
+            changedById: currentUser.userId || currentUser.id,
+            notes: "Last pending follow-up completed",
+          },
+        });
+        await LeadActivityService.logActivity(
+          followUp.leadId,
+          "STAGE_CHANGED",
+          `Stage changed from FOLLOW_UP to ${restoreStage}`,
+          {
+            userId: currentUser.userId,
+            description: "Last pending follow-up completed",
+            metadata: {
+              fromStage: "FOLLOW_UP",
+              toStage: restoreStage,
+              followUpId,
+            },
+            tx,
+          }
+        );
+      }
 
       if (isCompleted) {
         await LeadActivityService.logActivity(
@@ -225,40 +318,91 @@ export const LeadFollowupService = {
   async getFollowUpDashboard(
     instituteId: string,
     branchId?: string,
-    currentUserId?: string
+    currentUserId?: string,
+    options?: {
+      branchIds?: string[];
+      scopeToAssignee?: boolean;
+      page?: number;
+      limit?: number;
+    }
   ) {
     const now = new Date();
     const startOfToday = startOfDay(now);
     const endOfToday = endOfDay(now);
 
+    const page = Math.max(1, options?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options?.limit ?? 50));
+    const skip = (page - 1) * limit;
+
+    const leadBranch =
+      branchId
+        ? { branchId }
+        : options?.branchIds && options.branchIds.length > 0
+          ? { branchId: { in: options.branchIds } }
+          : {};
+
     const leadScope = {
       instituteId,
-      ...(branchId ? { branchId } : {}),
+      ...leadBranch,
       status: "ACTIVE" as const,
     };
+
+    const assigneeFilter =
+      options?.scopeToAssignee && currentUserId
+        ? { counsellorId: currentUserId }
+        : {};
 
     const pendingBase = {
       lead: leadScope,
       status: "PENDING" as const,
+      ...assigneeFilter,
     };
 
     const completedBase = {
       lead: leadScope,
       status: "COMPLETED" as const,
+      ...assigneeFilter,
     };
 
-    const listTake = 50;
+    // My/team ignore scopeToAssignee assigneeFilter on purpose for managers;
+    // for counsellor-only, team is forced empty via impossible id filter.
+    const myPendingWhere = currentUserId
+      ? {
+          lead: leadScope,
+          status: "PENDING" as const,
+          counsellorId: currentUserId,
+        }
+      : pendingBase;
+
+    const teamPendingWhere = options?.scopeToAssignee
+      ? {
+          lead: leadScope,
+          status: "PENDING" as const,
+          id: "__no_team_for_counsellor__",
+        }
+      : currentUserId
+        ? {
+            lead: leadScope,
+            status: "PENDING" as const,
+            counsellorId: { not: currentUserId },
+          }
+        : pendingBase;
 
     const [
       overdue,
       today,
       upcoming,
       completedCount,
+      myCount,
+      teamCount,
       overdueList,
       todayList,
       upcomingList,
       completedList,
-      allPending,
+      allPendingList,
+      myList,
+      teamList,
+      highlightPending,
     ] = await prisma.$transaction([
       prisma.leadFollowUp.count({
         where: { ...pendingBase, scheduledAt: { lt: startOfToday } },
@@ -273,10 +417,13 @@ export const LeadFollowupService = {
         where: { ...pendingBase, scheduledAt: { gt: endOfToday } },
       }),
       prisma.leadFollowUp.count({ where: completedBase }),
+      prisma.leadFollowUp.count({ where: myPendingWhere }),
+      prisma.leadFollowUp.count({ where: teamPendingWhere }),
       prisma.leadFollowUp.findMany({
         where: { ...pendingBase, scheduledAt: { lt: startOfToday } },
         include: followUpInclude,
-        take: listTake,
+        skip,
+        take: limit,
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.leadFollowUp.findMany({
@@ -285,21 +432,47 @@ export const LeadFollowupService = {
           scheduledAt: { gte: startOfToday, lte: endOfToday },
         },
         include: followUpInclude,
-        take: listTake,
+        skip,
+        take: limit,
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.leadFollowUp.findMany({
         where: { ...pendingBase, scheduledAt: { gt: endOfToday } },
         include: followUpInclude,
-        take: listTake,
+        skip,
+        take: limit,
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.leadFollowUp.findMany({
         where: completedBase,
         include: followUpInclude,
-        take: listTake,
+        skip,
+        take: limit,
         orderBy: { completedAt: "desc" },
       }),
+      // "All" tab: full pending pool, paginated
+      prisma.leadFollowUp.findMany({
+        where: pendingBase,
+        include: followUpInclude,
+        skip,
+        take: limit,
+        orderBy: { scheduledAt: "asc" },
+      }),
+      prisma.leadFollowUp.findMany({
+        where: myPendingWhere,
+        include: followUpInclude,
+        skip,
+        take: limit,
+        orderBy: { scheduledAt: "asc" },
+      }),
+      prisma.leadFollowUp.findMany({
+        where: teamPendingWhere,
+        include: followUpInclude,
+        skip,
+        take: limit,
+        orderBy: { scheduledAt: "asc" },
+      }),
+      // Highlights / recommended sample (not paginated)
       prisma.leadFollowUp.findMany({
         where: pendingBase,
         include: followUpInclude,
@@ -308,24 +481,17 @@ export const LeadFollowupService = {
       }),
     ]);
 
-    const myList = currentUserId
-      ? allPending.filter((f) => f.counsellorId === currentUserId)
-      : [];
-    const teamList = currentUserId
-      ? allPending.filter((f) => f.counsellorId !== currentUserId)
-      : allPending;
-
-    const hotWithPending = allPending.filter(
+    const hotWithPending = highlightPending.filter(
       (f) => (f.lead.leadScore ?? 0) >= 70
     ).length;
-    const highRisk = allPending.filter((f) => {
+    const highRisk = highlightPending.filter((f) => {
       const isOverdue = f.scheduledAt < startOfToday;
       const highPriority = f.priority === "HIGH";
       const hotScore = (f.lead.leadScore ?? 0) >= 70;
       return isOverdue && (highPriority || hotScore);
     }).length;
 
-    const recommended = [...allPending]
+    const recommended = [...highlightPending]
       .sort((a, b) => {
         const aOverdue = a.scheduledAt < startOfToday ? 1 : 0;
         const bOverdue = b.scheduledAt < startOfToday ? 1 : 0;
@@ -346,13 +512,17 @@ export const LeadFollowupService = {
       })
       .slice(0, 20);
 
+    const totalPending = overdue + today + upcoming;
+
     return {
       summary: {
         overdue,
         today,
         upcoming,
         completed: completedCount,
-        totalPending: overdue + today + upcoming,
+        totalPending,
+        my: myCount,
+        team: teamCount,
         hotWithPending,
         highRisk,
       },
@@ -366,10 +536,29 @@ export const LeadFollowupService = {
         overdue: overdueList,
         today: todayList,
         upcoming: upcomingList,
+        all: allPendingList,
         completed: completedList,
-        my: myList.slice(0, listTake),
-        team: teamList.slice(0, listTake),
+        my: myList,
+        team: teamList,
         recommended,
+      },
+      meta: {
+        page,
+        limit,
+        totalPages: Math.max(
+          1,
+          Math.ceil(
+            Math.max(
+              overdue,
+              today,
+              upcoming,
+              completedCount,
+              totalPending,
+              myCount,
+              teamCount
+            ) / limit
+          )
+        ),
       },
     };
   },

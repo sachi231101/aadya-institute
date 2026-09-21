@@ -21,6 +21,7 @@ import {
 import { LeadActivityService } from "./lead-activity.service";
 import { LeadNotifyService } from "./lead-notify.service";
 import { autoAssignLeadToBranchCounsellor } from "./lead-auto-assign.service";
+import { recomputeNextFollowUpAt } from "../utils/recompute-next-follow-up-at";
 
 const RETRYABLE_STATUSES = new Set(["NO_ANSWER", "BUSY", "FAILED"]);
 
@@ -778,14 +779,15 @@ export const LeadAiOutcomeService = {
       await tx.lead.update({
         where: { id: lead.id },
         data: {
-          nextFollowUpAt: scheduledAt,
-          stage: ["NEW", "ASSIGNED", "CONTACTED"].includes(
+          stage: ["NEW", "ASSIGNED", "CONTACTED", "INTERESTED"].includes(
             derived.stage || lead.stage
           )
             ? "FOLLOW_UP"
             : derived.stage || lead.stage,
         },
       });
+
+      await recomputeNextFollowUpAt(lead.id, tx);
 
       await LeadActivityService.logActivity(
         lead.id,
