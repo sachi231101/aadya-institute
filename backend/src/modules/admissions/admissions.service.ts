@@ -24,6 +24,7 @@ import {
   recordApplicationFeePayment,
   voidApplicationFeePayment,
 } from "./application-fee-payment.service";
+import { markLeadConverted } from "./admission-provision.service";
 
 const resolveRequiredTermsAcceptance = async (
   instituteId: string,
@@ -546,6 +547,43 @@ export const AdmissionsService = {
           ? { ...dto, termsAcceptance: undefined }
           : dto;
     await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, normalizedDto);
+
+    const confirmingDraft =
+      existing.status === "PENDING" &&
+      Boolean(dto.status) &&
+      dto.status !== "PENDING";
+
+    if (confirmingDraft && existing.studentId) {
+      const linkedLead =
+        (await prisma.lead.findFirst({
+          where: {
+            instituteId: currentUser.instituteId,
+            convertedAdmissionId: id,
+          },
+        })) ??
+        (await prisma.lead.findFirst({
+          where: {
+            instituteId: currentUser.instituteId,
+            status: "ACTIVE",
+            convertedStudentId: existing.studentId,
+          },
+        }));
+
+      if (linkedLead) {
+        await prisma.$transaction(async (tx) => {
+          await markLeadConverted(tx, {
+            leadId: linkedLead.id,
+            studentId: existing.studentId!,
+            admissionId: id,
+            courseId: dto.courseId || existing.courseId,
+            currentUserId: currentUser.userId || currentUser.id,
+            studentCode: existing.student?.studentCode ?? undefined,
+            admissionNo: existing.admissionNo || id,
+            courseName: existing.course?.name,
+          });
+        });
+      }
+    }
 
     const nextBatchId =
       dto.batchId !== undefined && dto.batchId.trim() !== "" ? dto.batchId.trim() : null;

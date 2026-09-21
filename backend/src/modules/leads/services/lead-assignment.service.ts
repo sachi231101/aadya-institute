@@ -73,6 +73,34 @@ export const LeadAssignmentService = {
       throw new AppError("Assigned user must have the COUNSELLOR role", 400);
     }
 
+    const leadInclude = {
+      assignedCounsellor: {
+        select: { id: true, name: true, email: true, phone: true },
+      },
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      branch: {
+        select: { id: true, name: true, code: true },
+      },
+    } as const;
+
+    // Same counsellor — no-op success (skip rewrite, activity, notify)
+    if (lead.assignedCounsellorId === counsellorId) {
+      const currentAssignment = await prisma.leadAssignment.findFirst({
+        where: { leadId, isCurrent: true, counsellorId },
+      });
+      if (currentAssignment) {
+        const currentLead = await prisma.lead.findUnique({
+          where: { id: leadId },
+          include: leadInclude,
+        });
+        if (currentLead) {
+          return { lead: currentLead, assignment: currentAssignment };
+        }
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       await tx.leadAssignment.updateMany({
         where: { leadId, isCurrent: true },
@@ -95,24 +123,12 @@ export const LeadAssignmentService = {
           assignedCounsellorId: counsellorId,
           stage: ["NEW", "CONTACTED"].includes(lead.stage) ? "ASSIGNED" : lead.stage,
         },
-        include: {
-          assignedCounsellor: {
-            select: { id: true, name: true, email: true, phone: true },
-          },
-          createdBy: {
-            select: { id: true, name: true, email: true },
-          },
-          branch: {
-            select: { id: true, name: true, code: true },
-          },
-        },
+        include: leadInclude,
       });
 
-      await syncEnquiryAssigneeFromLead({
-        instituteId: lead.instituteId,
-        phoneNumber: lead.phoneNumber,
-        counsellorId,
-        tx: tx as any,
+      await tx.leadFollowUp.updateMany({
+        where: { leadId, status: "PENDING" },
+        data: { counsellorId },
       });
 
       // Log Activity
@@ -246,15 +262,31 @@ export const LeadAssignmentService = {
       leadId: string;
       success: boolean;
       error?: string;
+      alreadyAssigned?: boolean;
+      previousCounsellorId?: string | null;
     }> = [];
 
     for (const leadId of dto.leadIds) {
+      let previousCounsellorId: string | null = null;
+      let alreadyAssigned = false;
       try {
+        const existing = await prisma.lead.findUnique({
+          where: { id: leadId },
+          select: { assignedCounsellorId: true },
+        });
+        previousCounsellorId = existing?.assignedCounsellorId ?? null;
+        alreadyAssigned = Boolean(previousCounsellorId);
+
         await this.assignLead(leadId, currentUser, {
           counsellorId: dto.counsellorId,
           notes: dto.notes,
         });
-        results.push({ leadId, success: true });
+        results.push({
+          leadId,
+          success: true,
+          alreadyAssigned,
+          previousCounsellorId,
+        });
       } catch (err) {
         const message =
           err instanceof AppError
@@ -262,7 +294,13 @@ export const LeadAssignmentService = {
             : err instanceof Error
               ? err.message
               : "Assignment failed";
-        results.push({ leadId, success: false, error: message });
+        results.push({
+          leadId,
+          success: false,
+          error: message,
+          alreadyAssigned,
+          previousCounsellorId,
+        });
       }
     }
 

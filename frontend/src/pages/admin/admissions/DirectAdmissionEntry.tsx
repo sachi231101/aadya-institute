@@ -471,8 +471,8 @@ export const DirectAdmissionEntry: React.FC = () => {
       setFirstName(parts[0] || "");
       setLastName(parts.slice(1).join(" ") || "");
     }
-    if (rawData.phone) {
-      setPhone(String(rawData.phone).replace(/[^0-9+]/g, ""));
+    if (rawData.phone || rawData.phoneNumber) {
+      setPhone(String(rawData.phone || rawData.phoneNumber).replace(/[^0-9+]/g, ""));
     }
     if (rawData.altPhone || rawData.alternatePhone) {
       setAltPhone(String(rawData.altPhone || rawData.alternatePhone).replace(/[^0-9+]/g, ""));
@@ -482,6 +482,9 @@ export const DirectAdmissionEntry: React.FC = () => {
     }
     if (rawData.counsellor || rawData.assignedCounselor) {
       setCounsellorName(rawData.counsellor || rawData.assignedCounselor);
+    }
+    if (rawData.branchId) {
+      setBranchId(String(rawData.branchId));
     }
     if (rawData.source) {
       setSourceMasterId(findMasterIdByLabel(leadSourceOptions, rawData.source));
@@ -873,7 +876,10 @@ export const DirectAdmissionEntry: React.FC = () => {
       }
     }
 
-    const courseTarget = rawData?.course || rawData?.courseName;
+    const courseTarget =
+      rawData?.course ||
+      rawData?.courseName ||
+      rawData?.interestedIn;
     if (!courseTarget) return;
 
     const targetLower = String(courseTarget).toLowerCase().trim();
@@ -1511,16 +1517,24 @@ export const DirectAdmissionEntry: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ["pending-fees"] });
       await queryClient.invalidateQueries({ queryKey: ["payments"] });
       await queryClient.invalidateQueries({ queryKey: ["masters", "preview"] });
+      await queryClient.invalidateQueries({ queryKey: ["leads"] });
       void refetchAdmissionPreview();
 
       setCreatedAdmissionSummary((prev: any) => ({
         ...(prev || {}),
         admissionNo: firstAdmissionNo,
         status: status === "PENDING" ? "Draft Saved" : "Confirmed",
+        leadId: convertingLeadId || undefined,
       }));
       setShowReviewStepModal(false);
       setShowSuccessModal(true);
-      notifySuccess(status === "PENDING" ? "Admission saved as draft." : "Admission confirmed successfully.");
+      notifySuccess(
+        status === "PENDING"
+          ? "Admission saved as draft."
+          : convertingLeadId
+            ? "Admission confirmed. Lead removed from active Lead Management (Converted)."
+            : "Admission confirmed successfully."
+      );
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Failed to create admission. Please try again.";
       setReviewError(message);
@@ -3594,7 +3608,9 @@ export const DirectAdmissionEntry: React.FC = () => {
             <DialogDescription className="text-emerald-800/70 dark:text-emerald-200/70 text-xs">
               {createdAdmissionSummary?.status === "Draft Saved"
                 ? "The student information has been recorded in the Student Directory under Draft status."
-                : "The student admission record, batch schedule allocation, and fee installment structure have been registered."}
+                : createdAdmissionSummary?.leadId
+                  ? "Admission registered. The lead leaves the active Lead Management list (marked Converted). Continue in Admissions / Students."
+                  : "The student admission record, batch schedule allocation, and fee installment structure have been registered."}
             </DialogDescription>
           </DialogHeader>
 
@@ -3724,8 +3740,20 @@ export const DirectAdmissionEntry: React.FC = () => {
               }}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
             >
-              Done
+              Go to Admissions
             </Button>
+            {createdAdmissionSummary?.leadId ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate(`${basePath}/leads?stage=CONVERTED`);
+                }}
+                className="w-full text-xs font-bold"
+              >
+                Audit: View Converted leads
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

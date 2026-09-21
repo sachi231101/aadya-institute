@@ -3,7 +3,7 @@ import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { LeadService } from "./lead.service";
-import type { QueryCallHistoryDTO } from "./lead.types";
+import type { QueryCallHistoryDTO, QueryFollowUpDashboardDTO } from "./lead.types";
 
 export const createLead = async (
   req: AuthenticatedRequest,
@@ -237,13 +237,18 @@ export const getFollowUpDashboard = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const query = req.query as QueryFollowUpDashboardDTO;
     const branchId =
-      typeof req.query.branchId === "string" && req.query.branchId.trim()
-        ? req.query.branchId.trim()
+      typeof query.branchId === "string" && query.branchId.trim()
+        ? query.branchId.trim()
         : undefined;
     const dashboard = await LeadService.getFollowUpDashboard(
       req.user as unknown as AuthUser,
-      branchId
+      branchId,
+      {
+        page: query.page,
+        limit: query.limit,
+      }
     );
     sendSuccess(res, dashboard, 200, "Follow-up dashboard retrieved successfully");
   } catch (err) {

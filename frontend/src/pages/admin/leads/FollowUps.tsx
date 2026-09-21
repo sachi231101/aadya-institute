@@ -1,36 +1,26 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   Clock,
   AlertTriangle,
   Flame,
-  Loader2,
-  AlertCircle,
   Plus,
-  Sparkles,
   CheckCircle2,
-  User,
-  Users,
-  PhoneCall,
 } from "lucide-react";
 import {
   useFollowUpDashboard,
   useUpdateFollowUp,
   useCreateFollowUp,
-  useTriggerLeadCall,
-  useCreateManualCallLog,
   useLeads,
 } from "@/hooks/useLeads";
 import { getPortalBasePath } from "@/utils/portal-path";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -47,24 +37,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
-import { PageContainer, PageHeader, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
-import { leadsApi, type Lead, type LeadFollowUp } from "@/services/leads.api";
+import { FilterToolbar } from "@/components/layout";
+import { type Lead, type LeadFollowUp } from "@/services/leads.api";
 import {
   FollowUpActionMenu,
   type FollowUpMenuAction,
 } from "./components/FollowUpActionMenu";
-import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
+import { LeadWorkspaceShell } from "./components/LeadWorkspaceShell";
+import { LeadDataSurface, LeadListState } from "./components/LeadDataSurface";
+import { useAuthStore } from "@/store/auth.store";
 
 type TabKey = "today" | "overdue" | "upcoming" | "completed" | "my" | "team";
-type HighlightKey = "overdue" | "hot" | "highRisk" | "today" | null;
 
-function formatPhoneForWhatsApp(phone?: string | null): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12 && digits.startsWith("91")) return digits;
-  return digits || null;
-}
+const PAGE_LIMIT = 50;
 
 function priorityBadgeVariant(priority?: string): "destructive" | "warning" | "secondary" | "outline" {
   if (priority === "HIGH") return "destructive";
@@ -86,26 +71,22 @@ function statusBadgeClass(status?: string): string {
   }
 }
 
-function sortByRecommended(items: LeadFollowUp[], recommended: LeadFollowUp[]): LeadFollowUp[] {
-  if (!recommended.length || !items.length) return items;
-  const rank = new Map(recommended.map((r, i) => [r.id, i]));
-  return [...items].sort((a, b) => {
-    const ra = rank.get(a.id);
-    const rb = rank.get(b.id);
-    if (ra != null && rb != null) return ra - rb;
-    if (ra != null) return -1;
-    if (rb != null) return 1;
-    return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+function formatWhen(scheduledAt: string): string {
+  const scheduled = new Date(scheduledAt);
+  const date = scheduled.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
+  const time = scheduled.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${date} · ${time}`;
 }
 
 function isHot(item: LeadFollowUp): boolean {
   return (item.lead?.leadScore ?? 0) >= 70;
-}
-
-function isHighRisk(item: LeadFollowUp, startOfToday: Date): boolean {
-  const overdue = new Date(item.scheduledAt) < startOfToday;
-  return overdue && (item.priority === "HIGH" || isHot(item));
 }
 
 function tabFromSearch(raw: string | null): TabKey | null {
@@ -117,58 +98,97 @@ function tabFromSearch(raw: string | null): TabKey | null {
   return null;
 }
 
+function isCounsellorOnlyUser(roles: string[] | undefined): boolean {
+  const normalized = (roles || []).map((r) => String(r).toUpperCase());
+  return (
+    normalized.includes("COUNSELLOR") &&
+    !normalized.includes("ADMIN") &&
+    !normalized.includes("CENTER_MANAGER")
+  );
+}
+
 export const FollowUps: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
-  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const counsellorOnly = isCounsellorOnlyUser(user?.roles);
 
-  const initialTab = tabFromSearch(searchParams.get("tab")) || "today";
+  const urlTab = tabFromSearch(searchParams.get("tab"));
+  const initialTab: TabKey =
+    counsellorOnly && (urlTab === "team" || urlTab === "my")
+      ? "today"
+      : urlTab || "today";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const [highlight, setHighlight] = useState<HighlightKey>(
-    initialTab === "overdue" ? "overdue" : null
-  );
-  const [useRecommendedOrder, setUseRecommendedOrder] = useState(true);
+  const [page, setPage] = useState(1);
 
   const [actionFollowUp, setActionFollowUp] = useState<LeadFollowUp | null>(null);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [noteSaving, setNoteSaving] = useState(false);
-  const [logCallOpen, setLogCallOpen] = useState(false);
   const [outcome, setOutcome] = useState("");
   const [completeNotes, setCompleteNotes] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
 
-  const [createLeadId, setCreateLeadId] = useState("");
+  const [createLeadIds, setCreateLeadIds] = useState<Set<string>>(new Set());
   const [createLeadSearch, setCreateLeadSearch] = useState("");
   const [createType, setCreateType] = useState("CALL");
   const [createPriority, setCreatePriority] = useState("MEDIUM");
   const [createScheduledAt, setCreateScheduledAt] = useState("");
   const [createNotes, setCreateNotes] = useState("");
+  const [createBulkPending, setCreateBulkPending] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useFollowUpDashboard();
+  const { data, isLoading, isError, refetch } = useFollowUpDashboard({
+    page,
+    limit: PAGE_LIMIT,
+  });
   const updateFollowUp = useUpdateFollowUp();
   const createFollowUp = useCreateFollowUp();
-  const triggerAiCall = useTriggerLeadCall();
-  const manualCallMutation = useCreateManualCallLog();
+
+  const resetCreateForm = () => {
+    setCreateLeadIds(new Set());
+    setCreateLeadSearch("");
+    setCreateType("CALL");
+    setCreatePriority("MEDIUM");
+    setCreateScheduledAt("");
+    setCreateNotes("");
+    setCreateBulkPending(false);
+  };
+
+  const toggleCreateLead = (leadId: string) => {
+    setCreateLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fromUrl = tabFromSearch(searchParams.get("tab"));
+    if (counsellorOnly && (fromUrl === "team" || fromUrl === "my")) {
+      if (activeTab !== "today") setActiveTab("today");
+      const next = new URLSearchParams(searchParams);
+      next.delete("tab");
+      setSearchParams(next, { replace: true });
+      return;
+    }
     if (fromUrl && fromUrl !== activeTab) {
       setActiveTab(fromUrl);
-      if (fromUrl === "overdue") setHighlight("overdue");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL → tab only
-  }, [searchParams]);
+  }, [searchParams, counsellorOnly]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   const { data: leadsResponse } = useLeads({
-    search: createLeadSearch || undefined,
-    limit: 20,
+    search: createLeadSearch.trim() || undefined,
+    limit: 50,
     page: 1,
+    status: "ACTIVE",
   });
 
   const leadOptions: Lead[] = Array.isArray(leadsResponse?.data?.data)
@@ -184,71 +204,88 @@ export const FollowUps: React.FC = () => {
     upcoming: 0,
     completed: 0,
     totalPending: 0,
+    my: 0,
+    team: 0,
     hotWithPending: 0,
     highRisk: 0,
-  };
-  const highlights = dashboard?.highlights || {
-    overdue: summary.overdue,
-    hot: summary.hotWithPending,
-    highRisk: summary.highRisk,
-    today: summary.today,
   };
   const lists = dashboard?.lists || {
     overdue: [],
     today: [],
     upcoming: [],
+    all: [],
     completed: [],
     my: [],
     team: [],
     recommended: [],
   };
-
-  const recommended: LeadFollowUp[] = lists.recommended || [];
-  const startOfToday = useMemo(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }, []);
+  const listMeta = dashboard?.meta || { page, limit: PAGE_LIMIT };
 
   const tabCounts: Record<TabKey, number> = {
     today: summary.today ?? 0,
     overdue: summary.overdue ?? 0,
-    upcoming: summary.upcoming ?? 0,
-    completed: summary.completed ?? lists.completed?.length ?? 0,
-    my: lists.my?.length ?? 0,
-    team: lists.team?.length ?? 0,
+    upcoming: summary.totalPending ?? 0,
+    completed: summary.completed ?? 0,
+    my: summary.my ?? lists.my?.length ?? 0,
+    team: summary.team ?? lists.team?.length ?? 0,
   };
 
-  const activeList = useMemo(() => {
-    let items: LeadFollowUp[] = lists[activeTab] || [];
+  const primaryTabs: { key: "today" | "overdue" | "completed" | "upcoming"; label: string; icon: React.ReactNode }[] = [
+    { key: "today", label: "Due", icon: <Clock className="w-3.5 h-3.5" /> },
+    { key: "overdue", label: "Overdue", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+    { key: "completed", label: "Completed", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+    { key: "upcoming", label: "All", icon: <CalendarDays className="w-3.5 h-3.5" /> },
+  ];
 
-    // Hot / high-risk chips scan pending pool (recommended), not only the active tab slice.
-    if (highlight === "hot") {
-      items = (recommended.length ? recommended : items).filter(isHot);
-    } else if (highlight === "highRisk") {
-      items = (recommended.length ? recommended : items).filter((item) =>
-        isHighRisk(item, startOfToday)
-      );
+  const scopeValue: "all" | "my" | "team" =
+    activeTab === "my" ? "my" : activeTab === "team" ? "team" : "all";
+
+  const visibleTabKey: "today" | "overdue" | "completed" | "upcoming" =
+    activeTab === "my" || activeTab === "team"
+      ? "upcoming"
+      : activeTab === "today" ||
+          activeTab === "overdue" ||
+          activeTab === "completed" ||
+          activeTab === "upcoming"
+        ? activeTab
+        : "today";
+
+  const activeList = useMemo((): LeadFollowUp[] => {
+    if (activeTab === "upcoming") {
+      if (Array.isArray(lists.all)) {
+        return lists.all as LeadFollowUp[];
+      }
+      // Fallback for older API responses without lists.all
+      const seen = new Set<string>();
+      const items: LeadFollowUp[] = [];
+      for (const list of [lists.overdue, lists.today, lists.upcoming]) {
+        for (const item of list || []) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            items.push(item);
+          }
+        }
+      }
+      return items;
     }
+    return (lists[activeTab] || []) as LeadFollowUp[];
+  }, [lists, activeTab]);
 
-    if (
-      useRecommendedOrder &&
-      activeTab !== "completed" &&
-      highlight !== "hot" &&
-      highlight !== "highRisk"
-    ) {
-      items = sortByRecommended(items, recommended);
-    }
+  const activeTotal = tabCounts[activeTab] ?? 0;
+  const currentPage = listMeta.page ?? page;
+  const pageLimit = listMeta.limit ?? PAGE_LIMIT;
+  const totalPages = Math.max(1, Math.ceil(activeTotal / pageLimit));
+  const showPagination = activeTotal > pageLimit;
+  const rangeStart = activeTotal === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
+  const rangeEnd = Math.min(currentPage * pageLimit, activeTotal);
 
-    return items;
-  }, [lists, activeTab, highlight, useRecommendedOrder, recommended, startOfToday]);
-
-  const openLead = (leadId?: string, tab?: string) => {
+  const openLead = (leadId?: string) => {
     if (!leadId) return;
-    const qs = tab ? `?tab=${tab}` : "";
-    navigate(`${basePath}/leads/${leadId}${qs}`);
+    navigate(`${basePath}/leads/${leadId}`);
   };
 
   const setTab = (tab: TabKey) => {
+    if (counsellorOnly && (tab === "my" || tab === "team")) return;
     setActiveTab(tab);
     const next = new URLSearchParams(searchParams);
     if (tab === "today") next.delete("tab");
@@ -256,38 +293,8 @@ export const FollowUps: React.FC = () => {
     setSearchParams(next, { replace: true });
   };
 
-  const handleHighlightClick = (key: HighlightKey) => {
-    if (highlight === key) {
-      setHighlight(null);
-      return;
-    }
-    setHighlight(key);
-    if (key === "overdue") setTab("overdue");
-    if (key === "today") setTab("today");
-    if (key === "hot" || key === "highRisk") {
-      if (activeTab === "completed") setTab("today");
-    }
-  };
-
-  const logWhatsAppOpened = async (leadId?: string, phone?: string | null) => {
-    if (!leadId) return;
-    try {
-      await leadsApi.addActivity(leadId, {
-        type: "WHATSAPP_SENT",
-        title: "WhatsApp opened",
-        description: phone
-          ? `Opened WhatsApp chat for ${phone}`
-          : "Opened WhatsApp from follow-ups",
-      });
-      await queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
-    } catch {
-      // Non-blocking: still open WhatsApp even if activity log fails
-    }
-  };
-
   const handleMenuAction = (item: LeadFollowUp, action: FollowUpMenuAction) => {
     const leadId = item.lead?.id || item.leadId;
-    const phone = item.lead?.phoneNumber;
 
     switch (action) {
       case "complete":
@@ -308,52 +315,21 @@ export const FollowUps: React.FC = () => {
       }
       case "cancel":
         if (!window.confirm("Cancel this follow-up?")) return;
-        updateFollowUp.mutate({
-          leadId,
-          followUpId: item.id,
-          data: { status: "CANCELLED" },
-        });
-        break;
-      case "call":
-        if (phone) {
-          window.open(`tel:${phone}`, "_self");
-        } else {
-          openLead(leadId);
-        }
-        break;
-      case "log-call":
-        setActionFollowUp(item);
-        setLogCallOpen(true);
-        break;
-      case "ai-call":
-        if (!leadId) return;
-        triggerAiCall.mutate(leadId, {
-          onError: (err: unknown) => {
-            const message =
-              (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-              "Failed to start AI call";
-            alert(message);
+        updateFollowUp.mutate(
+          {
+            leadId,
+            followUpId: item.id,
+            data: { status: "CANCELLED" },
           },
-        });
-        break;
-      case "whatsapp": {
-        const wa = formatPhoneForWhatsApp(phone);
-        if (wa) {
-          const name = item.lead?.name || "there";
-          void logWhatsAppOpened(leadId, phone);
-          window.open(
-            `https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${name}, following up from Aadya Institute.`)}`,
-            "_blank"
-          );
-        } else {
-          openLead(leadId);
-        }
-        break;
-      }
-      case "add-note":
-        setActionFollowUp(item);
-        setNoteText("");
-        setNoteOpen(true);
+          {
+            onError: (err: unknown) => {
+              const message =
+                (err as { response?: { data?: { message?: string } } })?.response
+                  ?.data?.message || "Failed to cancel follow-up";
+              alert(message);
+            },
+          }
+        );
         break;
       case "view-lead":
         openLead(leadId);
@@ -418,322 +394,265 @@ export const FollowUps: React.FC = () => {
     );
   };
 
-  const submitCreate = (e: React.FormEvent) => {
+  const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createLeadId || !createScheduledAt) return;
-    createFollowUp.mutate(
-      {
-        id: createLeadId,
-        data: {
-          type: createType,
-          scheduledAt: new Date(createScheduledAt).toISOString(),
-          notes: createNotes || undefined,
-          priority: createPriority,
-        },
-      },
-      {
-        onSuccess: () => {
-          setCreateOpen(false);
-          setCreateLeadId("");
-          setCreateLeadSearch("");
-          setCreateType("CALL");
-          setCreatePriority("MEDIUM");
-          setCreateScheduledAt("");
-          setCreateNotes("");
-        },
-        onError: (err: unknown) => {
-          const message =
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-            "Failed to create follow-up";
-          alert(message);
-        },
-      }
-    );
-  };
+    const ids = Array.from(createLeadIds);
+    const remark = createNotes.trim();
+    if (ids.length === 0 || !createScheduledAt || !remark) return;
 
-  const highlightChips: {
-    key: NonNullable<HighlightKey>;
-    label: string;
-    count: number;
-  }[] = [
-    {
-      key: "overdue",
-      label: "Overdue",
-      count: highlights.overdue ?? 0,
-    },
-    {
-      key: "hot",
-      label: "Hot",
-      count: highlights.hot ?? 0,
-    },
-    {
-      key: "highRisk",
-      label: "High-risk",
-      count: highlights.highRisk ?? 0,
-    },
-    {
-      key: "today",
-      label: "Today",
-      count: highlights.today ?? 0,
-    },
-  ];
+    const payload = {
+      type: createType,
+      scheduledAt: new Date(createScheduledAt).toISOString(),
+      notes: remark,
+      priority: createPriority,
+    };
 
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: "today", label: "Today's", icon: <Clock className="w-3.5 h-3.5" /> },
-    { key: "overdue", label: "Overdue", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-    { key: "upcoming", label: "Upcoming", icon: <CalendarDays className="w-3.5 h-3.5" /> },
-    { key: "completed", label: "Completed", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-    { key: "my", label: "My", icon: <User className="w-3.5 h-3.5" /> },
-    { key: "team", label: "Team", icon: <Users className="w-3.5 h-3.5" /> },
-  ];
-
-  const mutating =
-    updateFollowUp.isPending ||
-    createFollowUp.isPending ||
-    triggerAiCall.isPending ||
-    manualCallMutation.isPending ||
-    noteSaving;
-
-  const submitNote = async () => {
-    const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
-    const description = noteText.trim();
-    if (!leadId || !description) return;
-    setNoteSaving(true);
+    setCreateBulkPending(true);
     try {
-      await leadsApi.addActivity(leadId, {
-        type: "NOTE_ADDED",
-        title: "Note added",
-        description,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
-      setNoteOpen(false);
-      setActionFollowUp(null);
-      setNoteText("");
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to add note";
-      alert(message);
+      const results = await Promise.allSettled(
+        ids.map((id) => createFollowUp.mutateAsync({ id, data: payload }))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      const ok = results.length - failed;
+      if (failed > 0) {
+        alert(
+          ok > 0
+            ? `Scheduled ${ok} follow-up(s); ${failed} failed.`
+            : "Failed to create follow-ups"
+        );
+      }
+      if (ok > 0) {
+        setCreateOpen(false);
+        resetCreateForm();
+      }
     } finally {
-      setNoteSaving(false);
+      setCreateBulkPending(false);
     }
   };
 
+  const mutating =
+    updateFollowUp.isPending || createFollowUp.isPending || createBulkPending;
+  const colCount = 6;
+
   return (
-    <PageContainer>
-      <ReadOnlyBanner itemKey="leads.followups" label="Follow-ups" />
-
-      <PageHeader
-        title="Follow-ups"
-        description="Daily action center for overdue, today, and upcoming counsellor tasks."
-        actions={
-          <PermissionGate itemKey="leads.followups" mode="write">
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Create Follow-up
-            </Button>
-          </PermissionGate>
-        }
-      />
-      <LeadModuleNavLinks className="mt-1" />
-
-      <MetricGrid density="compact" columns={METRIC_GRID_COLUMNS[4]}>
-        {highlightChips.map((chip) => {
-          const active = highlight === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={() => handleHighlightClick(chip.key)}
-              className={`rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-xs transition-colors cursor-pointer hover:border-primary/40 ${
-                active ? "ring-2 ring-primary border-primary bg-primary/5" : ""
-              }`}
-            >
-              <span className="text-[11px] font-semibold text-muted-foreground truncate block">
-                {chip.label}
-              </span>
-              <p className="text-xl font-semibold tracking-tight text-foreground mt-1">
-                {chip.count}
-              </p>
-            </button>
-          );
-        })}
-      </MetricGrid>
-
-      {recommended.length > 0 && activeTab !== "completed" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-bg-secondary/40 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-sm text-text-secondary">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>
-              Recommended order prioritizes overdue, hot scores, then high priority
-              ({recommended.length} ranked).
-            </span>
-          </div>
+    <LeadWorkspaceShell
+      title="Follow-ups"
+      description="Daily action center for overdue, due, and upcoming counsellor tasks."
+      banner={<ReadOnlyBanner itemKey="leads.followups" label="Follow-ups" />}
+      primaryAction={
+        <PermissionGate itemKey="leads.followups" mode="write">
           <Button
             type="button"
-            variant={useRecommendedOrder ? "default" : "outline"}
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setUseRecommendedOrder((v) => !v)}
+            className="gap-2"
+            onClick={() => setCreateOpen(true)}
           >
-            {useRecommendedOrder ? "Recommended on" : "Chronological"}
+            <Plus className="w-4 h-4" />
+            Create Follow-up
           </Button>
+        </PermissionGate>
+      }
+      toolbar={
+        <FilterToolbar className="!py-0 gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <Tabs
+              value={scopeValue === "all" ? visibleTabKey : "__scope__"}
+              onValueChange={(v) => {
+                if (v === "__scope__") return;
+                setTab(v as TabKey);
+              }}
+            >
+              <TabsList className="h-9 w-full sm:w-auto flex-wrap justify-start gap-0.5 rounded-md border border-border bg-muted/40 p-0.5">
+                {primaryTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.key}
+                    value={tab.key}
+                    className="h-8 gap-1.5 px-2.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
+                      {tabCounts[tab.key]}
+                    </Badge>
+                  </TabsTrigger>
+                ))}
+                <TabsTrigger value="__scope__" className="sr-only" tabIndex={-1}>
+                  Scope
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {!counsellorOnly ? (
+              <select
+                value={scopeValue}
+                onChange={(e) => {
+                  const next = e.target.value as "all" | "my" | "team";
+                  if (next === "my") setTab("my");
+                  else if (next === "team") setTab("team");
+                  else setTab(visibleTabKey === "upcoming" ? "today" : visibleTabKey);
+                }}
+                className="h-9 w-[160px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+                aria-label="Follow-up scope"
+              >
+                <option value="all">Everyone</option>
+                <option value="my">My follow-ups ({tabCounts.my})</option>
+                <option value="team">Team ({tabCounts.team})</option>
+              </select>
+            ) : (
+              <span className="h-9 inline-flex items-center rounded-md border border-border bg-muted/30 px-2.5 text-sm font-medium text-muted-foreground">
+                My follow-ups
+              </span>
+            )}
+          </div>
+        </FilterToolbar>
+      }
+    >
+      <LeadDataSurface>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Lead</TableHead>
+                <TableHead>When</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="min-w-[180px]">Remarks</TableHead>
+                <TableHead className="w-12 text-right sticky right-0 bg-card">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={colCount} className="p-0">
+                    <LeadListState kind="loading" message="Loading follow-ups..." />
+                  </TableCell>
+                </TableRow>
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={colCount} className="p-0">
+                    <LeadListState
+                      kind="error"
+                      message="Failed to load follow-ups."
+                      onRetry={() => refetch()}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : activeList.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={colCount} className="p-0">
+                    <LeadListState
+                      kind="empty"
+                      message="No scheduled follow-up tasks. Use Create Follow-up, or Schedule Follow-up from All Leads."
+                      icon={CalendarDays}
+                      action={
+                        <PermissionGate itemKey="leads.followups" mode="write">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => setCreateOpen(true)}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Follow-up
+                          </Button>
+                        </PermissionGate>
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                activeList.map((item: LeadFollowUp) => {
+                  const leadId = item.lead?.id || item.leadId;
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => openLead(leadId)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            {item.lead?.name || "—"}
+                            {isHot(item) && (
+                              <Flame className="w-3.5 h-3.5 text-orange-500" aria-label="Hot lead" />
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {item.lead?.phoneNumber || ""}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatWhen(item.scheduledAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={priorityBadgeVariant(item.priority)}>
+                          {item.priority || "MEDIUM"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(item.status)}`}
+                        >
+                          {item.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
+                        <span
+                          title={
+                            (item.notes || item.lead?.notes || "").trim() || undefined
+                          }
+                        >
+                          {(item.notes || item.lead?.notes || "").trim() || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="text-right sticky right-0 bg-card"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FollowUpActionMenu
+                          followUp={item}
+                          isPending={mutating}
+                          onAction={(action) => handleMenuAction(item, action)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
-      )}
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => {
-          const tab = v as TabKey;
-          setTab(tab);
-          if (tab === "completed") setHighlight(null);
-        }}
-      >
-        <TabsList className="flex h-auto flex-wrap gap-1 w-full justify-start">
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key} className="gap-1.5">
-              {tab.icon}
-              {tab.label}
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
-                {tabCounts[tab.key]}
-              </Badge>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {tabs.map((tab) => (
-          <TabsContent key={tab.key} value={tab.key} className="mt-4">
-            <Card className="border-border/50 shadow-sm overflow-hidden">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Lead</TableHead>
-                        <TableHead>Counsellor</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Outcome</TableHead>
-                        <TableHead className="w-12 text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8">
-                            <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                            Loading follow-ups...
-                          </TableCell>
-                        </TableRow>
-                      ) : isError ? (
-                        <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-red-600">
-                            <AlertCircle className="w-5 h-5 inline mr-2" />
-                            Failed to load follow-ups.
-                            <Button variant="link" onClick={() => refetch()}>
-                              Retry
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ) : activeList.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
-                            No {tab.label.toLowerCase()} follow-ups
-                            {highlight ? ` matching ${highlight} filter` : ""}.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        activeList.map((item) => {
-                          const scheduled = new Date(item.scheduledAt);
-                          const leadId = item.lead?.id || item.leadId;
-                          const recommendedIndex = recommended.findIndex((r) => r.id === item.id);
-                          return (
-                            <TableRow
-                              key={item.id}
-                              className="cursor-pointer hover:bg-bg-secondary/30"
-                              onClick={() => openLead(leadId)}
-                            >
-                              <TableCell className="font-medium">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="inline-flex items-center gap-1.5">
-                                    {item.lead?.name || "—"}
-                                    {isHot(item) && (
-                                      <Flame className="w-3.5 h-3.5 text-orange-500" aria-label="Hot lead" />
-                                    )}
-                                    {useRecommendedOrder &&
-                                      recommendedIndex >= 0 &&
-                                      recommendedIndex < 5 &&
-                                      activeTab !== "completed" && (
-                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">
-                                          #{recommendedIndex + 1}
-                                        </Badge>
-                                      )}
-                                  </span>
-                                  <span className="text-xs text-text-secondary">
-                                    {item.lead?.phoneNumber || ""}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>{item.counsellor?.name || "—"}</TableCell>
-                              <TableCell>
-                                {scheduled.toLocaleDateString("en-IN", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </TableCell>
-                              <TableCell>
-                                {scheduled.toLocaleTimeString("en-IN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </TableCell>
-                              <TableCell>{item.type}</TableCell>
-                              <TableCell>
-                                <Badge variant={priorityBadgeVariant(item.priority)}>
-                                  {item.priority || "MEDIUM"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <span
-                                  className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(item.status)}`}
-                                >
-                                  {item.status}
-                                </span>
-                              </TableCell>
-                              <TableCell className="max-w-[160px] truncate text-sm text-text-secondary">
-                                {item.notes || "—"}
-                              </TableCell>
-                              <TableCell className="max-w-[140px] truncate text-sm text-text-secondary">
-                                {item.outcome || "—"}
-                              </TableCell>
-                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                <FollowUpActionMenu
-                                  followUp={item}
-                                  isPending={mutating}
-                                  onAction={(action) => handleMenuAction(item, action)}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+        {showPagination && !isLoading && !isError ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {activeTotal}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </LeadDataSurface>
 
       {/* Complete dialog */}
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
@@ -819,15 +738,26 @@ export const FollowUps: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create follow-up dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      {/* Create follow-up dialog — multi-select leads */}
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Follow-up</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitCreate} className="space-y-4 py-1">
             <div>
-              <Label htmlFor="fu-lead-search">Lead</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="fu-lead-search">Leads</Label>
+                <span className="text-xs text-muted-foreground">
+                  {createLeadIds.size} selected
+                </span>
+              </div>
               <Input
                 id="fu-lead-search"
                 className="mt-1"
@@ -835,19 +765,46 @@ export const FollowUps: React.FC = () => {
                 value={createLeadSearch}
                 onChange={(e) => setCreateLeadSearch(e.target.value)}
               />
-              <select
-                className="w-full mt-2 h-9 px-3 rounded-md border text-sm bg-background"
-                value={createLeadId}
-                onChange={(e) => setCreateLeadId(e.target.value)}
-                required
+              <div
+                className="mt-2 max-h-44 overflow-y-auto rounded-md border border-border bg-background"
+                role="group"
+                aria-label="Select leads"
               >
-                <option value="">Select lead…</option>
-                {leadOptions.map((lead) => (
-                  <option key={lead.id} value={lead.id}>
-                    {lead.name} — {lead.phoneNumber}
-                  </option>
-                ))}
-              </select>
+                {leadOptions.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground">
+                    No leads found. Try another search.
+                  </p>
+                ) : (
+                  leadOptions.map((lead) => {
+                    const checked = createLeadIds.has(lead.id);
+                    return (
+                      <label
+                        key={lead.id}
+                        className="flex cursor-pointer items-start gap-2.5 border-b border-border/60 px-3 py-2 last:border-b-0 hover:bg-muted/40"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-border"
+                          checked={checked}
+                          onChange={() => toggleCreateLead(lead.id)}
+                          aria-label={`Select ${lead.name}`}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {lead.name}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground font-mono">
+                            {lead.phoneNumber}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Select one or more leads — same schedule applies to all.
+              </p>
             </div>
             <div>
               <Label>Type</Label>
@@ -886,195 +843,46 @@ export const FollowUps: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="fu-create-notes">Notes</Label>
+              <Label htmlFor="fu-create-notes">Notes *</Label>
               <Input
                 id="fu-create-notes"
                 className="mt-1"
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
+                required
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </Button>
               <Button
-                type="submit"
-                className="bg-primary text-white"
-                disabled={!createLeadId || !createScheduledAt || createFollowUp.isPending}
-              >
-                {createFollowUp.isPending ? "Scheduling..." : "Schedule Follow-up"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Inline add note */}
-      <Dialog
-        open={noteOpen}
-        onOpenChange={(open) => {
-          setNoteOpen(open);
-          if (!open) {
-            setNoteText("");
-            setActionFollowUp(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Add note
-              {actionFollowUp?.lead?.name ? ` — ${actionFollowUp.lead.name}` : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-1">
-            <div>
-              <Label htmlFor="fu-note">Note</Label>
-              <Textarea
-                id="fu-note"
-                className="mt-1"
-                rows={4}
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Call notes, objections, next steps…"
-              />
-            </div>
-            <p className="text-xs text-text-secondary">
-              Or{" "}
-              <button
                 type="button"
-                className="text-primary underline"
+                variant="outline"
                 onClick={() => {
-                  const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
-                  setNoteOpen(false);
-                  openLead(leadId, "notes");
+                  setCreateOpen(false);
+                  resetCreateForm();
                 }}
               >
-                open Lead 360 Notes tab
-              </button>
-            </p>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setNoteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="bg-primary text-white"
-              disabled={!noteText.trim() || noteSaving}
-              onClick={() => void submitNote()}
-            >
-              {noteSaving ? "Saving..." : "Save note"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Log manual call (Call History pattern) */}
-      <Dialog
-        open={logCallOpen}
-        onOpenChange={(open) => {
-          setLogCallOpen(open);
-          if (!open) setActionFollowUp(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <PhoneCall className="h-4 w-4" />
-              Log manual call
-              {actionFollowUp?.lead?.name ? ` — ${actionFollowUp.lead.name}` : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
-              if (!leadId) return;
-              const form = new FormData(e.currentTarget);
-              const phone = actionFollowUp?.lead?.phoneNumber;
-              manualCallMutation.mutate(
-                {
-                  leadId,
-                  status: String(form.get("status") || "COMPLETED"),
-                  duration: Number(form.get("duration") || 0) || undefined,
-                  outcome: String(form.get("outcome") || "") || null,
-                  notes: String(form.get("notes") || "") || null,
-                  interestStatus: String(form.get("interestStatus") || "") || null,
-                },
-                {
-                  onSuccess: () => {
-                    setLogCallOpen(false);
-                    setActionFollowUp(null);
-                    if (form.get("alsoDial") === "on" && phone) {
-                      window.open(`tel:${phone}`, "_self");
-                    }
-                  },
-                  onError: (err: unknown) => {
-                    const message =
-                      (err as { response?: { data?: { message?: string } } })?.response?.data
-                        ?.message || "Failed to log call";
-                    alert(message);
-                  },
-                }
-              );
-            }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Status</Label>
-                <select
-                  name="status"
-                  defaultValue="COMPLETED"
-                  className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-                >
-                  <option value="COMPLETED">Completed</option>
-                  <option value="NO_ANSWER">No Answer</option>
-                  <option value="BUSY">Busy</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="CALLBACK_REQUESTED">Callback Requested</option>
-                </select>
-              </div>
-              <div>
-                <Label>Duration (seconds)</Label>
-                <Input name="duration" type="number" min={0} className="mt-1" defaultValue={0} />
-              </div>
-            </div>
-            <div>
-              <Label>Outcome</Label>
-              <Input name="outcome" className="mt-1" placeholder="e.g. Interested, Callback" />
-            </div>
-            <div>
-              <Label>Interest</Label>
-              <Input name="interestStatus" className="mt-1" placeholder="HIGH / WARM / LOW" />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea name="notes" className="mt-1" rows={3} />
-            </div>
-            {actionFollowUp?.lead?.phoneNumber ? (
-              <label className="flex items-center gap-2 text-sm text-text-secondary">
-                <input type="checkbox" name="alsoDial" className="rounded border" />
-                Also open phone dialer ({actionFollowUp.lead.phoneNumber})
-              </label>
-            ) : null}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setLogCallOpen(false)}>
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="bg-primary text-white"
-                disabled={manualCallMutation.isPending}
+                disabled={
+                  createLeadIds.size === 0 ||
+                  !createScheduledAt ||
+                  !createNotes.trim() ||
+                  createBulkPending
+                }
               >
-                {manualCallMutation.isPending ? "Saving..." : "Log call"}
+                {createBulkPending
+                  ? "Scheduling..."
+                  : createLeadIds.size > 1
+                    ? `Schedule ${createLeadIds.size} Follow-ups`
+                    : "Schedule Follow-up"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </PageContainer>
+    </LeadWorkspaceShell>
   );
 };

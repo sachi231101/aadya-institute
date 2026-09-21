@@ -313,6 +313,30 @@ describe("Lead Management Module Tests", () => {
         false
       );
     });
+
+    test("createFollowUpSchema requires non-empty notes (API validation)", () => {
+      const scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      assert.strictEqual(
+        createFollowUpSchema.safeParse({ scheduledAt }).success,
+        false
+      );
+      assert.strictEqual(
+        createFollowUpSchema.safeParse({ scheduledAt, notes: "" }).success,
+        false
+      );
+      assert.strictEqual(
+        createFollowUpSchema.safeParse({ scheduledAt, notes: "   " }).success,
+        false
+      );
+      const parsed = createFollowUpSchema.safeParse({
+        scheduledAt,
+        notes: "  Call back after brochure  ",
+      });
+      assert.strictEqual(parsed.success, true);
+      if (parsed.success) {
+        assert.strictEqual(parsed.data.notes, "Call back after brochure");
+      }
+    });
   });
 
   describe("2. Lead Creation & Ownership", () => {
@@ -562,10 +586,13 @@ describe("Lead Management Module Tests", () => {
 
       assert.ok(followUp.id);
       assert.strictEqual(followUp.status, "PENDING");
+      assert.strictEqual(followUp.notes, "Call back after 5 PM");
 
       const lead = await LeadService.getLeadById(leadId, counsellorAUser);
       assert.strictEqual(lead.stage, "FOLLOW_UP");
       assert.ok(lead.nextFollowUpAt);
+      assert.ok(lead.notes?.includes("Call back after 5 PM"));
+      assert.match(lead.notes || "", /\[\d{4}-\d{2}-\d{2} counsellor\] Call back after 5 PM/);
     });
 
     test("Completing follow-up sets completedAt and lastContactedAt", async () => {
@@ -575,6 +602,7 @@ describe("Lead Management Module Tests", () => {
       const completed = await LeadService.updateFollowUp(followUps[0].id, counsellorAUser, {
         status: "COMPLETED",
         outcome: "Student confirmed interest in weekend batch",
+        notes: "Confirmed weekend batch interest",
       });
 
       assert.strictEqual(completed.status, "COMPLETED");
@@ -582,6 +610,80 @@ describe("Lead Management Module Tests", () => {
 
       const lead = await LeadService.getLeadById(leadId, counsellorAUser);
       assert.ok(lead.lastContactedAt);
+      // Restores prior stage from history (NEW → FOLLOW_UP → NEW), not a hard-coded CONTACTED.
+      assert.strictEqual(lead.stage, "NEW");
+      assert.strictEqual(lead.nextFollowUpAt, null);
+      assert.ok(lead.notes?.includes("Confirmed weekend batch interest"));
+      assert.match(
+        lead.notes || "",
+        /\[\d{4}-\d{2}-\d{2} counsellor\] Confirmed weekend batch interest/
+      );
+    });
+
+    test("Bare changeStage to FOLLOW_UP without pending task is rejected", async () => {
+      const lead = await LeadService.createLead(counsellorAUser, {
+        name: "Bare Follow-Up Stage Lead",
+        phoneNumber: `+9198765${String(Date.now()).slice(-5)}`,
+        interestedIn: "Data Science",
+        source: "WALK_IN",
+      });
+
+      await assert.rejects(
+        async () => {
+          await LeadService.changeStage(lead.id, counsellorAUser, {
+            stage: "FOLLOW_UP",
+          });
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 400);
+          assert.match(err.message, /scheduled follow-up|scheduledAt/i);
+          return true;
+        }
+      );
+    });
+
+    test("changeStage FOLLOW_UP with scheduledAt creates task and sets stage", async () => {
+      const lead = await LeadService.createLead(counsellorAUser, {
+        name: "Schedule Via Stage Lead",
+        phoneNumber: `+9198766${String(Date.now()).slice(-5)}`,
+        interestedIn: "Data Science",
+        source: "WALK_IN",
+      });
+
+      const scheduledAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const updated = await LeadService.changeStage(lead.id, counsellorAUser, {
+        stage: "FOLLOW_UP",
+        scheduledAt,
+        notes: "Schedule from stage dialog",
+      });
+
+      assert.strictEqual(updated.stage, "FOLLOW_UP");
+      assert.ok(updated.nextFollowUpAt);
+
+      const followUps = await LeadService.getLeadFollowUps(lead.id, counsellorAUser);
+      assert.ok(followUps.some((f) => f.status === "PENDING"));
+    });
+
+    test("createFollowUp from INTERESTED moves stage to FOLLOW_UP", async () => {
+      const lead = await LeadService.createLead(counsellorAUser, {
+        name: "Interested Then Follow-Up",
+        phoneNumber: `+9198767${String(Date.now()).slice(-5)}`,
+        interestedIn: "Full Stack",
+        source: "WALK_IN",
+      });
+
+      await LeadService.changeStage(lead.id, counsellorAUser, {
+        stage: "INTERESTED",
+      });
+
+      await LeadService.createFollowUp(lead.id, counsellorAUser, {
+        type: "CALL",
+        scheduledAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
+        notes: "Callback after brochure",
+      });
+
+      const refreshed = await LeadService.getLeadById(lead.id, counsellorAUser);
+      assert.strictEqual(refreshed.stage, "FOLLOW_UP");
     });
 
     test("Follow-up dashboard returns summary counts", async () => {
@@ -646,6 +748,27 @@ describe("Lead Management Module Tests", () => {
         (err: any) => {
           assert.strictEqual(err.statusCode, 400);
           assert.match(err.message, /Course is required/);
+          return true;
+        }
+      );
+    });
+
+    test("Convert without assigned counsellor is rejected", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "Unassigned Convert Lead",
+        phoneNumber: `+9198768${String(Date.now()).slice(-5)}`,
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        courseId,
+      });
+
+      await assert.rejects(
+        async () => {
+          await LeadService.convertLead(lead.id, managerAUser, { courseId });
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 400);
+          assert.match(err.message, /assigned to a counsellor/i);
           return true;
         }
       );
@@ -765,6 +888,30 @@ describe("Lead Management Module Tests", () => {
       assert.ok(summary.cold >= 1);
       assert.ok(summary.overdueFollowUps >= 1);
     });
+
+    test("followUpTo-only list filter matches PENDING tasks before start of today", async () => {
+      const { leads } = await LeadService.getLeads(managerAUser, {
+        branchId: branchAId,
+        followUpTo: new Date().toISOString(),
+        page: 1,
+        limit: 50,
+      });
+      assert.ok(leads.some((l) => l.name === "Hot Band Lead"));
+      assert.ok(
+        leads.every((l) =>
+          (l.followUps ?? []).some(
+            (f) =>
+              f.status === "PENDING" &&
+              new Date(f.scheduledAt) <
+                new Date(
+                  new Date().getFullYear(),
+                  new Date().getMonth(),
+                  new Date().getDate()
+                )
+          )
+        )
+      );
+    });
   });
 
   describe("9. Bulk assign + branch isolation", () => {
@@ -837,6 +984,234 @@ describe("Lead Management Module Tests", () => {
 
       const branchBLead = await LeadService.getLeadById(branchBLeadId, adminUser);
       assert.notStrictEqual(branchBLead.assignedCounsellorId, counsellorAUser.id);
+    });
+  });
+
+  describe("9b. Assign no-op, reassign, and bulk alreadyAssigned", () => {
+    let noopLeadId: string;
+    let reassignLeadId: string;
+    let bulkMetaUnassignedId: string;
+    let bulkMetaAssignedId: string;
+    let bulkMetaBranchBId: string;
+    let counsellorCId: string;
+
+    before(async () => {
+      const counsellorRole = await prisma.role.findUnique({
+        where: { name: "COUNSELLOR" },
+      });
+      assert.ok(counsellorRole);
+
+      const uCounsellorC = await prisma.user.upsert({
+        where: { id: "test-counsellor-c-leads" },
+        update: { branchId: branchAId, instituteId },
+        create: {
+          id: "test-counsellor-c-leads",
+          instituteId,
+          branchId: branchAId,
+          name: "Counsellor Meera",
+          email: "meera@aadya.test",
+          passwordHash: "hash",
+        },
+      });
+      await prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: uCounsellorC.id,
+            roleId: counsellorRole!.id,
+          },
+        },
+        update: {},
+        create: { userId: uCounsellorC.id, roleId: counsellorRole!.id },
+      });
+      counsellorCId = uCounsellorC.id;
+
+      const noopLead = await LeadService.createLead(managerAUser, {
+        name: "Noop Assign Lead",
+        phoneNumber: "+919876501311",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const reassignLead = await LeadService.createLead(managerAUser, {
+        name: "Reassign Lead",
+        phoneNumber: "+919876501312",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+      const bulkUnassigned = await LeadService.createLead(managerAUser, {
+        name: "Bulk Meta Unassigned",
+        phoneNumber: "+919876501313",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const bulkAssigned = await LeadService.createLead(managerAUser, {
+        name: "Bulk Meta Assigned",
+        phoneNumber: "+919876501314",
+        interestedIn: "Full Stack Development",
+        source: "REFERRAL",
+        branchId: branchAId,
+      });
+      const bulkBranchB = await LeadService.createLead(counsellorBUser, {
+        name: "Bulk Meta Branch B",
+        phoneNumber: "+919876501315",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+      });
+
+      noopLeadId = noopLead.id;
+      reassignLeadId = reassignLead.id;
+      bulkMetaUnassignedId = bulkUnassigned.id;
+      bulkMetaAssignedId = bulkAssigned.id;
+      bulkMetaBranchBId = bulkBranchB.id;
+
+      await Promise.all([
+        ensureTerminalAiCall(noopLeadId, instituteId, branchAId),
+        ensureTerminalAiCall(reassignLeadId, instituteId, branchAId),
+        ensureTerminalAiCall(bulkMetaUnassignedId, instituteId, branchAId),
+        ensureTerminalAiCall(bulkMetaAssignedId, instituteId, branchAId),
+        ensureTerminalAiCall(bulkMetaBranchBId, instituteId, branchBId),
+      ]);
+
+      await LeadService.assignLead(noopLeadId, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Initial assign for no-op",
+      });
+      await LeadService.assignLead(reassignLeadId, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Initial assign for reassign",
+      });
+      await LeadService.assignLead(bulkMetaAssignedId, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Pre-assigned for bulk meta",
+      });
+    });
+
+    test("Assign succeeds after enquiry sync removal (smoke)", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "Smoke Assign Lead",
+        phoneNumber: "+919876501316",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      await ensureTerminalAiCall(lead.id, instituteId, branchAId);
+
+      const result = await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Smoke assign after sync removal",
+      });
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
+      assert.strictEqual(result.assignment.isCurrent, true);
+    });
+
+    test("Assign to same counsellor is a no-op success", async () => {
+      const beforeCount = await prisma.leadAssignment.count({
+        where: { leadId: noopLeadId },
+      });
+      const beforeActivities = await prisma.leadActivity.count({
+        where: { leadId: noopLeadId, type: "LEAD_ASSIGNED" },
+      });
+
+      const result = await LeadService.assignLead(noopLeadId, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Same counsellor again",
+      });
+
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
+      assert.strictEqual(result.assignment.counsellorId, counsellorAUser.id);
+      assert.strictEqual(result.assignment.isCurrent, true);
+
+      const afterCount = await prisma.leadAssignment.count({
+        where: { leadId: noopLeadId },
+      });
+      const afterActivities = await prisma.leadActivity.count({
+        where: { leadId: noopLeadId, type: "LEAD_ASSIGNED" },
+      });
+      assert.strictEqual(afterCount, beforeCount);
+      assert.strictEqual(afterActivities, beforeActivities);
+    });
+
+    test("Reassign already-assigned lead updates counsellor", async () => {
+      const result = await LeadService.assignLead(reassignLeadId, managerAUser, {
+        counsellorId: counsellorCId,
+        notes: "Reassign to Meera",
+      });
+
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorCId);
+      assert.strictEqual(result.assignment.counsellorId, counsellorCId);
+      assert.strictEqual(result.assignment.isCurrent, true);
+
+      const currentRows = await prisma.leadAssignment.findMany({
+        where: { leadId: reassignLeadId, isCurrent: true },
+      });
+      assert.strictEqual(currentRows.length, 1);
+      assert.strictEqual(currentRows[0].counsellorId, counsellorCId);
+    });
+
+    test("Reassign moves PENDING follow-up counsellorId to new assignee", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "FU Ownership Lead",
+        phoneNumber: `+9198769${String(Date.now()).slice(-5)}`,
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      await ensureTerminalAiCall(lead.id, instituteId, branchAId);
+      await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+      await LeadService.createFollowUp(lead.id, managerAUser, {
+        type: "CALL",
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        notes: "Owned by A",
+        counsellorId: counsellorAUser.id,
+      });
+
+      await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorCId,
+        notes: "Move pending FU ownership",
+      });
+
+      const pending = await prisma.leadFollowUp.findMany({
+        where: { leadId: lead.id, status: "PENDING" },
+      });
+      assert.ok(pending.length >= 1);
+      assert.ok(pending.every((f) => f.counsellorId === counsellorCId));
+    });
+
+    test("Bulk assign surfaces alreadyAssigned and mixed failed count", async () => {
+      const result = await LeadService.bulkAssignLeads(managerAUser, {
+        leadIds: [bulkMetaUnassignedId, bulkMetaAssignedId, bulkMetaBranchBId],
+        counsellorId: counsellorCId,
+        notes: "Bulk meta test",
+      });
+
+      assert.strictEqual(result.total, 3);
+      assert.strictEqual(result.succeeded, 2);
+      assert.strictEqual(result.failed, 1);
+
+      const unassignedResult = result.results.find(
+        (r) => r.leadId === bulkMetaUnassignedId
+      );
+      const assignedResult = result.results.find(
+        (r) => r.leadId === bulkMetaAssignedId
+      );
+      const failedResult = result.results.find((r) => r.leadId === bulkMetaBranchBId);
+
+      assert.ok(unassignedResult);
+      assert.strictEqual(unassignedResult.success, true);
+      assert.strictEqual(unassignedResult.alreadyAssigned, false);
+      assert.strictEqual(unassignedResult.previousCounsellorId, null);
+
+      assert.ok(assignedResult);
+      assert.strictEqual(assignedResult.success, true);
+      assert.strictEqual(assignedResult.alreadyAssigned, true);
+      assert.strictEqual(assignedResult.previousCounsellorId, counsellorAUser.id);
+
+      assert.ok(failedResult);
+      assert.strictEqual(failedResult.success, false);
     });
   });
 
@@ -1127,9 +1502,14 @@ describe("Lead Management Module Tests", () => {
       assert.ok(typeof dashboard.summary.completed === "number");
       assert.ok(typeof dashboard.highlights.overdue === "number");
 
+      // Counsellor-only: my list is scoped; team list is empty by design.
       assert.ok(dashboard.lists.my.some((f) => f.id === myFollowUpId));
-      assert.ok(dashboard.lists.team.some((f) => f.id === teamFollowUpId));
+      assert.strictEqual(dashboard.lists.team.length, 0);
       assert.ok(!dashboard.lists.my.some((f) => f.id === teamFollowUpId));
+
+      const managerDash = await LeadService.getFollowUpDashboard(managerAUser, branchAId);
+      assert.ok(managerDash.lists.team.some((f) => f.id === teamFollowUpId));
+      assert.ok(managerDash.lists.team.some((f) => f.id === myFollowUpId));
     });
 
     test("Reschedule updates scheduledAt; complete marks COMPLETED", async () => {
@@ -1226,6 +1606,22 @@ describe("Lead Management Module Tests", () => {
       const types = new Set(callLogs.map((c) => c.callType));
       assert.ok(types.has("AI"));
       assert.ok(types.has("MANUAL"));
+    });
+
+    test("search filters call history by lead name", async () => {
+      const { callLogs, meta } = await LeadService.getCallHistory(managerAUser, {
+        search: "Call History Filter Lead",
+        callType: "ALL",
+        page: 1,
+        limit: 50,
+      });
+      assert.ok(meta.total >= 1);
+      assert.ok(callLogs.length >= 1);
+      assert.ok(
+        callLogs.every((c) =>
+          (c.lead?.name || "").toLowerCase().includes("call history filter lead")
+        )
+      );
     });
   });
 

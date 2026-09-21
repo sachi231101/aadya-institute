@@ -13,6 +13,7 @@ import {
 } from "../fees/fee-provision.service";
 import type { FeeProvisionLine } from "../fees/fee.types";
 import { attachApplicationFeePaymentToAdmission } from "./application-fee-payment.service";
+import { recomputeNextFollowUpAt } from "../leads/utils/recompute-next-follow-up-at";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -174,7 +175,7 @@ async function ensureStudentUser(
   return newStudent.id;
 }
 
-async function markLeadConverted(
+export async function markLeadConverted(
   tx: TxClient,
   params: {
     leadId: string;
@@ -194,6 +195,11 @@ async function markLeadConverted(
     return;
   }
 
+  await tx.leadFollowUp.updateMany({
+    where: { leadId: params.leadId, status: "PENDING" },
+    data: { status: "CANCELLED" },
+  });
+
   await tx.lead.update({
     where: { id: params.leadId },
     data: {
@@ -203,8 +209,11 @@ async function markLeadConverted(
       convertedStudentId: params.studentId,
       convertedAdmissionId: params.admissionId,
       courseId: params.courseId,
+      nextFollowUpAt: null,
     },
   });
+
+  await recomputeNextFollowUpAt(params.leadId, tx);
 
   if (params.currentUserId) {
     await LeadActivityService.logActivity(
@@ -365,7 +374,7 @@ export async function provisionAdmissionInTransaction(
     }
   }
 
-  if (dto.leadId) {
+  if (dto.leadId && admissionStatus !== "PENDING") {
     const student = await tx.student.findUnique({
       where: { id: finalStudentId },
       select: { studentCode: true },
@@ -379,6 +388,20 @@ export async function provisionAdmissionInTransaction(
       studentCode: student?.studentCode,
       admissionNo,
       courseName: course.name,
+    });
+  } else if (dto.leadId && admissionStatus === "PENDING") {
+    // Soft-link draft admission → lead so a later confirm can convert.
+    // Keep status/stage ACTIVE; do not touch already-converted/lost leads.
+    await tx.lead.updateMany({
+      where: {
+        id: dto.leadId,
+        status: "ACTIVE",
+      },
+      data: {
+        convertedAdmissionId: admission.id,
+        convertedStudentId: finalStudentId,
+        courseId: course.id,
+      },
     });
   }
 

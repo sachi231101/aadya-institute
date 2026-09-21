@@ -1,10 +1,10 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   PhoneCall,
   Search,
+  Phone,
   Loader2,
   AlertCircle,
-  Phone,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,14 +15,13 @@ import {
   useLeads,
 } from "@/hooks/useLeads";
 import type { CallLog } from "@/services/leads.api";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
+import { FilterToolbar } from "@/components/layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -48,9 +47,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
-import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
+import { LeadWorkspaceShell } from "./components/LeadWorkspaceShell";
+import { LeadDataSurface, LeadListState } from "./components/LeadDataSurface";
 
 type CallTypeTab = "ALL" | "AI" | "MANUAL";
+
+const CALL_HISTORY_COLUMNS = 6;
 
 const manualCallSchema = z.object({
   leadId: z.string().min(1, "Select a lead"),
@@ -58,10 +60,6 @@ const manualCallSchema = z.object({
   duration: z.coerce.number().int().min(0).default(0),
   outcome: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
-  qualification: z.string().optional().or(z.literal("")),
-  sentiment: z.string().optional().or(z.literal("")),
-  nextAction: z.string().optional().or(z.literal("")),
-  interestStatus: z.string().optional().or(z.literal("")),
 });
 
 type ManualCallFormValues = z.infer<typeof manualCallSchema>;
@@ -71,21 +69,6 @@ function formatDuration(seconds?: number | null): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-}
-
-function callerLabel(log: CallLog): string {
-  if (log.caller?.name) return log.caller.name;
-  if (log.callType === "MANUAL") return "Counsellor";
-  return "AI Agent";
-}
-
-function interestLabel(log: CallLog): string {
-  const parts = [
-    log.aiScore,
-    log.interestStatus,
-    log.lead?.leadScore != null ? `${log.lead.leadScore}` : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
 }
 
 export const CallHistory: React.FC = () => {
@@ -104,11 +87,14 @@ export const CallHistory: React.FC = () => {
     limit: 20,
     callType: callTypeTab,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
+    // Pass search to API once backend supports queryCallHistory.search (name/phone).
+    search: searchTerm.trim() || undefined,
   });
 
   const { data: leadsResponse } = useLeads({
     page: 1,
     limit: 20,
+    status: "ACTIVE",
     search: leadSearch.trim() || undefined,
   });
 
@@ -122,10 +108,6 @@ export const CallHistory: React.FC = () => {
       duration: 0,
       outcome: "",
       notes: "",
-      qualification: "",
-      sentiment: "",
-      nextAction: "",
-      interestStatus: "",
     },
   });
 
@@ -141,19 +123,9 @@ export const CallHistory: React.FC = () => {
     return Array.isArray(raw) ? raw : [];
   }, [leadsResponse]);
 
-  const filtered = callLogs.filter((log) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    return (
-      (log.lead?.name || "").toLowerCase().includes(q) ||
-      (log.lead?.phoneNumber || "").includes(q) ||
-      (log.caller?.name || "").toLowerCase().includes(q) ||
-      (log.aiSummary || "").toLowerCase().includes(q) ||
-      (log.outcome || "").toLowerCase().includes(q) ||
-      (log.interestStatus || "").toLowerCase().includes(q) ||
-      (log.nextAction || "").toLowerCase().includes(q)
-    );
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   const openCallDetail = (log: CallLog) => {
     setSelectedCall(log);
@@ -167,10 +139,6 @@ export const CallHistory: React.FC = () => {
       duration: 0,
       outcome: "",
       notes: "",
-      qualification: "",
-      sentiment: "",
-      nextAction: "",
-      interestStatus: "",
     });
     setLeadSearch("");
     setFormError(null);
@@ -185,10 +153,6 @@ export const CallHistory: React.FC = () => {
         duration: values.duration ?? 0,
         outcome: values.outcome || null,
         notes: values.notes || null,
-        qualification: values.qualification || null,
-        sentiment: values.sentiment || null,
-        nextAction: values.nextAction || null,
-        interestStatus: values.interestStatus || null,
       },
       {
         onSuccess: () => {
@@ -209,128 +173,139 @@ export const CallHistory: React.FC = () => {
   };
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Call History"
-        description="AI and manual call logs with recordings, outcomes, and next actions."
-        actions={
-          <PermissionGate itemKey="leads.all" mode="write">
-            <Button
-              onClick={() => {
-                resetLogDialog();
-                setLogDialogOpen(true);
+    <LeadWorkspaceShell
+      title="Call History"
+      description="AI and manual call outcomes and next actions (details in drawer)."
+      primaryAction={
+        <PermissionGate itemKey="leads.all" mode="write">
+          <Button
+            onClick={() => {
+              resetLogDialog();
+              setLogDialogOpen(true);
+            }}
+          >
+            <Phone className="mr-2 h-4 w-4" />
+            Log Manual Call
+          </Button>
+        </PermissionGate>
+      }
+      toolbar={
+        <FilterToolbar className="!py-0 gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <Tabs
+              value={callTypeTab}
+              onValueChange={(value) => {
+                setCallTypeTab(value as CallTypeTab);
+                setPage(1);
               }}
             >
-              <Phone className="mr-2 h-4 w-4" />
-              Log Manual Call
-            </Button>
-          </PermissionGate>
-        }
-      />
-      <LeadModuleNavLinks className="mt-1" />
+              <TabsList className="h-9 shrink-0 gap-0.5 rounded-md border border-border bg-muted/40 p-0.5">
+                <TabsTrigger
+                  value="ALL"
+                  className="h-8 px-2.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                >
+                  All
+                </TabsTrigger>
+                <TabsTrigger
+                  value="AI"
+                  className="h-8 px-2.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                >
+                  AI
+                </TabsTrigger>
+                <TabsTrigger
+                  value="MANUAL"
+                  className="h-8 px-2.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-xs"
+                >
+                  Manual
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-      <Tabs
-        value={callTypeTab}
-        onValueChange={(value) => {
-          setCallTypeTab(value as CallTypeTab);
-          setPage(1);
-        }}
-      >
-        <TabsList>
-          <TabsTrigger value="ALL">All Calls</TabsTrigger>
-          <TabsTrigger value="AI">AI Calls</TabsTrigger>
-          <TabsTrigger value="MANUAL">Manual Calls</TabsTrigger>
-        </TabsList>
-      </Tabs>
+            <div className="relative min-w-[180px] flex-1 basis-[220px]">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search lead name or phone…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9 rounded-md border-border bg-background pl-8"
+              />
+            </div>
 
-      <FilterToolbar className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-          <Input
-            placeholder="Search by lead, caller, outcome, or next action..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-9 rounded-md"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-          className="h-9 px-3 border border-border rounded-md text-sm bg-background w-full md:w-auto"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="FAILED">Failed</option>
-          <option value="NO_ANSWER">No Answer</option>
-          <option value="BUSY">Busy</option>
-          <option value="CALLBACK_REQUESTED">Callback Requested</option>
-          <option value="INITIATED">Initiated</option>
-          <option value="RINGING">Ringing</option>
-          <option value="ANSWERED">Answered</option>
-        </select>
-      </FilterToolbar>
-
-      <Card className="border-border/50 shadow-sm overflow-hidden">
-        <CardContent className="p-0">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="h-9 w-[160px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+              aria-label="Filter by status"
+            >
+              <option value="ALL">All statuses</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed</option>
+              <option value="NO_ANSWER">No Answer</option>
+              <option value="BUSY">Busy</option>
+              <option value="CALLBACK_REQUESTED">Callback Requested</option>
+            </select>
+          </div>
+        </FilterToolbar>
+      }
+    >
+      <LeadDataSurface>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Lead</TableHead>
-                  <TableHead>Caller</TableHead>
                   <TableHead>Call Type</TableHead>
                   <TableHead>Date/Time</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Outcome</TableHead>
-                  <TableHead>AI Score / Interest</TableHead>
-                  <TableHead>Next Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                      Loading call history...
+                    <TableCell colSpan={CALL_HISTORY_COLUMNS} className="p-0">
+                      <LeadListState kind="loading" message="Loading call history..." />
                     </TableCell>
                   </TableRow>
                 ) : isError ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-red-600">
-                      <AlertCircle className="w-5 h-5 inline mr-2" />
-                      Failed to load call history.
-                      <Button variant="link" onClick={() => refetch()}>
-                        Retry
-                      </Button>
+                    <TableCell colSpan={CALL_HISTORY_COLUMNS} className="p-0">
+                      <LeadListState
+                        kind="error"
+                        message="Failed to load call history."
+                        onRetry={() => refetch()}
+                      />
                     </TableCell>
                   </TableRow>
-                ) : filtered.length === 0 ? (
+                ) : callLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
-                      <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      No call records found.
+                    <TableCell colSpan={CALL_HISTORY_COLUMNS} className="p-0">
+                      <LeadListState
+                        kind="empty"
+                        message="No call records found."
+                        icon={PhoneCall}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((log) => (
+                  callLogs.map((log) => (
                     <TableRow
                       key={log.id}
-                      className="cursor-pointer hover:bg-bg-secondary/30"
+                      className="cursor-pointer hover:bg-muted/40"
                       onClick={() => openCallDetail(log)}
                     >
                       <TableCell>
                         <div className="font-medium">{log.lead?.name || "Unknown"}</div>
-                        <div className="text-xs text-text-secondary">{log.lead?.phoneNumber}</div>
+                        <div className="text-xs text-muted-foreground">{log.lead?.phoneNumber}</div>
                       </TableCell>
-                      <TableCell className="text-sm">{callerLabel(log)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{log.callType || "AI"}</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-text-secondary whitespace-nowrap">
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {new Date(log.startedAt || log.createdAt).toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell>{formatDuration(log.duration)}</TableCell>
@@ -340,12 +315,6 @@ export const CallHistory: React.FC = () => {
                       <TableCell className="text-sm max-w-[140px] truncate">
                         {log.outcome || "—"}
                       </TableCell>
-                      <TableCell className="text-sm max-w-[160px] truncate">
-                        {interestLabel(log)}
-                      </TableCell>
-                      <TableCell className="text-sm max-w-[160px] truncate">
-                        {log.nextAction || "—"}
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -353,33 +322,36 @@ export const CallHistory: React.FC = () => {
             </Table>
           </div>
 
-          {meta.totalPages > 1 && (
+          {(meta.totalPages > 1 || meta.total > 0 || Boolean(searchTerm.trim())) && (
             <div className="flex justify-between items-center text-sm px-4 py-3 border-t border-border">
-              <span className="text-text-secondary">
-                Page {meta.page} of {meta.totalPages} · {meta.total} calls
+              <span className="text-muted-foreground">
+                {searchTerm.trim()
+                  ? `${meta.total} matching · Page ${meta.page} of ${meta.totalPages}`
+                  : `Page ${meta.page} of ${meta.totalPages} · ${meta.total} calls`}
               </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= meta.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
+              {meta.totalPages > 1 ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= meta.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              ) : null}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </LeadDataSurface>
 
       <CallDetailDrawer
         call={selectedCall}
@@ -500,63 +472,6 @@ export const CallHistory: React.FC = () => {
                 )}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="qualification"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Qualification</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Hot / Warm / Cold" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="sentiment"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sentiment</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Positive / Neutral / Negative" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="interestStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Interest status</FormLabel>
-                    <FormControl>
-                      <Input placeholder="INTERESTED / NOT_INTERESTED / ..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="nextAction"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Next action</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Schedule counselling tomorrow" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="notes"
@@ -604,6 +519,6 @@ export const CallHistory: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
-    </PageContainer>
+    </LeadWorkspaceShell>
   );
 };

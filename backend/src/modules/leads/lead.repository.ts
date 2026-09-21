@@ -1,11 +1,15 @@
 import { prisma } from "../../config/database";
 import type { Prisma, LeadStatus, LeadLostReason } from "@prisma/client";
 import { LeadActivityService } from "./services/lead-activity.service";
+import { appendCounsellorLeadNotes } from "./utils/append-lead-notes";
+import { recomputeNextFollowUpAt } from "./utils/recompute-next-follow-up-at";
 import { normalizePhoneDigits } from "../../utils/phone";
 
 export interface LeadFindManyParams {
   instituteId: string;
   branchId?: string;
+  /** Multi-branch scope when user has UserBranchAccess and no single branchId. */
+  branchIds?: string[];
   assignedCounsellorId?: string;
   /**
    * Counsellor list scope: assigned to this user OR unassigned and created by them.
@@ -14,6 +18,8 @@ export interface LeadFindManyParams {
   counsellorVisibleId?: string;
   courseId?: string;
   stage?: string;
+  /** Multi-stage filter (takes precedence over single `stage` when non-empty) */
+  stages?: string[];
   stageMasterId?: string;
   status?: LeadStatus;
   source?: string;
@@ -26,6 +32,7 @@ export interface LeadFindManyParams {
   followUpTo?: string;
   scoreBand?: "hot" | "warm" | "cold" | "unscored";
   unassigned?: boolean;
+  hasRemarks?: boolean;
   tag?: string;
   skip: number;
   take: number;
@@ -57,6 +64,15 @@ export const leadInclude = {
     take: 5,
   },
 } satisfies Prisma.LeadInclude;
+
+function leadBranchWhere(
+  branchId?: string,
+  branchIds?: string[]
+): { branchId: string } | { branchId: { in: string[] } } | Record<string, never> {
+  if (branchId) return { branchId };
+  if (branchIds && branchIds.length > 0) return { branchId: { in: branchIds } };
+  return {};
+}
 
 export const LeadRepository = {
   async findActiveLeadByPhone(phoneNumber: string, instituteId: string) {
@@ -254,10 +270,12 @@ export const LeadRepository = {
     const {
       instituteId,
       branchId,
+      branchIds,
       assignedCounsellorId,
       counsellorVisibleId,
       courseId,
       stage,
+      stages,
       status,
       source,
       search,
@@ -268,6 +286,7 @@ export const LeadRepository = {
       followUpTo,
       scoreBand,
       unassigned,
+      hasRemarks,
       tag,
       skip,
       take,
@@ -290,6 +309,12 @@ export const LeadRepository = {
       andFilters.push({ assignedCounsellorId: null });
     }
 
+    if (hasRemarks === true) {
+      andFilters.push({
+        AND: [{ notes: { not: null } }, { NOT: { notes: "" } }],
+      });
+    }
+
     if (scoreBand === "hot") {
       andFilters.push({ leadScore: { gte: 70 } });
     } else if (scoreBand === "warm") {
@@ -307,15 +332,23 @@ export const LeadRepository = {
           { phoneNumber: { contains: search } },
           { email: { contains: search, mode: "insensitive" } },
           { interestedIn: { contains: search, mode: "insensitive" } },
+          { notes: { contains: search, mode: "insensitive" } },
         ],
       });
     }
 
+    const stageFilter =
+      stages && stages.length > 0
+        ? { stage: { in: stages } }
+        : stage
+          ? { stage }
+          : {};
+
     const where: Prisma.LeadWhereInput = {
       instituteId,
-      ...(branchId ? { branchId } : {}),
+      ...leadBranchWhere(branchId, branchIds),
       ...(courseId ? { courseId } : {}),
-      ...(stage ? { stage } : {}),
+      ...stageFilter,
       ...(params.stageMasterId ? { stageMasterId: params.stageMasterId } : {}),
       ...(status ? { status } : {}),
       ...(source ? { source } : {}),
@@ -332,7 +365,25 @@ export const LeadRepository = {
       };
     }
 
-    if (followUpFrom || followUpTo) {
+    // Overdue path (frontend sends followUpTo alone): PENDING tasks before start of today.
+    // Date-range path (both from/to): keep nextFollowUpAt window filter.
+    if (followUpTo && !followUpFrom) {
+      const now = new Date();
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      andFilters.push({
+        followUps: {
+          some: {
+            status: "PENDING",
+            scheduledAt: { lt: startOfToday },
+          },
+        },
+      });
+      where.AND = andFilters;
+    } else if (followUpFrom || followUpTo) {
       where.nextFollowUpAt = {
         ...(followUpFrom ? { gte: new Date(followUpFrom) } : {}),
         ...(followUpTo ? { lte: new Date(followUpTo) } : {}),
@@ -374,6 +425,8 @@ export const LeadRepository = {
     const oldStage = lead.stage;
 
     return prisma.$transaction(async (tx) => {
+      const appendedNotes = appendCounsellorLeadNotes(lead.notes, notes);
+
       const updatedLead = await tx.lead.update({
         where: { id: leadId },
         data: {
@@ -382,6 +435,7 @@ export const LeadRepository = {
           ...(newStage === "CONTACTED" && !lead.lastContactedAt
             ? { lastContactedAt: new Date() }
             : {}),
+          ...(appendedNotes !== undefined ? { notes: appendedNotes } : {}),
         },
         include: leadInclude,
       });
@@ -424,6 +478,11 @@ export const LeadRepository = {
     const oldStage = lead.stage;
 
     return prisma.$transaction(async (tx) => {
+      await tx.leadFollowUp.updateMany({
+        where: { leadId, status: "PENDING" },
+        data: { status: "CANCELLED" },
+      });
+
       const updatedLead = await tx.lead.update({
         where: { id: leadId },
         data: {
@@ -432,6 +491,7 @@ export const LeadRepository = {
           lostAt: new Date(),
           lostReason: reason,
           lostNotes: notes ?? null,
+          nextFollowUpAt: null,
         },
         include: leadInclude,
       });
@@ -462,10 +522,14 @@ export const LeadRepository = {
     });
   },
 
-  async getDashboardSummary(instituteId: string, branchId?: string) {
+  async getDashboardSummary(
+    instituteId: string,
+    branchId?: string,
+    branchIds?: string[]
+  ) {
     const baseWhere = {
       instituteId,
-      ...(branchId ? { branchId } : {}),
+      ...leadBranchWhere(branchId, branchIds),
     };
 
     const now = new Date();
@@ -498,7 +562,7 @@ export const LeadRepository = {
       todayCreated,
       overdueFollowUps,
     ] = await prisma.$transaction([
-      prisma.lead.count({ where: baseWhere }),
+      prisma.lead.count({ where: activeWhere }),
       prisma.lead.count({ where: { ...baseWhere, stage: "NEW" } }),
       prisma.lead.count({ where: { ...baseWhere, stage: "ASSIGNED" } }),
       prisma.lead.count({ where: { ...baseWhere, stage: "CONTACTED" } }),
@@ -543,11 +607,15 @@ export const LeadRepository = {
     };
   },
 
-  async getCounsellorPerformance(instituteId: string, branchId?: string) {
+  async getCounsellorPerformance(
+    instituteId: string,
+    branchId?: string,
+    branchIds?: string[]
+  ) {
     const counsellors = await prisma.user.findMany({
       where: {
         instituteId,
-        ...(branchId ? { branchId } : {}),
+        ...leadBranchWhere(branchId, branchIds),
         userRoles: {
           some: {
             role: { name: "COUNSELLOR" },
@@ -605,33 +673,49 @@ export const LeadRepository = {
   async findCallHistory(params: {
     instituteId: string;
     branchId?: string;
+    branchIds?: string[];
+    counsellorVisibleId?: string;
     leadId?: string;
     studentId?: string;
     status?: string;
     statuses?: string[];
     callType?: "ALL" | "AI" | "MANUAL";
+    search?: string;
     skip: number;
     take: number;
   }) {
     const {
       instituteId,
       branchId,
+      branchIds,
+      counsellorVisibleId,
       leadId,
       studentId,
       status,
       statuses,
       callType = "ALL",
+      search,
       skip,
       take,
     } = params;
 
-    const branchFilter = branchId ? { branchId } : {};
+    const branchFilter = leadBranchWhere(branchId, branchIds);
     const statusList =
       statuses && statuses.length > 0
         ? statuses
         : status
           ? [status]
           : undefined;
+
+    const counsellorLeadFilter: Prisma.LeadWhereInput | undefined =
+      counsellorVisibleId
+        ? {
+            OR: [
+              { assignedCounsellorId: counsellorVisibleId },
+              { assignedCounsellorId: null, createdById: counsellorVisibleId },
+            ],
+          }
+        : undefined;
 
     const where: Prisma.CallLogWhereInput = {
       instituteId,
@@ -641,16 +725,58 @@ export const LeadRepository = {
 
     if (leadId) {
       where.leadId = leadId;
-      where.lead = { instituteId, ...branchFilter };
+      where.lead = {
+        instituteId,
+        ...branchFilter,
+        ...(counsellorLeadFilter ?? {}),
+      };
     } else if (studentId) {
       where.studentId = studentId;
       where.student = { instituteId, ...branchFilter };
     } else if (branchId) {
       where.OR = [
         { branchId },
-        { lead: { instituteId, branchId } },
+        {
+          lead: {
+            instituteId,
+            branchId,
+            ...(counsellorLeadFilter ?? {}),
+          },
+        },
         { student: { instituteId, branchId } },
       ];
+    } else if (branchIds && branchIds.length > 0) {
+      where.OR = [
+        { branchId: { in: branchIds } },
+        {
+          lead: {
+            instituteId,
+            branchId: { in: branchIds },
+            ...(counsellorLeadFilter ?? {}),
+          },
+        },
+        { student: { instituteId, branchId: { in: branchIds } } },
+      ];
+    } else if (counsellorVisibleId) {
+      where.lead = {
+        instituteId,
+        ...counsellorLeadFilter!,
+      };
+    }
+
+    if (search) {
+      const leadSearch: Prisma.LeadWhereInput = {
+        instituteId,
+        ...branchFilter,
+        ...(counsellorLeadFilter ?? {}),
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { phoneNumber: { contains: search } },
+        ],
+      };
+      where.lead = where.lead
+        ? { AND: [where.lead as Prisma.LeadWhereInput, leadSearch] }
+        : leadSearch;
     }
 
     const [total, data] = await Promise.all([
@@ -763,12 +889,6 @@ export const LeadRepository = {
         new Set([...(primary.tags ?? []), ...(duplicate.tags ?? [])])
       );
 
-      const nextFollowUpAt =
-        [primary.nextFollowUpAt, duplicate.nextFollowUpAt]
-          .filter(Boolean)
-          .sort((a, b) => (a as Date).getTime() - (b as Date).getTime())[0] ??
-        null;
-
       const lastContactedAt =
         [primary.lastContactedAt, duplicate.lastContactedAt]
           .filter(Boolean)
@@ -800,8 +920,14 @@ export const LeadRepository = {
           assignedCounsellorId:
             primary.assignedCounsellorId ?? duplicate.assignedCounsellorId,
           lastContactedAt,
-          nextFollowUpAt,
         },
+        include: leadInclude,
+      });
+
+      await recomputeNextFollowUpAt(primaryLeadId, tx);
+
+      const refreshedPrimary = await tx.lead.findUnique({
+        where: { id: primaryLeadId },
         include: leadInclude,
       });
 
@@ -829,7 +955,10 @@ export const LeadRepository = {
         }
       );
 
-      return { primary: updatedPrimary, duplicateId: duplicateLeadId };
+      return {
+        primary: refreshedPrimary ?? updatedPrimary,
+        duplicateId: duplicateLeadId,
+      };
     });
   },
 };

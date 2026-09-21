@@ -47,6 +47,7 @@ import {
   addActivitySchema,
   queryLeadsSchema,
   queryCallHistorySchema,
+  queryFollowUpDashboardSchema,
 } from "./lead.validation";
 
 const router = Router();
@@ -70,6 +71,7 @@ router.get(
 router.get(
   "/dashboard/follow-ups",
   requirePermission("lead.read"),
+  validate(queryFollowUpDashboardSchema, "query"),
   getFollowUpDashboard
 );
 

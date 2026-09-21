@@ -223,7 +223,7 @@
   }
 
   .grid-cards-compact {
-    @apply grid gap-3 sm:gap-4;
+    @apply grid gap-2 sm:gap-2.5;
   }
 
   .card-padding {

@@ -40,6 +40,7 @@ export const useConfirmImport = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["data-management"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "call-history"] });
     },
   });
 };
