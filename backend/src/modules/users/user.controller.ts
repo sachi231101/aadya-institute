@@ -9,6 +9,7 @@ import {
   updateUserService,
   updateUserStatusService,
   updateWhatsappPreferenceService,
+  resetUserPasswordService,
   updateUserPermissionsService,
   updateUserBranchAccessService,
   deleteUserService,
@@ -81,6 +82,23 @@ export const updateUser = async (
       req.body
     );
     sendSuccess(res, user, 200, "User updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resetUserPassword = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await resetUserPasswordService(
+      req.user as unknown as AuthUser,
+      req.params.id as string,
+      req.body.password
+    );
+    sendSuccess(res, result, 200, "Password reset successfully");
   } catch (err) {
     next(err);
   }

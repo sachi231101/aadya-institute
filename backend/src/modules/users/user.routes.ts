@@ -7,6 +7,7 @@ import {
   getUser,
   createUser,
   updateUser,
+  resetUserPassword,
   updateUserStatus,
   updateWhatsappPreference,
   updateUserPermissions,
@@ -17,6 +18,7 @@ import {
 import {
   createUserSchema,
   updateUserSchema,
+  resetUserPasswordSchema,
   updateUserStatusSchema,
   updateWhatsappPreferenceSchema,
   updateUserPermissionsSchema,
@@ -75,6 +77,14 @@ router.patch(
   requirePermission("user.update"),
   validate(updateUserSchema),
   updateUser
+);
+
+// POST /api/v1/users/:id/reset-password — Admin set/reset password (returns temp password once)
+router.post(
+  "/:id/reset-password",
+  requirePermission("user.update"),
+  validate(resetUserPasswordSchema),
+  resetUserPassword
 );
 
 // PATCH /api/v1/users/:id/permissions — Update module permissions for a user

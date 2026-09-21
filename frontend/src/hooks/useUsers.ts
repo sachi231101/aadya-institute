@@ -126,3 +126,13 @@ export const useDeleteUser = () => {
     },
   });
 };
+
+/**
+ * Admin set/reset another user's password. Returns temporaryPassword once.
+ */
+export const useResetUserPassword = () => {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      usersApi.resetUserPassword(id, password),
+  });
+};

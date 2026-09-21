@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import {
   MoreVertical, Eye, Edit, Shield, Key, Trash2, Loader2,
   Users, Building2, MapPin, Search, Plus, Mail, Phone,
-  UserCheck, AlertTriangle, UserPlus, Ban, Save,
+  UserCheck, AlertTriangle, UserPlus, Ban, Save, Copy, Check,
 } from "lucide-react";
 
 import { useNotificationStore } from "@/store/notification.store";
-import { useAdminUsers, useDeleteUser, useUpdateUserBranchAccess } from "@/hooks/useUsers";
+import { useAdminUsers, useDeleteUser, useUpdateUserBranchAccess, useResetUserPassword } from "@/hooks/useUsers";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import {
   useInvitations,
@@ -16,6 +16,8 @@ import {
 } from "@/hooks/useInvitations";
 import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
+import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -237,6 +239,8 @@ export const AdminPanel: React.FC = () => {
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100 });
   const { data: invitationsResponse, isLoading: invitationsLoading } = useInvitations({ limit: 50 });
   const deleteUserMutation = useDeleteUser();
+  const resetPasswordMutation = useResetUserPassword();
+  const { policy, requirements } = usePasswordRequirements();
   const createInvitationMutation = useCreateInvitation();
   const revokeInvitationMutation = useRevokeInvitation();
   const updateBranchAccessMutation = useUpdateUserBranchAccess();
@@ -279,6 +283,9 @@ export const AdminPanel: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [newBranchId, setNewBranchId] = useState("");
 
   const selectedManager = staffUsers.find((a) => a.id === selectedManagerId);
@@ -311,6 +318,9 @@ export const AdminPanel: React.FC = () => {
       setDeleteConfirmText("");
       setNewPassword("");
       setConfirmPassword("");
+      setRevealedPassword(null);
+      setPasswordCopied(false);
+      setResetPasswordError(null);
       setNewBranchId(staffUsers.find((m) => m.id === id)?.branchId || "");
     }
   };
@@ -322,6 +332,54 @@ export const AdminPanel: React.FC = () => {
   const closeModal = () => {
     setActiveModal(null);
     setSelectedManagerId(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setRevealedPassword(null);
+    setPasswordCopied(false);
+    setResetPasswordError(null);
+  };
+
+  const handleResetPasswordSubmit = () => {
+    if (!selectedManagerId) return;
+    if (!newPassword || newPassword !== confirmPassword) {
+      setResetPasswordError("Passwords do not match.");
+      return;
+    }
+    const policyError = validatePasswordAgainstPolicy(newPassword, policy);
+    if (policyError) {
+      setResetPasswordError(policyError);
+      return;
+    }
+    setResetPasswordError(null);
+    resetPasswordMutation.mutate(
+      { id: selectedManagerId, password: newPassword },
+      {
+        onSuccess: (res) => {
+          const temp = res.data?.temporaryPassword || newPassword;
+          setRevealedPassword(temp);
+          setNewPassword("");
+          setConfirmPassword("");
+          addNotification("Password reset successfully. Copy it now — it won't be shown again.", "success");
+        },
+        onError: (err: any) => {
+          setResetPasswordError(
+            err?.response?.data?.message || "Failed to reset password."
+          );
+        },
+      }
+    );
+  };
+
+  const handleCopyRevealedPassword = async () => {
+    if (!revealedPassword) return;
+    try {
+      await navigator.clipboard.writeText(revealedPassword);
+      setPasswordCopied(true);
+      addNotification("Password copied to clipboard.", "success");
+      setTimeout(() => setPasswordCopied(false), 2000);
+    } catch {
+      addNotification("Could not copy password.", "error");
+    }
   };
 
   const handleDelete = () => {
@@ -900,42 +958,111 @@ export const AdminPanel: React.FC = () => {
       <Dialog open={activeModal === "resetPassword"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Reset Password</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {revealedPassword ? "Password Reset Successfully" : "Reset Password"}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Set a new password for {selectedManager?.name}.
+              {revealedPassword
+                ? `Copy the new password for ${selectedManager?.name}. It will not be shown again.`
+                : `Set a new password for ${selectedManager?.name}.`}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New Password"
-              className="bg-background text-foreground border-border"
-            />
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm Password"
-              className="bg-background text-foreground border-border"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeModal} className="rounded-xl">
-              Cancel
-            </Button>
-            <Button
-              className="bg-primary text-white rounded-xl"
-              onClick={() => {
-                addNotification("Password reset link sent.", "success");
-                closeModal();
-              }}
-              disabled={!newPassword || newPassword !== confirmPassword}
-            >
-              Reset Password
-            </Button>
-          </DialogFooter>
+
+          {revealedPassword ? (
+            <div className="space-y-4 py-2">
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 dark:text-emerald-300">
+                  New Password (shown once)
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 min-w-0 font-mono text-sm font-semibold text-foreground bg-card border border-border rounded-lg px-3 py-2 break-all">
+                    {revealedPassword}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyRevealedPassword}
+                    className="shrink-0 gap-1.5"
+                  >
+                    {passwordCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {passwordCopied ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button className="bg-primary text-white rounded-xl w-full sm:w-auto" onClick={closeModal}>
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">New Password</Label>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setResetPasswordError(null);
+                    }}
+                    placeholder="New Password"
+                    className="bg-background text-foreground border-border"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Confirm Password</Label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setResetPasswordError(null);
+                    }}
+                    placeholder="Confirm Password"
+                    className="bg-background text-foreground border-border"
+                  />
+                </div>
+                {requirements.length > 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {requirements.join(" · ")}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    Min 8 characters, at least one uppercase letter and one number.
+                  </p>
+                )}
+                {resetPasswordError && (
+                  <p className="text-xs font-semibold text-rose-600">{resetPasswordError}</p>
+                )}
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={closeModal} className="rounded-xl">
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-primary text-white rounded-xl"
+                  onClick={handleResetPasswordSubmit}
+                  disabled={
+                    !newPassword ||
+                    newPassword !== confirmPassword ||
+                    resetPasswordMutation.isPending
+                  }
+                >
+                  {resetPasswordMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

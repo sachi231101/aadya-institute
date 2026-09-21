@@ -308,6 +308,22 @@ export const updateUserStatus = async (
   return mapUserToResponse(user);
 };
 
+/**
+ * Update password hash for a user in the same institute.
+ * Returns true if a row was updated.
+ */
+export const updateUserPasswordHash = async (
+  id: string,
+  instituteId: string,
+  passwordHash: string
+): Promise<boolean> => {
+  const result = await prisma.user.updateMany({
+    where: { id, instituteId },
+    data: { passwordHash },
+  });
+  return result.count > 0;
+};
+
 export const replaceUserBranchAccess = async (
   userId: string,
   instituteId: string,

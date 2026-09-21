@@ -21,6 +21,7 @@ export interface GroupableAdmission {
   courseCode?: string | null;
   batchCode?: string | null;
   amountPaid?: number;
+  amountDue?: number;
   finalFee?: number;
   totalCourseFee?: number;
   paymentCount?: number;
@@ -28,6 +29,62 @@ export interface GroupableAdmission {
   courses?: PackageCourseRef[] | null;
   [key: string]: unknown;
 }
+
+/** Derive fee totals from provisioned pending fees + payments (preferred over course catalog fee). */
+export const deriveAdmissionFeeSummary = (adm: {
+  course?: { fee?: number | string | null } | null;
+  payments?: Array<{ amount?: number | string | null; status?: string | null }> | null;
+  pendingFees?: Array<{
+    totalFee?: number | string | null;
+    amountPaid?: number | string | null;
+    dueAmount?: number | string | null;
+  }> | null;
+}): {
+  totalCourseFee: number;
+  amountPaid: number;
+  amountDue: number;
+  finalFee: number;
+} => {
+  const payments = adm.payments || [];
+  const pendingFees = adm.pendingFees || [];
+
+  const paidFromPayments = payments
+    .filter((p) => !p.status || String(p.status).toUpperCase() === "SUCCESS")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  const paidFromPending = pendingFees.reduce(
+    (sum, p) => sum + (Number(p.amountPaid) || 0),
+    0
+  );
+  const amountDue = pendingFees.reduce(
+    (sum, p) => sum + Math.max(0, Number(p.dueAmount) || 0),
+    0
+  );
+
+  /**
+   * Fee Summary must satisfy: Total = Paid + Balance.
+   * Do NOT sum pendingFee.totalFee — older rows sometimes stored the full course
+   * fee on every installment, which inflated "Total Fee".
+   * Prefer charge-ledger paid amounts; fall back to payment receipts.
+   */
+  const amountPaid =
+    pendingFees.length > 0
+      ? paidFromPending > 0
+        ? paidFromPending
+        : paidFromPayments
+      : paidFromPayments;
+
+  const courseFee = Number(adm.course?.fee) || 0;
+  const totalCourseFee =
+    pendingFees.length > 0 ? amountPaid + amountDue : courseFee > 0 ? courseFee : amountPaid;
+
+  return {
+    totalCourseFee,
+    amountPaid,
+    amountDue,
+    finalFee: totalCourseFee,
+  };
+};
 
 export const getAdmissionGroupKey = (adm: {
   id: string;
@@ -145,16 +202,24 @@ export const groupAdmissionsByStudent = <T extends GroupableAdmission>(
       ...new Set(group.map((a) => a.batchCode).filter((b): b is string => !!b && b !== "—")),
     ];
 
+    const amountPaid = group.reduce((sum, a) => sum + (Number(a.amountPaid) || 0), 0);
+    const amountDue = group.reduce((sum, a) => sum + (Number((a as any).amountDue) || 0), 0);
+    // Prefer Paid + Balance so package siblings with empty ledgers don't inflate
+    // Total Fee by summing each course's catalog fee.
+    const ledgerTotal = amountPaid + amountDue;
+    const catalogTotal = group.reduce((sum, a) => sum + (Number(a.totalCourseFee) || 0), 0);
+    const totalCourseFee = ledgerTotal > 0 ? ledgerTotal : catalogTotal;
+
     return {
       ...primary,
       courses,
       admissionIds: group.map((a) => a.id),
       courseName: formatPackageCourseLabel(courses, primary.courseName || "—"),
       batchCode: batchCodes.length > 0 ? batchCodes.join(", ") : primary.batchCode,
-      amountPaid: group.reduce((sum, a) => sum + (Number(a.amountPaid) || 0), 0),
-      amountDue: group.reduce((sum, a) => sum + (Number((a as any).amountDue) || 0), 0),
-      totalCourseFee: group.reduce((sum, a) => sum + (Number(a.totalCourseFee) || 0), 0),
-      finalFee: group.reduce((sum, a) => sum + (Number(a.finalFee) || 0), 0),
+      amountPaid,
+      amountDue,
+      totalCourseFee,
+      finalFee: totalCourseFee,
     } as GroupedAdmission<T>;
   });
 };
