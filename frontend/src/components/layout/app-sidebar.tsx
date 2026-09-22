@@ -227,6 +227,7 @@ const data = {
       icon: Building2,
       items: [
         { title: "Organization", url: A.ADMINISTRATION.ORGANIZATION },
+        { title: "Canvas", url: A.ADMINISTRATION.CANVAS },
         { title: "Centers & Branches", url: A.ADMINISTRATION.BRANCHES },
         { title: "User Management", url: A.ADMINISTRATION.USERS },
         { title: "Roles & Permissions", url: A.ADMINISTRATION.ROLES },

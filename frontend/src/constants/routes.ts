@@ -135,6 +135,8 @@ export const ROUTES = {
     },
     ADMINISTRATION: {
       ORGANIZATION: "/admin/administration/organization",
+      CANVAS: "/admin/administration/canvas",
+      canvas: (type: string) => `/admin/administration/canvas/${type}`,
       BRANCHES: "/admin/administration/branches",
       USERS: "/admin/administration/users",
       ROLES: "/admin/administration/roles",

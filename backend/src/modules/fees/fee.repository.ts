@@ -34,6 +34,10 @@ import {
 import { SequenceService } from "../masters/sequence.service";
 import { AppError } from "../../middlewares/error.middleware";
 import {
+  collectStudentCourses,
+  formatStudentCourseNames,
+} from "../students/student-courses.util";
+import {
   issueStudentInvoiceForPendingFee,
   issueBundledStudentInvoice,
   linkAllocationToInvoice,
@@ -1146,11 +1150,26 @@ export const FeeRepository = {
         include: {
           user: { select: { name: true, phone: true, email: true } },
           admissions: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
+            orderBy: { createdAt: "asc" },
             include: {
-              course: { select: { id: true, name: true } },
+              course: { select: { id: true, name: true, code: true } },
               batch: { select: { id: true, name: true } },
+            },
+          },
+          batchEnrollments: {
+            include: {
+              batch: {
+                select: {
+                  id: true,
+                  name: true,
+                  course: { select: { id: true, name: true, code: true } },
+                  batchCourses: {
+                    select: {
+                      course: { select: { id: true, name: true, code: true } },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -1241,7 +1260,15 @@ export const FeeRepository = {
       else if (paid > 0 && due > 0) feeStatus = "Partial";
       else if (due > 0) feeStatus = "Pending";
 
-      const admission = s.admissions[0];
+      const courses = collectStudentCourses(s);
+      const primaryAdmission =
+        s.admissions.find((a) => a.course?.id && courses.some((c) => c.id === a.course?.id)) ||
+        s.admissions[0];
+      const primaryBatch =
+        s.batchEnrollments?.[0]?.batch ||
+        primaryAdmission?.batch ||
+        null;
+
       return {
         id: s.id,
         studentCode: s.studentCode,
@@ -1249,11 +1276,12 @@ export const FeeRepository = {
         phone: s.user?.phone || null,
         email: s.user?.email || null,
         branchId: s.branchId,
-        courseId: admission?.course?.id || null,
-        courseName: admission?.course?.name || null,
-        batchId: admission?.batch?.id || null,
-        batchName: admission?.batch?.name || null,
-        admissionNo: admission?.admissionNo || null,
+        courseId: courses[0]?.id || primaryAdmission?.course?.id || null,
+        courseName: formatStudentCourseNames(courses, primaryAdmission?.course?.name || "") || null,
+        courses: courses.map((c) => ({ id: c.id, name: c.name, code: c.code })),
+        batchId: primaryBatch?.id || primaryAdmission?.batch?.id || null,
+        batchName: primaryBatch?.name || primaryAdmission?.batch?.name || null,
+        admissionNo: primaryAdmission?.admissionNo || null,
         totalFee,
         amountPaid: paid,
         balance: due,

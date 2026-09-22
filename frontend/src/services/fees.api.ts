@@ -233,4 +233,38 @@ export const feesApi = {
     );
     return response.data;
   },
+
+  downloadInvoicePdf: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/fees/invoices/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  },
+
+  ensureInvoicePdf: async (
+    id: string,
+    force = false
+  ): Promise<ApiResponse<{ pdfUrl?: string; pdfReady?: boolean }>> => {
+    const response = await api.post<ApiResponse<{ pdfUrl?: string; pdfReady?: boolean }>>(
+      `/fees/invoices/${id}/pdf`,
+      {},
+      { params: force ? { force: true } : undefined }
+    );
+    return response.data;
+  },
+
+  downloadOtherInvoicePdf: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/fees/other-invoices/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  },
+
+  ensureOtherInvoicePdf: async (
+    id: string,
+    force = false
+  ): Promise<ApiResponse<{ pdfUrl?: string; pdfReady?: boolean }>> => {
+    const response = await api.post<ApiResponse<{ pdfUrl?: string; pdfReady?: boolean }>>(
+      `/fees/other-invoices/${id}/pdf`,
+      {},
+      { params: force ? { force: true } : undefined }
+    );
+    return response.data;
+  },
 };

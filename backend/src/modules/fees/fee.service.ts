@@ -13,6 +13,11 @@ import type {
   CreateOtherInvoiceDTO,
 } from "./fee.types";
 import { generateAndStoreReceiptPdf, resolveLocalReceiptPdfPath } from "./fee-receipt-pdf.service";
+import {
+  generateAndStoreInvoicePdf,
+  resolveLocalInvoicePdfPath,
+} from "./fee-invoice-pdf.service";
+import type { InvoiceKind } from "../document-templates/document-data.service";
 import { repairLegacyStudentInvoiceNumbers } from "./fee-invoice.service";
 import { repairUnallocatedPayments } from "./fee-payment-repair.service";
 import fs from "fs";
@@ -31,6 +36,10 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { derivePendingStatus, startOfDay } from "./fee-balance.util";
 import { roundMoney, serializePayment, toMoneyNumber } from "./fee-money.util";
+import {
+  collectStudentCourses,
+  formatStudentCourseNames,
+} from "../students/student-courses.util";
 
 async function resolvePaymentMasters(
   instituteId: string,
@@ -241,19 +250,37 @@ export const FeeService = {
       include: {
         user: { select: { name: true } },
         admissions: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { course: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+          include: { course: { select: { id: true, name: true, code: true } } },
+        },
+        batchEnrollments: {
+          include: {
+            batch: {
+              select: {
+                course: { select: { id: true, name: true, code: true } },
+                batchCourses: {
+                  select: { course: { select: { id: true, name: true, code: true } } },
+                },
+              },
+            },
+          },
         },
       },
     });
     if (!student) throw new AppError("Student not found", 404);
     assertBranchRecordAccess(currentUser, student.branchId);
 
-    const admission = student.admissions[0];
+    const courses = collectStudentCourses(student);
+    const admission =
+      (dto.admissionId
+        ? student.admissions.find((a) => a.id === dto.admissionId)
+        : undefined) || student.admissions[0];
     const studentName = student.user?.name || dto.studentName || "Student";
     const admissionNo = admission?.admissionNo || dto.admissionNo || student.studentCode;
-    const courseName = admission?.course?.name || dto.courseName || "Enrolled Course";
+    const courseName =
+      dto.courseName ||
+      admission?.course?.name ||
+      formatStudentCourseNames(courses, "Enrolled Course");
     const admissionId = dto.admissionId || admission?.id || null;
     const branchId = student.branchId;
     const totalAmount = roundMoney(dto.amount + (dto.lateFee || 0));
@@ -465,16 +492,41 @@ export const FeeService = {
       include: {
         user: { select: { name: true, phone: true } },
         admissions: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { course: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+          include: { course: { select: { id: true, name: true, code: true } } },
+        },
+        batchEnrollments: {
+          include: {
+            batch: {
+              select: {
+                course: { select: { id: true, name: true, code: true } },
+                batchCourses: {
+                  select: { course: { select: { id: true, name: true, code: true } } },
+                },
+              },
+            },
+          },
         },
       },
     });
     if (!student) throw new AppError("Student not found", 404);
     assertBranchRecordAccess(currentUser, student.branchId);
 
-    const admission = student.admissions[0];
+    const courses = collectStudentCourses(student);
+    const admission =
+      (dto.admissionId
+        ? student.admissions.find((a) => a.id === dto.admissionId)
+        : undefined) ||
+      (dto.courseName
+        ? student.admissions.find((a) => a.course?.name === dto.courseName)
+        : undefined) ||
+      student.admissions[0];
+
+    const courseName =
+      dto.courseName ||
+      admission?.course?.name ||
+      formatStudentCourseNames(courses, "Course");
+
     return FeeRepository.createCharges(
       currentUser.instituteId,
       {
@@ -482,7 +534,7 @@ export const FeeService = {
         name: student.user?.name || "Student",
         phone: student.user?.phone || "",
         admissionNo: admission?.admissionNo || student.studentCode,
-        courseName: admission?.course?.name || "Course",
+        courseName,
         branchId: student.branchId,
         admissionId: dto.admissionId || admission?.id || null,
       },
@@ -494,6 +546,7 @@ export const FeeService = {
     return FeeService.createCharges(currentUser, {
       studentId: dto.studentId,
       admissionId: dto.admissionId,
+      courseName: dto.courseName,
       charges: [
         {
           feeHeadMasterId: dto.feeHeadMasterId,
@@ -609,9 +662,23 @@ export const FeeService = {
       include: {
         user: { select: { name: true, phone: true } },
         admissions: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { concessionHeadMaster: { select: { id: true, name: true, data: true } } },
+          orderBy: { createdAt: "asc" },
+          include: {
+            course: { select: { id: true, name: true, code: true } },
+            concessionHeadMaster: { select: { id: true, name: true, data: true } },
+          },
+        },
+        batchEnrollments: {
+          include: {
+            batch: {
+              select: {
+                course: { select: { id: true, name: true, code: true } },
+                batchCourses: {
+                  select: { course: { select: { id: true, name: true, code: true } } },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -641,15 +708,58 @@ export const FeeService = {
       }),
     ]);
 
-    // Best-effort concession from master percentage metadata (display only)
-    let concessionAmount = 0;
-    const concession = student.admissions[0]?.concessionHeadMaster;
-    const pendingRows = pendingFees as Array<{
+    const courses = collectStudentCourses(student);
+
+    // Align charge course labels with admissions (and legacy package fees tagged with only one course)
+    const pendingFeeRowsRaw = pendingFees as Array<{
+      id: string;
+      courseName?: string | null;
+      admissionId?: string | null;
       amountPaid?: number;
       dueAmount?: number;
       feeHeadMasterId?: string;
       feeHead?: string | null;
     }>;
+    if (courses.length > 0 && pendingFeeRowsRaw.length > 0) {
+      const admissionCourseName = new Map(
+        courses
+          .filter((c) => c.admissionId)
+          .map((c) => [c.admissionId as string, c.name])
+      );
+      const joinedNames = formatStudentCourseNames(courses);
+      const uniqueAdmissionIds = new Set(
+        pendingFeeRowsRaw.map((f) => f.admissionId).filter(Boolean) as string[]
+      );
+      const uniqueFeeCourseNames = new Set(
+        pendingFeeRowsRaw.map((f) => f.courseName).filter(Boolean) as string[]
+      );
+      // Legacy multi-course package: all charges sit on one admission / one course label
+      const isLegacyPackage =
+        courses.length > 1 &&
+        uniqueAdmissionIds.size <= 1 &&
+        uniqueFeeCourseNames.size <= 1 &&
+        !uniqueFeeCourseNames.has(joinedNames);
+
+      for (const fee of pendingFeeRowsRaw) {
+        let nextName: string | null = null;
+        if (isLegacyPackage) {
+          nextName = joinedNames;
+        } else if (fee.admissionId && admissionCourseName.has(fee.admissionId)) {
+          nextName = admissionCourseName.get(fee.admissionId) || null;
+        }
+        if (nextName && fee.courseName !== nextName) {
+          fee.courseName = nextName;
+          await prisma.pendingFee
+            .update({ where: { id: fee.id }, data: { courseName: nextName } })
+            .catch(() => undefined);
+        }
+      }
+    }
+
+    // Best-effort concession from master percentage metadata (display only)
+    let concessionAmount = 0;
+    const concession = student.admissions[0]?.concessionHeadMaster;
+    const pendingRows = pendingFeeRowsRaw;
     if (concession?.data && typeof concession.data === "object") {
       const pct = Number((concession.data as { percentage?: string }).percentage);
       const net = pendingRows.reduce(
@@ -682,6 +792,13 @@ export const FeeService = {
         phone: student.user?.phone || null,
         studentCode: student.studentCode,
         branchId: student.branchId,
+        courses: courses.map((c) => ({
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          admissionId: c.admissionId,
+        })),
+        courseName: formatStudentCourseNames(courses) || null,
       },
       payments,
       pendingFees,
@@ -740,6 +857,47 @@ export const FeeService = {
     if (!invoice) throw new AppError("Other invoice not found", 404);
     assertBranchRecordAccess(currentUser, invoice.branchId);
     return invoice;
+  },
+
+  async ensureInvoicePdf(
+    currentUser: AuthUser,
+    kind: InvoiceKind,
+    id: string,
+    force = false
+  ) {
+    const invoice =
+      kind === "OTHER"
+        ? await FeeService.getOtherInvoice(currentUser, id)
+        : await FeeService.getStudentInvoice(currentUser, id);
+    const generated = await generateAndStoreInvoicePdf(kind, id, { force });
+    if (!generated) throw new AppError("Failed to generate invoice PDF", 500);
+    return {
+      ...invoice,
+      pdfUrl: generated.pdfUrl,
+      pdfGeneratedAt: generated.pdfGeneratedAt,
+      pdfReady: true,
+    };
+  },
+
+  async getInvoicePdfPath(
+    currentUser: AuthUser,
+    kind: InvoiceKind,
+    id: string
+  ): Promise<{ absolutePath: string; filename: string }> {
+    // Always re-render so canvas logo/layout changes appear immediately.
+    const invoice = (await FeeService.ensureInvoicePdf(currentUser, kind, id, true)) as {
+      pdfUrl?: string;
+      invoiceNo?: string;
+    };
+    const absolutePath = resolveLocalInvoicePdfPath(invoice.pdfUrl || "");
+
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
+      throw new AppError("Invoice PDF file missing on disk", 404);
+    }
+    return {
+      absolutePath,
+      filename: `${(invoice.invoiceNo || id).replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`,
+    };
   },
 
   async createOtherInvoice(
@@ -873,21 +1031,13 @@ export const FeeService = {
     absolutePath: string;
     filename: string;
   }> {
-    let receipt = (await FeeService.ensureReceiptPdf(currentUser, id, false)) as {
+    // Always re-render so canvas logo/layout changes appear immediately.
+    const receipt = (await FeeService.ensureReceiptPdf(currentUser, id, true)) as {
       receiptPdfUrl?: string;
       receiptNo?: string;
     };
-    let url = receipt.receiptPdfUrl || "";
-    let absolutePath = resolveLocalReceiptPdfPath(url);
-
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
-      receipt = (await FeeService.ensureReceiptPdf(currentUser, id, true)) as {
-        receiptPdfUrl?: string;
-        receiptNo?: string;
-      };
-      url = receipt.receiptPdfUrl || "";
-      absolutePath = resolveLocalReceiptPdfPath(url);
-    }
+    const url = receipt.receiptPdfUrl || "";
+    const absolutePath = resolveLocalReceiptPdfPath(url);
 
     if (!absolutePath || !fs.existsSync(absolutePath)) {
       throw new AppError("Receipt PDF file missing on disk", 404);

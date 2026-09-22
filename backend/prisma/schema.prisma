@@ -238,6 +238,29 @@ model Institute {
   studyMaterials           StudyMaterial[]
   announcements            Announcement[]
   leaveRequests            LeaveRequest[]
+  documentTemplates        DocumentTemplate[]
+}
+
+enum DocumentTemplateType {
+  RECEIPT
+  INVOICE
+  CERTIFICATE
+}
+
+model DocumentTemplate {
+  id           String               @id @default(cuid())
+  instituteId  String
+  documentType DocumentTemplateType
+  name         String
+  paperSize    String               @default("A4")
+  layout       Json
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, documentType])
+  @@index([instituteId])
 }
 
 model Branch {
@@ -1477,6 +1500,8 @@ model StudentInvoice {
   dueDate         DateTime
   lineItems       Json?
   notes           String?
+  pdfUrl          String?
+  pdfGeneratedAt  DateTime?
   cancelledAt     DateTime?
   cancelReason    String?
   createdAt       DateTime             @default(now())
@@ -1525,6 +1550,8 @@ model OtherInvoice {
   status       OtherInvoiceStatus @default(ISSUED)
   terms        String?
   notes        String?
+  pdfUrl       String?
+  pdfGeneratedAt DateTime?
   cancelledAt  DateTime?
   cancelReason String?
   createdAt    DateTime           @default(now())

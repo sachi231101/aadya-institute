@@ -269,6 +269,29 @@ const applyInstallmentAmountChange = (
   return updated;
 };
 
+/** Split `total` across `weights` (course fees); last bucket absorbs rounding remainder. */
+const allocateRounded = (total: number, weights: number[]): number[] => {
+  const n = weights.length;
+  if (n === 0) return [];
+  const safeTotal = Math.max(0, Math.round(Number(total) || 0));
+  if (safeTotal === 0) return Array.from({ length: n }, () => 0);
+  const positiveWeights = weights.map((w) => Math.max(0, Number(w) || 0));
+  const weightSum = positiveWeights.reduce((s, w) => s + w, 0);
+  if (weightSum <= 0) {
+    const base = Math.floor(safeTotal / n);
+    const out = Array.from({ length: n }, () => base);
+    out[n - 1] += safeTotal - base * n;
+    return out;
+  }
+  let allocated = 0;
+  return positiveWeights.map((w, i) => {
+    if (i === n - 1) return safeTotal - allocated;
+    const part = Math.round((safeTotal * w) / weightSum);
+    allocated += part;
+    return part;
+  });
+};
+
 /**
  * Provision charges the full net payable, then applies pay-now FIFO.
  * Send pay-now as installment 1 so the remaining schedule is not scaled
@@ -1422,9 +1445,39 @@ export const DirectAdmissionEntry: React.FC = () => {
       let firstAdmissionNo = admissionNo;
       let firstAdmissionId: string | undefined;
 
+      const courseWeights = selectedCoursesList.map((c) => Number(c.fee) || 0);
+      const courseTotals = allocateRounded(finalPayableAmount, courseWeights);
+      const paidTotal = Number(amountPaidAtAdmission) || 0;
+      const coursePaidAmounts = allocateRounded(paidTotal, courseTotals);
+
       for (let index = 0; index < selectedCoursesList.length; index += 1) {
         const course = selectedCoursesList[index];
         const isPrimary = index === 0;
+        const courseTotal = courseTotals[index] || 0;
+        const coursePaid = Math.min(coursePaidAmounts[index] || 0, courseTotal);
+        const courseBalance = Math.max(0, courseTotal - coursePaid);
+
+        const courseRemainingSchedule =
+          paymentMode === "INSTALLMENT" && courseBalance > 0 && installments.length > 0
+            ? (() => {
+                const scaled = installments.map((inst) => ({
+                  ...inst,
+                  amount: allocateRounded(Number(inst.amount) || 0, courseTotals)[index] || 0,
+                }));
+                const sumScaled = scaled.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+                if (scaled.length > 0 && sumScaled !== courseBalance) {
+                  scaled[scaled.length - 1] = {
+                    ...scaled[scaled.length - 1],
+                    amount: Math.max(
+                      0,
+                      (Number(scaled[scaled.length - 1].amount) || 0) + (courseBalance - sumScaled)
+                    ),
+                  };
+                }
+                return scaled.filter((i) => Number(i.amount) > 0);
+              })()
+            : [];
+
         const payload: CreateAdmissionPayload = {
           studentName: studentFullName,
           email: email.trim(),
@@ -1442,7 +1495,8 @@ export const DirectAdmissionEntry: React.FC = () => {
           sourceMasterId: sourceMasterId || undefined,
           statusMasterId: statusMasterId || undefined,
           paymentModeMasterId: paymentModeMasterId || undefined,
-          concessionHeadMasterId: isPrimary ? concessionHeadMasterId || undefined : undefined,
+          // Same concession % on every course line so multi-course packages stay proportional
+          concessionHeadMasterId: concessionHeadMasterId || undefined,
           areaMasterId: areaMasterId || undefined,
           termsAcceptance:
             status === "PENDING"
@@ -1457,15 +1511,19 @@ export const DirectAdmissionEntry: React.FC = () => {
             paymentModeOptions.find((o) => o.value === paymentModeMasterId)
           ),
           sendCredentials: isPrimary && status === "CONFIRMED",
-          totalFee: isPrimary ? finalPayableAmount : undefined,
-          amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
+          // Each course gets its own fee lines tagged with that course name
+          totalFee: courseTotal > 0 ? courseTotal : undefined,
+          amountPaid: courseTotal > 0 ? coursePaid : undefined,
           installments:
-            isPrimary && paymentMode === "INSTALLMENT" && balanceToBePaid > 0
+            courseTotal > 0 &&
+            paymentMode === "INSTALLMENT" &&
+            courseBalance > 0 &&
+            courseRemainingSchedule.length > 0
               ? buildInstallmentsForProvision(
-                  finalPayableAmount,
-                  Number(amountPaidAtAdmission) || 0,
+                  courseTotal,
+                  coursePaid,
                   admissionDate,
-                  installments
+                  courseRemainingSchedule
                 )
               : undefined,
         };

@@ -1,7 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, CreditCard, Loader2, AlertCircle } from "lucide-react";
-import { useOtherInvoice } from "@/hooks/useFees";
+import {
+  ArrowLeft,
+  CreditCard,
+  Loader2,
+  AlertCircle,
+  Download,
+  Printer,
+  RefreshCw,
+} from "lucide-react";
+import {
+  useOtherInvoice,
+  useDownloadOtherInvoicePdf,
+  useEnsureOtherInvoicePdf,
+} from "@/hooks/useFees";
+import { openPdfBlob, pdfErrorMessage } from "@/utils/pdf-blob";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,8 +37,41 @@ export const OtherInvoiceDetail: React.FC = () => {
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
 
+  const downloadPdf = useDownloadOtherInvoicePdf();
+  const regeneratePdf = useEnsureOtherInvoicePdf();
+  const [busy, setBusy] = useState<"download" | "print" | "regenerate" | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const { data, isLoading, isError, refetch } = useOtherInvoice(id);
   const invoice = data?.data;
+
+  const runPdf = async (mode: "download" | "print") => {
+    if (!id || !invoice) return;
+    setBusy(mode);
+    setPdfError(null);
+    try {
+      const blob = await downloadPdf.mutateAsync(id);
+      await openPdfBlob(blob, mode, `${invoice.invoiceNo || id}.pdf`);
+    } catch (err: unknown) {
+      setPdfError(pdfErrorMessage(err, "Failed to prepare invoice PDF"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!id) return;
+    setBusy("regenerate");
+    setPdfError(null);
+    try {
+      await regeneratePdf.mutateAsync({ id, force: true });
+      void refetch();
+    } catch (err: unknown) {
+      setPdfError(pdfErrorMessage(err, "Failed to regenerate invoice PDF"));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -59,15 +105,58 @@ export const OtherInvoiceDetail: React.FC = () => {
         title={<span className="font-mono">{invoice.invoiceNo}</span>}
         description={`${invoice.studentName} · ${invoice.admissionNo}`}
         actions={
-          invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" ? (
-            <Button asChild className="gap-2">
-              <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
-                <CreditCard className="h-4 w-4" /> Record Payment
-              </Link>
+          <div className="flex flex-wrap gap-2">
+            {invoice.studentId && invoice.balance > 0 && invoice.status !== "CANCELLED" ? (
+              <Button asChild className="gap-2">
+                <Link to={`${basePath}/fees/payments?studentId=${invoice.studentId}`}>
+                  <CreditCard className="h-4 w-4" /> Record Payment
+                </Link>
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void handleRegenerate()}
+            >
+              {busy === "regenerate" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Regenerate PDF
             </Button>
-          ) : null
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void runPdf("download")}
+            >
+              {busy === "download" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void runPdf("print")}
+            >
+              {busy === "print" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Printer className="h-4 w-4" />
+              )}
+              Print PDF
+            </Button>
+          </div>
         }
       />
+
+      {pdfError ? <p className="text-sm text-red-600">{pdfError}</p> : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">

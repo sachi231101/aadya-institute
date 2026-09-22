@@ -29,6 +29,10 @@ import {
   getBatchCourseRows,
   getSessionSubjectLabel,
 } from "../../utils/batch-course.util";
+import {
+  collectStudentCourses,
+  formatStudentCourseNames,
+} from "./student-courses.util";
 
 type AttendanceLike = {
   status: string;
@@ -127,36 +131,10 @@ const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any)
   };
 };
 
-const collectStudentCourses = (s: any): Array<{ id: string; name: string; code: string }> => {
-  const byId = new Map<string, { id: string; name: string; code: string }>();
-
-  const addCourse = (course?: { id?: string; name?: string; code?: string } | null) => {
-    if (!course?.id || !course.name) return;
-    if (byId.has(course.id)) return;
-    byId.set(course.id, {
-      id: course.id,
-      name: course.name,
-      code: course.code || "",
-    });
-  };
-
-  for (const enrollment of s.batchEnrollments || []) {
-    const batch = enrollment?.batch;
-    if (!batch) continue;
-    const batchCourses = batch.batchCourses || [];
-    if (batchCourses.length > 0) {
-      for (const bc of batchCourses) addCourse(bc.course);
-    } else {
-      addCourse(batch.course);
-    }
-  }
-
-  for (const admission of s.admissions || []) {
-    addCourse(admission?.course);
-  }
-
-  return Array.from(byId.values());
-};
+import {
+  collectStudentCourses,
+  formatStudentCourseNames,
+} from "./student-courses.util";
 
 const mapStudentSummary = (s: any) => {
   const admission = s.admissions?.[0];
@@ -236,7 +214,10 @@ const mapStudentSummary = (s: any) => {
     user: s.user,
     displayName: s.user?.name || admission?.studentName || s.studentCode,
     branch: s.branch,
-    courseName: courses.length > 0 ? courses.map((c) => c.name).join(", ") : course?.name ?? null,
+    courseName:
+      courses.length > 0
+        ? formatStudentCourseNames(courses)
+        : course?.name ?? null,
     courses,
     batchId: batch?.id ?? null,
     batchCode: batch?.code ?? null,

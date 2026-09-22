@@ -110,7 +110,7 @@ export const formatPackageCourseLabel = (
 };
 
 export const coursesFromStudent = (student: {
-  courses?: Array<{ id: string; name: string; code?: string }> | null;
+  courses?: Array<{ id: string; name: string; code?: string; admissionId?: string }> | null;
   courseName?: string | null;
 }): PackageCourseRef[] => {
   if (student.courses?.length) {
@@ -118,6 +118,7 @@ export const coursesFromStudent = (student: {
       id: c.id,
       name: c.name,
       code: c.code || "",
+      admissionId: c.admissionId,
     }));
   }
   if (student.courseName && student.courseName !== "—" && student.courseName !== "Not assigned") {
