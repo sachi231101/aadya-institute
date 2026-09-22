@@ -7,6 +7,7 @@ import { buildMeta } from "../../utils/pagination";
 import {
   assertBranchRecordAccess,
   getBranchScopeFilter,
+  hasBranchAccess,
 } from "../../utils/branch-isolation.util";
 import {
   assertFacultyCanAccessStudent,
@@ -15,7 +16,13 @@ import {
 } from "../../utils/auth-user.util";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
-import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
+import type {
+  CreateStudentDto,
+  UpdateStudentDto,
+  ListStudentQuery,
+  DiscontinueStudentDto,
+  ContinueStudentDto,
+} from "./student.validation";
 import { SequenceService } from "../masters/sequence.service";
 import {
   formatBatchSubjectNames,
@@ -231,6 +238,8 @@ const mapStudentSummary = (s: any) => {
     branch: s.branch,
     courseName: courses.length > 0 ? courses.map((c) => c.name).join(", ") : course?.name ?? null,
     courses,
+    batchId: batch?.id ?? null,
+    batchCode: batch?.code ?? null,
     batchName: batch?.name ?? null,
     facultyName: faculty ?? null,
     batchTiming: batch?.timeSlot ?? null,
@@ -254,26 +263,41 @@ export const getAllStudents = async (
   const scope = getBranchScopeFilter(currentUser, query.branchId);
   const facultyId = await requireFacultyIdIfPureFaculty(currentUser);
 
+  const enrollmentStatus =
+    query.enrollmentStatus && query.enrollmentStatus !== "ALL"
+      ? query.enrollmentStatus
+      : undefined;
+
   // Pure faculty: teaching-desk scope may cross branches — do not pin JWT branchId.
+  // CM/Counsellor: pass branchId and/or branchIds from JWT scope (spoofed query ignored).
+  // Admin: optional requestedBranchId only; omit both for institute-wide.
   const params: repo.FindAllStudentsParams = {
     instituteId: scope.instituteId,
     branchId: facultyId ? undefined : scope.branchId,
+    branchIds: facultyId ? undefined : scope.branchIds,
     search: query.search || undefined,
     status: query.status || undefined,
     facultyId: facultyId || undefined,
+    enrollmentStatus,
+    courseId: query.courseId || undefined,
     skip,
     take: limit,
   };
 
+  const countParams = {
+    instituteId: params.instituteId,
+    branchId: params.branchId,
+    branchIds: params.branchIds,
+    search: params.search,
+    status: params.status,
+    facultyId: params.facultyId,
+    enrollmentStatus: params.enrollmentStatus,
+    courseId: params.courseId,
+  };
+
   const [rawStudents, total] = await Promise.all([
     repo.findAllStudents(params),
-    repo.countStudents({
-      instituteId: params.instituteId,
-      branchId: params.branchId,
-      search: params.search,
-      status: params.status,
-      facultyId: params.facultyId,
-    }),
+    repo.countStudents(countParams),
   ]);
 
   const data = rawStudents.map(mapStudentSummary);
@@ -392,13 +416,32 @@ import * as studentAllocationService from "./student-allocation.service";
 /**
  * Create a new student (User + Student + STUDENT role + optional Course/Batch/Fee).
  */
-export const createStudent = async (instituteId: string, dto: CreateStudentDto) => {
+export const createStudent = async (
+  instituteId: string,
+  dto: CreateStudentDto,
+  currentUser: AuthUser
+) => {
   // Validate branch exists
   const branch = await prisma.branch.findFirst({
     where: { id: dto.branchId, instituteId },
   });
   if (!branch) {
     throw new AppError("Selected branch not found or does not belong to this institute", 400);
+  }
+  // CM/Counsellor: JWT branch only. Admin may create in any institute branch.
+  if (!hasBranchAccess(currentUser, dto.branchId)) {
+    throw new AppError("You do not have access to create students in this branch", 403);
+  }
+
+  if (dto.batchId && dto.batchId.trim() !== "") {
+    const batch = await prisma.batch.findFirst({
+      where: { id: dto.batchId.trim(), instituteId },
+      select: { branchId: true },
+    });
+    if (!batch) {
+      throw new AppError("Batch not found", 404);
+    }
+    assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
   }
 
   // Determine studentCode: auto-generate via SequenceService if omitted, or validate uniqueness
@@ -500,9 +543,34 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
 /**
  * Update a student's details.
  */
-export const updateStudent = async (id: string, dto: UpdateStudentDto) => {
+export const updateStudent = async (
+  id: string,
+  dto: UpdateStudentDto,
+  currentUser: AuthUser
+) => {
   const student = await repo.findStudentById(id);
   if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
+
+  if (dto.branchId && dto.branchId.trim() !== "") {
+    if (!hasBranchAccess(currentUser, dto.branchId.trim())) {
+      throw new AppError("You do not have access to move students to this branch", 403);
+    }
+  }
+
+  if (dto.batchId !== undefined && dto.batchId.trim() !== "") {
+    const batch = await prisma.batch.findFirst({
+      where: { id: dto.batchId.trim(), instituteId: student.instituteId },
+      select: { branchId: true },
+    });
+    if (!batch) {
+      throw new AppError("Batch not found", 404);
+    }
+    assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
+  }
 
   let qualification = dto.qualification;
   let qualificationMasterId = dto.qualificationMasterId;
@@ -830,6 +898,528 @@ const credentialsSkipMessage = (reason?: string | null) => {
     default:
       return "WhatsApp did not send the login ID and password.";
   }
+};
+
+const discontinuationRiskSkipMessage = (reason?: string | null) => {
+  switch (reason) {
+    case "TEMPLATE_MISSING":
+    case "TEMPLATE_INACTIVE":
+      return "The discontinuation risk WhatsApp template is not active.";
+    case "MSG91_NOT_CONFIGURED":
+    case "PROVIDER_NOT_CONNECTED":
+      return "WhatsApp is not connected.";
+    case "AUTOMATION_DISABLED":
+    case "GLOBAL_AUTOMATION_DISABLED":
+      return "Discontinuation risk WhatsApp automation is turned off.";
+    case "INVALID_PHONE":
+      return "The student's mobile number is not a valid WhatsApp number.";
+    case "RECIPIENT_OPTED_OUT":
+      return "This student has WhatsApp messages turned off.";
+    default:
+      return "WhatsApp notification was not sent.";
+  }
+};
+
+const appendAdmissionNote = (existing: string | null | undefined, reason: string): string => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const entry = `Discontinued (${stamp}): ${reason}`;
+  if (!existing || !existing.trim()) return entry;
+  return `${existing.trim()}\n${entry}`;
+};
+
+const appendContinueAdmissionNote = (
+  existing: string | null | undefined,
+  notes?: string | null
+): string => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const trimmed = notes?.trim();
+  const entry = trimmed ? `Continued (${stamp}): ${trimmed}` : `Continued (${stamp})`;
+  if (!existing || !existing.trim()) return entry;
+  return `${existing.trim()}\n${entry}`;
+};
+
+/** Pure helper: whether an INACTIVE enrollment's batch can be reactivated. */
+export const canRestoreBatchEnrollment = (opts: {
+  batch: { status: string; capacity: number | null } | null | undefined;
+  activeEnrollmentCount: number;
+}): boolean => {
+  const { batch, activeEnrollmentCount } = opts;
+  if (!batch) return false;
+  if (batch.status === "CANCELLED" || batch.status === "COMPLETED") return false;
+  if (batch.capacity != null && activeEnrollmentCount >= batch.capacity) return false;
+  return true;
+};
+
+const notifyStaffDiscontinuationInApp = async (opts: {
+  instituteId: string;
+  branchId: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  reason: string;
+  batchName?: string | null;
+}) => {
+  const staffUsers = await prisma.user.findMany({
+    where: {
+      instituteId: opts.instituteId,
+      status: "ACTIVE",
+      OR: [
+        { userRoles: { some: { role: { name: "ADMIN" } } } },
+        {
+          branchId: opts.branchId,
+          userRoles: { some: { role: { name: "CENTER_MANAGER" } } },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  const title = "Student Discontinued";
+  const message = `${opts.studentName} (${opts.studentCode}) was discontinued${
+    opts.batchName ? ` from ${opts.batchName}` : ""
+  }. Reason: ${opts.reason}`;
+  const link = `/admin/students/${opts.studentId}`;
+
+  await Promise.allSettled(
+    staffUsers.map((u) =>
+      prisma.notification.create({
+        data: {
+          instituteId: opts.instituteId,
+          branchId: opts.branchId,
+          userId: u.id,
+          studentId: opts.studentId,
+          title,
+          message,
+          type: "DISCONTINUATION_RISK",
+          channel: "IN_APP",
+          status: "DELIVERED",
+          sentAt: new Date(),
+          link,
+          event: "STUDENT_DISCONTINUED",
+          metadata: {
+            studentId: opts.studentId,
+            reason: opts.reason,
+            module: "students",
+          },
+        },
+      })
+    )
+  );
+};
+
+/**
+ * Transactional discontinue: DISCONTINUED status, inactive enrollments, admission notes, notify.
+ */
+export const discontinueStudent = async (
+  studentId: string,
+  dto: DiscontinueStudentDto,
+  currentUser: AuthUser
+) => {
+  const student = await repo.findStudentById(studentId);
+  if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
+
+  if (student.status !== "ACTIVE" && student.status !== "ON_LEAVE") {
+    throw new AppError(
+      `Cannot discontinue a student with status ${student.status}`,
+      400
+    );
+  }
+
+  const reason = dto.reason.trim();
+  const now = new Date();
+  const activeEnrollment = student.batchEnrollments?.[0];
+  const batchName = activeEnrollment?.batch?.name ?? null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.batchEnrollment.updateMany({
+      where: { studentId, status: "ACTIVE" },
+      data: { status: "INACTIVE", leftAt: now },
+    });
+
+    const admissions = await tx.admission.findMany({
+      where: { studentId },
+      select: { id: true, notes: true, status: true },
+    });
+
+    for (const admission of admissions) {
+      if (admission.status === "CANCELLED") continue;
+      await tx.admission.update({
+        where: { id: admission.id },
+        data: { notes: appendAdmissionNote(admission.notes, reason) },
+      });
+    }
+
+    return tx.student.update({
+      where: { id: studentId },
+      data: { status: "DISCONTINUED" },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true } },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    });
+  });
+
+  const studentName = updated.user?.name || student.studentCode;
+  setImmediate(() => {
+    void notifyStaffDiscontinuationInApp({
+      instituteId: student.instituteId,
+      branchId: student.branchId,
+      studentId,
+      studentName,
+      studentCode: student.studentCode,
+      reason,
+      batchName,
+    }).catch(() => {});
+
+    if (updated.userId) {
+      void prisma.notification
+        .create({
+          data: {
+            instituteId: student.instituteId,
+            branchId: student.branchId,
+            userId: updated.userId,
+            studentId,
+            title: "Enrollment Discontinued",
+            message: `Your enrollment has been discontinued. Reason: ${reason}`,
+            type: "DISCONTINUATION_RISK",
+            channel: "IN_APP",
+            status: "DELIVERED",
+            sentAt: new Date(),
+            event: "STUDENT_DISCONTINUED",
+            metadata: { reason, module: "students" },
+          },
+        })
+        .catch(() => {});
+    }
+  });
+
+  return {
+    id: updated.id,
+    studentCode: student.studentCode,
+    name: studentName,
+    status: updated.status,
+    phone: updated.user?.phone ?? null,
+    branchId: updated.branchId,
+    branch: updated.branch,
+    discontinuedAt: now.toISOString(),
+    reason,
+    previousBatchName: batchName,
+  };
+};
+
+const notifyStaffContinuationInApp = async (opts: {
+  instituteId: string;
+  branchId: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  batchRestored: boolean;
+  batchName?: string | null;
+}) => {
+  const staffUsers = await prisma.user.findMany({
+    where: {
+      instituteId: opts.instituteId,
+      status: "ACTIVE",
+      OR: [
+        { userRoles: { some: { role: { name: "ADMIN" } } } },
+        {
+          branchId: opts.branchId,
+          userRoles: { some: { role: { name: "CENTER_MANAGER" } } },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  const title = "Student Continued";
+  const restorePart = opts.batchRestored
+    ? opts.batchName
+      ? ` and restored to ${opts.batchName}`
+      : " with previous batch restored"
+    : " without batch enrollment (assign via allocation)";
+  const message = `${opts.studentName} (${opts.studentCode}) was continued${restorePart}.`;
+  const link = `/admin/students/${opts.studentId}`;
+
+  await Promise.allSettled(
+    staffUsers.map((u) =>
+      prisma.notification.create({
+        data: {
+          instituteId: opts.instituteId,
+          branchId: opts.branchId,
+          userId: u.id,
+          studentId: opts.studentId,
+          title,
+          message,
+          type: "DISCONTINUATION_RISK",
+          channel: "IN_APP",
+          status: "DELIVERED",
+          sentAt: new Date(),
+          link,
+          event: "STUDENT_CONTINUED",
+          metadata: {
+            studentId: opts.studentId,
+            batchRestored: opts.batchRestored,
+            module: "students",
+          },
+        },
+      })
+    )
+  );
+};
+
+/**
+ * Transactional continue: DISCONTINUED → ACTIVE, optional enrollment restore, admission notes, notify.
+ */
+export const continueStudent = async (
+  studentId: string,
+  dto: ContinueStudentDto,
+  currentUser: AuthUser
+) => {
+  const roles = (currentUser.roles || []).map((r) => String(r).toUpperCase());
+  if (!roles.includes("ADMIN") && !roles.includes("SUPER_ADMIN")) {
+    throw new AppError("Only administrators can continue a discontinued student", 403);
+  }
+
+  const student = await repo.findStudentById(studentId);
+  if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
+
+  if (student.status !== "DISCONTINUED") {
+    throw new AppError(
+      `Cannot continue a student with status ${student.status}`,
+      400
+    );
+  }
+
+  const optionalNotes = dto.notes?.trim() || undefined;
+
+  const { updated, batchRestored, batchCode, batchName } = await prisma.$transaction(
+    async (tx) => {
+      let batchRestored = false;
+      let batchCode: string | undefined;
+      let batchName: string | null = null;
+
+      const lastEnrollment = await tx.batchEnrollment.findFirst({
+        where: { studentId, status: "INACTIVE" },
+        orderBy: [{ leftAt: "desc" }, { createdAt: "desc" }],
+        include: {
+          batch: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              status: true,
+              capacity: true,
+              _count: {
+                select: { enrollments: { where: { status: "ACTIVE" } } },
+              },
+            },
+          },
+        },
+      });
+
+      if (
+        lastEnrollment &&
+        canRestoreBatchEnrollment({
+          batch: lastEnrollment.batch,
+          activeEnrollmentCount: lastEnrollment.batch?._count.enrollments ?? 0,
+        })
+      ) {
+        const batch = lastEnrollment.batch!;
+        await tx.batchEnrollment.update({
+          where: { id: lastEnrollment.id },
+          data: { status: "ACTIVE", leftAt: null },
+        });
+
+        if (lastEnrollment.admissionId) {
+          await tx.admission.update({
+            where: { id: lastEnrollment.admissionId },
+            data: { batchId: lastEnrollment.batchId },
+          });
+        }
+
+        batchRestored = true;
+        batchCode = batch.code;
+        batchName = batch.name;
+      }
+
+      const admissions = await tx.admission.findMany({
+        where: { studentId },
+        select: { id: true, notes: true, status: true },
+      });
+
+      for (const admission of admissions) {
+        if (admission.status === "CANCELLED") continue;
+        await tx.admission.update({
+          where: { id: admission.id },
+          data: {
+            notes: appendContinueAdmissionNote(admission.notes, optionalNotes),
+          },
+        });
+      }
+
+      const updated = await tx.student.update({
+        where: { id: studentId },
+        data: { status: "ACTIVE" },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          branch: { select: { id: true, name: true, code: true } },
+        },
+      });
+
+      return { updated, batchRestored, batchCode, batchName };
+    }
+  );
+
+  const studentName = updated.user?.name || student.studentCode;
+  setImmediate(() => {
+    void notifyStaffContinuationInApp({
+      instituteId: student.instituteId,
+      branchId: student.branchId,
+      studentId,
+      studentName,
+      studentCode: student.studentCode,
+      batchRestored,
+      batchName,
+    }).catch(() => {});
+
+    if (updated.userId) {
+      const studentMessage = batchRestored
+        ? batchName
+          ? `Your enrollment has been continued and you have been restored to ${batchName}.`
+          : "Your enrollment has been continued and your previous batch has been restored."
+        : "Your enrollment has been continued. Batch assignment will follow if needed.";
+
+      void prisma.notification
+        .create({
+          data: {
+            instituteId: student.instituteId,
+            branchId: student.branchId,
+            userId: updated.userId,
+            studentId,
+            title: "Enrollment Continued",
+            message: studentMessage,
+            type: "DISCONTINUATION_RISK",
+            channel: "IN_APP",
+            status: "DELIVERED",
+            sentAt: new Date(),
+            event: "STUDENT_CONTINUED",
+            metadata: { batchRestored, module: "students" },
+          },
+        })
+        .catch(() => {});
+    }
+  });
+
+  return {
+    id: updated.id,
+    status: updated.status,
+    batchRestored,
+    ...(batchCode ? { batchCode } : {}),
+  };
+};
+
+/**
+ * Manual WhatsApp outreach for discontinuation risk (re-sendable via manual+timestamp key).
+ */
+export const notifyDiscontinuationRisk = async (
+  studentId: string,
+  currentUser: AuthUser
+) => {
+  const student = await repo.findStudentById(studentId);
+  if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
+
+  const phone = student.user?.phone?.trim() || student.admissions?.[0]?.phone?.trim() || "";
+  if (!phone) {
+    throw new AppError("Student has no registered phone number", 400);
+  }
+
+  const enrollment = student.batchEnrollments?.[0];
+  const batchId = enrollment?.batchId || student.admissions?.[0]?.batchId || "none";
+  const batchName =
+    enrollment?.batch?.name || student.admissions?.[0]?.batch?.name || "Batch";
+  const studentName = student.user?.name || student.studentCode;
+
+  let consecutiveAbsences = 3;
+  try {
+    const recent = await prisma.studentAttendance.findMany({
+      where: {
+        studentId,
+        classSession: { sessionType: "THEORY", ...(batchId !== "none" ? { batchId } : {}) },
+      },
+      orderBy: { classSession: { scheduledDate: "desc" } },
+      take: 15,
+      select: { status: true },
+    });
+    let streak = 0;
+    for (const record of recent) {
+      if (record.status === "LEAVE") continue;
+      if (record.status === "ABSENT") {
+        streak++;
+        continue;
+      }
+      break;
+    }
+    if (streak > 0) consecutiveAbsences = streak;
+  } catch {
+    // keep default
+  }
+
+  const stamp = new Date().toISOString();
+  const notification = await triggerNotification({
+    instituteId: currentUser.instituteId,
+    studentId,
+    event: NotificationEvent.DISCONTINUATION_RISK,
+    idempotencyKey: `DISCONTINUATION_RISK:${studentId}:${batchId}:manual:${stamp}`,
+    recipientPhone: phone,
+    recipientName: studentName,
+    templateParams: {
+      student_name: studentName,
+      batch_name: batchName,
+      consecutive_absences: String(consecutiveAbsences),
+    },
+    metadata: {
+      batchId: batchId !== "none" ? batchId : undefined,
+      consecutiveAbsences,
+      manualSend: true,
+    },
+  });
+
+  if (!notification || notification.status === "SKIPPED") {
+    throw new AppError(discontinuationRiskSkipMessage(notification?.skipReason), 400);
+  }
+
+  return {
+    success: true,
+    queued: true,
+    notificationId: notification.id,
+    status: notification.status,
+    recipient: { name: studentName, phone },
+    consecutiveAbsences,
+    batchName,
+  };
+};
+
+/**
+ * Enqueue an AI call for a student (CallLog.studentId), mirroring lead AI-call.
+ */
+export const triggerStudentAiCall = async (
+  studentId: string,
+  currentUser: AuthUser
+) => {
+  const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+  return AiCallingService.triggerStudentCall(studentId, currentUser);
 };
 
 const generateTemporaryPassword = () => {

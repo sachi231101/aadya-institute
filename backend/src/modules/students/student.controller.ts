@@ -21,14 +21,14 @@ export const getById = async (req: AuthenticatedRequest, res: Response, next: Ne
 export const create = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { instituteId } = req.user!;
-    const data = await service.createStudent(instituteId, req.body);
+    const data = await service.createStudent(instituteId, req.body, toAuthUser(req));
     sendSuccess(res, data, 201, "Student created successfully");
   } catch (err) { next(err); }
 };
 
 export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.updateStudent(req.params.id as string, req.body);
+    const data = await service.updateStudent(req.params.id as string, req.body, toAuthUser(req));
     sendSuccess(res, data, 200, "Student updated successfully");
   } catch (err) { next(err); }
 };
@@ -51,6 +51,48 @@ export const sendCredentialsWhatsApp = async (req: AuthenticatedRequest, res: Re
   try {
     const data = await service.sendStudentCredentialsWhatsAppService(req.params.id as string, toAuthUser(req));
     sendSuccess(res, data, 200, "Student credentials dispatched to WhatsApp");
+  } catch (err) { next(err); }
+};
+
+export const discontinue = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.discontinueStudent(
+      req.params.id as string,
+      req.body,
+      toAuthUser(req)
+    );
+    sendSuccess(res, data, 200, "Student discontinued successfully");
+  } catch (err) { next(err); }
+};
+
+export const continueEnrollment = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.continueStudent(
+      req.params.id as string,
+      req.body ?? {},
+      toAuthUser(req)
+    );
+    sendSuccess(res, data, 200, "Student continued successfully");
+  } catch (err) { next(err); }
+};
+
+export const notifyDiscontinuationRisk = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.notifyDiscontinuationRisk(
+      req.params.id as string,
+      toAuthUser(req)
+    );
+    sendSuccess(res, data, 200, "Discontinuation risk WhatsApp queued");
+  } catch (err) { next(err); }
+};
+
+export const triggerAiCall = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.triggerStudentAiCall(
+      req.params.id as string,
+      toAuthUser(req)
+    );
+    sendSuccess(res, data, 200, data.message || "AI voice call queued");
   } catch (err) { next(err); }
 };
 

@@ -8,8 +8,13 @@ import * as facultyAllocationService from "../faculty/faculty-allocation.service
 import type { AuthUser } from "../auth/auth.types";
 import { logger } from "../../config/logger";
 
-export const getBatches = async (instituteId: string, branchId?: string, filters: BatchQueryFilters = {}) => {
-  return repository.findAllBatches(instituteId, branchId, filters);
+export const getBatches = async (
+  instituteId: string,
+  branchId?: string,
+  filters: BatchQueryFilters = {},
+  branchIds?: string[]
+) => {
+  return repository.findAllBatches(instituteId, branchId, filters, branchIds);
 };
 
 export const getBatchById = async (id: string, instituteId: string) => {
@@ -120,12 +125,48 @@ export const assignFaculty = async (id: string, currentUser: AuthUser, facultyId
   return facultyAllocationService.assignFacultyToBatch(currentUser, id, facultyId);
 };
 
-export const enrollStudent = async (batchId: string, instituteId: string, studentId: string, admissionId?: string) => {
-  return studentAllocationService.assignStudentToBatch(batchId, studentId, instituteId, admissionId);
+export const enrollStudent = async (
+  batchId: string,
+  instituteId: string,
+  studentId: string,
+  currentUser: AuthUser,
+  admissionId?: string
+) => {
+  return studentAllocationService.assignStudentToBatch(
+    batchId,
+    studentId,
+    instituteId,
+    currentUser,
+    admissionId
+  );
 };
 
-export const removeStudent = async (batchId: string, instituteId: string, studentId: string) => {
-  return studentAllocationService.removeStudentFromBatch(batchId, studentId, instituteId);
+export const bulkEnrollStudents = async (
+  batchId: string,
+  instituteId: string,
+  studentIds: string[],
+  currentUser: AuthUser
+) => {
+  return studentAllocationService.bulkAssignStudentsToBatch(
+    batchId,
+    studentIds,
+    instituteId,
+    currentUser
+  );
+};
+
+export const removeStudent = async (
+  batchId: string,
+  instituteId: string,
+  studentId: string,
+  currentUser: AuthUser
+) => {
+  return studentAllocationService.removeStudentFromBatch(
+    batchId,
+    studentId,
+    instituteId,
+    currentUser
+  );
 };
 
 export const transferStudent = async (
@@ -133,6 +174,7 @@ export const transferStudent = async (
   fromBatchId: string,
   toBatchId: string,
   instituteId: string,
+  currentUser: AuthUser,
   admissionId?: string
 ) => {
   return studentAllocationService.transferStudent(
@@ -140,6 +182,7 @@ export const transferStudent = async (
     fromBatchId,
     toBatchId,
     instituteId,
+    currentUser,
     admissionId
   );
 };

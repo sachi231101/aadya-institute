@@ -127,6 +127,13 @@ export const enrollStudentSchema = z.object({
   admissionId: z.string().optional(),
 });
 
+export const bulkEnrollStudentsSchema = z.object({
+  studentIds: z
+    .array(z.string().min(1))
+    .min(1, "At least one student ID is required")
+    .max(200, "Maximum 200 students per bulk request"),
+});
+
 export const createBatchScheduleSchema = z.object({
   dayOfWeek: z.coerce.number().int().min(0).max(6),
   startTime: z.string().min(1, "Start time is required"),

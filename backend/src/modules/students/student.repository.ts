@@ -6,13 +6,21 @@ import {
   resolveTuitionFeeHead,
 } from "../fees/fee-provision.service";
 
+export type StudentEnrollmentStatusFilter = "UNASSIGNED" | "ASSIGNED" | "ALL";
+
 export interface FindAllStudentsParams {
   instituteId: string;
   branchId?: string;
+  /** Multi-branch scope when getBranchScopeFilter returns branchIds (IN filter). */
+  branchIds?: string[];
   search?: string;
   status?: string;
   /** When set, only students enrolled in batches assigned to this faculty */
   facultyId?: string;
+  /** Filter by ACTIVE batchEnrollment presence */
+  enrollmentStatus?: StudentEnrollmentStatusFilter;
+  /** Match admission course or ACTIVE enrollment batch course */
+  courseId?: string;
   skip: number;
   take: number;
 }
@@ -128,31 +136,79 @@ const buildWhereClause = (params: Omit<FindAllStudentsParams, "skip" | "take">) 
 
   if (params.branchId) {
     where.branchId = params.branchId;
+  } else if (params.branchIds && params.branchIds.length > 0) {
+    where.branchId = { in: params.branchIds };
   }
 
   if (params.status) {
     where.status = params.status;
   }
 
+  const andFilters: Record<string, unknown>[] = [];
+
   if (params.facultyId) {
     // Teaching desk: coordinator, subject teacher, schedule assignee, or session host
-    where.batchEnrollments = {
-      some: {
-        status: "ACTIVE",
-        batch: {
-          OR: [
-            { facultyId: params.facultyId },
-            { batchCourses: { some: { facultyId: params.facultyId } } },
-            { schedules: { some: { facultyId: params.facultyId } } },
-            {
-              classSessions: {
-                some: { facultyId: params.facultyId, status: "ACTIVE" },
+    andFilters.push({
+      batchEnrollments: {
+        some: {
+          status: "ACTIVE",
+          batch: {
+            OR: [
+              { facultyId: params.facultyId },
+              { batchCourses: { some: { facultyId: params.facultyId } } },
+              { schedules: { some: { facultyId: params.facultyId } } },
+              {
+                classSessions: {
+                  some: { facultyId: params.facultyId, status: "ACTIVE" },
+                },
               },
-            },
-          ],
+            ],
+          },
         },
       },
-    };
+    });
+  }
+
+  if (params.enrollmentStatus === "UNASSIGNED") {
+    andFilters.push({
+      batchEnrollments: { none: { status: "ACTIVE" } },
+    });
+  } else if (params.enrollmentStatus === "ASSIGNED") {
+    andFilters.push({
+      batchEnrollments: { some: { status: "ACTIVE" } },
+    });
+  }
+
+  if (params.courseId) {
+    andFilters.push({
+      OR: [
+        {
+          admissions: {
+            some: {
+              courseId: params.courseId,
+              status: { notIn: ["CANCELLED"] },
+            },
+          },
+        },
+        {
+          batchEnrollments: {
+            some: {
+              status: "ACTIVE",
+              batch: {
+                OR: [
+                  { courseId: params.courseId },
+                  { batchCourses: { some: { courseId: params.courseId } } },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  if (andFilters.length > 0) {
+    where.AND = andFilters;
   }
 
   if (params.search) {

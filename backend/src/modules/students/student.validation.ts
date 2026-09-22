@@ -56,8 +56,32 @@ export const listStudentQuerySchema = z.object({
   search: z.string().optional(),
   branchId: z.string().optional(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]).optional(),
+  enrollmentStatus: z.enum(["UNASSIGNED", "ASSIGNED", "ALL"]).optional(),
+  courseId: z.string().optional(),
 }).partial();
+
+export const discontinueStudentSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Reason must be at least 3 characters")
+    .max(1000, "Reason must be at most 1000 characters"),
+});
+
+export const continueStudentSchema = z.preprocess(
+  (val) => (val == null || typeof val !== "object" ? {} : val),
+  z.object({
+    notes: z
+      .string()
+      .trim()
+      .max(1000, "Notes must be at most 1000 characters")
+      .optional()
+      .or(z.literal("")),
+  })
+);
 
 export type CreateStudentDto = z.infer<typeof createStudentSchema>;
 export type UpdateStudentDto = z.infer<typeof updateStudentSchema>;
 export type ListStudentQuery = z.infer<typeof listStudentQuerySchema>;
+export type DiscontinueStudentDto = z.infer<typeof discontinueStudentSchema>;
+export type ContinueStudentDto = z.infer<typeof continueStudentSchema>;

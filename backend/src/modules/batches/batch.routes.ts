@@ -8,6 +8,7 @@ import {
   updateBatchSchema,
   assignFacultySchema,
   enrollStudentSchema,
+  bulkEnrollStudentsSchema,
   createBatchScheduleSchema,
   updateBatchScheduleSchema,
   generateSessionsSchema,
@@ -71,6 +72,13 @@ router.patch(
   requirePermission("batch.update"),
   validate(assignFacultySchema),
   controller.assignFaculty
+);
+
+router.post(
+  "/:id/students/bulk",
+  requirePermission("batch.update"),
+  validate(bulkEnrollStudentsSchema),
+  controller.bulkEnrollStudents
 );
 
 router.post(

@@ -51,8 +51,20 @@ export const CounsellorPerformance: React.FC = () => {
         title="Counsellor Performance"
         description="Lead conversion and follow-up metrics by counsellor."
       />
-      <Card className="border-border/50">
-        <CardContent className="p-4">
+      <Card className="border border-border shadow-xs rounded-xl overflow-hidden bg-card">
+        <CardContent className="p-0">
+          <div
+            className={
+              "min-w-0 " +
+              "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+              "[&_thead]:bg-muted/50 " +
+              "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+              "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+              "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+              "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+              "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+            }
+          >
           <Table>
             <TableHeader>
               <TableRow>
@@ -77,7 +89,7 @@ export const CounsellorPerformance: React.FC = () => {
                   return (
                     <TableRow
                       key={rowId}
-                      className={counsellorId ? "cursor-pointer hover:bg-bg-secondary/40" : undefined}
+                      className={counsellorId ? "cursor-pointer" : undefined}
                       onClick={() => openCounsellorLeads(counsellorId)}
                       title={counsellorId ? "View leads assigned to this counsellor" : undefined}
                     >
@@ -92,6 +104,7 @@ export const CounsellorPerformance: React.FC = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </PageContainer>

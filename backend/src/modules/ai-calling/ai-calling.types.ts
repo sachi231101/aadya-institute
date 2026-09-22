@@ -18,8 +18,11 @@ export const IN_FLIGHT_AI_CALL_STATUSES = [
 
 export type AiCallingJobPayload = {
   callLogId: string;
-  leadId: string;
   instituteId: string;
+  /** Lead dial path (existing). */
+  leadId?: string;
+  /** Student dial path (discontinuation risk / outreach). */
+  studentId?: string;
 };
 
 export type LeadTemperature = "HOT" | "WARM" | "COOL" | "COLD";
@@ -87,6 +90,14 @@ export function buildIdempotencyKey(
   attemptNumber: number
 ): string {
   return `ai_call:${instituteId}:${leadId}:${attemptNumber}`;
+}
+
+export function buildStudentIdempotencyKey(
+  instituteId: string,
+  studentId: string,
+  attemptNumber: number
+): string {
+  return `ai_call:${instituteId}:student:${studentId}:${attemptNumber}`;
 }
 
 export function mapProviderCallStatus(raw: string): string {

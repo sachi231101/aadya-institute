@@ -1,37 +1,14 @@
 ﻿import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Search, Loader2, X, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import {
-  GraduationCap,
-  Search,
-  UserPlus,
-  UserCheck,
-  Check,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  Layers,
-  Clock,
-  Filter,
-  X,
-  ArrowRight,
-  Trash2,
-  Calendar,
-  AlertTriangle,
-  Users,
-  Plus,
-  RefreshCw,
-  MoreVertical,
-  ChevronRight,
-  Info,
-  Building2,
-  BookOpen
-} from "lucide-react";
-import { useBranches } from "@/hooks/useBranches";
-import { useStudentAllocation } from "@/hooks/useStudentAllocation";
+  useStudentAllocation,
+  fetchMatchingStudentIds,
+  type AllocationEnrollmentTab,
+} from "@/hooks/useStudentAllocation";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer, PageHeader, MetricGrid } from "@/components/layout";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { CourseChips } from "@/components/common/CourseChips";
 import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
@@ -57,9 +34,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatBatchSubjectNames } from "@/utils/batch.utils";
+import { formatBatchSubjectNames, getBatchCourseIds } from "@/utils/batch.utils";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCourses } from "@/hooks/useCourses";
+
+const PAGE_SIZE = 50;
+const SELECT_ALL_MATCHING_CAP = 200;
 
 export const StudentAllocation: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -67,36 +48,31 @@ export const StudentAllocation: React.FC = () => {
   const { canEditItem } = usePermissions();
   const canEditAllocation = canEditItem("students.student_allocation");
 
-  const {
-    batches,
-    students,
-    enrolledMap,
-    loadingBatches,
-    loadingStudents,
-    invalidateAllocation,
-    assignStudentsToBatch,
-    transferStudent,
-    removeStudentFromBatch,
-  } = useStudentAllocation();
-
-  // Filter & Search States
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"ALL" | "UNASSIGNED" | "ASSIGNED">("ALL");
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState("ALL");
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState("ALL");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<AllocationEnrollmentTab>("UNASSIGNED");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [page, setPage] = useState(1);
 
-  // Selected Target Batch for the assignment workspace (inside right panel)
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId: selectedBranchFilter,
+    branchIdForQuery,
+    setSelectedBranchId: setSelectedBranchFilter,
+  } = useBranchScopeForLists();
+
   const [selectedTargetBatchId, setSelectedTargetBatchId] = useState<string>("");
-
-  // Staged / Selected Students for Batch Assignment (Checkboxes in Left Panel)
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [matchingTotalHint, setMatchingTotalHint] = useState<number | null>(null);
 
-  // Action Loading & Notifications
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Modals state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [transferModalStudent, setTransferModalStudent] = useState<{
     id: string;
@@ -116,156 +92,261 @@ export const StudentAllocation: React.FC = () => {
   } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
-  // 3. Fetch Branches
-  const { data: branchesRes } = useBranches({ limit: 50 });
-  const branches = branchesRes?.data || [];
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
-  // Pre-select batch from URL deep-link
+  useEffect(() => {
+    setPage(1);
+    setSelectedStudentIds(new Set());
+    setSelectAllMatching(false);
+    setMatchingTotalHint(null);
+  }, [activeTab, selectedCourseId, selectedBranchFilter, debouncedSearch]);
+
+  const branchId = branchIdForQuery;
+  const courseId = selectedCourseId || undefined;
+
+  const {
+    batches,
+    students,
+    meta,
+    counts,
+    enrolledMap,
+    loadingBatches,
+    loadingStudents,
+    loadingCounts,
+    studentsError,
+    invalidateAllocation,
+    assignStudentsToBatch,
+    transferStudent,
+    removeStudentFromBatch,
+  } = useStudentAllocation({
+    page,
+    limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+    branchId,
+    courseId,
+    enrollmentStatus: activeTab,
+  });
+
+  const { courses } = useCourses({ status: "ACTIVE" });
+
   useEffect(() => {
     if (initialBatchId && batches.some((b) => b.id === initialBatchId)) {
       setSelectedTargetBatchId(initialBatchId);
+      const batch = batches.find((b) => b.id === initialBatchId);
+      if (batch && !selectedCourseId) {
+        const ids = getBatchCourseIds(batch);
+        if (ids[0]) setSelectedCourseId(ids[0]);
+      }
     }
-  }, [initialBatchId, batches]);
+  }, [initialBatchId, batches, selectedCourseId]);
 
-  // Default target batch selection
   const targetBatch = useMemo(() => {
     if (selectedTargetBatchId) {
-      return batches.find((b) => b.id === selectedTargetBatchId) || batches[0] || null;
+      return batches.find((b) => b.id === selectedTargetBatchId) || null;
     }
-    return batches[0] || null;
+    return null;
   }, [batches, selectedTargetBatchId]);
 
-  // Unique Courses for filter
-  const uniqueCourses = useMemo(() => {
-    const set = new Set<string>();
-    students.forEach((student) => {
-      const courses = coursesFromStudent(student);
-      if (courses.length > 0) {
-        courses.forEach((course) => {
-          if (course.name) set.add(course.name);
-        });
-        return;
+  const filteredBatches = useMemo(() => {
+    if (!selectedCourseId) return batches;
+    return batches.filter((b) => getBatchCourseIds(b).includes(selectedCourseId));
+  }, [batches, selectedCourseId]);
+
+  useEffect(() => {
+    if (targetBatch && selectedCourseId) {
+      const ids = getBatchCourseIds(targetBatch);
+      if (!ids.includes(selectedCourseId)) {
+        setSelectedTargetBatchId("");
       }
-      const enrolledCourse = enrolledMap.get(student.id)?.courseName;
-      if (enrolledCourse && enrolledCourse !== "—" && enrolledCourse !== "Not assigned") {
-        set.add(enrolledCourse);
-      }
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [students, enrolledMap]);
+    }
+  }, [selectedCourseId, targetBatch]);
 
-  // Counts & KPIs
-  const totalStudentsCount = students.length;
-  const enrolledStudentsCount = useMemo(() => {
-    return students.filter((s) => enrolledMap.has(s.id)).length;
-  }, [students, enrolledMap]);
-  const unassignedStudentsCount = totalStudentsCount - enrolledStudentsCount;
-  const activeBatchesCount = batches.filter((b) => b.status === "ACTIVE" || !b.status || b.status === "UPCOMING").length;
+  const selectedCourseName = useMemo(() => {
+    if (!selectedCourseId) return null;
+    return courses.find((c) => c.id === selectedCourseId)?.name ?? null;
+  }, [courses, selectedCourseId]);
 
-  // Filtered Students List for Left Panel
-  const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
-      const term = searchTerm.toLowerCase();
-      const studentName = s.user?.name || "";
-      const studentEmail = s.user?.email || "";
-      const studentPhone = s.user?.phone || "";
-      const isEnrolled = enrolledMap.has(s.id);
-      const enrolledBatch = enrolledMap.get(s.id);
+  const activeBatchesCount = batches.filter(
+    (b) => b.status === "ACTIVE" || !b.status || b.status === "UPCOMING"
+  ).length;
 
-      const packageCourses = coursesFromStudent(s);
-      const packageLabel = formatPackageCourseLabel(packageCourses, s.courseName || "");
+  const targetBatchCapacity = targetBatch?.capacity || 30;
+  const targetBatchAlreadyAssigned =
+    targetBatch?._count?.enrollments ?? targetBatch?.enrollments?.length ?? 0;
+  const targetBatchAvailableSeats = Math.max(0, targetBatchCapacity - targetBatchAlreadyAssigned);
+  const selectedCount = selectedStudentIds.size;
+  const seatsRemainingAfterAssignment = targetBatchAvailableSeats - selectedCount;
+  const isCapacityExceeded = selectedCount > targetBatchAvailableSeats;
 
-      const matchesSearch =
-        !searchTerm ||
-        studentName.toLowerCase().includes(term) ||
-        s.studentCode.toLowerCase().includes(term) ||
-        studentEmail.toLowerCase().includes(term) ||
-        studentPhone.toLowerCase().includes(term) ||
-        (s.qualification && s.qualification.toLowerCase().includes(term)) ||
-        packageLabel.toLowerCase().includes(term) ||
-        packageCourses.some((c) => c.name.toLowerCase().includes(term));
+  const canBulkAssign = Boolean(selectedCourseId) && canEditAllocation;
+  const rangeStart = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const rangeEnd = Math.min(meta.page * meta.limit, meta.total);
 
-      const matchesTab =
-        activeTab === "ALL" ||
-        (activeTab === "ASSIGNED" && isEnrolled) ||
-        (activeTab === "UNASSIGNED" && !isEnrolled);
+  const pageAllSelected =
+    students.length > 0 && students.every((s) => selectedStudentIds.has(s.id));
 
-      const matchesCourse =
-        selectedCourseFilter === "ALL" ||
-        packageCourses.some((c) => c.name === selectedCourseFilter) ||
-        (packageCourses.length === 0 && enrolledBatch?.courseName === selectedCourseFilter);
-
-      const matchesBranch =
-        selectedBranchFilter === "ALL" ||
-        s.branchId === selectedBranchFilter ||
-        (s.branch?.name && s.branch.name.includes(selectedBranchFilter));
-
-      return matchesSearch && matchesTab && matchesCourse && matchesBranch;
-    });
-  }, [students, searchTerm, activeTab, selectedCourseFilter, selectedBranchFilter, enrolledMap]);
-
-  // Selected Student Objects for Right Panel Review
-  const selectedStudentsList = useMemo(() => {
+  const selectedOnPagePreview = useMemo(() => {
     return students.filter((s) => selectedStudentIds.has(s.id));
   }, [students, selectedStudentIds]);
 
-  // Target Batch Capacity calculations
-  const targetBatchCapacity = targetBatch?.capacity || 30;
-  const targetBatchAlreadyAssigned = targetBatch?.enrollments?.length || 0;
-  const targetBatchAvailableSeats = Math.max(0, targetBatchCapacity - targetBatchAlreadyAssigned);
-  const seatsRemainingAfterAssignment = targetBatchAvailableSeats - selectedStudentIds.size;
-  const isCapacityExceeded = selectedStudentIds.size > targetBatchAvailableSeats;
-
-  // ─── HANDLERS ─────────────────────────────────────────────────────────────
+  const hasOffPageSelection = useMemo(() => {
+    if (selectedStudentIds.size === 0) return false;
+    const onPage = new Set(students.map((s) => s.id));
+    for (const id of selectedStudentIds) {
+      if (!onPage.has(id)) return true;
+    }
+    return false;
+  }, [students, selectedStudentIds]);
 
   const handleToggleStudent = (studentId: string) => {
+    setSelectAllMatching(false);
+    setMatchingTotalHint(null);
     setSelectedStudentIds((prev) => {
       const next = new Set(prev);
-      if (next.has(studentId)) {
-        next.delete(studentId);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  };
+
+  const handleSelectAllOnPage = () => {
+    setSelectAllMatching(false);
+    setMatchingTotalHint(null);
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (pageAllSelected) {
+        students.forEach((s) => next.delete(s.id));
       } else {
-        next.add(studentId);
+        students.forEach((s) => next.add(s.id));
       }
       return next;
     });
   };
 
-  const handleSelectAllVisible = () => {
-    if (selectedStudentIds.size === filteredStudents.length && filteredStudents.length > 0) {
-      setSelectedStudentIds(new Set());
-    } else {
-      const next = new Set<string>();
-      filteredStudents.forEach((s) => next.add(s.id));
-      setSelectedStudentIds(next);
+  const handleSelectAllMatching = async () => {
+    if (!selectedCourseId) {
+      setActionError("Select a course before selecting all matching students.");
+      return;
+    }
+    setIsSelectingAll(true);
+    setActionError(null);
+    try {
+      const ids = await fetchMatchingStudentIds(
+        {
+          search: debouncedSearch || undefined,
+          branchId,
+          courseId,
+          enrollmentStatus: activeTab,
+        },
+        SELECT_ALL_MATCHING_CAP
+      );
+      setSelectedStudentIds(new Set(ids));
+      setSelectAllMatching(true);
+      setMatchingTotalHint(meta.total);
+      if (meta.total > SELECT_ALL_MATCHING_CAP) {
+        setSuccessMsg(
+          `Selected first ${ids.length} of ${meta.total} matching students (bulk limit ${SELECT_ALL_MATCHING_CAP}).`
+        );
+        setTimeout(() => setSuccessMsg(null), 5000);
+      }
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to select matching students.";
+      setActionError(message);
+    } finally {
+      setIsSelectingAll(false);
     }
   };
 
   const handleClearSelection = () => {
     setSelectedStudentIds(new Set());
+    setSelectAllMatching(false);
+    setMatchingTotalHint(null);
   };
 
-  // Bulk Assign Confirmation & Execution
   const handleConfirmBulkAssign = async () => {
     if (!targetBatch || selectedStudentIds.size === 0) return;
+    if (!selectedCourseId) {
+      setActionError("Select a course before assigning.");
+      return;
+    }
     setIsAssigning(true);
     setActionError(null);
 
     try {
       const studentIdsArray = Array.from(selectedStudentIds);
-      await assignStudentsToBatch(targetBatch.id, studentIdsArray, enrolledMap);
+      const result = await assignStudentsToBatch(targetBatch.id, studentIdsArray);
       await invalidateAllocation();
-      setSuccessMsg(`Successfully assigned ${studentIdsArray.length} students to ${targetBatch.code} (${targetBatch.name}).`);
-      setTimeout(() => setSuccessMsg(null), 4500);
-      setSelectedStudentIds(new Set());
+
+      if (result.assigned === 0 && result.failures.length > 0) {
+        const alreadyOnly = result.failures.every((f) =>
+          f.message.toLowerCase().includes("already assigned to this batch")
+        );
+        if (alreadyOnly) {
+          setActionError(
+            result.failures.length === 1
+              ? "This student is already assigned to this batch."
+              : `All ${result.failures.length} selected students are already assigned to this batch.`
+          );
+        } else {
+          const detail = result.failures
+            .slice(0, 3)
+            .map((f) => f.message)
+            .filter(Boolean)
+            .join("; ");
+          setActionError(detail || "Could not assign any selected students to this batch.");
+        }
+        return;
+      }
+
+      if (result.assigned === 0 && result.skipped > 0) {
+        setActionError(
+          result.skipped === 1
+            ? "This student is already assigned to this batch."
+            : `All ${result.skipped} selected students are already assigned to this batch.`
+        );
+        return;
+      }
+
+      const alreadyHint =
+        result.skipped > 0
+          ? ` · ${result.skipped} already in this batch`
+          : "";
+      const otherFailures = result.failures.filter(
+        (f) => !f.message.toLowerCase().includes("already assigned to this batch")
+      );
+      const failureHint =
+        otherFailures.length > 0
+          ? ` · ${otherFailures.length} failed: ${otherFailures[0]?.message || "unknown"}`
+          : "";
+
+      setSuccessMsg(
+        `Assigned ${result.assigned} → ${targetBatch.code} (${targetBatch.name})${alreadyHint}${failureHint}.`
+      );
+      setTimeout(() => setSuccessMsg(null), 5000);
+      handleClearSelection();
       setShowConfirmModal(false);
-    } catch (err: any) {
-      setActionError(err.response?.data?.message || err.message || "Failed to complete batch assignment.");
+    } catch (err: unknown) {
+      const apiData = (err as { response?: { data?: { message?: string; data?: { failures?: Array<{ message: string }> } } } })
+        ?.response?.data;
+      const failureMsgs = apiData?.data?.failures?.map((f) => f.message).filter(Boolean) ?? [];
+      const message =
+        failureMsgs.slice(0, 3).join("; ") ||
+        apiData?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to complete batch assignment.";
+      setActionError(message);
     } finally {
       setIsAssigning(false);
     }
   };
 
-  // Transfer Student Execution
   const handleExecuteTransfer = async () => {
     if (!transferModalStudent || !transferTargetBatchId) return;
     setIsTransferring(true);
@@ -281,17 +362,23 @@ export const StudentAllocation: React.FC = () => {
       const targetB = batches.find((b) => b.id === transferTargetBatchId);
       await invalidateAllocation();
 
-      setSuccessMsg(`Successfully transferred ${transferModalStudent.name} to ${targetB?.code || "new batch"}.`);
+      setSuccessMsg(
+        `Successfully transferred ${transferModalStudent.name} to ${targetB?.code || "new batch"}.`
+      );
       setTimeout(() => setSuccessMsg(null), 4500);
       setTransferModalStudent(null);
-    } catch (err: any) {
-      setActionError(err.response?.data?.message || err.message || "Failed to transfer student.");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to transfer student.";
+      setActionError(message);
     } finally {
       setIsTransferring(false);
     }
   };
 
-  // Remove Student Execution
   const handleExecuteRemove = async () => {
     if (!removeModalStudent) return;
     setIsRemoving(true);
@@ -304,365 +391,325 @@ export const StudentAllocation: React.FC = () => {
       setSuccessMsg(`Removed ${removeModalStudent.name} from batch ${removeModalStudent.batchCode}.`);
       setTimeout(() => setSuccessMsg(null), 4500);
       setRemoveModalStudent(null);
-    } catch (err: any) {
-      setActionError(err.response?.data?.message || err.message || "Failed to remove student from batch.");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to remove student from batch.";
+      setActionError(message);
     } finally {
       setIsRemoving(false);
     }
   };
 
-  // Avatar Initials Helper
-  const getInitials = (name?: string) => {
-    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "ST";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase() || "ST";
-  };
+  const statusCards = [
+    { value: "ALL" as const, label: "All", count: counts.all },
+    { value: "ASSIGNED" as const, label: "Assigned", count: counts.assigned },
+    { value: "UNASSIGNED" as const, label: "Unassigned", count: counts.unassigned },
+  ];
 
-  // Color generator for avatars
-  const getAvatarColor = (name?: string) => {
-    const colors = [
-      "bg-indigo-100 text-indigo-700",
-      "bg-emerald-100 text-emerald-700",
-      "bg-amber-100 text-amber-700",
-      "bg-purple-100 text-purple-700",
-      "bg-rose-100 text-rose-700",
-      "bg-blue-100 text-blue-700",
-    ];
-    let hash = 0;
-    const str = name || "student";
-    for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
-    return colors[hash % colors.length];
-  };
+  const assignDisabled =
+    selectedCount === 0 ||
+    isCapacityExceeded ||
+    isAssigning ||
+    !targetBatch ||
+    !canBulkAssign;
 
   return (
-    <PageContainer className="animate-in fade-in duration-300">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        <span>Dashboard</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span>Counsellor</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-primary font-bold">Assign Students to Batches</span>
-      </div>
+    <PageContainer>
+      <PageHeader title="Assign Students to Batches" />
 
-      <PageHeader
-        title="Assign Students to Batches"
-        description="Assign enrolled students to the correct batch and manage existing batch allocations."
-        actions={
-          <PermissionGate itemKey="students.student_allocation" mode="write">
-            <Button
-              onClick={() => {
-                setActiveTab("UNASSIGNED");
-                const el = document.getElementById("student-selection-workspace");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="bg-primary hover:bg-primary text-white text-xs font-bold h-10 px-5 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02]"
-            >
-              <Plus className="h-4 w-4" />
-              + Assign Students
-            </Button>
-          </PermissionGate>
-        }
-      />
-
-      {/* ─── NOTIFICATIONS ─── */}
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 flex items-center justify-between gap-2 text-sm">
           <span>{successMsg}</span>
+          <Button size="sm" variant="ghost" className="h-7 text-xs shrink-0" onClick={() => setSuccessMsg(null)}>
+            Dismiss
+          </Button>
         </div>
       )}
 
       {actionError && !showConfirmModal && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-          <span>{actionError}</span>
+        <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-800 text-sm">
+          {actionError}
         </div>
       )}
 
-      {/* ─── 4 SUMMARY CARDS ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Students */}
-        <Card className="border border-slate-200/80 shadow-xs bg-white rounded-xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-blue-50 text-primary shrink-0">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Students</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{totalStudentsCount}</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Registered students</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Assigned Students */}
-        <Card className="border border-slate-200/80 shadow-xs bg-white rounded-xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
-              <Check className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Assigned Students</p>
-              <h3 className="text-xl font-bold text-emerald-600 mt-0.5">{enrolledStudentsCount}</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Currently in batches</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Unassigned Students */}
-        <Card className={`border shadow-xs bg-white rounded-xl ${unassignedStudentsCount > 0 ? "border-amber-200 ring-1 ring-amber-200" : "border-slate-200/80"}`}>
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 shrink-0">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Unassigned Students</p>
-              <h3 className="text-xl font-bold text-amber-600 mt-0.5">{unassignedStudentsCount}</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Require batch assignment</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Active Batches */}
-        <Card className="border border-slate-200/80 shadow-xs bg-white rounded-xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Batches</p>
-              <h3 className="text-xl font-bold text-indigo-600 mt-0.5">{activeBatchesCount}</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Available for assignment</p>
-            </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {statusCards.map((card) => {
+          const selected = activeTab === card.value;
+          return (
+            <button
+              key={card.value}
+              type="button"
+              onClick={() => setActiveTab(card.value)}
+              className="text-left"
+            >
+              <Card
+                className={`border shadow-sm transition-colors ${
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                  <p className="mt-0.5 text-xl font-semibold text-foreground tabular-nums">
+                    {loadingCounts ? "—" : card.count}
+                  </p>
+                </CardContent>
+              </Card>
+            </button>
+          );
+        })}
+        <Card className="border border-border bg-card shadow-sm">
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Active batches</p>
+            <p className="mt-0.5 text-xl font-semibold text-foreground tabular-nums">
+              {loadingBatches ? "—" : activeBatchesCount}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* ─── MAIN TWO-PANEL WORKSPACE ─── */}
-      <div id="student-selection-workspace" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <FilterToolbar className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search name, code, or phone"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+          />
+        </div>
+        <select
+          value={selectedCourseId}
+          onChange={(e) => setSelectedCourseId(e.target.value)}
+          className="h-9 text-sm border border-border rounded-lg px-3 text-foreground bg-background focus:outline-none focus:border-primary"
+        >
+          <option value="">Select course</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {showBranchSelector && (
+          <select
+            value={selectedBranchFilter}
+            onChange={(e) => setSelectedBranchFilter(e.target.value)}
+            className="h-9 text-sm border border-border rounded-lg px-3 text-foreground bg-background focus:outline-none focus:border-primary"
+          >
+            {allowAllBranches && <option value="ALL">All branches</option>}
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </FilterToolbar>
 
-        {/* ─── LEFT PANEL: (1) SELECT STUDENTS ─── */}
-        <Card className="lg:col-span-7 border border-slate-200/80 shadow-xs bg-white rounded-xl flex flex-col justify-between overflow-hidden">
-          <div className="p-5 border-b border-slate-100 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-6 w-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
-                  1
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Select Students</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Search and select students to assign to this batch</p>
-                </div>
-              </div>
+      {!selectedCourseId && (
+        <p className="text-xs text-amber-800 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          Select a course to enable bulk assign. Filter to unassigned students for that course, then assign a cohort to a matching batch.
+        </p>
+      )}
 
-              {/* Tabs: All / Unassigned / Assigned */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 text-xs font-bold">
-                <button
-                  onClick={() => setActiveTab("ALL")}
-                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ALL" ? "bg-white text-primary shadow-xs" : "text-slate-600 hover:text-slate-900"
-                    }`}
+      <div id="student-selection-workspace" className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <Card className="lg:col-span-7 border border-border shadow-xs bg-card rounded-xl overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              {meta.total === 0
+                ? "0 students"
+                : `Showing ${rangeStart}–${rangeEnd} of ${meta.total}`}
+              {selectedCount > 0 ? ` · ${selectedCount} selected` : ""}
+              {selectAllMatching && matchingTotalHint != null && matchingTotalHint > selectedCount
+                ? ` (capped)`
+                : ""}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {canEditAllocation && selectedCourseId && meta.total > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllMatching}
+                  disabled={isSelectingAll || isAssigning}
+                  className="h-8 text-xs"
                 >
-                  All ({totalStudentsCount})
-                </button>
-                <button
-                  onClick={() => setActiveTab("UNASSIGNED")}
-                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "UNASSIGNED" ? "bg-amber-500 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Unassigned ({unassignedStudentsCount})
-                </button>
-                <button
-                  onClick={() => setActiveTab("ASSIGNED")}
-                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ASSIGNED" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Assigned ({enrolledStudentsCount})
-                </button>
-              </div>
-            </div>
-
-            {/* Search & Filter Bar */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, phone or student ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-10 pl-9 bg-muted/30 border-border text-foreground text-xs font-medium rounded-xl focus:bg-background"
-                />
-              </div>
-
-              <div className="relative w-[240px] shrink-0">
-                <select
-                  value={selectedCourseFilter}
-                  onChange={(e) => setSelectedCourseFilter(e.target.value)}
-                  className="w-full h-10 pl-3 pr-8 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-1 focus:ring-primary focus:bg-background outline-none cursor-pointer"
-                >
-                  <option value="ALL">All Courses</option>
-                  {uniqueCourses.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
-              <span>{filteredStudents.length} Students found</span>
-              {selectedStudentIds.size > 0 && (
-                <span className="text-primary font-bold">{selectedStudentIds.size} Selected</span>
+                  {isSelectingAll ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      Selecting...
+                    </>
+                  ) : (
+                    `Select all matching (${Math.min(meta.total, SELECT_ALL_MATCHING_CAP)})`
+                  )}
+                </Button>
+              )}
+              {selectedCount > 0 && (
+                <Button variant="outline" size="sm" onClick={handleClearSelection} className="h-8 text-xs">
+                  Clear selection
+                </Button>
               )}
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+          <div
+            className={
+              "min-w-0 overflow-x-auto " +
+              "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+              "[&_thead]:bg-muted/50 " +
+              "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+              "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+              "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+              "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+              "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+            }
+          >
             <Table>
-              <TableHeader className="bg-slate-50/80 sticky top-0 z-10 border-b border-slate-100">
+              <TableHeader>
                 <TableRow>
                   <TableHead className="w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={filteredStudents.length > 0 && selectedStudentIds.size === filteredStudents.length}
-                      onChange={handleSelectAllVisible}
-                      className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                      checked={pageAllSelected}
+                      onChange={handleSelectAllOnPage}
+                      disabled={students.length === 0 || !canEditAllocation}
+                      className="rounded border-border h-4 w-4 cursor-pointer"
                     />
                   </TableHead>
-                  <TableHead className="min-w-[180px] text-[10px] font-bold uppercase text-slate-500">Student</TableHead>
-                  <TableHead className="min-w-[180px] text-[10px] font-bold uppercase text-slate-500">Contact</TableHead>
-                  <TableHead className="min-w-[140px] text-[10px] font-bold uppercase text-slate-500">Course</TableHead>
-                  <TableHead className="min-w-[120px] text-[10px] font-bold uppercase text-slate-500 text-center">Status</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Status</TableHead>
                   {activeTab === "ASSIGNED" && canEditAllocation && (
-                    <TableHead className="min-w-[120px] text-[10px] font-bold uppercase text-slate-500 text-right pr-4">Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
-              <TableBody className="divide-y divide-slate-100">
+              <TableBody>
                 {loadingStudents ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-xs">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary mb-2" />
-                      Loading student directory...
+                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        Loading...
+                      </div>
                     </TableCell>
                   </TableRow>
-                ) : filteredStudents.length === 0 ? (
+                ) : studentsError ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-xs font-medium">
-                      No students found matching current criteria.
+                    <TableCell colSpan={6} className="h-28 text-center text-sm text-red-600">
+                      Unable to load students.
+                    </TableCell>
+                  </TableRow>
+                ) : students.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-28 text-center text-sm text-muted-foreground">
+                      No students found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((student) => {
+                  students.map((student) => {
                     const isSelected = selectedStudentIds.has(student.id);
-                    const isEnrolled = enrolledMap.has(student.id);
+                    const isEnrolled = enrolledMap.has(student.id) || Boolean(student.batchId);
                     const enrolledBatch = enrolledMap.get(student.id);
                     const name = student.user?.name || "Student";
-                    const email = student.user?.email || "—";
                     const phone = student.user?.phone || "—";
                     const packageCourses = coursesFromStudent(student);
                     const courseDisplay =
                       formatPackageCourseLabel(packageCourses, student.courseName || "") ||
                       enrolledBatch?.courseName ||
-                      student.qualification ||
                       "—";
 
                     return (
                       <TableRow
                         key={student.id}
-                        onClick={() => handleToggleStudent(student.id)}
-                        className={`cursor-pointer hover:bg-slate-50 transition-colors ${isSelected ? "bg-blue-50/40" : ""
-                          }`}
+                        onClick={() => canEditAllocation && handleToggleStudent(student.id)}
+                        className={`cursor-pointer ${isSelected ? "bg-primary/5" : ""}`}
                       >
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => handleToggleStudent(student.id)}
-                            className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                            disabled={!canEditAllocation}
+                            className="rounded border-border h-4 w-4 cursor-pointer"
                           />
                         </TableCell>
-
-                        {/* Student with Avatar */}
                         <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getAvatarColor(name)}`}>
-                              {getInitials(name)}
-                            </div>
-                            <div>
-                              <div className="font-bold text-slate-900 text-xs">{name}</div>
-                              <div className="text-[11px] font-mono text-slate-400">{student.studentCode}</div>
-                            </div>
-                          </div>
+                          <p className="font-semibold text-foreground">{name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{student.studentCode}</p>
                         </TableCell>
-
-                        {/* Contact */}
-                        <TableCell className="text-xs">
-                          <div className="font-medium text-slate-800 font-mono text-[11px]">{phone}</div>
-                          <div className="text-slate-400 text-[11px]">{email}</div>
-                        </TableCell>
-
-                        {/* Course */}
-                        <TableCell className="text-xs font-bold text-slate-700 max-w-[200px]">
+                        <TableCell className="text-foreground">{phone}</TableCell>
+                        <TableCell>
                           <CourseChips
                             courses={packageCourses}
                             fallback={courseDisplay}
-                            maxVisible={3}
+                            maxVisible={2}
                           />
                         </TableCell>
-
-                        {/* Status */}
-                        <TableCell className="text-center">
-                          {isEnrolled && enrolledBatch ? (
-                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
-                              Enrolled
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-bold">
-                              Admitted
-                            </Badge>
-                          )}
+                        <TableCell>
+                          <span
+                            className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-md border ${
+                              isEnrolled
+                                ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-800 border-amber-500/20"
+                            }`}
+                          >
+                            {isEnrolled
+                              ? enrolledBatch?.batchCode || student.batchCode || "Enrolled"
+                              : "Unassigned"}
+                          </span>
                         </TableCell>
-
-                        {/* Actions for Assigned Tab */}
                         {activeTab === "ASSIGNED" && canEditAllocation && (
-                          <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                >
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-44 text-xs font-semibold">
+                              <DropdownMenuContent align="end" className="w-36">
                                 <DropdownMenuItem
                                   onClick={() => {
                                     setTransferModalStudent({
                                       id: student.id,
                                       name,
                                       code: student.studentCode,
-                                      currentBatchId: enrolledBatch?.batchId || "",
-                                      currentBatchCode: enrolledBatch?.batchCode || "—",
+                                      currentBatchId: enrolledBatch?.batchId || student.batchId || "",
+                                      currentBatchCode:
+                                        enrolledBatch?.batchCode || student.batchCode || "—",
                                     });
-                                    setTransferTargetBatchId(batches.find((b) => b.id !== enrolledBatch?.batchId)?.id || "");
+                                    setTransferTargetBatchId(
+                                      batches.find(
+                                        (b) =>
+                                          b.id !== (enrolledBatch?.batchId || student.batchId)
+                                      )?.id || ""
+                                    );
                                   }}
-                                  className="cursor-pointer text-primary"
+                                  className="cursor-pointer"
                                 >
-                                  <RefreshCw className="mr-2 h-3.5 w-3.5" /> Transfer Batch
+                                  Transfer
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
                                     setRemoveModalStudent({
                                       id: student.id,
                                       name,
-                                      batchId: enrolledBatch?.batchId || "",
-                                      batchCode: enrolledBatch?.batchCode || "—",
+                                      batchId: enrolledBatch?.batchId || student.batchId || "",
+                                      batchCode: enrolledBatch?.batchCode || student.batchCode || "—",
                                     });
                                   }}
                                   className="cursor-pointer text-rose-600 focus:text-rose-700"
                                 >
-                                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove From Batch
+                                  Remove
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -676,167 +723,169 @@ export const StudentAllocation: React.FC = () => {
             </Table>
           </div>
 
-          {/* Bottom Bar */}
-          <div className="p-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="font-bold text-primary">
-              {selectedStudentIds.size} students selected
-            </span>
-            {selectedStudentIds.size > 0 && (
+          {meta.totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Page {meta.page} of {meta.totalPages}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={page >= meta.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-5 border border-border shadow-xs bg-card rounded-xl overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-foreground">Assign to batch</h3>
+            {selectedCount > 0 && canEditAllocation && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleClearSelection}
-                className="text-xs font-bold h-7.5 px-3 rounded-lg border-slate-200 hover:bg-white text-slate-600"
+                className="h-8 text-xs text-muted-foreground"
               >
-                Clear Selection
+                Clear
               </Button>
             )}
           </div>
-        </Card>
 
-        {/* ─── RIGHT PANEL: (2) ASSIGN TO BATCH (WITH PROMINENT BATCH DROPDOWN) ─── */}
-        <Card className="lg:col-span-5 border border-slate-200/80 shadow-xs bg-white rounded-xl flex flex-col justify-between overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="h-6 w-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
-                2
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Assign to Batch</h3>
-                <p className="text-[11px] text-slate-400 font-medium">Select target batch & review students</p>
-              </div>
-            </div>
-
-            {selectedStudentIds.size > 0 && canEditAllocation && (
-              <button
-                onClick={handleClearSelection}
-                className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Remove All
-              </button>
-            )}
-          </div>
-
-          <div className="p-5 space-y-4">
-            {/* ─── PROMINENT TARGET BATCH SELECTOR DROPDOWN ─── */}
+          <div className="p-4 space-y-4 flex-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-primary" />
-                  SELECT TARGET BATCH *
-                </span>
-                <span className="text-[11px] font-bold text-primary">
-                  {batches.length} Batches Available
-                </span>
+              <label className="text-xs text-muted-foreground flex items-center justify-between">
+                <span>Target batch</span>
+                <span>{filteredBatches.length} available</span>
               </label>
-
-              <div className="relative">
-                <select
-                  value={selectedTargetBatchId || (targetBatch?.id ?? "")}
-                  onChange={(e) => setSelectedTargetBatchId(e.target.value)}
-                  className="w-full h-11 pl-3.5 pr-8 text-xs font-bold text-slate-900 bg-blue-50/40 border-2 border-primary/40 hover:border-primary rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all cursor-pointer shadow-xs"
-                >
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id} className="font-medium text-slate-800">
-                      {b.code} — {b.name} ({formatBatchSubjectNames(b)})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={selectedTargetBatchId}
+                onChange={(e) => setSelectedTargetBatchId(e.target.value)}
+                disabled={!selectedCourseId}
+                className="w-full h-9 px-3 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
+              >
+                <option value="">
+                  {selectedCourseId ? "Select batch" : "Select a course first"}
+                </option>
+                {filteredBatches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.code} — {b.name} ({formatBatchSubjectNames(b)})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* ─── TARGET BATCH SUMMARY CARD ─── */}
             {targetBatch && (
-              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+              <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground">{targetBatch.name}</h4>
-                    <span className="text-[11px] font-bold font-mono text-primary">{targetBatch.code}</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{targetBatch.name}</p>
+                    <p className="text-xs font-mono text-muted-foreground">{targetBatch.code}</p>
                   </div>
-                  <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-[10px]">
+                  <span className="inline-flex text-xs font-medium px-2 py-0.5 rounded-md border border-border bg-card shrink-0">
                     {formatBatchSubjectNames(targetBatch)}
-                  </Badge>
+                  </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-muted-foreground pt-1 border-t border-border/60">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">{targetBatch.branch?.name || "Aadya Central Branch"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">{targetBatch.timeSlot || "10:00 AM - 12:00 PM"}</span>
-                  </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-1 border-t border-border">
+                  <span>{targetBatch.branch?.name || "—"}</span>
+                  <span>{targetBatch.timeSlot || "—"}</span>
                 </div>
-
-                {/* Capacity Visual Progress */}
-                <div className="pt-2 border-t border-border/60 space-y-1.5">
-                  <div className="flex justify-between text-[11px] font-bold">
+                <div className="pt-1 border-t border-border space-y-1.5">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">
-                      Students: <strong className="text-foreground">{targetBatchAlreadyAssigned} / {targetBatchCapacity}</strong>
+                      Seats:{" "}
+                      <span className="font-semibold text-foreground">
+                        {targetBatchAlreadyAssigned}/{targetBatchCapacity}
+                      </span>
                     </span>
-                    <span className={targetBatchAvailableSeats <= 0 ? "text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
-                      {targetBatchAvailableSeats} Seats Available
+                    <span
+                      className={
+                        targetBatchAvailableSeats <= 0 ? "text-rose-600" : "text-emerald-700"
+                      }
+                    >
+                      {targetBatchAvailableSeats} left
                     </span>
                   </div>
-                  <div className="w-full bg-muted/50 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-300 ${targetBatchAlreadyAssigned >= targetBatchCapacity ? "bg-rose-500" : "bg-emerald-500"
-                        }`}
-                      style={{ width: `${Math.min(100, (targetBatchAlreadyAssigned / (targetBatchCapacity || 1)) * 100)}%` }}
+                      className={`h-full rounded-full ${
+                        targetBatchAlreadyAssigned >= targetBatchCapacity
+                          ? "bg-rose-500"
+                          : "bg-emerald-500"
+                      }`}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (targetBatchAlreadyAssigned / (targetBatchCapacity || 1)) * 100
+                        )}%`,
+                      }}
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Selected Students Preview List */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                <span>Selected Students ({selectedStudentsList.length})</span>
-                {selectedStudentsList.length > 0 && (
-                  <span className="text-primary font-bold">Ready to assign</span>
-                )}
-              </div>
-
-              <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
-                {selectedStudentsList.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground text-xs font-medium space-y-1 bg-muted/20 rounded-xl border border-dashed border-border">
-                    <Users className="h-6 w-6 mx-auto text-muted-foreground/60" />
-                    <p>No students selected yet.</p>
-                    <p className="text-[10px] text-muted-foreground">Select checkboxes from the directory on the left.</p>
+              <p className="text-xs text-muted-foreground">Selected ({selectedCount})</p>
+              <div className="space-y-1.5 max-h-[190px] overflow-y-auto">
+                {selectedCount === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
+                    Select students from the table, or select all matching filters.
+                  </div>
+                ) : hasOffPageSelection || selectAllMatching ? (
+                  <div className="p-3 rounded-lg border border-border bg-card text-sm space-y-1">
+                    <p className="font-semibold text-foreground">
+                      {selectedCount} student{selectedCount === 1 ? "" : "s"} selected
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedCourseName ? `Course: ${selectedCourseName}` : "Filters applied"}
+                      {debouncedSearch ? ` · Search: “${debouncedSearch}”` : ""}
+                    </p>
+                    {selectedOnPagePreview.length > 0 && (
+                      <p className="text-xs text-muted-foreground pt-1">
+                        On this page:{" "}
+                        {selectedOnPagePreview
+                          .slice(0, 3)
+                          .map((s) => s.user?.name || s.studentCode)
+                          .join(", ")}
+                        {selectedOnPagePreview.length > 3 ? "…" : ""}
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  selectedStudentsList.map((stu) => {
+                  selectedOnPagePreview.map((stu) => {
                     const name = stu.user?.name || "Student";
                     const phone = stu.user?.phone || "—";
-                    const email = stu.user?.email || "—";
-                    const qualification = stu.qualification || "—";
-
                     return (
                       <div
                         key={stu.id}
-                        className="p-2 px-3 rounded-xl bg-muted/30 border border-border flex items-center justify-between gap-2.5 text-xs"
+                        className="p-2.5 rounded-lg border border-border bg-card flex items-center justify-between gap-2 text-sm"
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${getAvatarColor(name)}`}>
-                            {getInitials(name)}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-bold text-foreground truncate text-[11px]">{name}</div>
-                            <div className="text-[9px] font-mono text-muted-foreground">{stu.studentCode}</div>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground truncate">{name}</p>
+                          <p className="text-xs font-mono text-muted-foreground">{stu.studentCode}</p>
                         </div>
-
-                        <div className="text-right shrink-0">
-                          <div className="font-mono text-[10px] font-bold text-foreground">{phone}</div>
-                          <div className="text-[9px] text-muted-foreground truncate max-w-[100px]">{email}</div>
-                        </div>
-
+                        <span className="text-xs text-muted-foreground shrink-0">{phone}</span>
                         <button
+                          type="button"
                           onClick={() => handleToggleStudent(stu.id)}
-                          className="p-1 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted/40 transition-colors shrink-0"
-                          title="Remove from selection"
+                          className="p-1 text-muted-foreground hover:text-rose-600 shrink-0"
+                          title="Remove"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -848,179 +897,183 @@ export const StudentAllocation: React.FC = () => {
             </div>
           </div>
 
-          {/* Assignment Summary Box */}
-          <div className="p-4 bg-muted/30 border-t border-border space-y-3">
-            <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Assignment Summary</h4>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-card border border-border">
-                <span className="text-[10px] text-muted-foreground font-bold block flex items-center gap-1">
-                  <Users className="h-3 w-3" /> Selected
-                </span>
-                <span className="text-base font-bold text-foreground">{selectedStudentIds.size}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-card border border-border">
-                <span className="text-[10px] text-slate-400 font-bold block flex items-center gap-1">
-                  <Layers className="h-3 w-3" /> Capacity
-                </span>
-                <span className="text-base font-bold text-slate-900">{targetBatchCapacity}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
-                <span className="text-[10px] text-slate-400 font-bold block flex items-center gap-1">
-                  <Check className="h-3 w-3" /> Assigned
-                </span>
-                <span className="text-base font-bold text-slate-900">{targetBatchAlreadyAssigned}</span>
-              </div>
-              <div className={`p-2.5 rounded-xl border ${isCapacityExceeded ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-white border-slate-200/80"}`}>
-                <span className="text-[10px] font-bold block flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Seats Left
-                </span>
-                <span className={`text-base font-bold ${isCapacityExceeded ? "text-rose-600" : "text-emerald-700"}`}>
-                  {seatsRemainingAfterAssignment}
-                </span>
-              </div>
+          <div className="p-4 border-t border-border bg-muted/20 space-y-3">
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Selected", value: selectedCount },
+                { label: "Capacity", value: targetBatchCapacity },
+                { label: "In batch", value: targetBatchAlreadyAssigned },
+                { label: "After", value: seatsRemainingAfterAssignment, warn: isCapacityExceeded },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className={`p-2 rounded-lg border ${
+                    item.warn ? "border-rose-500/30 bg-rose-500/5" : "border-border bg-card"
+                  }`}
+                >
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p
+                    className={`text-base font-semibold tabular-nums ${
+                      item.warn ? "text-rose-600" : "text-foreground"
+                    }`}
+                  >
+                    {item.value}
+                  </p>
+                </div>
+              ))}
             </div>
-
             {isCapacityExceeded && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
-                <span>⚠ Batch capacity will be exceeded by {selectedStudentIds.size - targetBatchAvailableSeats} students.</span>
-              </div>
+              <p className="text-xs text-rose-700">
+                Capacity exceeded by {selectedCount - targetBatchAvailableSeats}.
+              </p>
             )}
           </div>
         </Card>
       </div>
 
-      {/* ─── STICKY BOTTOM CONFIRMATION BAR ─── */}
-      <div className="p-4 bg-white border border-slate-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <Info className="h-4 w-4 text-primary shrink-0" />
-          <span>Once assigned, students will be added to this batch and will be visible in the batch student list and attendance.</span>
-        </div>
+      <Card className="border border-border shadow-xs bg-card rounded-xl">
+        <CardContent className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {!selectedCourseId
+              ? "Select a course, then filter and assign students to a batch."
+              : selectedCount === 0
+                ? "Select students (page or all matching), choose a batch, then assign."
+                : `Assign ${selectedCount} to ${targetBatch?.code || "batch"}`}
+          </p>
+          <PermissionGate itemKey="students.student_allocation" mode="write">
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={handleClearSelection}
+                disabled={selectedCount === 0 || isAssigning}
+              >
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                className="h-9 bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm"
+                onClick={() => setShowConfirmModal(true)}
+                disabled={assignDisabled}
+              >
+                {isAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    Assigning...
+                  </>
+                ) : (
+                  `Assign${selectedCount ? ` ${selectedCount}` : ""} to batch`
+                )}
+              </Button>
+            </div>
+          </PermissionGate>
+        </CardContent>
+      </Card>
 
-        <PermissionGate itemKey="students.student_allocation" mode="write">
-        <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
-          <Button
-            variant="outline"
-            onClick={handleClearSelection}
-            disabled={selectedStudentIds.size === 0 || isAssigning}
-            className="text-xs font-bold h-9.5 px-4 rounded-xl border-slate-200"
-          >
-            Cancel
-          </Button>
-
-          <Button
-            onClick={() => setShowConfirmModal(true)}
-            disabled={selectedStudentIds.size === 0 || isCapacityExceeded || isAssigning || !targetBatch}
-            className="bg-primary hover:bg-primary text-white text-xs font-bold h-9.5 px-5 rounded-xl shadow-md gap-2 transition-all hover:scale-[1.02]"
-          >
-            {isAssigning ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Assigning...
-              </>
-            ) : (
-              <>
-                Assign {selectedStudentIds.size} Students to {targetBatch?.code || "Batch"}
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-        </PermissionGate>
-      </div>
-
-      {/* ─── CONFIRM BULK ASSIGN MODAL ─── */}
-          <Dialog
-            open={showConfirmModal}
-            onOpenChange={(open) => {
-              setShowConfirmModal(open);
-              if (!open) setActionError(null);
-            }}
-          >
-        <DialogContent className="max-w-md bg-white rounded-xl p-6">
+      <Dialog
+        open={showConfirmModal}
+        onOpenChange={(open) => {
+          setShowConfirmModal(open);
+          if (!open) setActionError(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              Confirm Batch Assignment
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 pt-1">
-              Assign <strong className="text-slate-900">{selectedStudentIds.size} selected students</strong> to cohort{" "}
-              <strong className="text-slate-900">{targetBatch?.code} – {targetBatch?.name}</strong>?
+            <DialogTitle className="text-base font-semibold">Confirm assignment</DialogTitle>
+            <DialogDescription className="text-sm">
+              Assign {selectedCount} student{selectedCount === 1 ? "" : "s"}
+              {selectedCourseName ? ` (${selectedCourseName})` : ""} to {targetBatch?.code} –{" "}
+              {targetBatch?.name}?
             </DialogDescription>
           </DialogHeader>
 
           {actionError && (
-            <div className="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2 px-3 py-2.5 text-xs font-semibold">
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{actionError}</span>
+            <div className="rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 text-xs">
+              {actionError}
             </div>
           )}
 
-          <div className="max-h-40 overflow-y-auto space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-            {selectedStudentsList.map((s) => (
-              <div key={s.id} className="flex justify-between font-medium text-slate-700">
-                <span>{s.user?.name || s.studentCode}</span>
-                <span className="font-mono text-slate-400">{s.studentCode}</span>
+          <div className="p-3 bg-muted/40 rounded-lg border border-border text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Students</span>
+              <span className="font-semibold">{selectedCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Batch seats after</span>
+              <span className="font-semibold">
+                {targetBatchAlreadyAssigned + selectedCount}/{targetBatchCapacity}
+              </span>
+            </div>
+            {selectedCourseName && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Course</span>
+                <span className="font-semibold">{selectedCourseName}</span>
               </div>
-            ))}
+            )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          {selectedOnPagePreview.length > 0 && selectedCount <= 20 && (
+            <div className="max-h-40 overflow-y-auto space-y-1 p-3 bg-muted/40 rounded-lg border border-border text-xs">
+              {selectedOnPagePreview.map((s) => (
+                <div key={s.id} className="flex justify-between">
+                  <span>{s.user?.name || s.studentCode}</span>
+                  <span className="font-mono text-muted-foreground">{s.studentCode}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
+              type="button"
               variant="outline"
               onClick={() => setShowConfirmModal(false)}
               disabled={isAssigning}
-              className="text-xs font-bold rounded-xl"
+              size="sm"
             >
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleConfirmBulkAssign}
               disabled={isAssigning}
-              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1.5"
+              size="sm"
             >
               {isAssigning ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                   Assigning...
                 </>
               ) : (
-                "Confirm Assignment"
+                `Confirm assign ${selectedCount}`
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ─── TRANSFER STUDENT MODAL ─── */}
       <Dialog open={!!transferModalStudent} onOpenChange={() => setTransferModalStudent(null)}>
-        <DialogContent className="max-w-md bg-white rounded-xl p-6">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-primary" />
-              Transfer Student Batch
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Move <strong>{transferModalStudent?.name}</strong> ({transferModalStudent?.code}) to another active cohort.
+            <DialogTitle className="text-base font-semibold">Transfer student</DialogTitle>
+            <DialogDescription className="text-sm">
+              Move {transferModalStudent?.name} ({transferModalStudent?.code}) to another batch.
             </DialogDescription>
           </DialogHeader>
 
           {transferModalStudent && (
-            <div className="space-y-4 text-xs pt-2">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Batch</span>
-                <span className="font-bold text-slate-800 text-sm mt-0.5 block">
-                  {transferModalStudent.currentBatchCode}
-                </span>
+            <div className="space-y-3 text-sm pt-1">
+              <div className="p-3 bg-muted/40 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground">Current batch</p>
+                <p className="font-medium mt-0.5">{transferModalStudent.currentBatchCode}</p>
               </div>
-
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Transfer To:</label>
+                <label className="text-xs font-medium text-foreground">Transfer to</label>
                 <select
                   value={transferTargetBatchId}
                   onChange={(e) => setTransferTargetBatchId(e.target.value)}
-                  className="w-full h-10 px-3 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary/30"
+                  className="w-full h-10 px-3 text-sm border border-border rounded-lg bg-background"
                 >
                   {batches
                     .filter((b) => b.id !== transferModalStudent.currentBatchId)
@@ -1034,73 +1087,68 @@ export const StudentAllocation: React.FC = () => {
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-3">
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setTransferModalStudent(null)}
               disabled={isTransferring}
-              className="text-xs font-bold rounded-xl"
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               onClick={handleExecuteTransfer}
               disabled={isTransferring || !transferTargetBatchId}
-              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl gap-1.5"
             >
               {isTransferring ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                   Transferring...
                 </>
               ) : (
-                "Confirm Transfer"
+                "Transfer"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ─── REMOVE STUDENT FROM BATCH MODAL ─── */}
       <Dialog open={!!removeModalStudent} onOpenChange={() => setRemoveModalStudent(null)}>
-        <DialogContent className="max-w-md bg-white rounded-xl p-6">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-rose-600" />
-              Remove Student from Batch
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Are you sure you want to remove <strong>{removeModalStudent?.name}</strong> from cohort{" "}
-              <strong>{removeModalStudent?.batchCode}</strong>?
+            <DialogTitle className="text-base font-semibold">Remove from batch</DialogTitle>
+            <DialogDescription className="text-sm">
+              Remove {removeModalStudent?.name} from {removeModalStudent?.batchCode}?
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 space-y-1">
-            <p className="font-bold">⚠️ Important consequences:</p>
-            <p>Student will be set to Unassigned and detached from future attendance and schedules for this batch.</p>
-          </div>
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            Student will become unassigned and leave this batch’s schedule and attendance.
+          </p>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setRemoveModalStudent(null)}
               disabled={isRemoving}
-              className="text-xs font-bold rounded-xl"
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               onClick={handleExecuteRemove}
               disabled={isRemoving}
-              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl gap-1.5"
+              className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               {isRemoving ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                   Removing...
                 </>
               ) : (
-                "Confirm Removal"
+                "Remove"
               )}
             </Button>
           </DialogFooter>

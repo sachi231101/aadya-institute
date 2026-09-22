@@ -100,7 +100,13 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "students.all", label: "All Students", readPermissions: ["student.read"], writePermissions: ["student.create", "student.update"] },
       { key: "students.documents", label: "Student Documents", readPermissions: ["document.read"], writePermissions: ["document.create", "document.verify", "document.update"] },
       { key: "students.student_allocation", label: "Assign Students to Batches", readPermissions: ["batch.read", "student.read"], writePermissions: ["batch.update"] },
-      { key: "students.attendance", label: "Student Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
+      {
+        key: "students.attendance",
+        label: "Student Attendance",
+        // schedule.read is required to load class sessions that power the attendance desk.
+        readPermissions: ["attendance.read", "schedule.read"],
+        writePermissions: ["attendance.mark", "attendance.update"],
+      },
       { key: "students.performance", label: "Academic Performance", readPermissions: ["student.read", "report.read"], writePermissions: [] },
       { key: "students.discontinuation", label: "Discontinuation Risk", readPermissions: ["student.read"], writePermissions: ["student.update"] },
     ],

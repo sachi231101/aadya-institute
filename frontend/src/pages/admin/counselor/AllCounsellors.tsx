@@ -1,22 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Users,
-  Plus,
-  Search,
-  UserCheck,
-  Mail,
-  Phone,
-  Building2,
-  MoreVertical,
-  Edit3,
-  Trash2,
-  TrendingUp,
-  CheckCircle2,
-  Loader2,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { Plus, Search, MoreVertical, Edit3, Trash2, Loader2 } from "lucide-react";
 import {
   useAdminUsers,
   useCreateUser,
@@ -28,13 +12,12 @@ import {
 import { useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
-import { useLeads } from "@/hooks/useLeads";
-import type { Lead } from "@/services/leads.api";
+import { useCounsellorPerformance } from "@/hooks/useLeads";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
 import { usersApi, type UserResponse } from "@/services/users.api";
 import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   buildPermissionsFromAccess,
@@ -63,7 +46,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -144,29 +126,40 @@ export const AllCounsellors: React.FC = () => {
       ? undefined
       : selectedBranchId;
 
-  const { data: leadsResponse } = useLeads({
-    limit: 500,
-    status: "ACTIVE",
-    branchId: leadsBranchId,
-  });
-  const allLeads: Lead[] = Array.isArray(leadsResponse?.data?.data)
-    ? leadsResponse.data.data
-    : Array.isArray(leadsResponse?.data)
-      ? leadsResponse.data
-      : [];
+  // Server-side counts (assignedCounsellorId). Avoid client-side lead list —
+  // GET /leads rejects limit > 100, which previously left all counts at 0.
+  const { data: performanceResponse } = useCounsellorPerformance(leadsBranchId);
+  const performanceByCounsellorId = useMemo(() => {
+    const rows: Array<{
+      counsellorId?: string;
+      totalLeads?: number;
+      converted?: number;
+    }> = Array.isArray(performanceResponse?.data?.counsellors)
+      ? performanceResponse.data.counsellors
+      : Array.isArray(performanceResponse?.data)
+        ? performanceResponse.data
+        : [];
+    const map = new Map<string, { totalLeads: number; converted: number }>();
+    for (const row of rows) {
+      if (!row.counsellorId) continue;
+      map.set(row.counsellorId, {
+        totalLeads: Number(row.totalLeads ?? 0),
+        converted: Number(row.converted ?? 0),
+      });
+    }
+    return map;
+  }, [performanceResponse]);
 
   const counselorsWithCounts = useMemo(() => {
     return counselors.map((c) => {
-      const mine = allLeads.filter(
-        (l) => l.assignedCounsellorId === c.id || l.assignedCounsellor?.id === c.id
-      );
+      const perf = performanceByCounsellorId.get(c.id);
       return {
         ...c,
-        assignedLeadsCount: mine.length,
-        convertedLeadsCount: mine.filter((l) => l.stage === "CONVERTED").length,
+        assignedLeadsCount: perf?.totalLeads ?? 0,
+        convertedLeadsCount: perf?.converted ?? 0,
       };
     });
-  }, [counselors, allLeads]);
+  }, [counselors, performanceByCounsellorId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -443,273 +436,231 @@ export const AllCounsellors: React.FC = () => {
     }
   };
 
+  const metrics = [
+    { label: "Total", value: totalCount },
+    { label: "Active", value: activeCount },
+    { label: "Assigned Leads", value: totalLeads },
+    { label: "Converted", value: totalConverted },
+  ];
+
   return (
     <PageContainer>
       <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <UserCheck className="h-6 w-6 text-primary" />
-            Counsellor Management
-          </span>
-        }
-        description="Create, manage, and monitor academy counsellors, lead allocations, and student conversions."
+        title="Counsellors"
         actions={
           <PermissionGate itemKey="counsellor.all" mode="write">
             <Button
+              size="sm"
               onClick={() => {
                 resetCreateForm();
                 setShowCreateModal(true);
               }}
-              className="bg-primary hover:bg-[#F39A16] text-white gap-2 transition-colors self-start md:self-auto"
+              className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs rounded-xl h-9 px-3.5 text-xs"
             >
-              <Plus size={16} /> Add Counsellor
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Counsellor
             </Button>
           </PermissionGate>
         }
       />
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Counsellors</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalCount}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Registered Counsellors</p>
-            </div>
-            <div className="p-3 bg-primary/10 rounded-xl text-primary">
-              <Users className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Active Staff</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{activeCount}</h3>
-              <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Available for Follow-up
+      <MetricGrid columns="grid-cols-2 sm:grid-cols-4" density="compact">
+        {metrics.map((kpi) => (
+          <Card key={kpi.label} size="compact" className="border border-border/80 shadow-2xs bg-card rounded-xl">
+            <CardContent size="compact">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
               </p>
-            </div>
-            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
-              <UserCheck className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
+              <h3 className="text-xl font-bold text-foreground mt-0.5 leading-tight tabular-nums">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
+      </MetricGrid>
 
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Assigned Leads</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalLeads}</h3>
-              <p className="text-xs text-muted-foreground mt-1">In Active Pipeline</p>
-            </div>
-            <div className="p-3 bg-purple-500/10 rounded-xl text-purple-600">
-              <TrendingUp className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Converted Enrolments</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalConverted}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Converted Leads</p>
-            </div>
-            <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
-              <UserCheck className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Toolbar & Filters */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-border/60 shadow-sm">
-        <div className="relative w-full sm:w-80">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search counsellor name, code, email..."
+            placeholder="Search by name, code, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 bg-bg-secondary/50 border-border/60"
+            className="pl-9 h-[34px] text-xs bg-muted/30 border-border"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           {!isCenterManager && (
             <select
               value={selectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-semibold w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="text-xs font-semibold border border-border rounded-lg px-3 py-1.5 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer h-[34px]"
             >
-              <option value="ALL">🌐 All Branches</option>
+              <option value="ALL">All Branches</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
-                  📍 {b.name}
+                  {b.name}
                 </option>
               ))}
-              {branches.length === 0 && (
-                <>
-                  <option value="b-central">📍 Bengaluru Central</option>
-                  <option value="b-malleswaram">📍 Malleswaram</option>
-                  <option value="b-ramamurthy">📍 Ramamurthy Nagar</option>
-                </>
-              )}
             </select>
           )}
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-medium w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="text-xs font-semibold border border-border rounded-lg px-3 py-1.5 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer h-[34px]"
           >
-            <option value="ALL">All Statuses</option>
+            <option value="ALL">All Status</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
             <option value="BLOCKED">Blocked</option>
           </select>
         </div>
-      </div>
+      </FilterToolbar>
 
-      {/* Counsellors Data Table */}
-      <Card className="border border-border/60 shadow-sm overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+        <div
+          className={
+            "min-w-0 " +
+            "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+            "[&_thead]:bg-muted/50 " +
+            "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+            "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+            "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+            "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+            "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+          }
+        >
         <Table>
-          <TableHeader className="bg-bg-tertiary/50">
+          <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold text-text-primary">Counsellor</TableHead>
-              <TableHead className="font-semibold text-text-primary">Contact Info</TableHead>
-              <TableHead className="font-semibold text-text-primary">Branch</TableHead>
-              <TableHead className="font-semibold text-text-primary">Assigned Leads</TableHead>
-              <TableHead className="font-semibold text-text-primary">Converted</TableHead>
-              <TableHead className="font-semibold text-text-primary">Status</TableHead>
-              <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
+              <TableHead>Counsellor</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead className="text-center">Leads</TableHead>
+              <TableHead className="text-center">Converted</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    Loading counsellors...
+                <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    Loading...
                   </div>
                 </TableCell>
               </TableRow>
             ) : filteredCounselors.length > 0 ? (
               filteredCounselors.map((c) => (
-                <TableRow key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center border border-primary/20">
-                        {c.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-text-primary block">{c.name}</span>
-                        <span className="font-mono text-xs text-primary font-bold">{c.employeeCode}</span>
-                      </div>
+                <TableRow key={c.id}>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{c.employeeCode}</p>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="space-y-1 text-xs text-text-secondary">
-                      <p className="flex items-center gap-1.5">
-                        <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {c.email}
-                      </p>
-                      <p className="flex items-center gap-1.5">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {c.phone}
-                      </p>
+                    <div className="space-y-0.5 text-xs text-muted-foreground">
+                      <p className="text-foreground">{c.email || "—"}</p>
+                      <p>{c.phone || "—"}</p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-text-primary">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {branches.find(b => b.id === c.branchId)?.name || "Unknown Branch"}
-                    </span>
+                  <TableCell className="text-sm text-foreground">
+                    {branches.find((b) => b.id === c.branchId)?.name || c.branchName || "—"}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                      {c.assignedLeadsCount} Leads
-                    </Badge>
+                  <TableCell className="text-center tabular-nums text-sm font-medium">
+                    {c.assignedLeadsCount}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {c.convertedLeadsCount} Converted
-                    </Badge>
+                  <TableCell className="text-center tabular-nums text-sm font-medium">
+                    {c.convertedLeadsCount}
                   </TableCell>
                   <TableCell>{getStatusBadge(c.status)}</TableCell>
                   <TableCell className="text-right">
                     {canEditCounsellors && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-text-primary">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenEditModal(c)} className="gap-2 cursor-pointer">
-                          <Edit3 className="h-4 w-4 text-primary" /> Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteCounselorId(c.id)}
-                          className="gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete / Deactivate
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEditModal(c)}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Edit3 className="h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteCounselorId(c.id)}
+                            className="gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  No counsellors found matching search criteria.
+                <TableCell colSpan={7} className="h-28 text-center text-sm text-muted-foreground">
+                  No counsellors found.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
 
       {/* CREATE COUNSELLOR MODAL */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl shadow-2xl border border-slate-200 bg-white">
-          <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <UserCheck className="h-5 w-5 text-primary" />
-              Add New Counsellor
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-background">
+          <DialogHeader className="px-6 py-4 border-b border-border shrink-0 text-left">
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              Add Counsellor
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Register a new counsellor to manage student enquiries, admissions, and batch allocations.
+            <DialogDescription className="text-sm text-muted-foreground">
+              Create a counsellor account and set their permissions.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {createError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold animate-in fade-in">
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
                   {createError}
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Full Name *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Full Name *
+                  </label>
                   <Input
-                    placeholder="e.g. Kavita Nair"
+                    placeholder="Full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Email Address *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Email *
+                  </label>
                   <Input
                     type="email"
-                    placeholder="e.g. kavita.nair@aadya.in"
+                    placeholder="email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -719,17 +670,21 @@ export const AllCounsellors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Phone Number *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Phone *
+                  </label>
                   <Input
                     type="text"
-                    placeholder="e.g. 9876511223 (10 digits)"
+                    placeholder="10-digit phone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Account Password</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Password
+                  </label>
                   <Input
                     type="password"
                     placeholder="Password@123"
@@ -741,34 +696,42 @@ export const AllCounsellors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Operating Status</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Status
+                  </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as CounselorStatus)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full h-10 px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Branch *
+                  </label>
                   {isCenterManager ? (
                     <Input
                       value={branches.find((b) => b.id === branchId)?.name || branchId}
                       disabled
-                      className="bg-slate-100 text-slate-700 font-medium h-10"
+                      className="bg-muted text-foreground font-medium h-10"
                     />
                   ) : (
                     <select
                       value={branchId}
                       onChange={(e) => setBranchId(e.target.value)}
                       required
-                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full h-10 px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      <option value="" disabled>Select a branch</option>
+                      <option value="" disabled>
+                        Select branch
+                      </option>
                       {branches.length === 0 ? (
-                        <option value="" disabled>Loading branches...</option>
+                        <option value="" disabled>
+                          Loading branches...
+                        </option>
                       ) : (
                         branches.map((branch) => (
                           <option key={branch.id} value={branch.id}>
@@ -781,17 +744,12 @@ export const AllCounsellors: React.FC = () => {
                 </div>
               </div>
 
-              <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className="h-6 w-6 rounded-md bg-blue-100 text-primary flex items-center justify-center">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
-                </div>
-                <div className="px-2.5 py-1.5 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-800 flex items-center gap-1.5 mb-3">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                  <span>By default, new counsellors see only Dashboard, ASK ME, and Settings. Enable Read/Edit to grant module access.</span>
-                </div>
+              <div className="border-t border-border pt-4">
+                <p className="text-xs font-semibold text-foreground mb-1.5">Permissions</p>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  By default, new counsellors see Dashboard, ASK ME, and Settings. Enable Read/Edit
+                  to grant more access.
+                </p>
                 <PermissionMatrix
                   role="COUNSELLOR"
                   value={createItemAccess}
@@ -802,18 +760,27 @@ export const AllCounsellors: React.FC = () => {
               </div>
             </div>
 
-            <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={isSubmitting}>
+            <DialogFooter className="px-6 py-3.5 border-t border-border bg-muted/40 shrink-0 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreateModal(false)}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <PermissionGate itemKey="counsellor.all" mode="write">
-                <Button type="submit" className="bg-primary hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="bg-primary hover:bg-primary/90 text-white"
+                  disabled={isSubmitting}
+                >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Creating...
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...
                     </>
                   ) : (
-                    "Create Counsellor"
+                    "Create"
                   )}
                 </Button>
               </PermissionGate>
@@ -824,14 +791,13 @@ export const AllCounsellors: React.FC = () => {
 
       {/* EDIT COUNSELLOR MODAL */}
       <Dialog open={!!editCounselor} onOpenChange={(open) => !open && setEditCounselor(null)}>
-        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl shadow-2xl border border-slate-200 bg-white">
-          <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <Edit3 className="h-5 w-5 text-primary" />
-              Edit Counsellor Details
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-background">
+          <DialogHeader className="px-6 py-4 border-b border-border shrink-0 text-left">
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              Edit Counsellor
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Update counsellor profile settings, contact information, and operating status.
+            <DialogDescription className="text-sm text-muted-foreground">
+              Update profile, branch, and permissions.
             </DialogDescription>
           </DialogHeader>
 
@@ -839,7 +805,9 @@ export const AllCounsellors: React.FC = () => {
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Full Name *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Full Name *
+                  </label>
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
@@ -847,18 +815,22 @@ export const AllCounsellors: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Display Code</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Code
+                  </label>
                   <Input
                     value={editCounselor?.employeeCode || ""}
                     disabled
-                    className="bg-slate-100 font-mono"
+                    className="bg-muted font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Email Address *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Email *
+                  </label>
                   <Input
                     type="email"
                     value={editEmail}
@@ -867,7 +839,9 @@ export const AllCounsellors: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Phone Number *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Phone *
+                  </label>
                   <Input
                     type="text"
                     value={editPhone}
@@ -879,34 +853,42 @@ export const AllCounsellors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Status</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Status
+                  </label>
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value as CounselorStatus)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full h-10 px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch *</label>
+                  <label className="text-xs font-semibold text-foreground block mb-1.5">
+                    Branch *
+                  </label>
                   {isCenterManager ? (
                     <Input
                       value={branches.find((b) => b.id === editBranchId)?.name || editBranchId}
                       disabled
-                      className="bg-slate-100 text-slate-700 font-medium h-10"
+                      className="bg-muted text-foreground font-medium h-10"
                     />
                   ) : (
                     <select
                       value={editBranchId}
                       onChange={(e) => setEditBranchId(e.target.value)}
                       required
-                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full h-10 px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      <option value="" disabled>Select a branch</option>
+                      <option value="" disabled>
+                        Select branch
+                      </option>
                       {branches.length === 0 ? (
-                        <option value="" disabled>Loading branches...</option>
+                        <option value="" disabled>
+                          Loading branches...
+                        </option>
                       ) : (
                         branches.map((branch) => (
                           <option key={branch.id} value={branch.id}>
@@ -919,13 +901,8 @@ export const AllCounsellors: React.FC = () => {
                 </div>
               </div>
 
-              <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className="h-6 w-6 rounded-md bg-blue-100 text-primary flex items-center justify-center">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
-                </div>
+              <div className="border-t border-border pt-4">
+                <p className="text-xs font-semibold text-foreground mb-3">Permissions</p>
                 <PermissionMatrix
                   role="COUNSELLOR"
                   value={editItemAccess}
@@ -940,14 +917,19 @@ export const AllCounsellors: React.FC = () => {
               )}
             </div>
 
-            <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditCounselor(null)} disabled={isEditSubmitting}>
+            <DialogFooter className="px-6 py-3.5 border-t border-border bg-muted/40 shrink-0 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditCounselor(null)}
+                disabled={isEditSubmitting}
+              >
                 Cancel
               </Button>
               <PermissionGate itemKey="counsellor.all" mode="write">
                 <Button
                   type="submit"
-                  className="bg-primary hover:bg-[#F39A16] text-white font-bold"
+                  className="bg-primary hover:bg-primary/90 text-white"
                   disabled={isEditSubmitting || !editMatrixHydrated}
                 >
                   {isEditSubmitting ? (
@@ -955,7 +937,7 @@ export const AllCounsellors: React.FC = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
                     </>
                   ) : (
-                    "Save Changes"
+                    "Save"
                   )}
                 </Button>
               </PermissionGate>
@@ -968,11 +950,11 @@ export const AllCounsellors: React.FC = () => {
       <Dialog open={!!deleteCounselorId} onOpenChange={(open) => !open && setDeleteCounselorId(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-rose-600 flex items-center gap-2">
-              <Trash2 className="h-5 w-5" /> Delete Counsellor
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              Delete Counsellor
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this counsellor profile? This action will remove them from active counsellor assignments.
+              This will remove the counsellor from active assignments. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-4 gap-2">
@@ -981,7 +963,7 @@ export const AllCounsellors: React.FC = () => {
             </Button>
             <PermissionGate itemKey="counsellor.all" mode="write">
               <Button variant="destructive" onClick={handleDeleteConfirm}>
-                Delete Counsellor
+                Delete
               </Button>
             </PermissionGate>
           </DialogFooter>

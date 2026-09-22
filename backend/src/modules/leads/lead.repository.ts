@@ -635,6 +635,7 @@ export const LeadRepository = {
         const baseWhere = {
           instituteId,
           assignedCounsellorId: c.id,
+          ...leadBranchWhere(branchId, branchIds),
         };
 
         const [total, contacted, interested, followUps, converted, lost] =

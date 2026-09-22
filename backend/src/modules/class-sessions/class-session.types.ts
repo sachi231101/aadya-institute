@@ -45,6 +45,8 @@ export interface QueryClassSessionsDto {
   batchIds?: string[];
   facultyId?: string;
   branchId?: string;
+  /** Multi-branch scope when getBranchScopeFilter returns branchIds. */
+  branchIds?: string[];
   status?: ClassStatus;
   mode?: ClassMode;
   sessionType?: SessionType;

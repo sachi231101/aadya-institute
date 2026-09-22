@@ -165,5 +165,53 @@ export const studentsApi = {
     const response = await api.post(`/students/${id}/send-credentials-whatsapp`);
     return response.data;
   },
+
+  // ─── Discontinuation risk actions ─────────────────────────────────────
+
+  discontinueStudent: async (
+    id: string,
+    data: { reason: string }
+  ): Promise<SingleResponse<Student>> => {
+    const response = await api.post<SingleResponse<Student>>(
+      `/students/${id}/discontinue`,
+      data
+    );
+    return response.data;
+  },
+
+  continueStudent: async (
+    id: string
+  ): Promise<
+    SingleResponse<{
+      id: string;
+      status: string;
+      batchRestored: boolean;
+      batchCode?: string;
+    }>
+  > => {
+    const response = await api.post<
+      SingleResponse<{
+        id: string;
+        status: string;
+        batchRestored: boolean;
+        batchCode?: string;
+      }>
+    >(`/students/${id}/continue`);
+    return response.data;
+  },
+
+  notifyDiscontinuationRisk: async (
+    id: string
+  ): Promise<SingleResponse<{ queued?: boolean; status?: string }>> => {
+    const response = await api.post(`/students/${id}/notify-discontinuation-risk`);
+    return response.data;
+  },
+
+  triggerStudentAiCall: async (
+    id: string
+  ): Promise<SingleResponse<{ callLogId?: string; status?: string }>> => {
+    const response = await api.post(`/students/${id}/ai-call`);
+    return response.data;
+  },
 };
 

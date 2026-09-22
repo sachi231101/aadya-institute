@@ -128,12 +128,31 @@ export const LeadAllocation: React.FC = () => {
           Awaiting AI call ({awaiting.length})
         </Button>
       </div>
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-            <Input placeholder="Search leads..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+      <Card className="border border-border shadow-xs rounded-xl overflow-hidden bg-card">
+        <CardContent className="p-0 space-y-0">
+          <div className="p-4 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+              <Input
+                placeholder="Search leads..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
+          <div
+            className={
+              "min-w-0 " +
+              "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+              "[&_thead]:bg-muted/50 " +
+              "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+              "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+              "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+              "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+              "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+            }
+          >
           <Table>
             <TableHeader>
               <TableRow>
@@ -163,7 +182,7 @@ export const LeadAllocation: React.FC = () => {
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-secondary">No leads in this queue.</TableCell></TableRow>
               ) : (
                 visible.map((lead) => (
-                  <TableRow key={lead.id} className="hover:bg-bg-secondary/30">
+                  <TableRow key={lead.id}>
                     <TableCell>
                       <input
                         type="checkbox"
@@ -216,6 +235,7 @@ export const LeadAllocation: React.FC = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
