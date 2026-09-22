@@ -4,7 +4,7 @@ import { prisma } from "../../config/database";
 import { classSessionService } from "./class-session.service";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { assertFacultyOwnsSession, toAuthUser } from "../../utils/auth-user.util";
-import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
+import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
 import type { QueryClassSessionsDto } from "./class-session.types";
 
 export const getSessions = async (
@@ -15,7 +15,7 @@ export const getSessions = async (
   try {
     const authUser = toAuthUser(req);
     const instituteId = authUser.instituteId;
-    // ADMIN: optional query branchId only. Branch-locked roles: always user.branchId.
+    // ADMIN: optional query branchId only. Branch-locked roles: full scope (branchId or branchIds).
     // Pure students: enrollment batchIds are the isolation boundary (not session.branchId).
     const roles = authUser.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
@@ -29,9 +29,9 @@ export const getSessions = async (
       !roles.includes("COUNSELLOR") &&
       !roles.includes("FACULTY");
 
-    const branchId = (isPureStudent || isPureFaculty)
-      ? undefined
-      : resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
+    const scope = getBranchScopeFilter(authUser, req.query.branchId as string | undefined);
+    const branchId = (isPureStudent || isPureFaculty) ? undefined : scope.branchId;
+    const scopedBranchIds = (isPureStudent || isPureFaculty) ? undefined : scope.branchIds;
 
     let facultyFilter = req.query.facultyId as string;
     let batchFilter = req.query.batchId as string;
@@ -77,6 +77,7 @@ export const getSessions = async (
     const filters: QueryClassSessionsDto = {
       batchId: batchFilter || undefined,
       batchIds,
+      branchIds: scopedBranchIds,
       facultyId: facultyFilter,
       status: req.query.status as QueryClassSessionsDto["status"],
       mode: req.query.mode as QueryClassSessionsDto["mode"],
@@ -198,9 +199,9 @@ export const getActiveLiveSessions = async (
     const roles = authUser.roles || [];
     const isPureStudent = roles.includes("STUDENT") && !roles.includes("ADMIN") && !roles.includes("FACULTY");
     const isPureFaculty = roles.includes("FACULTY") && !roles.includes("ADMIN");
-    const branchId = isPureStudent
-      ? undefined
-      : resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
+    const scope = getBranchScopeFilter(authUser, req.query.branchId as string | undefined);
+    const branchId = isPureStudent || isPureFaculty ? undefined : scope.branchId;
+    const branchIds = isPureStudent || isPureFaculty ? undefined : scope.branchIds;
 
     let studentBatchIds: string[] | undefined = undefined;
     let facultyId: string | undefined = undefined;
@@ -230,7 +231,8 @@ export const getActiveLiveSessions = async (
       instituteId,
       branchId,
       studentBatchIds,
-      facultyId
+      facultyId,
+      branchIds
     );
     sendSuccess(res, liveSessions, 200, "Active live sessions retrieved successfully");
   } catch (error) {

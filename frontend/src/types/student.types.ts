@@ -103,6 +103,8 @@ export interface Student {
   courseName?: string;
   /** All courses from admissions / package enrollments */
   courses?: Array<{ id: string; name: string; code: string }>;
+  batchId?: string | null;
+  batchCode?: string | null;
   batchName?: string;
   batchTiming?: string;
   facultyName?: string;
@@ -308,6 +310,8 @@ export interface StudentListParams {
   search?: string;
   branchId?: string;
   status?: StudentStatus;
+  enrollmentStatus?: "UNASSIGNED" | "ASSIGNED" | "ALL";
+  courseId?: string;
 }
 
 // ─── Paginated Response ─────────────────────────────────────────────────

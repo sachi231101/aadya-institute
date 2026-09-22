@@ -18,13 +18,18 @@ export const aiCallingQueue = createQueue("ai-calling");
 export const aiCallingWorker = createWorker<AICallingJob>(
   "ai-calling",
   async (job) => {
-    const { callLogId, leadId, instituteId } = job.data;
+    const { callLogId, leadId, studentId, instituteId } = job.data;
 
-    if (callLogId && leadId && instituteId) {
+    if (callLogId && instituteId && (leadId || studentId)) {
       const { AiCallingService } = await import(
         "../modules/ai-calling/ai-calling.service"
       );
-      await AiCallingService.processCallJob({ callLogId, leadId, instituteId });
+      await AiCallingService.processCallJob({
+        callLogId,
+        instituteId,
+        leadId,
+        studentId,
+      });
       return;
     }
 

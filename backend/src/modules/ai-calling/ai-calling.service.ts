@@ -38,12 +38,14 @@ import type {
 } from "./ai-calling.validation";
 import {
   buildIdempotencyKey,
+  buildStudentIdempotencyKey,
   isInFlightCallStatus,
   isTerminalCallStatus,
   mapProviderCallStatus,
   type AiCallingJobPayload,
   type SarvamWebhookPayload,
 } from "./ai-calling.types";
+import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 
 function callbackBaseUrl(): string {
   return (
@@ -505,7 +507,18 @@ export const AiCallingService = {
    * Worker entry: reload config from DB; never trust job for secrets.
    */
   async processCallJob(payload: AiCallingJobPayload): Promise<void> {
-    const { callLogId, leadId, instituteId } = payload;
+    const { callLogId, leadId, studentId, instituteId } = payload;
+
+    if (studentId && !leadId) {
+      await this.processStudentCallJob(payload);
+      return;
+    }
+
+    if (!leadId) {
+      throw new UnrecoverableError(
+        `CallLog ${callLogId} job missing leadId/studentId`
+      );
+    }
 
     const callLog = await prisma.callLog.findFirst({
       where: { id: callLogId, instituteId, leadId },
@@ -694,6 +707,236 @@ export const AiCallingService = {
     }
   },
 
+  async processStudentCallJob(payload: AiCallingJobPayload): Promise<void> {
+    const { callLogId, studentId, instituteId } = payload;
+    if (!studentId) {
+      throw new UnrecoverableError(`CallLog ${callLogId} missing studentId`);
+    }
+
+    const callLog = await prisma.callLog.findFirst({
+      where: { id: callLogId, instituteId, studentId },
+    });
+    if (!callLog) {
+      throw new UnrecoverableError(`CallLog ${callLogId} not found for institute`);
+    }
+
+    if (isTerminalCallStatus(callLog.status)) {
+      logger.info(
+        { callLogId, status: callLog.status },
+        "[AiCalling] Skipping terminal student CallLog"
+      );
+      return;
+    }
+
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, instituteId },
+      include: {
+        user: { select: { name: true, phone: true, email: true } },
+        branch: { select: { name: true } },
+        admissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { phone: true, course: { select: { name: true } } },
+        },
+        batchEnrollments: {
+          where: { status: "ACTIVE" },
+          take: 1,
+          include: {
+            batch: { select: { name: true, course: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+    if (!student) {
+      throw new UnrecoverableError(`Student ${studentId} not found for institute`);
+    }
+
+    const phone =
+      student.user?.phone?.trim() || student.admissions?.[0]?.phone?.trim() || "";
+    if (!phone) {
+      await AiCallingRepository.updateCallLog(callLogId, {
+        status: "FAILED",
+        failureReason: "Student has no phone number",
+        endedAt: new Date(),
+      });
+      throw new UnrecoverableError("Student has no phone number");
+    }
+
+    const config = await resolveAiCallingConfig(instituteId);
+    if (!config.isEnabled) {
+      await AiCallingRepository.updateCallLog(callLogId, {
+        status: "FAILED",
+        failureReason: "AI Calling disabled",
+        endedAt: new Date(),
+      });
+      throw new UnrecoverableError("AI Calling disabled for institute");
+    }
+    if (!config.hasTelephony) {
+      await AiCallingRepository.updateCallLog(callLogId, {
+        status: "FAILED",
+        failureReason: "Missing telephony configuration",
+        endedAt: new Date(),
+      });
+      throw new UnrecoverableError("Missing telephony configuration");
+    }
+
+    const jobName = "student-ai-call";
+    if (
+      !isWithinCallingHours({
+        timezone: config.timezone,
+        callingHoursStart: config.callingHoursStart,
+        callingHoursEnd: config.callingHoursEnd,
+        callingDays: config.callingDays,
+      })
+    ) {
+      const delay = msUntilNextCallingWindow({
+        timezone: config.timezone,
+        callingHoursStart: config.callingHoursStart,
+        callingHoursEnd: config.callingHoursEnd,
+        callingDays: config.callingDays,
+      });
+      const { aiCallingQueue } = await import("../../queues/ai-calling.queue");
+      const { defaultJobOptions, QUEUE_PRIORITY } = await import("../../queues/queue");
+      await aiCallingQueue.add(jobName, payload, {
+        ...defaultJobOptions(QUEUE_PRIORITY.BULK),
+        delay: Math.max(delay, 60_000),
+      });
+      logger.info(
+        { callLogId, instituteId, delay },
+        "[AiCalling] Outside calling hours — requeued student call"
+      );
+      return;
+    }
+
+    const dateKey = usageDateKey(new Date(), config.timezone);
+    if (config.dailyCallLimit != null) {
+      const usage = await AiCallingRepository.getUsageDaily(instituteId, dateKey);
+      if ((usage?.initiatedCount ?? 0) >= config.dailyCallLimit) {
+        const delay = msUntilNextCallingWindow({
+          timezone: config.timezone,
+          callingHoursStart: config.callingHoursStart || "09:00",
+          callingHoursEnd: config.callingHoursEnd,
+          callingDays: config.callingDays,
+        });
+        const { aiCallingQueue } = await import("../../queues/ai-calling.queue");
+        const { defaultJobOptions, QUEUE_PRIORITY } = await import("../../queues/queue");
+        await aiCallingQueue.add(jobName, payload, {
+          ...defaultJobOptions(QUEUE_PRIORITY.BULK),
+          delay: Math.max(delay || 60 * 60 * 1000, 60_000),
+        });
+        logger.info(
+          { callLogId, instituteId },
+          "[AiCalling] Daily limit reached — requeued student call"
+        );
+        return;
+      }
+    }
+
+    const rate = await tryAcquireInstituteDialSlot(instituteId);
+    if (!rate.allowed) {
+      const { aiCallingQueue } = await import("../../queues/ai-calling.queue");
+      const { defaultJobOptions, QUEUE_PRIORITY } = await import("../../queues/queue");
+      await aiCallingQueue.add(jobName, payload, {
+        ...defaultJobOptions(QUEUE_PRIORITY.BULK),
+        delay: 15_000,
+      });
+      logger.info(
+        { callLogId, instituteId, count: rate.count },
+        "[AiCalling] Institute rate limited — requeued student call"
+      );
+      return;
+    }
+
+    const courseName =
+      student.batchEnrollments?.[0]?.batch?.course?.name ||
+      student.admissions?.[0]?.course?.name ||
+      null;
+    const batchName = student.batchEnrollments?.[0]?.batch?.name ?? null;
+
+    try {
+      const { buildAgentVariables } = await import("./agent-variables.util");
+      const { agentVariables } = buildAgentVariables(
+        {
+          name: student.user?.name || student.studentCode,
+          phoneNumber: phone,
+          email: student.user?.email ?? null,
+          interestedIn: courseName,
+          notes: batchName
+            ? `Discontinuation risk outreach — batch ${batchName}`
+            : "Discontinuation risk outreach",
+          stage: "STUDENT",
+          course: courseName ? { name: courseName } : null,
+          branch: student.branch ? { name: student.branch.name } : null,
+        },
+        config.agentVariableMap
+      );
+
+      logger.info(
+        {
+          callLogId,
+          studentId,
+          instituteId,
+          agentVariableKeys: Object.keys(agentVariables),
+          missing_fields: agentVariables.missing_fields || "",
+        },
+        "[AiCalling] Dialing student with agent_variables"
+      );
+
+      const response = await initiateCall(
+        {
+          to: phone,
+          from: config.fromNumber || "",
+          callbackUrl: `${callbackBaseUrl()}/api/v1/webhooks/sarvam/callback`,
+          metadata: {
+            studentId: student.id,
+            instituteId,
+            callLogId,
+            attemptNumber: String(callLog.attemptNumber),
+          },
+          agentVariables,
+          appId: config.providerAppId || undefined,
+        },
+        {
+          baseUrl: config.telephonyBaseUrl,
+          apiKey: config.telephonyApiKey,
+        }
+      );
+
+      await AiCallingRepository.updateCallLog(callLogId, {
+        externalCallId: response.callId || callLog.externalCallId,
+        status: mapProviderCallStatus(response.status || "INITIATED"),
+        fromNumber: config.fromNumber || callLog.fromNumber,
+        agentId: config.agentId,
+        startedAt: callLog.startedAt ?? new Date(),
+      });
+
+      await AiCallingRepository.incrementUsage(instituteId, dateKey, {
+        initiated: 1,
+      });
+    } catch (err: unknown) {
+      const status =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { status?: number } }).response?.status
+          : undefined;
+      const message = err instanceof Error ? err.message : "Telephony initiate failed";
+
+      if (status && status >= 400 && status < 500) {
+        await AiCallingRepository.updateCallLog(callLogId, {
+          status: "FAILED",
+          failureReason: message,
+          endedAt: new Date(),
+        });
+        throw new UnrecoverableError(`Non-retriable telephony error: ${message}`);
+      }
+
+      logger.error(
+        { err, callLogId, studentId },
+        "[AiCalling] Student telephony initiate failed"
+      );
+      throw err;
+    }
+  },
+
   async applyTerminalCallStatus(leadId: string, status: string): Promise<void> {
     if (!isTerminalCallStatus(status)) return;
 
@@ -767,6 +1010,206 @@ export const AiCallingService = {
           ? "AI call recorded locally — configure telephony to place live calls"
           : `AI call not started: ${result.skipped}`,
     };
+  },
+
+  // ─── Student AI call (POST /students/:id/ai-call) ───────────────────────────
+
+  async triggerStudentCall(studentId: string, currentUser: AuthUser) {
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, instituteId: currentUser.instituteId },
+      include: {
+        user: { select: { name: true, phone: true, email: true } },
+        branch: { select: { name: true } },
+        admissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { phone: true, course: { select: { name: true } } },
+        },
+        batchEnrollments: {
+          where: { status: "ACTIVE" },
+          take: 1,
+          include: {
+            batch: {
+              select: {
+                name: true,
+                course: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!student) throw new AppError("Student not found", 404);
+    assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
+
+    const phone =
+      student.user?.phone?.trim() || student.admissions?.[0]?.phone?.trim() || "";
+    if (!phone) {
+      throw new AppError("Student has no registered phone number", 400);
+    }
+
+    const result = await this.enqueueStudentCall({
+      id: student.id,
+      phoneNumber: phone,
+      name: student.user?.name || student.studentCode,
+      email: student.user?.email ?? null,
+      instituteId: student.instituteId,
+      branchId: student.branchId,
+      branchName: student.branch?.name ?? null,
+      courseName:
+        student.batchEnrollments?.[0]?.batch?.course?.name ||
+        student.admissions?.[0]?.course?.name ||
+        null,
+      batchName: student.batchEnrollments?.[0]?.batch?.name ?? null,
+    });
+
+    const callLog = result.callLogId
+      ? await prisma.callLog.findUnique({ where: { id: result.callLogId } })
+      : null;
+
+    return {
+      success: result.queued || result.skipped === "telephony_unavailable",
+      callLogId: result.callLogId,
+      status: callLog?.status ?? (result.queued ? "INITIATED" : "FAILED"),
+      call: callLog,
+      message: result.queued
+        ? "AI voice call queued"
+        : result.skipped === "telephony_unavailable"
+          ? "AI call recorded locally — configure telephony to place live calls"
+          : `AI call not started: ${result.skipped}`,
+    };
+  },
+
+  async enqueueStudentCall(
+    student: {
+      id: string;
+      phoneNumber: string;
+      name: string;
+      email?: string | null;
+      instituteId: string;
+      branchId: string;
+      branchName?: string | null;
+      courseName?: string | null;
+      batchName?: string | null;
+    },
+    options: { attemptNumber?: number } = {}
+  ): Promise<{ queued: boolean; callLogId?: string; skipped?: string }> {
+    const config = await resolveAiCallingConfig(student.instituteId);
+
+    let attemptNumber = options.attemptNumber;
+    if (!attemptNumber) {
+      const latest = await AiCallingRepository.findLatestAttemptByStudentId(student.id);
+      attemptNumber = (latest?.attemptNumber ?? 0) + 1;
+    }
+
+    if (attemptNumber > config.maxAttemptsPerLead) {
+      return { queued: false, skipped: "max_attempts_reached" };
+    }
+
+    const idempotencyKey = buildStudentIdempotencyKey(
+      student.instituteId,
+      student.id,
+      attemptNumber
+    );
+
+    const existing = await AiCallingRepository.findCallLogByIdempotencyKey(idempotencyKey);
+    if (existing) {
+      if (isTerminalCallStatus(existing.status) || isInFlightCallStatus(existing.status)) {
+        return {
+          queued: false,
+          callLogId: existing.id,
+          skipped: isTerminalCallStatus(existing.status)
+            ? "already_terminal"
+            : "already_in_flight",
+        };
+      }
+    }
+
+    if (!config.hasTelephony || !config.isEnabled) {
+      let callLog;
+      try {
+        callLog = await AiCallingRepository.createCallLog({
+          instituteId: student.instituteId,
+          branchId: student.branchId,
+          agentId: config.agentId,
+          studentId: student.id,
+          fromNumber: config.fromNumber || null,
+          externalCallId: `local_student_${student.id}_${attemptNumber}_${Date.now()}`,
+          status: "FAILED",
+          duration: 0,
+          attemptNumber,
+          idempotencyKey,
+          failureReason: !config.isEnabled
+            ? "AI Calling is disabled for this institute"
+            : "Telephony not configured (set Integration override, platform settings, or TELEPHONY_* env)",
+          transcript: !config.isEnabled
+            ? "AI Calling is disabled for this institute"
+            : "Telephony not configured",
+          endedAt: new Date(),
+        });
+      } catch {
+        const again = await AiCallingRepository.findCallLogByIdempotencyKey(idempotencyKey);
+        if (again) {
+          return { queued: false, callLogId: again.id, skipped: "telephony_unavailable" };
+        }
+        throw new AppError("Failed to create call log", 500);
+      }
+      return { queued: false, callLogId: callLog.id, skipped: "telephony_unavailable" };
+    }
+
+    let callLog;
+    try {
+      callLog = existing
+        ? existing
+        : await AiCallingRepository.createCallLog({
+            instituteId: student.instituteId,
+            branchId: student.branchId,
+            agentId: config.agentId,
+            studentId: student.id,
+            fromNumber: config.fromNumber || null,
+            externalCallId: `queued_student_${student.id}_${attemptNumber}_${Date.now()}`,
+            status: "INITIATED",
+            duration: 0,
+            attemptNumber,
+            idempotencyKey,
+            startedAt: new Date(),
+          });
+    } catch (err: unknown) {
+      const again = await AiCallingRepository.findCallLogByIdempotencyKey(idempotencyKey);
+      if (again) {
+        return { queued: false, callLogId: again.id, skipped: "idempotent_race" };
+      }
+      throw err;
+    }
+
+    try {
+      const { aiCallingQueue } = await import("../../queues/ai-calling.queue");
+      const { defaultJobOptions, QUEUE_PRIORITY } = await import("../../queues/queue");
+      const payload: AiCallingJobPayload = {
+        callLogId: callLog.id,
+        studentId: student.id,
+        instituteId: student.instituteId,
+      };
+      await aiCallingQueue.add(
+        "student-ai-call",
+        payload,
+        defaultJobOptions(QUEUE_PRIORITY.USER_FACING)
+      );
+      return { queued: true, callLogId: callLog.id };
+    } catch (err) {
+      logger.error(
+        { err, studentId: student.id },
+        "[AiCalling] Failed to enqueue student call; marking local failure"
+      );
+      await AiCallingRepository.updateCallLog(callLog.id, {
+        status: "FAILED",
+        failureReason: "Failed to enqueue AI calling job",
+        endedAt: new Date(),
+        transcript:
+          "AI call queued locally. Redis/queue unavailable or telephony misconfigured.",
+      });
+      return { queued: false, callLogId: callLog.id, skipped: "enqueue_failed" };
+    }
   },
 
   // ─── Webhook ───────────────────────────────────────────────────────────────

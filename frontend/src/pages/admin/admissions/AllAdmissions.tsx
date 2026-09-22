@@ -937,39 +937,40 @@ export const AllAdmissions: React.FC = () => {
           </FilterToolbar>
 
           {/* Table */}
-          <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+          <Card className="border border-border shadow-xs rounded-xl overflow-hidden bg-card">
+        <div
+          className={
+            "min-w-0 overflow-x-auto " +
+            "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+            "[&_thead]:bg-muted/50 " +
+            "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+            "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+            "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+            "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+            "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+          }
+        >
           <Table>
-            <TableHeader className="bg-muted/40 border-b border-border">
-              <TableRow className="hover:bg-transparent border-border">
-                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pl-5">
-                  Student
-                </TableHead>
-                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Course
-                </TableHead>
-                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">
-                  Batch
-                </TableHead>
-                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Status
-                </TableHead>
-                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">
-                  Date
-                </TableHead>
-                <TableHead className="py-2.5 px-4 w-10" />
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead className="hidden md:table-cell">Batch</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden sm:table-cell">Date</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
 
-            <TableBody className="divide-y divide-border">
+            <TableBody>
               {currentRows.length > 0 ? (
                 currentRows.map((adm) => (
                   <TableRow
                     key={adm.studentId || adm.admissionIds?.join("-") || adm.id}
                     onClick={() => handleOpenDetails(adm)}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer group border-border"
+                    className="cursor-pointer group"
                   >
-                    <TableCell className="py-3 px-4 pl-5 align-middle">
+                    <TableCell>
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar className="h-8 w-8 border border-border shrink-0">
                           <AvatarImage src={adm.avatar} alt={adm.studentName} />
@@ -984,7 +985,7 @@ export const AllAdmissions: React.FC = () => {
                       </div>
                     </TableCell>
 
-                    <TableCell className="py-3 px-4 align-middle">
+                    <TableCell>
                       <CourseChips
                         courses={adm.courses}
                         fallback={adm.courseName}
@@ -995,19 +996,19 @@ export const AllAdmissions: React.FC = () => {
                       )}
                     </TableCell>
 
-                    <TableCell className="py-3 px-4 align-middle hidden md:table-cell">
+                    <TableCell className="hidden md:table-cell">
                       <p className="text-xs text-foreground font-mono">{adm.batchCode || "—"}</p>
                     </TableCell>
 
-                    <TableCell className="py-3 px-4 align-middle">
+                    <TableCell>
                       {renderAdmissionStatusBadge(adm.status)}
                     </TableCell>
 
-                    <TableCell className="py-3 px-4 align-middle hidden sm:table-cell">
+                    <TableCell className="hidden sm:table-cell">
                       <p className="text-xs text-muted-foreground">{adm.admissionDate}</p>
                     </TableCell>
 
-                    <TableCell className="py-3 px-4 pr-4 align-middle text-right">
+                    <TableCell className="text-right">
                       <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary inline-block" />
                     </TableCell>
                   </TableRow>

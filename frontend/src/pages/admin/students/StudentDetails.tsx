@@ -4,42 +4,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
+import { useContinueStudent } from "@/hooks/useDiscontinuationRisk";
 import { batchIncludesCourse, formatBatchInstructorsSummary, formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 import { aiCallingApi } from "../../../services/ai-calling.api";
 import { studentsApi } from "../../../services/students.api";
 import {
   ArrowLeft,
-  GraduationCap,
-  Mail,
-  Phone,
-  Calendar,
-  BookOpen,
   Loader2,
   AlertCircle,
-  User,
-  HeartHandshake,
-  CreditCard,
-  MessageSquare,
-  Bot,
   Download,
-  Award,
   CircleDot,
   Check,
-  ShieldAlert,
-  Sparkles,
   CheckCircle2,
-  PlusCircle,
-  FileText,
-  RefreshCw,
-  Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { PageContainer } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +32,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
+import { getApiErrorMessage } from "@/utils/api-error";
 
 export const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,15 +41,18 @@ export const StudentDetails: React.FC = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { isAdmin } = usePermissions();
 
   const [activeTab, setActiveTab] = useState("overview");
   // Admission & Batch Activation Modal State
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
+  const [isContinueDialogOpen, setIsContinueDialogOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [admissionNotes, setAdmissionNotes] = useState("");
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const continueMutation = useContinueStudent();
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -176,50 +164,23 @@ export const StudentDetails: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
+    const base = "inline-flex text-xs font-medium px-2 py-0.5 rounded-md border";
     if (isDraftStudent) {
-      return (
-        <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Admission Pending
-        </span>
-      );
+      return <span className={`${base} bg-amber-500/10 text-amber-700 border-amber-500/20`}>Pending</span>;
     }
     switch (status) {
       case "ACTIVE":
-        return (
-          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active Student
-          </span>
-        );
+        return <span className={`${base} bg-emerald-500/10 text-emerald-700 border-emerald-500/20`}>Active</span>;
       case "ON_LEAVE":
-        return (
-          <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> On Approved Leave
-          </span>
-        );
+        return <span className={`${base} bg-amber-500/10 text-amber-700 border-amber-500/20`}>On leave</span>;
       case "COMPLETED":
-        return (
-          <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" /> Graduated
-          </span>
-        );
+        return <span className={`${base} bg-blue-500/10 text-blue-700 border-blue-500/20`}>Completed</span>;
       case "DISCONTINUED":
-        return (
-          <span className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Discontinued
-          </span>
-        );
+        return <span className={`${base} bg-rose-500/10 text-rose-700 border-rose-500/20`}>Discontinued</span>;
       case "CANCELLED":
-        return (
-          <span className="bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-500" /> Cancelled
-          </span>
-        );
+        return <span className={`${base} bg-muted text-muted-foreground border-border`}>Cancelled</span>;
       default:
-        return (
-          <span className="bg-muted text-muted-foreground border border-border text-xs font-semibold px-2.5 py-0.5 rounded-full">
-            {status}
-          </span>
-        );
+        return <span className={`${base} bg-muted text-muted-foreground border-border`}>{status}</span>;
     }
   };
 
@@ -262,11 +223,30 @@ export const StudentDetails: React.FC = () => {
     }
   };
 
+  const handleConfirmContinue = async () => {
+    if (!id) return;
+    setDialogError(null);
+    try {
+      const res = await continueMutation.mutateAsync(id);
+      const result = res.data;
+      const restoredMsg = result?.batchRestored
+        ? result.batchCode
+          ? ` Previous batch ${result.batchCode} was restored.`
+          : " Previous batch enrollment was restored."
+        : " Assign a batch from Student Allocation if needed.";
+      setSuccessToast(`Student reactivated.${restoredMsg}`);
+      setIsContinueDialogOpen(false);
+      setTimeout(() => setSuccessToast(null), 5000);
+    } catch (err) {
+      setDialogError(getApiErrorMessage(err, "Failed to continue student."));
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-28 text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-3 font-medium text-muted-foreground">Loading student dossier...</span>
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="ml-3 text-sm text-muted-foreground">Loading...</span>
       </div>
     );
   }
@@ -274,13 +254,10 @@ export const StudentDetails: React.FC = () => {
   if (isError || !student) {
     return (
       <div className="text-center py-16 max-w-md mx-auto text-foreground">
-        <AlertCircle className="mx-auto h-12 w-12 text-rose-500 mb-4 opacity-70" />
-        <h3 className="text-lg font-bold mb-2">Student Not Found</h3>
-        <p className="text-muted-foreground mb-6 text-sm">
-          Could not locate student record with ID: <span className="font-mono text-foreground font-semibold">{id}</span>
-        </p>
+        <h3 className="text-lg font-semibold mb-2">Student not found</h3>
+        <p className="text-muted-foreground mb-6 text-sm">This student record could not be loaded.</p>
         <Button variant="outline" onClick={() => navigate(`${basePath}/students/all`)}>
-          Back to Students List
+          Back to students
         </Button>
       </div>
     );
@@ -425,239 +402,149 @@ export const StudentDetails: React.FC = () => {
   const pendingFees = student.pendingFees ?? [];
 
   return (
-    <PageContainer maxWidth="narrow" className="text-foreground font-sans antialiased animate-in fade-in duration-200">
-      {/* ─── Success Notification ─── */}
+    <PageContainer className="text-foreground animate-in fade-in duration-200">
       {successToast && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl p-4 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-sm font-semibold">{successToast}</span>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSuccessToast(null)}
-            className="h-7 text-xs font-bold hover:bg-emerald-500/10 cursor-pointer"
-          >
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 rounded-lg p-3 flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">{successToast}</span>
+          <Button size="sm" variant="ghost" onClick={() => setSuccessToast(null)} className="h-7 text-xs shrink-0">
             Dismiss
           </Button>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate(`${basePath}/students/all`)}
-            className="h-9 w-9 rounded-lg border-border text-foreground hover:bg-muted/50 cursor-pointer shrink-0"
+            className="h-9 w-9 shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <PageHeader
-            className="flex-1 min-w-0"
-            title={studentName}
-            description={
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Student Profile & Dossier
-                </span>
-                <span className="text-muted-foreground/60">•</span>
-                <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                  {student.studentCode}
-                </span>
-              </span>
-            }
-          />
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold text-foreground truncate">{studentName}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              <span className="font-mono">{student.studentCode}</span>
+              {studentPhone !== notProvided ? ` · ${studentPhone}` : ""}
+            </p>
+          </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <PermissionGate itemKey="students.all" mode="write">
-          {isDraftStudent ? (
+          {isAdmin && student.status === "DISCONTINUED" && (
             <Button
-              onClick={() => setIsActivateModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 shadow-sm flex items-center gap-1.5 cursor-pointer"
+              size="sm"
+              onClick={() => {
+                setDialogError(null);
+                setIsContinueDialogOpen(true);
+              }}
+              disabled={continueMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Complete Admission & Activate</span>
-            </Button>
-          ) : (
-            <Button
-              onClick={() => setIsActivateModalOpen(true)}
-              variant="outline"
-              className="border-border text-foreground hover:bg-muted/50 font-semibold text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-primary" />
-              <span>Assign / Change Batch</span>
+              Continue
             </Button>
           )}
-
-          {/* Send ID & Password to Student WhatsApp */}
-          <Button
-            onClick={handleSendCredentialsWhatsApp}
-            disabled={isSendingCredentials}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-1.5 shadow-sm flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-          >
-            {isSendingCredentials ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Sending ID & Password...</span>
-              </>
-            ) : credentialsSentInfo?.queued ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-white" />
-                <span>Credentials Sent!</span>
-              </>
+          <PermissionGate itemKey="students.all" mode="write">
+            {isDraftStudent ? (
+              <Button
+                size="sm"
+                onClick={() => setIsActivateModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Complete admission
+              </Button>
             ) : (
-              <>
-                <Send className="h-3.5 w-3.5" />
-                <span>Send ID & Password via WhatsApp</span>
-              </>
+              <Button size="sm" variant="outline" onClick={() => setIsActivateModalOpen(true)}>
+                Change batch
+              </Button>
             )}
-          </Button>
+
+            <Button
+              size="sm"
+              onClick={handleSendCredentialsWhatsApp}
+              disabled={isSendingCredentials}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isSendingCredentials ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Sending...
+                </>
+              ) : credentialsSentInfo?.queued ? (
+                "Credentials sent"
+              ) : (
+                "Send login via WhatsApp"
+              )}
+            </Button>
           </PermissionGate>
           {credentialsError && (
-            <p className="basis-full text-xs font-medium text-rose-600">{credentialsError}</p>
+            <p className="basis-full text-xs text-rose-600">{credentialsError}</p>
           )}
         </div>
       </div>
 
-      {/* ─── 2. DISCONTINUATION RISK ALERT BANNER ───────────────────────── */}
       {isDiscontinuationRisk && (
-        <div className="bg-rose-500/10 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-xs flex items-start justify-between">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-bold text-rose-700 dark:text-rose-400 flex items-center gap-2">
-                Aadya Discontinuation Rule Alert ({consecutiveAbsences} Consecutive Theory Absences)
-              </h4>
-              <p className="text-xs text-rose-600 dark:text-rose-300 mt-1">
-                Student has missed {consecutiveAbsences} consecutive scheduled theory class{consecutiveAbsences === 1 ? "" : "es"}.
-                {consecutiveAbsences >= 3
-                  ? " The auto-discontinuation workflow is triggered."
-                  : " One more absence will trigger the discontinuation workflow."}
-              </p>
-            </div>
-          </div>
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3.5">
+          <p className="text-sm font-semibold text-rose-700">
+            Attendance risk — {consecutiveAbsences} consecutive theory absences
+          </p>
+          <p className="text-xs text-rose-600/90 mt-1">
+            {consecutiveAbsences >= 3
+              ? "Discontinuation review is recommended."
+              : "One more absence may trigger discontinuation review."}
+          </p>
         </div>
       )}
 
-      {/* ─── 3. COMPACT STUDENT SUMMARY HEADER ──────────────────────────── */}
-      <Card className="bg-card border-border shadow-xs overflow-hidden">
+      <Card className="border border-border shadow-xs">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            {/* Left Side: Avatar, Name, Code, Phone, Email */}
-            <div className="flex items-center gap-4">
-              <Avatar className="h-14 w-14 border border-border shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-                  {studentName.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-                    {studentName}
-                  </h2>
-                  <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
-                    {student.studentCode}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 text-foreground font-medium">
-                    <Phone className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>{studentPhone}</span>
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-foreground font-medium truncate max-w-[220px]">
-                    <Mail className="h-3.5 w-3.5 text-primary" />
-                    <span>{studentEmail}</span>
-                  </span>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <div className="mt-1">{getStatusBadge(student.status)}</div>
             </div>
-
-            {/* Right Side: Horizontal Status Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 lg:border-l lg:border-border lg:pl-5">
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Status</p>
-                <div className="mt-1">
-                  {getStatusBadge(student.status)}
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Admission</p>
-                <p className="text-xs font-bold text-foreground mt-1">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                    {admissionStatusDisplay}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Batch</p>
-                <p className="text-xs font-bold text-foreground mt-1">
-                  {hasAssignedBatch ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">Batch Assigned</span>
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400">Batch Pending</span>
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Date</p>
-                <p className="text-xs font-medium text-foreground mt-1">
-                  {admissionDate}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Source</p>
-                <p className="text-xs font-medium text-foreground mt-1">
-                  {leadSource}
-                </p>
-              </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Admission</p>
+              <p className="text-sm font-medium text-foreground mt-1">{admissionStatusDisplay}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Batch</p>
+              <p className={`text-sm font-medium mt-1 ${hasAssignedBatch ? "text-emerald-700" : "text-amber-700"}`}>
+                {hasAssignedBatch ? batchName : "Not assigned"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Admission date</p>
+              <p className="text-sm font-medium text-foreground mt-1">{admissionDate}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Email</p>
+              <p className="text-sm font-medium text-foreground mt-1 truncate">{studentEmail}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ─── 4. COMPACT HORIZONTAL TAB NAVIGATION ──────────────────────── */}
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-muted/60 p-1 rounded-xl h-auto flex flex-wrap gap-1 border border-border">
-          <TabsTrigger
-            value="overview"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <User className="h-3.5 w-3.5 mr-1.5" /> Identity & Family
+        <TabsList className="bg-muted/60 p-1 rounded-lg h-auto flex flex-wrap gap-1 border border-border w-full sm:w-auto">
+          <TabsTrigger value="overview" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Overview
           </TabsTrigger>
-          <TabsTrigger
-            value="academics"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Program & Batches
+          <TabsTrigger value="academics" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Course & batch
           </TabsTrigger>
-          <TabsTrigger
-            value="attendance"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <Calendar className="h-3.5 w-3.5 mr-1.5" /> Attendance & Discipline
+          <TabsTrigger value="attendance" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Attendance
           </TabsTrigger>
-          <TabsTrigger
-            value="fees"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Fee Installments & Receipts
+          <TabsTrigger value="fees" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Fees
           </TabsTrigger>
-          <TabsTrigger
-            value="assignments"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <Award className="h-3.5 w-3.5 mr-1.5" /> Assignments & Grades
+          <TabsTrigger value="assignments" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Assignments
           </TabsTrigger>
-          <TabsTrigger
-            value="ai_communications"
-            className="text-xs font-semibold py-2 px-3.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-xs cursor-pointer"
-          >
-            <Bot className="h-3.5 w-3.5 mr-1.5" /> AI Voice & WhatsApp Logs
+          <TabsTrigger value="ai_communications" className="text-xs px-3 py-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
+            Messages
           </TabsTrigger>
         </TabsList>
 
@@ -669,46 +556,45 @@ export const StudentDetails: React.FC = () => {
               {/* SECTION 1 — STUDENT INFORMATION */}
               <Card className="bg-card border-border shadow-xs">
                 <CardHeader className="bg-muted/20 border-b border-border py-3 px-5">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
-                    <span>Section 1 — Student Information</span>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Student information
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Full Legal Name</span>
+                    <span className="text-muted-foreground block text-xs">Full name</span>
                     <span className="text-foreground font-bold text-sm mt-0.5 block">{studentName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Student ID / Student Code</span>
+                    <span className="text-muted-foreground block text-xs">Student code</span>
                     <span className="text-foreground font-mono font-bold mt-0.5 block">{student.studentCode}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Primary Mobile Number</span>
+                    <span className="text-muted-foreground block text-xs">Mobile</span>
                     <span className="text-foreground font-medium mt-0.5 block">{studentPhone}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Alternative Mobile Number</span>
+                    <span className="text-muted-foreground block text-xs">Alternate mobile</span>
                     <span className="text-foreground font-medium mt-0.5 block">{altPhone}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Email Address</span>
+                    <span className="text-muted-foreground block text-xs">Email</span>
                     <span className="text-foreground font-medium mt-0.5 block truncate">{studentEmail}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Date of Birth</span>
+                    <span className="text-muted-foreground block text-xs">Date of Birth</span>
                     <span className="text-foreground font-medium mt-0.5 block">{dob}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Gender</span>
+                    <span className="text-muted-foreground block text-xs">Gender</span>
                     <span className="text-foreground font-medium mt-0.5 block">{gender}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Blood Group</span>
+                    <span className="text-muted-foreground block text-xs">Blood Group</span>
                     <span className="text-foreground font-semibold mt-0.5 block">{bloodGroup}</span>
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Highest Qualification</span>
+                    <span className="text-muted-foreground block text-xs">Highest Qualification</span>
                     <span className="text-foreground font-semibold text-xs mt-0.5 block">{qualification}</span>
                   </div>
                 </CardContent>
@@ -717,46 +603,45 @@ export const StudentDetails: React.FC = () => {
               {/* SECTION 3 — ADMISSION DETAILS */}
               <Card className="bg-card border-border shadow-xs">
                 <CardHeader className="bg-muted/20 border-b border-border py-3 px-5">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <span>Section 3 — Admission Details</span>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Admission details
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Admission Number</span>
+                    <span className="text-muted-foreground block text-xs">Admission Number</span>
                     <span className="text-foreground font-mono font-bold mt-0.5 block">{admissionNo}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Admission Type</span>
+                    <span className="text-muted-foreground block text-xs">Admission Type</span>
                     <span className="text-foreground font-medium mt-0.5 block">{admissionType}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Admission Date</span>
+                    <span className="text-muted-foreground block text-xs">Admission Date</span>
                     <span className="text-foreground font-medium mt-0.5 block">{admissionDate}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Academic Year</span>
+                    <span className="text-muted-foreground block text-xs">Academic Year</span>
                     <span className="text-foreground font-medium mt-0.5 block">{academicYear}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Branch / Center</span>
+                    <span className="text-muted-foreground block text-xs">Branch / Center</span>
                     <span className="text-foreground font-medium mt-0.5 block">{branchName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Assigned Counsellor</span>
+                    <span className="text-muted-foreground block text-xs">Assigned Counsellor</span>
                     <span className="text-foreground font-medium mt-0.5 block">{counselorName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Lead / Enquiry Source</span>
+                    <span className="text-muted-foreground block text-xs">Lead / Enquiry Source</span>
                     <span className="text-foreground font-medium mt-0.5 block">{leadSource}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Referral Source</span>
+                    <span className="text-muted-foreground block text-xs">Referral Source</span>
                     <span className="text-foreground font-medium mt-0.5 block">{referralSource}</span>
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Admission Status</span>
+                    <span className="text-muted-foreground block text-xs">Admission Status</span>
                     <span className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                       {admissionStatusDisplay}
                     </span>
@@ -767,36 +652,34 @@ export const StudentDetails: React.FC = () => {
               {/* SECTION 5 — FEE SUMMARY */}
               <Card className="bg-card border-border shadow-xs">
                 <CardHeader className="bg-muted/20 border-b border-border py-3 px-5 flex flex-row items-center justify-between">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                    <span>Section 5 — Fee Summary</span>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Fee summary
                   </CardTitle>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setActiveTab("fees")}
-                    className="h-7 text-xs font-semibold border-border text-foreground hover:bg-muted/50 gap-1 cursor-pointer"
+                    className="h-7 text-xs"
                   >
-                    <CreditCard className="h-3 w-3 text-emerald-500" />
-                    <span>View Fee Details</span>
+                    View fees
                   </Button>
                 </CardHeader>
                 <CardContent className="p-5 text-xs">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-muted/40 rounded-xl border border-border">
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Course Fee</span>
+                      <span className="text-muted-foreground block text-xs">Total Course Fee</span>
                       <span className="text-sm font-bold text-foreground mt-0.5 block">₹{totalFeeAmount.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Amount Paid</span>
+                      <span className="text-muted-foreground block text-xs">Amount Paid</span>
                       <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">₹{amountPaid.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Remaining Balance</span>
+                      <span className="text-muted-foreground block text-xs">Remaining Balance</span>
                       <span className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">₹{dueAmount.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Payment Status</span>
+                      <span className="text-muted-foreground block text-xs">Payment Status</span>
                       <span className="mt-1 block">
                         <Badge className={dueAmount === 0 && totalFeeAmount > 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold text-[10px]" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold text-[10px]"}>
                           {feePaymentStatus}
@@ -813,30 +696,29 @@ export const StudentDetails: React.FC = () => {
               {/* SECTION 2 — PARENT / GUARDIAN & ADDRESS */}
               <Card className="bg-card border-border shadow-xs">
                 <CardHeader className="bg-muted/20 border-b border-border py-3 px-5">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <HeartHandshake className="h-4 w-4 text-primary" />
-                    <span>Section 2 — Parent / Guardian & Address</span>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Guardian & address
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Parent / Guardian Name</span>
+                    <span className="text-muted-foreground block text-xs">Parent / Guardian Name</span>
                     <span className="text-foreground font-semibold mt-0.5 block">{guardianName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Guardian Mobile Number</span>
+                    <span className="text-muted-foreground block text-xs">Guardian Mobile Number</span>
                     <span className="text-foreground font-medium mt-0.5 block">{guardianPhone}</span>
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Emergency Contact</span>
+                    <span className="text-muted-foreground block text-xs">Emergency Contact</span>
                     <span className="text-foreground font-medium mt-0.5 block">{emergencyContact}</span>
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Residential Address</span>
+                    <span className="text-muted-foreground block text-xs">Residential Address</span>
                     <span className="text-foreground font-medium mt-0.5 block">{addressStr}</span>
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">City / Location</span>
+                    <span className="text-muted-foreground block text-xs">City / Location</span>
                     <span className="text-foreground font-medium mt-0.5 block">
                       {locationStr}
                     </span>
@@ -847,26 +729,24 @@ export const StudentDetails: React.FC = () => {
               {/* SECTION 4 — COURSE & BATCH DETAILS */}
               <Card className="bg-card border-border shadow-xs">
                 <CardHeader className="bg-muted/20 border-b border-border py-3 px-5 flex flex-row items-center justify-between">
-                  <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-primary" />
-                    <span>Section 4 — Course & Batch Details</span>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Course & batch
                   </CardTitle>
                   <PermissionGate itemKey="students.all" mode="write">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setIsActivateModalOpen(true)}
-                    className="h-7 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 gap-1 cursor-pointer"
+                    className="h-7 text-xs"
                   >
-                    <RefreshCw className="h-3 w-3" />
-                    <span>{hasAssignedBatch ? "Change Batch" : "Assign Batch"}</span>
+                    {hasAssignedBatch ? "Change batch" : "Assign batch"}
                   </Button>
                   </PermissionGate>
                 </CardHeader>
                 <CardContent className="p-5 space-y-3.5 text-xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div className="sm:col-span-2">
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                      <span className="text-muted-foreground block text-xs">
                         Selected Course{enrolledCourses.length > 1 ? "s" : ""}
                       </span>
                       {enrolledCourses.length > 1 ? (
@@ -887,28 +767,28 @@ export const StudentDetails: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Course Duration</span>
+                      <span className="text-muted-foreground block text-xs">Course Duration</span>
                       <span className="text-foreground font-medium mt-0.5 block">{courseDuration}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Course Code</span>
+                      <span className="text-muted-foreground block text-xs">Course Code</span>
                       <span className="text-foreground font-mono font-semibold mt-0.5 block">{courseCode}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Delivery Mode</span>
+                      <span className="text-muted-foreground block text-xs">Delivery Mode</span>
                       <span className="text-foreground font-medium mt-0.5 block">{deliveryMode}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Preferred Timing</span>
+                      <span className="text-muted-foreground block text-xs">Preferred Timing</span>
                       <span className="text-foreground font-medium mt-0.5 block">{preferredTiming}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Batch Status</span>
+                      <span className="text-muted-foreground block text-xs">Batch Status</span>
                       <span className="mt-0.5 block font-semibold">
                         {hasAssignedBatch ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">● Batch Assigned</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Assigned</span>
                         ) : (
-                          <span className="text-amber-600 dark:text-amber-400 font-bold">● Batch Assignment Pending</span>
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">Pending</span>
                         )}
                       </span>
                     </div>
@@ -918,18 +798,18 @@ export const StudentDetails: React.FC = () => {
                     {hasAssignedBatch ? (
                       <div className="p-3 bg-muted/40 rounded-xl border border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Assigned Batch</span>
+                          <span className="text-muted-foreground block text-xs">Assigned Batch</span>
                           <span className="font-bold text-foreground font-mono mt-0.5 block">{batchName}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Faculty</span>
+                          <span className="text-muted-foreground block text-xs">Faculty</span>
                           <span className="font-medium text-foreground mt-0.5 block">{facultyName}</span>
                         </div>
                       </div>
                     ) : (
                       <div className="p-3 text-center bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400">
-                        <p className="font-bold text-xs">Batch not assigned yet</p>
-                        <p className="text-[11px] mt-0.5 opacity-90">Click "Assign Batch" to allocate student to an active batch.</p>
+                        <p className="font-medium text-sm">Batch not assigned yet</p>
+                        <p className="text-xs mt-0.5 opacity-90">Use Assign batch to place this student in a class.</p>
                       </div>
                     )}
                   </div>
@@ -944,25 +824,23 @@ export const StudentDetails: React.FC = () => {
         <TabsContent value="academics" className="space-y-4">
           <Card className="bg-card border-border shadow-xs">
             <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <span>Enrolled Academic Curriculum & Batch Schedule</span>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Course & batch
               </CardTitle>
               <PermissionGate itemKey="students.all" mode="write">
               <Button
                 size="sm"
                 onClick={() => setIsActivateModalOpen(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold h-8 flex items-center gap-1.5 cursor-pointer"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8"
               >
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span>{isDraftStudent ? "Complete Admission & Assign Batch" : "Change / Assign Batch"}</span>
+                {isDraftStudent ? "Complete admission" : "Change batch"}
               </Button>
               </PermissionGate>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <span className="text-[11px] font-bold uppercase text-primary tracking-wider">Active Enrollment</span>
+                  <span className="text-[11px] font-medium text-muted-foreground">Enrollment</span>
                   <h3 className="text-lg font-bold text-foreground mt-0.5">
                     {enrolledCourses.length > 1
                       ? `${enrolledCourses.length} Courses Package`
@@ -997,8 +875,8 @@ export const StudentDetails: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider mb-3">
-                  Course Modules & Completion Status
+                <h4 className="text-sm font-medium text-foreground mb-3">
+                  Modules
                 </h4>
                 {courseModules.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
@@ -1030,9 +908,8 @@ export const StudentDetails: React.FC = () => {
         <TabsContent value="attendance" className="space-y-4">
           <Card className="bg-card border-border shadow-xs">
             <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span>Attendance Logs & Absence Risk Monitor</span>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Attendance
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -1042,7 +919,7 @@ export const StudentDetails: React.FC = () => {
                   <h4 className="text-xl font-bold text-foreground mt-1">{totalClasses}</h4>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
-                  <p className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Classes Attended</p>
+                  <p className="text-xs text-muted-foreground">Present</p>
                   <h4 className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-1">{presentClasses}</h4>
                 </div>
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-center">
@@ -1056,8 +933,8 @@ export const StudentDetails: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider mb-3">
-                  Recent Class Attendance Log
+                <h4 className="text-sm font-medium text-foreground mb-3">
+                  Recent attendance
                 </h4>
                 {attendanceRecords.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center border border-dashed border-border rounded-lg">
@@ -1102,9 +979,8 @@ export const StudentDetails: React.FC = () => {
         <TabsContent value="fees" className="space-y-4">
           <Card className="bg-card border-border shadow-xs">
             <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" />
-                <span>Fee Payment Plan & Installment Ledger</span>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Fees
               </CardTitle>
               <PermissionGate itemKey="students.all" mode="write">
               <Button
@@ -1120,7 +996,7 @@ export const StudentDetails: React.FC = () => {
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl border border-border bg-muted/30">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Total Agreed Fee</p>
+                  <p className="text-xs text-muted-foreground">Total fee</p>
                   <h3 className="text-2xl font-bold text-foreground mt-1">₹{totalFeeAmount.toLocaleString()}</h3>
                 </div>
                 <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
@@ -1134,8 +1010,8 @@ export const StudentDetails: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider mb-3">
-                  Installment Schedule & Payments
+                <h4 className="text-sm font-medium text-foreground mb-3">
+                  Installments
                 </h4>
                 {pendingFees.length === 0 && payments.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
@@ -1203,9 +1079,8 @@ export const StudentDetails: React.FC = () => {
         <TabsContent value="assignments" className="space-y-4">
           <Card className="bg-card border-border shadow-xs">
             <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Award className="h-4 w-4 text-primary" />
-                <span>Course Assignments & Project Evaluations</span>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Assignments
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
@@ -1243,9 +1118,8 @@ export const StudentDetails: React.FC = () => {
             {/* AI Voice Calling Logs */}
             <Card className="bg-card border-border shadow-xs">
               <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-indigo-500" />
-                  <span>AI Voice Agent Calls</span>
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  AI calls
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
@@ -1270,9 +1144,8 @@ export const StudentDetails: React.FC = () => {
             {/* WhatsApp Notifications */}
             <Card className="bg-card border-border shadow-xs">
               <CardHeader className="bg-muted/20 border-b border-border py-3.5 px-6">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-emerald-500" />
-                  <span>WhatsApp Automated Notifications</span>
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  WhatsApp
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
@@ -1301,12 +1174,11 @@ export const StudentDetails: React.FC = () => {
       <Dialog open={isActivateModalOpen} onOpenChange={setIsActivateModalOpen}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto bg-card border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              {isDraftStudent ? "Complete Admission & Activate Student" : "Assign / Change Batch"}
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              {isDraftStudent ? "Complete admission" : "Change batch"}
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Choose the course and class batch for <strong className="text-foreground">{studentName}</strong>. Fees are managed on the fee record, not here.
+            <DialogDescription className="text-sm text-muted-foreground">
+              Select course and batch for {studentName}. Fees are managed separately.
             </DialogDescription>
           </DialogHeader>
 
@@ -1320,8 +1192,8 @@ export const StudentDetails: React.FC = () => {
           <div className="space-y-4 py-2 text-xs">
             {/* Course Selector */}
             <div>
-              <label className="font-bold text-foreground uppercase text-[11px] block mb-1.5">
-                Enrolled Course / Program *
+              <label className="font-medium text-foreground text-xs block mb-1.5">
+                Course *
               </label>
               <select
                 value={selectedCourseId}
@@ -1339,8 +1211,8 @@ export const StudentDetails: React.FC = () => {
 
             {/* Batch Selector */}
             <div>
-              <label className="font-bold text-foreground uppercase text-[11px] block mb-1.5">
-                Assigned Class Batch
+              <label className="font-medium text-foreground text-xs block mb-1.5">
+                Batch
               </label>
               <select
                 value={selectedBatchId}
@@ -1361,8 +1233,8 @@ export const StudentDetails: React.FC = () => {
 
             {/* Counsellor Remarks / Notes */}
             <div>
-              <label className="font-semibold text-muted-foreground uppercase text-[10px] block mb-1">
-                Admission Notes & Remarks
+              <label className="font-medium text-muted-foreground text-xs block mb-1">
+                Notes
               </label>
               <Input
                 value={admissionNotes}
@@ -1392,9 +1264,9 @@ export const StudentDetails: React.FC = () => {
                   Saving...
                 </>
               ) : isDraftStudent ? (
-                "Confirm Admission & Activate Student"
+                "Confirm admission"
               ) : (
-                "Save Batch"
+                "Save batch"
               )}
             </Button>
           </DialogFooter>
@@ -1446,6 +1318,54 @@ export const StudentDetails: React.FC = () => {
               onClick={() => setShowCredentialsSentModal(false)}
             >
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: CONTINUE DISCONTINUED STUDENT ─────────────────────────── */}
+      <Dialog
+        open={isContinueDialogOpen}
+        onOpenChange={(open) => {
+          if (!continueMutation.isPending) {
+            setIsContinueDialogOpen(open);
+            if (!open) setDialogError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Continue student?</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Reactivate this student and restore previous batch if available?
+            </DialogDescription>
+          </DialogHeader>
+          {dialogError && (
+            <p className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-md px-3 py-2">
+              {dialogError}
+            </p>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              disabled={continueMutation.isPending}
+              onClick={() => setIsContinueDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={continueMutation.isPending}
+              onClick={handleConfirmContinue}
+            >
+              {continueMutation.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Continuing...
+                </>
+              ) : (
+                "Continue student"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

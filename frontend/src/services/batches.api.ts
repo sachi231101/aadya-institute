@@ -186,6 +186,19 @@ export const batchesApi = {
     return response.data;
   },
 
+  bulkEnrollStudents: async (batchId: string, studentIds: string[]) => {
+    const response = await api.post<{
+      success: boolean;
+      message?: string;
+      data: {
+        assigned: number;
+        skipped: number;
+        failures: Array<{ studentId: string; message: string }>;
+      };
+    }>(`/batches/${batchId}/students/bulk`, { studentIds });
+    return response.data;
+  },
+
   removeStudent: async (batchId: string, studentId: string) => {
     const response = await api.delete<{ success: boolean }>(`/batches/${batchId}/students/${studentId}`);
     return response.data;

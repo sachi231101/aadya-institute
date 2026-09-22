@@ -4,6 +4,8 @@ import { logger } from "../../config/logger";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { batchIncludesCourse, getBatchCourseIds } from "../../utils/batch-course.util";
+import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import type { AuthUser } from "../auth/auth.types";
 
 const formatBatchDate = (value: Date | string | null | undefined): string => {
   if (!value) return "";
@@ -134,9 +136,11 @@ export const assignStudentToBatch = async (
   batchId: string,
   studentId: string,
   instituteId: string,
+  currentUser: AuthUser,
   admissionId?: string
 ) => {
   const batch = await validateBatchForEnrollment(batchId, instituteId);
+  assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
 
   const student = await prisma.student.findFirst({
     where: { id: studentId, instituteId },
@@ -144,8 +148,19 @@ export const assignStudentToBatch = async (
   if (!student) {
     throw new AppError("Student not found", 404);
   }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
 
+  // Validate admission/course fit before the already-enrolled guard so callers
+  // get a precise error when linking a wrong admissionId.
   const admission = await resolveAdmissionForBatch(studentId, instituteId, batch, admissionId);
+
+  const alreadyInThisBatch = await prisma.batchEnrollment.findFirst({
+    where: { batchId, studentId, status: "ACTIVE" },
+    select: { id: true },
+  });
+  if (alreadyInThisBatch) {
+    throw new AppError("This student is already assigned to this batch", 400);
+  }
 
   const resolvedAdmissionId = admission?.id ?? null;
 
@@ -213,10 +228,115 @@ export const assignStudentToBatch = async (
   return enrollment;
 };
 
+export type BulkEnrollFailure = { studentId: string; message: string };
+
+export type BulkEnrollResult = {
+  assigned: number;
+  skipped: number;
+  failures: BulkEnrollFailure[];
+};
+
+const BULK_ENROLL_MAX = 200;
+
+/**
+ * Assign many students to a batch. Reuses assignStudentToBatch per id.
+ * Capacity is checked for new enrollments only; already-in-batch students are skipped.
+ */
+export const bulkAssignStudentsToBatch = async (
+  batchId: string,
+  studentIds: string[],
+  instituteId: string,
+  currentUser: AuthUser
+): Promise<BulkEnrollResult> => {
+  const uniqueIds = Array.from(
+    new Set(studentIds.map((id) => id?.trim()).filter((id): id is string => Boolean(id)))
+  );
+
+  if (uniqueIds.length === 0) {
+    throw new AppError("At least one student ID is required", 400);
+  }
+
+  if (uniqueIds.length > BULK_ENROLL_MAX) {
+    throw new AppError(`Maximum ${BULK_ENROLL_MAX} students per bulk request`, 400);
+  }
+
+  const batch = await prisma.batch.findFirst({
+    where: { id: batchId, instituteId },
+    include: {
+      batchCourses: { select: { courseId: true } },
+      _count: { select: { enrollments: { where: { status: "ACTIVE" } } } },
+    },
+  });
+
+  if (!batch) {
+    throw new AppError("Batch not found", 404);
+  }
+  assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
+
+  if (batch.status === "CANCELLED" || batch.status === "COMPLETED") {
+    throw new AppError(`Cannot enroll students in a ${batch.status.toLowerCase()} batch`, 400);
+  }
+
+  const remainingSeats =
+    batch.capacity != null
+      ? Math.max(0, batch.capacity - batch._count.enrollments)
+      : Number.POSITIVE_INFINITY;
+
+  const existingInBatch = await prisma.batchEnrollment.findMany({
+    where: {
+      batchId,
+      studentId: { in: uniqueIds },
+      status: "ACTIVE",
+    },
+    select: { studentId: true },
+  });
+  const alreadyEnrolled = new Set(existingInBatch.map((e) => e.studentId));
+  const toAssignCount = uniqueIds.length - alreadyEnrolled.size;
+
+  if (batch.capacity != null && toAssignCount > remainingSeats) {
+    throw new AppError(
+      `Batch has only ${remainingSeats} seat${remainingSeats === 1 ? "" : "s"} available; ` +
+        `cannot assign ${toAssignCount} additional student${toAssignCount === 1 ? "" : "s"}`,
+      400
+    );
+  }
+
+  let assigned = 0;
+  let skipped = 0;
+  const failures: BulkEnrollFailure[] = [];
+
+  for (const studentId of uniqueIds) {
+    if (alreadyEnrolled.has(studentId)) {
+      skipped += 1;
+      failures.push({
+        studentId,
+        message: "This student is already assigned to this batch",
+      });
+      continue;
+    }
+
+    try {
+      await assignStudentToBatch(batchId, studentId, instituteId, currentUser);
+      assigned += 1;
+    } catch (err) {
+      const message =
+        err instanceof AppError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to enroll student";
+      failures.push({ studentId, message });
+    }
+  }
+
+  return { assigned, skipped, failures };
+};
+
 export const removeStudentFromBatch = async (
   batchId: string,
   studentId: string,
-  instituteId: string
+  instituteId: string,
+  currentUser: AuthUser
 ) => {
   const batch = await prisma.batch.findFirst({
     where: { id: batchId, instituteId },
@@ -224,6 +344,7 @@ export const removeStudentFromBatch = async (
   if (!batch) {
     throw new AppError("Batch not found", 404);
   }
+  assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
 
   const student = await prisma.student.findFirst({
     where: { id: studentId, instituteId },
@@ -231,6 +352,7 @@ export const removeStudentFromBatch = async (
   if (!student) {
     throw new AppError("Student not found", 404);
   }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
 
   return prisma.$transaction(async (tx) => {
     const result = await tx.batchEnrollment.updateMany({
@@ -261,6 +383,7 @@ export const transferStudent = async (
   fromBatchId: string,
   toBatchId: string,
   instituteId: string,
+  currentUser: AuthUser,
   admissionId?: string
 ) => {
   if (fromBatchId === toBatchId) {
@@ -268,6 +391,7 @@ export const transferStudent = async (
   }
 
   const toBatch = await validateBatchForEnrollment(toBatchId, instituteId);
+  assertBranchRecordAccess(currentUser, toBatch.branchId, "Batch not found");
 
   const fromBatch = await prisma.batch.findFirst({
     where: { id: fromBatchId, instituteId },
@@ -275,6 +399,7 @@ export const transferStudent = async (
   if (!fromBatch) {
     throw new AppError("Source batch not found", 404);
   }
+  assertBranchRecordAccess(currentUser, fromBatch.branchId, "Source batch not found");
 
   const student = await prisma.student.findFirst({
     where: { id: studentId, instituteId },
@@ -282,6 +407,7 @@ export const transferStudent = async (
   if (!student) {
     throw new AppError("Student not found", 404);
   }
+  assertBranchRecordAccess(currentUser, student.branchId, "Student not found");
 
   const activeEnrollment = await prisma.batchEnrollment.findFirst({
     where: { studentId, batchId: fromBatchId, status: "ACTIVE" },

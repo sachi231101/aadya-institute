@@ -211,6 +211,7 @@ describe("item-level grant round-trip", () => {
 
     assert.ok(permissions.includes(itemShowPermission("students.attendance")));
     assert.ok(permissions.includes("attendance.read"));
+    assert.ok(permissions.includes("schedule.read"));
     assert.ok(!permissions.includes(itemShowPermission("students.all")));
     assert.ok(!permissions.includes("student.read"));
 

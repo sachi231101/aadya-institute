@@ -153,20 +153,88 @@ export const checkConsecutiveAbsences = async (studentId: string, batchId: strin
       });
       if (student?.instituteId) {
         const dateKey = new Date().toISOString().slice(0, 10);
+        const studentName = student.user?.name || "Student";
+        const batchName = batch?.name || "Batch";
         void triggerNotification({
           instituteId: student.instituteId,
           studentId,
           event: NotificationEvent.DISCONTINUATION_RISK,
           idempotencyKey: buildIdempotencyKey.DISCONTINUATION_RISK(studentId, batchId, dateKey),
           templateParams: {
-            student_name: student.user?.name || "Student",
-            batch_name: batch?.name || "Batch",
+            student_name: studentName,
+            batch_name: batchName,
             consecutive_absences: String(consecutiveAbsences),
           },
           metadata: { batchId, consecutiveAbsences },
         }).catch((err) =>
           logger.error({ err, studentId, batchId }, "[attendance] DISCONTINUATION_RISK notify failed")
         );
+
+        // Staff IN_APP linking to the discontinuation risk page (once per day)
+        void (async () => {
+          try {
+            const staffUsers = await prisma.user.findMany({
+              where: {
+                instituteId: student.instituteId,
+                status: "ACTIVE",
+                OR: [
+                  { userRoles: { some: { role: { name: "ADMIN" } } } },
+                  {
+                    branchId: student.branchId,
+                    userRoles: { some: { role: { name: "CENTER_MANAGER" } } },
+                  },
+                ],
+              },
+              select: { id: true },
+            });
+            const title = "Discontinuation risk";
+            const message = `${studentName} has ${consecutiveAbsences} consecutive theory absences in ${batchName}.`;
+            const link = "/admin/students/discontinuation-risk";
+            const dayStart = new Date(`${dateKey}T00:00:00.000Z`);
+            await Promise.allSettled(
+              staffUsers.map(async (u) => {
+                const existing = await prisma.notification.findFirst({
+                  where: {
+                    userId: u.id,
+                    studentId,
+                    type: "DISCONTINUATION_RISK",
+                    channel: "IN_APP",
+                    event: "DISCONTINUATION_RISK",
+                    createdAt: { gte: dayStart },
+                  },
+                  select: { id: true },
+                });
+                if (existing) return;
+                return prisma.notification.create({
+                  data: {
+                    instituteId: student.instituteId,
+                    branchId: student.branchId,
+                    userId: u.id,
+                    studentId,
+                    title,
+                    message,
+                    type: "DISCONTINUATION_RISK",
+                    channel: "IN_APP",
+                    status: "DELIVERED",
+                    sentAt: new Date(),
+                    link,
+                    event: "DISCONTINUATION_RISK",
+                    metadata: {
+                      batchId,
+                      consecutiveAbsences,
+                      module: "students",
+                    },
+                  },
+                });
+              })
+            );
+          } catch (err) {
+            logger.error(
+              { err, studentId, batchId },
+              "[attendance] Staff DISCONTINUATION_RISK IN_APP notify failed"
+            );
+          }
+        })();
       }
     }
 
@@ -504,7 +572,9 @@ export const getDiscontinuationRisk = async (
         ? { id: { in: teachingStudentIds } }
         : scope.branchId
           ? { branchId: scope.branchId }
-          : {}),
+          : scope.branchIds && scope.branchIds.length > 0
+            ? { branchId: { in: scope.branchIds } }
+            : {}),
     },
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },
@@ -539,10 +609,14 @@ export const getDiscontinuationRisk = async (
       },
       orderBy: { classSession: { scheduledDate: "desc" } },
       take: 15,
-      select: { status: true },
+      select: {
+        status: true,
+        classSession: { select: { scheduledDate: true } },
+      },
     });
 
     let consecutiveAbsences = 0;
+    let lastPresentDate: string | null = null;
     for (const record of recent) {
       if (record.status === "LEAVE") continue;
       if (record.status === "ABSENT") {
@@ -550,7 +624,24 @@ export const getDiscontinuationRisk = async (
         continue;
       }
       // PRESENT (or any other status) breaks the streak
+      if (record.status === "PRESENT" || record.status === "LATE") {
+        lastPresentDate = record.classSession?.scheduledDate
+          ? new Date(record.classSession.scheduledDate).toISOString()
+          : null;
+      }
       break;
+    }
+
+    // If streak never hit PRESENT in the window, scan remaining for last present
+    if (!lastPresentDate) {
+      for (const record of recent) {
+        if (record.status === "PRESENT" || record.status === "LATE") {
+          lastPresentDate = record.classSession?.scheduledDate
+            ? new Date(record.classSession.scheduledDate).toISOString()
+            : null;
+          break;
+        }
+      }
     }
 
     if (consecutiveAbsences < 2) continue;
@@ -565,10 +656,12 @@ export const getDiscontinuationRisk = async (
       phone: student.user?.phone ?? null,
       branchId: student.branchId,
       branch: student.branch,
+      batchId: enrollment?.batch?.id ?? enrollment?.batchId ?? null,
       batchName: enrollment?.batch?.name ?? null,
       courseName: enrollment?.batch?.course?.name ?? null,
       consecutiveAbsences,
       riskLevel: consecutiveAbsences >= 3 ? "CRITICAL" : "WARNING",
+      lastPresentDate,
     });
   }
 

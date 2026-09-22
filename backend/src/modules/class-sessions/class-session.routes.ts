@@ -2,7 +2,11 @@ import { Router } from "express";
 import type { Response, NextFunction } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
+import {
+  requirePermission,
+  requireAnyPermission,
+  requirePermissionUnlessRoles,
+} from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   createClassSessionSchema,
@@ -80,9 +84,15 @@ router.post(
 router.post("/:id/start-live", requireLiveSessionControl, startLiveSession);
 router.post("/:id/end-live", requireLiveSessionControl, endLiveSession);
 
-// Session CRUD
-router.get("/", requirePermission("schedule.read"), validate(queryClassSessionSchema, "query"), getSessions);
-router.get("/:id", requirePermission("schedule.read"), getSessionById);
+// Session CRUD — attendance desk needs session list/detail with attendance.read
+// (CM/Counsellor may have students.attendance without schedule module access).
+router.get(
+  "/",
+  requireAnyPermission("schedule.read", "attendance.read"),
+  validate(queryClassSessionSchema, "query"),
+  getSessions
+);
+router.get("/:id", requireAnyPermission("schedule.read", "attendance.read"), getSessionById);
 router.post("/", requirePermission("schedule.create"), validate(createClassSessionSchema), createSession);
 router.patch("/:id", requirePermission("schedule.update"), validate(updateClassSessionSchema), updateSession);
 router.post("/:id/cancel", requirePermission("schedule.update"), cancelSession);

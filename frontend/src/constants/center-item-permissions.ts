@@ -21,7 +21,7 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "students.all": ["student.read"],
   "students.documents": ["document.read"],
   "students.student_allocation": ["batch.read", "student.read"],
-  "students.attendance": ["attendance.read"],
+  "students.attendance": ["attendance.read", "schedule.read"],
   "students.performance": ["student.read", "report.read"],
   "students.discontinuation": ["student.read"],
   "faculty.all": ["faculty.read"],

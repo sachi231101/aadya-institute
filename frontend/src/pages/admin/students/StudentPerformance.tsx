@@ -14,45 +14,61 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { METRIC_GRID_COLUMNS, MetricGrid, PageContainer, PageHeader } from "@/components/layout";
+import { FilterToolbar, PageContainer, PageHeader } from "@/components/layout";
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  Building,
-  Calendar,
-  ClipboardList,
-  FileEdit,
-  FileText,
-  LayoutGrid,
   Loader2,
   Search,
   TrendingDown,
   TrendingUp,
-  Users,
 } from "lucide-react";
 import { useStudent, useStudentList, useStudentPerformance } from "@/hooks/useStudents";
 import { useStudentReport } from "@/hooks/useReports";
-import { useBranchStore } from "@/store/branch.store";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 import { CourseChips } from "@/components/common/CourseChips";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Student, StudentAssignmentItem, StudentAttendanceRecord } from "@/types/student.types";
 
 const notRecorded = "—";
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+const tableShell =
+  "min-w-0 overflow-x-auto " +
+  "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+  "[&_thead]:bg-muted/50 " +
+  "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+  "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+  "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+  "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+  "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors";
+
+function performanceBadgeClass(label: string) {
+  switch (label) {
+    case "Good":
+    case "Active":
+      return "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20";
+    case "Average":
+    case "On Leave":
+      return "bg-amber-500/10 text-amber-800 border border-amber-500/20";
+    case "Needs Improvement":
+    case "At Risk":
+    case "Discontinued":
+      return "bg-red-500/10 text-red-700 border border-red-500/20";
+    case "Completed":
+      return "bg-blue-500/10 text-blue-700 border border-blue-500/20";
+    default:
+      return "bg-muted text-muted-foreground border border-border";
+  }
 }
 
 function scorePercent(obtained: number, maxScore: number) {
@@ -83,8 +99,8 @@ function monthLabel(value: string) {
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="h-[180px] flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 text-center">
-      <p className="text-xs text-slate-500">{message}</p>
+    <div className="h-[180px] flex items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 text-center">
+      <p className="text-xs text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -92,10 +108,16 @@ function EmptyChart({ message }: { message: string }) {
 function Delta({ current, previous }: { current: number; previous: number | null }) {
   if (previous === null) return null;
   const change = current - previous;
-  if (change === 0) return <span className="text-[10px] font-semibold text-slate-400">No change</span>;
+  if (change === 0) {
+    return <span className="text-[10px] font-medium text-muted-foreground">No change</span>;
+  }
   const up = change > 0;
   return (
-    <span className={`text-[10px] font-bold flex items-center ${up ? "text-emerald-600" : "text-red-500"}`}>
+    <span
+      className={`text-[10px] font-semibold flex items-center ${
+        up ? "text-emerald-600" : "text-red-500"
+      }`}
+    >
       {up ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
       {Math.abs(change)}% vs previous
     </span>
@@ -107,16 +129,23 @@ export const StudentPerformance: React.FC = () => {
   const queryStudentId = searchParams.get("studentId");
   const [studentSearch, setStudentSearch] = useState("");
 
-  const { selectedBranchId } = useBranchStore();
-  const branchFilter = selectedBranchId !== "ALL" ? selectedBranchId : undefined;
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
 
   const { data: studentListResponse, isLoading: studentsLoading, isError: studentsError } = useStudentList({
-    limit: 100,
-    branchId: branchFilter,
+    limit: 200,
+    branchId: branchIdForQuery,
   });
-  const { data: reportData } = useStudentReport(branchFilter);
+  const { data: reportData } = useStudentReport(branchIdForQuery);
   const apiStudents = studentListResponse?.data ?? [];
   const reportStudents = reportData?.students ?? [];
+  const totalFromApi = studentListResponse?.meta?.total ?? apiStudents.length;
 
   const listStudents = useMemo(() => {
     return apiStudents.map((student: Student) => {
@@ -278,20 +307,34 @@ export const StudentPerformance: React.FC = () => {
   if (!queryStudentId) {
     return (
       <PageContainer>
-        <PageHeader
-          title="Academic Performance"
-          description="Select a student to view their recorded attendance, assessments, and course progress."
-        />
+        <PageHeader title="Academic Performance" />
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-          <Input
-            value={studentSearch}
-            onChange={(event) => setStudentSearch(event.target.value)}
-            placeholder="Search by name, code, course, or batch"
-            className="pl-9"
-          />
-        </div>
+        <FilterToolbar className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="Search name, code, course, or batch"
+              className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+            />
+          </div>
+          {showBranchSelector && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-9 text-sm border border-border rounded-lg px-3 text-foreground bg-background focus:outline-none focus:border-primary"
+            >
+              {allowAllBranches && <option value="ALL">All branches</option>}
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </FilterToolbar>
 
         {studentsError && (
           <div className="flex items-center gap-2 text-sm text-red-600">
@@ -299,82 +342,74 @@ export const StudentPerformance: React.FC = () => {
           </div>
         )}
 
-        <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
-                <tr>
-                  <th className="p-3.5 pl-5">Student</th>
-                  <th className="p-3.5">Course & Batch</th>
-                  <th className="p-3.5">Attendance</th>
-                  <th className="p-3.5">Performance</th>
-                  <th className="p-3.5 text-right pr-5">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+        {!studentsLoading && !studentsError && (
+          <p className="text-xs text-muted-foreground">
+            Showing {filteredStudents.length}
+            {totalFromApi > filteredStudents.length ? ` of ${totalFromApi}` : ""} student
+            {filteredStudents.length === 1 ? "" : "s"}
+          </p>
+        )}
+
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+          <div className={tableShell}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead>Attendance</TableHead>
+                  <TableHead>Performance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {studentsLoading ? (
-                  <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-500">
-                      <Loader2 className="h-5 w-5 mx-auto animate-spin mb-2" />
-                      Loading students...
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        Loading...
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-500">
-                      <Users className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                      <p className="text-sm font-semibold text-slate-700">No students found</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Try a different name, code, or course.</p>
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-28 text-center text-sm text-muted-foreground">
+                      No students found.
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredStudents.map((row) => (
-                    <tr
+                    <TableRow
                       key={row.id}
                       onClick={() => openStudentPerformance(row.id)}
-                      className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                      className="cursor-pointer"
                     >
-                      <td className="p-3.5 pl-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-slate-200">
-                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                              {initials(row.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-bold text-slate-900 group-hover:text-primary">{row.name}</p>
-                            <p className="font-mono text-[11px] text-slate-500">{row.studentCode}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3.5">
+                      <TableCell>
+                        <p className="font-semibold text-foreground">{row.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{row.studentCode}</p>
+                      </TableCell>
+                      <TableCell>
                         <CourseChips courses={row.courses} fallback="Not assigned" maxVisible={2} />
-                        <p className="text-[11px] text-slate-500 mt-1">{row.batch}</p>
-                      </td>
-                      <td className="p-3.5">
-                        <span className={`font-bold ${
-                          row.attendancePercent === null
-                            ? "text-slate-400"
-                            : row.attendancePercent >= 75
-                              ? "text-emerald-700"
-                              : "text-amber-700"
-                        }`}>
-                          {row.attendancePercent === null ? notRecorded : `${row.attendancePercent}%`}
+                      </TableCell>
+                      <TableCell className="text-foreground">{row.batch}</TableCell>
+                      <TableCell className="tabular-nums font-medium text-foreground">
+                        {row.attendancePercent === null ? notRecorded : `${row.attendancePercent}%`}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${performanceBadgeClass(
+                            row.performanceLabel
+                          )}`}
+                        >
+                          {row.performanceLabel}
                         </span>
-                      </td>
-                      <td className="p-3.5">
-                        <span className="font-semibold text-slate-800">{row.performanceLabel}</span>
-                      </td>
-                      <td className="p-3.5 text-right pr-5">
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                          View <ArrowRight className="h-3.5 w-3.5" />
-                        </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       </PageContainer>
@@ -384,8 +419,8 @@ export const StudentPerformance: React.FC = () => {
   if (detailLoading || performanceLoading) {
     return (
       <PageContainer>
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading academic performance...
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading…
         </div>
       </PageContainer>
     );
@@ -394,23 +429,30 @@ export const StudentPerformance: React.FC = () => {
   if (detailError || performanceError || !student || !performance) {
     return (
       <PageContainer>
-        <PageHeader title="Academic Performance" description="This student's records could not be loaded." />
+        <PageHeader
+          title="Academic Performance"
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="h-9" onClick={backToStudentList}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Back
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  void refetchDetail();
+                  void refetchPerformance();
+                }}
+              >
+                Retry
+              </Button>
+            </div>
+          }
+        />
         <div className="flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle className="h-4 w-4" /> Failed to load live student performance.
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={backToStudentList}>
-            <ArrowLeft className="h-4 w-4" /> Back to students
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              void refetchDetail();
-              void refetchPerformance();
-            }}
-          >
-            Retry
-          </Button>
+          <AlertCircle className="h-4 w-4" /> Failed to load student performance.
         </div>
       </PageContainer>
     );
@@ -428,7 +470,10 @@ export const StudentPerformance: React.FC = () => {
   const attendancePercent = performance.totalClasses > 0 ? performance.overallAttendancePercent : null;
   const averageScore =
     analytics.assessments.length > 0
-      ? Math.round(analytics.assessments.reduce((sum, item) => sum + item.percent, 0) / analytics.assessments.length)
+      ? Math.round(
+          analytics.assessments.reduce((sum, item) => sum + item.percent, 0) /
+            analytics.assessments.length
+        )
       : null;
   const atRisk = performance.discontinuationAlert || student.status === "DISCONTINUED";
   const statusLabel =
@@ -441,188 +486,153 @@ export const StudentPerformance: React.FC = () => {
           : atRisk
             ? "At Risk"
             : "Active";
+  const studentName = student.user?.name || student.studentCode;
+
+  const metricCards = [
+    {
+      label: "Courses",
+      value: String(performance.enrolledCourses.length),
+      hint: facultyName !== notRecorded ? `Faculty: ${facultyName}` : null,
+      delta: null as React.ReactNode,
+    },
+    {
+      label: "Attendance",
+      value: attendancePercent === null ? notRecorded : `${attendancePercent}%`,
+      hint:
+        performance.totalClasses > 0
+          ? `${performance.presentCount}/${performance.totalClasses} present`
+          : "No classes recorded",
+      delta:
+        attendancePercent !== null ? (
+          <Delta current={attendancePercent} previous={analytics.previousAttendance} />
+        ) : null,
+    },
+    {
+      label: "Avg. score",
+      value: averageScore === null ? notRecorded : `${averageScore}%`,
+      hint:
+        analytics.assessments.length > 0
+          ? `${analytics.assessments.length} graded`
+          : "No graded assessments",
+      delta:
+        averageScore !== null ? (
+          <Delta current={averageScore} previous={analytics.previousScore} />
+        ) : null,
+    },
+    {
+      label: "Assignments",
+      value: `${analytics.submittedCount}/${analytics.totalAssignments}`,
+      hint: analytics.totalAssignments > 0 ? "Submitted or graded" : "None assigned",
+      delta: null as React.ReactNode,
+    },
+  ];
 
   return (
     <PageContainer>
-      <div className="flex items-start gap-3.5">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-10 px-3.5 text-slate-700 hover:text-primary hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 shrink-0"
-          onClick={backToStudentList}
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        <PageHeader
-          className="flex-1 min-w-0"
-          title="Academic Performance"
-          description="Attendance, assessments, and course progress from this student's records."
-        />
-      </div>
+      <PageHeader
+        title={studentName}
+        description={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-mono text-xs">{student.studentCode}</span>
+            <span
+              className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${performanceBadgeClass(
+                statusLabel
+              )}`}
+            >
+              {statusLabel}
+            </span>
+            {student.user?.phone ? <span>· {student.user.phone}</span> : null}
+          </span>
+        }
+        actions={
+          <Button variant="outline" size="sm" className="h-9" onClick={backToStudentList}>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
+          </Button>
+        }
+      />
 
-      <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
-            <div className="flex items-center gap-4 min-w-[280px]">
-              <Avatar className="h-16 w-16 border border-slate-200">
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                  {initials(student.user?.name || student.studentCode)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="flex items-center gap-2.5 mb-1">
-                  <h2 className="text-xl font-bold text-slate-900">{student.user?.name || student.studentCode}</h2>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    atRisk || student.status === "DISCONTINUED"
-                      ? "bg-red-50 text-red-600 border border-red-200/60"
-                      : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
-                  }`}>
-                    {statusLabel}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
-                  <span>{student.studentCode}</span>
-                  <span>•</span>
-                  <span>{student.user?.phone || notRecorded}</span>
-                  <span>•</span>
-                  <span>{student.user?.email || notRecorded}</span>
-                </p>
+      <Card className="border border-border shadow-xs bg-card rounded-xl">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Admission No.</p>
+              <p className="mt-0.5 font-medium text-foreground">
+                {admission?.admissionNo || notRecorded}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Batch</p>
+              <p className="mt-0.5 font-medium text-foreground">
+                {student.batchName || "Not assigned"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Course</p>
+              <div className="mt-0.5">
+                <CourseChips courses={courses} fallback="Not assigned" maxVisible={3} />
               </div>
             </div>
-
-            <div className="hidden lg:block w-px h-12 bg-slate-100" />
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 flex-1 w-full">
-              <div>
-                <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <FileText className="h-3.5 w-3.5" /> Admission No.
-                </p>
-                <p className="text-[13px] font-bold text-slate-800">{admission?.admissionNo || notRecorded}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <Calendar className="h-3.5 w-3.5" /> Batch
-                </p>
-                <p className="text-[13px] font-bold text-slate-800">{student.batchName || "Not assigned"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <BookOpen className="h-3.5 w-3.5" /> Course
-                </p>
-                <CourseChips courses={courses} fallback="Not assigned" maxVisible={4} />
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
-                  <Building className="h-3.5 w-3.5" /> Center
-                </p>
-                <p className="text-[13px] font-bold text-slate-800">{student.branch?.name || notRecorded}</p>
-              </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Center</p>
+              <p className="mt-0.5 font-medium text-foreground">
+                {student.branch?.name || notRecorded}
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
-        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
-          <CardContent size="compact" className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Courses Enrolled</p>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">{performance.enrolledCourses.length}</h3>
-              <p className="text-xs text-slate-400 font-medium">Faculty: {facultyName}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
-          <CardContent size="compact" className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
-              <LayoutGrid className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-500">Overall Attendance</p>
-                {attendancePercent !== null && (
-                  <Delta current={attendancePercent} previous={analytics.previousAttendance} />
-                )}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {metricCards.map((card) => (
+          <Card key={card.label} className="border border-border shadow-sm bg-card">
+            <CardContent className="p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-muted-foreground">{card.label}</p>
+                {card.delta}
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
-                {attendancePercent === null ? notRecorded : `${attendancePercent}%`}
-              </h3>
-              <p className="text-xs text-slate-400 font-medium truncate">
-                {performance.totalClasses > 0
-                  ? `Present in ${performance.presentCount} of ${performance.totalClasses} classes`
-                  : "No classes recorded"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              <p className="mt-0.5 text-xl font-semibold text-foreground tabular-nums">{card.value}</p>
+              {card.hint ? (
+                <p className="mt-0.5 text-[11px] text-muted-foreground truncate">{card.hint}</p>
+              ) : null}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
-          <CardContent size="compact" className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600 shrink-0">
-              <FileEdit className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-500">Average Test Score</p>
-                {averageScore !== null && <Delta current={averageScore} previous={analytics.previousScore} />}
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
-                {averageScore === null ? notRecorded : `${averageScore}%`}
-              </h3>
-              <p className="text-xs text-slate-400 font-medium truncate">
-                {analytics.assessments.length > 0
-                  ? `Across ${analytics.assessments.length} graded assessments`
-                  : "No graded assessments"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border-slate-200 shadow-sm bg-white">
-          <CardContent size="compact" className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-orange-50 rounded-xl text-orange-500 shrink-0">
-              <ClipboardList className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Assignments Completed</p>
-              <h3 className="text-2xl font-bold text-slate-900 my-0.5">
-                {analytics.submittedCount}/{analytics.totalAssignments}
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">
-                {analytics.totalAssignments > 0 ? "Submitted or graded" : "No assignments assigned"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </MetricGrid>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-900">Attendance Overview</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Attendance</CardTitle>
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="mb-4">
-              <p className="text-xs text-slate-400 font-medium">Overall Attendance</p>
-              <p className="text-2xl font-bold text-slate-900 mt-0.5">
-                {attendancePercent === null ? notRecorded : `${attendancePercent}%`}
-              </p>
-            </div>
+          <CardContent className="p-4 pt-2">
             {analytics.attendanceHistory.length === 0 ? (
-              <EmptyChart message="No attendance has been marked for this student yet." />
+              <EmptyChart message="No attendance marked yet." />
             ) : (
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analytics.attendanceHistory} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => `${value}%`} />
+                  <LineChart
+                    data={analytics.attendanceHistory}
+                    margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 100]}
+                      ticks={[0, 25, 50, 75, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                    />
                     <RechartsTooltip formatter={(value) => [`${value}%`, "Attendance"]} />
-                    <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb", strokeWidth: 2, stroke: "#fff" }} />
+                    <Line
+                      type="monotone"
+                      dataKey="attendance"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -630,11 +640,11 @@ export const StudentPerformance: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-900">Assessment Performance</CardTitle>
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Assessments</CardTitle>
           </CardHeader>
-          <CardContent className="pt-2">
+          <CardContent className="p-4 pt-2">
             {analytics.assessmentDistribution.length === 0 ? (
               <EmptyChart message="No graded assessments yet." />
             ) : (
@@ -642,7 +652,15 @@ export const StudentPerformance: React.FC = () => {
                 <div className="h-[180px] w-[140px] relative shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={analytics.assessmentDistribution} cx="50%" cy="50%" innerRadius={50} outerRadius={68} paddingAngle={2} dataKey="count">
+                      <Pie
+                        data={analytics.assessmentDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={68}
+                        paddingAngle={2}
+                        dataKey="count"
+                      >
                         {analytics.assessmentDistribution.map((entry) => (
                           <Cell key={entry.name} fill={entry.color} />
                         ))}
@@ -651,19 +669,25 @@ export const StudentPerformance: React.FC = () => {
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-xl font-bold text-slate-900">{analytics.assessments.length}</span>
-                    <span className="text-[10px] font-semibold text-slate-400">Graded</span>
+                    <span className="text-xl font-semibold text-foreground">
+                      {analytics.assessments.length}
+                    </span>
+                    <span className="text-[10px] font-medium text-muted-foreground">Graded</span>
                   </div>
                 </div>
-                <div className="flex-1 space-y-2.5">
+                <div className="flex-1 space-y-2">
                   {analytics.assessmentDistribution.map((item) => (
                     <div key={item.name} className="flex items-center justify-between text-xs gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="font-medium text-slate-700 text-[11px] truncate">{item.name}</span>
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium text-foreground truncate">{item.name}</span>
                       </div>
-                      <span className="font-bold text-slate-800 text-[11px] shrink-0">
-                        {item.count} <span className="text-slate-400 font-normal">({item.percent})</span>
+                      <span className="font-semibold text-foreground shrink-0 tabular-nums">
+                        {item.count}{" "}
+                        <span className="text-muted-foreground font-normal">({item.percent})</span>
                       </span>
                     </div>
                   ))}
@@ -673,28 +697,44 @@ export const StudentPerformance: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-900">Performance Trend</CardTitle>
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Score trend</CardTitle>
           </CardHeader>
-          <CardContent className="pt-2">
+          <CardContent className="p-4 pt-2">
             {analytics.performanceTrend.length === 0 ? (
-              <EmptyChart message="Scores will appear here after assessments are graded." />
+              <EmptyChart message="Scores appear after assessments are graded." />
             ) : (
-              <div className="h-[210px] w-full">
+              <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analytics.performanceTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <AreaChart
+                    data={analytics.performanceTrend}
+                    margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(value) => `${value}%`} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 100]}
+                      ticks={[0, 25, 50, 75, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                    />
                     <RechartsTooltip formatter={(value) => [`${value}%`, "Score"]} />
-                    <Area type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#scoreGradient)" />
+                    <Area
+                      type="monotone"
+                      dataKey="score"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#scoreGradient)"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -703,86 +743,96 @@ export const StudentPerformance: React.FC = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900">Assessment Results</CardTitle>
-          </CardHeader>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden lg:col-span-2">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm font-semibold text-foreground">Assessment results</p>
+          </div>
           {analytics.assessments.length === 0 ? (
-            <CardContent className="p-8 text-center text-sm text-slate-500">
+            <div className="p-8 text-center text-sm text-muted-foreground">
               No graded assessment results for this student.
-            </CardContent>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-slate-50/50 border-b border-slate-100 text-[11px] font-bold text-slate-400">
-                  <tr>
-                    <th className="px-5 py-3 font-medium">Assessment</th>
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium text-center">Max</th>
-                    <th className="px-4 py-3 font-medium text-center">Obtained</th>
-                    <th className="px-4 py-3 font-medium text-center">Score</th>
-                    <th className="px-5 py-3 font-medium text-center">Grade</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+            <div className={tableShell}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Assessment</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-center">Max</TableHead>
+                    <TableHead className="text-center">Obtained</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead className="text-center">Grade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {analytics.assessments.map((test) => (
-                    <tr key={test.id}>
-                      <td className="px-5 py-3.5 font-semibold text-slate-800">{test.name}</td>
-                      <td className="px-4 py-3.5 text-slate-500">{test.date}</td>
-                      <td className="px-4 py-3.5 text-center text-slate-600">{test.maxMarks}</td>
-                      <td className="px-4 py-3.5 text-center font-semibold text-slate-800">{test.obtained}</td>
-                      <td className="px-4 py-3.5 text-center font-bold text-primary">{test.percent}%</td>
-                      <td className="px-5 py-3.5 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded font-bold text-[11px] ${test.gradeClassName}`}>
+                    <TableRow key={test.id}>
+                      <TableCell className="font-semibold text-foreground">{test.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{test.date}</TableCell>
+                      <TableCell className="text-center tabular-nums">{test.maxMarks}</TableCell>
+                      <TableCell className="text-center tabular-nums font-medium">
+                        {test.obtained}
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums font-semibold text-primary">
+                        {test.percent}%
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${test.gradeClassName}`}
+                        >
                           {test.grade}
                         </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </Card>
 
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900">
-              Enrolled Courses ({performance.enrolledCourses.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4">
-            {performance.enrolledCourses.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-6">No active course enrollment.</p>
-            ) : (
-              performance.enrolledCourses.map((course) => (
-                <div key={`${course.courseId}-${course.batchCode}`} className="p-4 rounded-xl border border-slate-100 bg-slate-50/40 space-y-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">{course.courseName}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Batch: {course.batchName} · {course.completedModules}/{course.totalModules} modules completed
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">Progress</span>
-                      <span className="font-bold text-slate-900">{course.completionPercentage}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                      <div className="h-full bg-blue-600 rounded-full" style={{ width: `${course.completionPercentage}%` }} />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm font-semibold text-foreground">Enrolled courses</p>
+          </div>
+          {performance.enrolledCourses.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No active course enrollment.
+            </div>
+          ) : (
+            <div className={tableShell}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Batch</TableHead>
+                    <TableHead className="text-center">Progress</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {performance.enrolledCourses.map((course) => (
+                    <TableRow key={`${course.courseId}-${course.batchCode}`}>
+                      <TableCell>
+                        <p className="font-semibold text-foreground">{course.courseName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {course.completedModules}/{course.totalModules} modules
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-foreground">{course.batchName}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="tabular-nums font-semibold text-foreground">
+                          {course.completionPercentage}%
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </Card>
       </div>
-
-      <p className="text-center text-xs text-slate-400">
-        Figures come from marked attendance, submitted assignments, and active batch enrollments.
-      </p>
     </PageContainer>
   );
 };

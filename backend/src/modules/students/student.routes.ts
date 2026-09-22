@@ -7,6 +7,8 @@ import { validate } from "../../middlewares/validation.middleware";
 import {
   createStudentSchema,
   updateStudentSchema,
+  discontinueStudentSchema,
+  continueStudentSchema,
 } from "./student.validation";
 import {
   getStudentAttendance,
@@ -78,6 +80,33 @@ router.post(
   "/:id/send-credentials-whatsapp",
   requirePermission("student.update"),
   controller.sendCredentialsWhatsApp
+);
+
+router.post(
+  "/:id/discontinue",
+  requirePermission("student.update"),
+  validate(discontinueStudentSchema),
+  controller.discontinue
+);
+
+router.post(
+  "/:id/continue",
+  requireRole("ADMIN"),
+  requirePermission("student.update"),
+  validate(continueStudentSchema),
+  controller.continueEnrollment
+);
+
+router.post(
+  "/:id/notify-discontinuation-risk",
+  requirePermission("student.update"),
+  controller.notifyDiscontinuationRisk
+);
+
+router.post(
+  "/:id/ai-call",
+  requirePermission("student.update"),
+  controller.triggerAiCall
 );
 
 router.delete(

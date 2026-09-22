@@ -111,6 +111,13 @@ export const AiCallingRepository = {
     });
   },
 
+  async findLatestAttemptByStudentId(studentId: string) {
+    return prisma.callLog.findFirst({
+      where: { studentId },
+      orderBy: { attemptNumber: "desc" },
+    });
+  },
+
   async hasNonFailedAttempt(leadId: string) {
     const log = await prisma.callLog.findFirst({
       where: {

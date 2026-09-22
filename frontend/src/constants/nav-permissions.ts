@@ -132,7 +132,7 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
   }
   const readMap: Record<string, string[]> = {
     "students.all": ["student.read"],
-    "students.attendance": ["attendance.read"],
+    "students.attendance": ["attendance.read", "schedule.read"],
     "students.discontinuation": ["student.read"],
     "faculty.all": ["faculty.read"],
     "faculty.courses": ["faculty.read", "course.read"],

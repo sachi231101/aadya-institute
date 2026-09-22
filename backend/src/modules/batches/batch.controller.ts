@@ -5,7 +5,7 @@ import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
 import { sendSuccess } from "../../utils/response";
 import {
   assertBranchRecordAccess,
-  resolveEffectiveBranchId,
+  getBranchScopeFilter,
 } from "../../utils/branch-isolation.util";
 import * as service from "./batch.service";
 
@@ -17,7 +17,7 @@ export const getAll = async (
   try {
     const instituteId = req.user!.instituteId;
     const user = toAuthUser(req);
-    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
+    const scope = getBranchScopeFilter(user, req.query.branchId as string | undefined);
     const roles = req.user?.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
       !roles.includes("ADMIN") &&
@@ -27,7 +27,9 @@ export const getAll = async (
     let facultyFilter = req.query.facultyId as string;
     // Faculty see batches they teach across branches (enrollment/teaching scope),
     // not only the primary user.branchId (which can differ from batch.branchId).
-    let effectiveBranchId = branchId;
+    // Admin: optional query branchId. CM/Counsellor: full JWT scope (branchId or branchIds).
+    let effectiveBranchId = isPureFaculty ? undefined : scope.branchId;
+    let scopedBranchIds = isPureFaculty ? undefined : scope.branchIds;
 
     if (isPureFaculty) {
       const facultyRecord = await prisma.faculty.findFirst({
@@ -43,6 +45,7 @@ export const getAll = async (
       }
       facultyFilter = facultyRecord.id;
       effectiveBranchId = undefined;
+      scopedBranchIds = undefined;
     }
 
     const filters = {
@@ -51,7 +54,12 @@ export const getAll = async (
       facultyId: facultyFilter,
       status: req.query.status as string,
     };
-    const batches = await service.getBatches(instituteId, effectiveBranchId, filters);
+    const batches = await service.getBatches(
+      instituteId,
+      effectiveBranchId,
+      filters,
+      scopedBranchIds
+    );
     res.json({
       success: true,
       message: "Batches retrieved successfully",
@@ -174,12 +182,60 @@ export const enrollStudent = async (
       req.params.id as string,
       instituteId,
       req.body.studentId,
+      toAuthUser(req),
       req.body.admissionId
     );
     res.status(201).json({
       success: true,
       message: "Student enrolled in batch successfully",
       data: enrollment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkEnrollStudents = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const result = await service.bulkEnrollStudents(
+      req.params.id as string,
+      instituteId,
+      req.body.studentIds,
+      toAuthUser(req)
+    );
+    const parts = [
+      `Assigned ${result.assigned}`,
+      result.skipped > 0 ? `skipped ${result.skipped}` : null,
+      result.failures.length > 0 ? `${result.failures.length} failed` : null,
+    ].filter(Boolean);
+
+    // All soft-failures / already-in-batch: surface as HTTP error so the UI does not treat it as success
+    if (result.assigned === 0 && result.failures.length > 0) {
+      const alreadyOnly = result.failures.every((f) =>
+        f.message.toLowerCase().includes("already assigned to this batch")
+      );
+      const firstMessage = alreadyOnly
+        ? result.failures.length === 1
+          ? "This student is already assigned to this batch"
+          : `All ${result.failures.length} selected students are already assigned to this batch`
+        : result.failures[0]?.message || "Could not assign students to this batch";
+      res.status(400).json({
+        success: false,
+        message: firstMessage,
+        data: result,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: parts.join(", "),
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -193,7 +249,12 @@ export const removeStudent = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    await service.removeStudent(req.params.id as string, instituteId, req.params.studentId as string);
+    await service.removeStudent(
+      req.params.id as string,
+      instituteId,
+      req.params.studentId as string,
+      toAuthUser(req)
+    );
     res.json({
       success: true,
       message: "Student removed from batch successfully",
@@ -216,6 +277,7 @@ export const transferStudent = async (
       fromBatchId,
       toBatchId,
       instituteId,
+      toAuthUser(req),
       admissionId
     );
     res.json({

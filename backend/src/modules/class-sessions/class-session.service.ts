@@ -412,9 +412,16 @@ export const classSessionService = {
     instituteId: string,
     branchId?: string,
     batchIds?: string[],
-    facultyId?: string
+    facultyId?: string,
+    branchIds?: string[]
   ) => {
-    return classSessionRepository.findActiveLiveSessions(instituteId, branchId, batchIds, facultyId);
+    return classSessionRepository.findActiveLiveSessions(
+      instituteId,
+      branchId,
+      batchIds,
+      facultyId,
+      branchIds
+    );
   },
 
   cancelSession: async (id: string, instituteId: string) => {

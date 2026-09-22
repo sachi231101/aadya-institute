@@ -226,6 +226,7 @@ describe("Multi-course batch integration", () => {
       batchId,
       studentId,
       instituteId,
+      adminUser(),
       admissionSecondaryId
     );
     assert.strictEqual(enrollment.batchId, batchId);
@@ -240,10 +241,11 @@ describe("Multi-course batch integration", () => {
           batchId,
           studentId,
           instituteId,
+          adminUser(),
           admissionOtherId
         ),
       (err: Error & { statusCode?: number }) => {
-        assert.match(err.message, /not offered in this batch/i);
+        assert.match(err.message, /not offered in (this|the selected) batch/i);
         return true;
       }
     );

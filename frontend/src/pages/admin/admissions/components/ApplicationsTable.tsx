@@ -37,30 +37,31 @@ export function ApplicationsTable({
   const to = Math.min(currentPage * pageSize, total);
 
   return (
-    <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
+    <Card className="border border-border shadow-xs rounded-xl overflow-hidden bg-card">
+      <div
+        className={
+          "min-w-0 overflow-x-auto " +
+          "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+          "[&_thead]:bg-muted/50 " +
+          "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+          "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+          "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+          "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+          "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors"
+        }
+      >
         <Table>
-          <TableHeader className="bg-muted/40 border-b border-border">
-            <TableRow className="hover:bg-transparent border-border">
-              <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pl-5">
-                Applicant
-              </TableHead>
-              <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Course
-              </TableHead>
-              <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">
-                Fee
-              </TableHead>
-              <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Status
-              </TableHead>
-              <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">
-                Date
-              </TableHead>
-              <TableHead className="py-2.5 px-4 w-10" />
+          <TableHeader>
+            <TableRow>
+              <TableHead>Applicant</TableHead>
+              <TableHead>Course</TableHead>
+              <TableHead className="hidden sm:table-cell">Fee</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="hidden md:table-cell">Date</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-border">
+          <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-sm text-muted-foreground">
@@ -72,9 +73,9 @@ export function ApplicationsTable({
                 <TableRow
                   key={app.id}
                   onClick={() => onRowClick(app)}
-                  className="hover:bg-muted/30 transition-colors cursor-pointer group border-border"
+                  className="cursor-pointer group"
                 >
-                  <TableCell className="py-3 px-4 pl-5 align-middle">
+                  <TableCell>
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="h-8 w-8 border border-border shrink-0">
                         <AvatarImage src={app.avatar} alt={app.applicantName} />
@@ -92,12 +93,12 @@ export function ApplicationsTable({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 px-4 align-middle">
+                  <TableCell>
                     <p className="text-xs font-medium text-foreground truncate max-w-[140px]">
                       {app.courseName}
                     </p>
                   </TableCell>
-                  <TableCell className="py-3 px-4 align-middle hidden sm:table-cell">
+                  <TableCell className="hidden sm:table-cell">
                     <span
                       className={`text-xs font-medium ${
                         app.feeStatus === "PAID" ? "text-emerald-600" : "text-rose-600"
@@ -112,13 +113,13 @@ export function ApplicationsTable({
                       )}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 px-4 align-middle">
+                  <TableCell>
                     {renderApplicationStatusBadge(app.status, app.feeStatus)}
                   </TableCell>
-                  <TableCell className="py-3 px-4 align-middle hidden md:table-cell">
+                  <TableCell className="hidden md:table-cell">
                     <p className="text-xs text-muted-foreground">{app.submittedDate}</p>
                   </TableCell>
-                  <TableCell className="py-3 px-4 pr-4 align-middle text-right">
+                  <TableCell className="text-right">
                     <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary inline-block" />
                   </TableCell>
                 </TableRow>

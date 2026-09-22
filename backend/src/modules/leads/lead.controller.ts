@@ -1,6 +1,6 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import type { AuthUser } from "../auth/auth.types";
+import { toAuthUser } from "../../utils/auth-user.util";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { LeadService } from "./lead.service";
 import type { QueryCallHistoryDTO, QueryFollowUpDashboardDTO } from "./lead.types";
@@ -11,7 +11,7 @@ export const createLead = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const lead = await LeadService.createLead(req.user as unknown as AuthUser, req.body);
+    const lead = await LeadService.createLead(toAuthUser(req), req.body);
     sendSuccess(res, lead, 201, "Lead created successfully");
   } catch (err) {
     next(err);
@@ -24,7 +24,7 @@ export const getLeads = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { leads, meta } = await LeadService.getLeads(req.user as unknown as AuthUser, req.query as any);
+    const { leads, meta } = await LeadService.getLeads(toAuthUser(req), req.query as any);
     sendPaginated(res, leads, meta, "Leads retrieved successfully");
   } catch (err) {
     next(err);
@@ -37,7 +37,7 @@ export const getLeadById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const lead = await LeadService.getLeadById(req.params.id as string, req.user as unknown as AuthUser);
+    const lead = await LeadService.getLeadById(req.params.id as string, toAuthUser(req));
     sendSuccess(res, lead, 200, "Lead retrieved successfully");
   } catch (err) {
     next(err);
@@ -50,7 +50,7 @@ export const updateLead = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const lead = await LeadService.updateLead(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const lead = await LeadService.updateLead(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, lead, 200, "Lead updated successfully");
   } catch (err) {
     next(err);
@@ -63,7 +63,7 @@ export const assignLead = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await LeadService.assignLead(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const result = await LeadService.assignLead(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, result, 200, "Lead assigned successfully");
   } catch (err) {
     next(err);
@@ -76,7 +76,7 @@ export const changeLeadStage = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const lead = await LeadService.changeStage(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const lead = await LeadService.changeStage(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, lead, 200, "Lead stage updated successfully");
   } catch (err) {
     next(err);
@@ -89,7 +89,7 @@ export const markLeadLost = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const lead = await LeadService.markLost(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const lead = await LeadService.markLost(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, lead, 200, "Lead marked as lost");
   } catch (err) {
     next(err);
@@ -102,7 +102,7 @@ export const convertLead = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await LeadService.convertLead(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const result = await LeadService.convertLead(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, result, 200, "Lead converted to student and admission successfully");
   } catch (err) {
     next(err);
@@ -117,7 +117,7 @@ export const createApplicationFromLead = async (
   try {
     const application = await LeadService.createApplicationFromLead(
       req.params.id as string,
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, application, 201, "Application created from lead successfully");
@@ -132,7 +132,7 @@ export const createFollowUp = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const followUp = await LeadService.createFollowUp(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const followUp = await LeadService.createFollowUp(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, followUp, 201, "Follow-up scheduled successfully");
   } catch (err) {
     next(err);
@@ -145,7 +145,7 @@ export const updateFollowUp = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const followUp = await LeadService.updateFollowUp(req.params.followUpId as string, req.user as unknown as AuthUser, req.body);
+    const followUp = await LeadService.updateFollowUp(req.params.followUpId as string, toAuthUser(req), req.body);
     sendSuccess(res, followUp, 200, "Follow-up updated successfully");
   } catch (err) {
     next(err);
@@ -158,7 +158,7 @@ export const getLeadFollowUps = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const followUps = await LeadService.getLeadFollowUps(req.params.id as string, req.user as unknown as AuthUser);
+    const followUps = await LeadService.getLeadFollowUps(req.params.id as string, toAuthUser(req));
     sendSuccess(res, followUps, 200, "Follow-ups retrieved successfully");
   } catch (err) {
     next(err);
@@ -171,7 +171,7 @@ export const addActivity = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const activity = await LeadService.addActivity(req.params.id as string, req.user as unknown as AuthUser, req.body);
+    const activity = await LeadService.addActivity(req.params.id as string, toAuthUser(req), req.body);
     sendSuccess(res, activity, 201, "Activity added successfully");
   } catch (err) {
     next(err);
@@ -184,7 +184,7 @@ export const getLeadHistory = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const history = await LeadService.getLeadHistory(req.params.id as string, req.user as unknown as AuthUser);
+    const history = await LeadService.getLeadHistory(req.params.id as string, toAuthUser(req));
     sendSuccess(res, history, 200, "Lead history retrieved successfully");
   } catch (err) {
     next(err);
@@ -202,7 +202,7 @@ export const getDashboardSummary = async (
         ? req.query.branchId.trim()
         : undefined;
     const summary = await LeadService.getDashboardSummary(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       branchId
     );
     sendSuccess(res, summary, 200, "Dashboard summary retrieved successfully");
@@ -222,7 +222,7 @@ export const getCounsellorPerformance = async (
         ? req.query.branchId.trim()
         : undefined;
     const stats = await LeadService.getCounsellorPerformance(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       branchId
     );
     sendSuccess(res, stats, 200, "Counsellor performance retrieved successfully");
@@ -243,7 +243,7 @@ export const getFollowUpDashboard = async (
         ? query.branchId.trim()
         : undefined;
     const dashboard = await LeadService.getFollowUpDashboard(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       branchId,
       {
         page: query.page,
@@ -263,7 +263,7 @@ export const getCallHistory = async (
 ): Promise<void> => {
   try {
     const { callLogs, meta } = await LeadService.getCallHistory(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.query as QueryCallHistoryDTO
     );
     sendPaginated(res, callLogs, meta, "Call history retrieved successfully");
@@ -278,7 +278,7 @@ export const triggerLeadCall = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await LeadService.triggerLeadCall(req.params.id as string, req.user as unknown as AuthUser);
+    const result = await LeadService.triggerLeadCall(req.params.id as string, toAuthUser(req));
     sendSuccess(res, result, 200, "AI call initiated successfully");
   } catch (err) {
     next(err);
@@ -292,7 +292,7 @@ export const bulkAssignLeads = async (
 ): Promise<void> => {
   try {
     const result = await LeadService.bulkAssignLeads(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, result, 200, "Bulk assign completed");
@@ -309,7 +309,7 @@ export const updateLeadTags = async (
   try {
     const lead = await LeadService.updateLeadTags(
       req.params.id as string,
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, lead, 200, "Lead tags updated successfully");
@@ -326,7 +326,7 @@ export const updateLeadScore = async (
   try {
     const lead = await LeadService.updateLeadScore(
       req.params.id as string,
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, lead, 200, "Lead score updated successfully");
@@ -343,7 +343,7 @@ export const archiveLead = async (
   try {
     const lead = await LeadService.archiveLead(
       req.params.id as string,
-      req.user as unknown as AuthUser
+      toAuthUser(req)
     );
     sendSuccess(res, lead, 200, "Lead archived successfully");
   } catch (err) {
@@ -358,7 +358,7 @@ export const mergeLeads = async (
 ): Promise<void> => {
   try {
     const result = await LeadService.mergeLeads(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, result, 200, "Leads merged successfully");
@@ -374,7 +374,7 @@ export const createManualCallLog = async (
 ): Promise<void> => {
   try {
     const callLog = await LeadService.createManualCallLog(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, callLog, 201, "Manual call logged successfully");

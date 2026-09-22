@@ -83,6 +83,10 @@ function buildWhere(
 
   if (branchId) {
     where.branchId = branchId;
+  } else if (filters?.branchIds && filters.branchIds.length > 0) {
+    where.branchId = { in: filters.branchIds };
+  } else if (filters?.branchId) {
+    where.branchId = filters.branchId;
   }
 
   if (filters?.batchIds && filters.batchIds.length > 0) {
@@ -440,7 +444,13 @@ export const classSessionRepository = {
     });
   },
 
-  findActiveLiveSessions: async (instituteId: string, branchId?: string, batchIds?: string[], facultyId?: string) => {
+  findActiveLiveSessions: async (
+    instituteId: string,
+    branchId?: string,
+    batchIds?: string[],
+    facultyId?: string,
+    branchIds?: string[]
+  ) => {
     const where: Prisma.ClassSessionWhereInput = {
       batch: {
         instituteId,
@@ -450,6 +460,8 @@ export const classSessionRepository = {
 
     if (branchId) {
       where.branchId = branchId;
+    } else if (branchIds && branchIds.length > 0) {
+      where.branchId = { in: branchIds };
     }
 
     if (batchIds && batchIds.length > 0) {

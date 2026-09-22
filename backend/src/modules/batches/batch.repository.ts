@@ -477,7 +477,8 @@ const syncBatchModulesForCourses = async (tx: TxClient, batchId: string, courseI
 export const findAllBatches = async (
   instituteId: string,
   branchId?: string,
-  filters: BatchQueryFilters = {}
+  filters: BatchQueryFilters = {},
+  branchIds?: string[]
 ) => {
   const where: Record<string, unknown> = {
     instituteId,
@@ -485,6 +486,8 @@ export const findAllBatches = async (
 
   if (branchId) {
     where.branchId = branchId;
+  } else if (branchIds && branchIds.length > 0) {
+    where.branchId = { in: branchIds };
   }
 
   if (filters.status) {
