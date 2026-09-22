@@ -25,6 +25,10 @@ import {
   listOtherInvoices,
   getOtherInvoice,
   createOtherInvoice,
+  downloadStudentInvoicePdf,
+  ensureStudentInvoicePdf,
+  downloadOtherInvoicePdf,
+  ensureOtherInvoicePdf,
 } from "./fee.controller";
 
 const router = Router();
@@ -48,11 +52,15 @@ router.get("/students/:studentId", requirePermission("fee.read"), getStudentFeeS
 // Student invoices
 router.get("/invoices", requirePermission("fee.read"), listStudentInvoices);
 router.get("/invoices/:id", requirePermission("fee.read"), getStudentInvoice);
+router.get("/invoices/:id/pdf", requirePermission("fee.read"), downloadStudentInvoicePdf);
+router.post("/invoices/:id/pdf", requirePermission("fee.read"), ensureStudentInvoicePdf);
 router.post("/invoices/:id/cancel", requirePermission("fee.update"), cancelStudentInvoice);
 
 // Other invoices
 router.get("/other-invoices", requirePermission("fee.read"), listOtherInvoices);
 router.get("/other-invoices/:id", requirePermission("fee.read"), getOtherInvoice);
+router.get("/other-invoices/:id/pdf", requirePermission("fee.read"), downloadOtherInvoicePdf);
+router.post("/other-invoices/:id/pdf", requirePermission("fee.read"), ensureOtherInvoicePdf);
 router.post("/other-invoices", requirePermission("fee.create"), createOtherInvoice);
 
 // Ad-hoc charges (book / exam / etc.)

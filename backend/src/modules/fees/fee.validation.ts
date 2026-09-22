@@ -69,6 +69,7 @@ export const collectPendingFeeSchema = z
 export const createChargesSchema = z.object({
   studentId: z.string().min(1),
   admissionId: z.string().optional(),
+  courseName: z.string().optional(),
   charges: z
     .array(
       z.object({
@@ -88,6 +89,7 @@ export const createChargeSchema = z.object({
   amount: z.number().positive(),
   dueDate: z.string().optional(),
   admissionId: z.string().optional(),
+  courseName: z.string().optional(),
   installmentNo: z.number().int().positive().optional(),
   notes: z.string().optional(),
 });

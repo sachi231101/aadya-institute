@@ -104,6 +104,8 @@ import { Interviews } from "../pages/admin/placement/Interviews";
 import { Placements } from "../pages/admin/placement/Placements";
 
 import { Organization } from "../pages/admin/administration/Organization";
+import { CanvasHome } from "../pages/admin/administration/canvas/CanvasHome";
+import { DocumentCanvasEditor } from "../pages/admin/administration/canvas/DocumentCanvasEditor";
 import { Branches } from "../pages/admin/administration/Branches";
 import { UsersManagement } from "../pages/admin/administration/UsersManagement";
 import { RolesPermissions } from "../pages/admin/administration/RolesPermissions";
@@ -321,6 +323,8 @@ export const adminChildRoutes = (
     {/* Administration */}
     <Route path="administration">
       <Route path="organization" element={<Organization />} />
+      <Route path="canvas" element={<CanvasHome />} />
+      <Route path="canvas/:type" element={<DocumentCanvasEditor />} />
       <Route path="branches" element={<Branches />} />
       <Route path="users" element={<UsersManagement />} />
       <Route path="roles" element={<RolesPermissions />} />

@@ -66,6 +66,8 @@ export interface CreateChargeDTO {
   amount: number;
   dueDate?: string;
   admissionId?: string;
+  /** When set, charge is tagged to this course (must be one of the student's courses). */
+  courseName?: string;
   installmentNo?: number;
   notes?: string;
 }
@@ -73,6 +75,7 @@ export interface CreateChargeDTO {
 export interface CreateChargesDTO {
   studentId: string;
   admissionId?: string;
+  courseName?: string;
   charges: Array<{
     feeHeadMasterId: string;
     amount: number;

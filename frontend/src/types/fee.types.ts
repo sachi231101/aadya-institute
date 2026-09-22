@@ -140,6 +140,7 @@ export interface CreateChargePayload {
   amount: number;
   dueDate?: string;
   admissionId?: string;
+  courseName?: string;
   installmentNo?: number;
   notes?: string;
 }
@@ -147,6 +148,7 @@ export interface CreateChargePayload {
 export interface CreateChargesPayload {
   studentId: string;
   admissionId?: string;
+  courseName?: string;
   charges: Array<{
     feeHeadMasterId: string;
     amount: number;
@@ -177,6 +179,7 @@ export interface FeeStudentRow {
   branchId: string | null;
   courseId: string | null;
   courseName: string | null;
+  courses?: Array<{ id: string; name: string; code?: string }>;
   batchId: string | null;
   batchName: string | null;
   admissionNo: string | null;
@@ -326,6 +329,8 @@ export interface StudentFeeStatement {
     phone: string | null;
     studentCode: string;
     branchId: string;
+    courseName?: string | null;
+    courses?: Array<{ id: string; name: string; code?: string; admissionId?: string }>;
   };
   payments: Payment[];
   pendingFees: PendingFee[];

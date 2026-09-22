@@ -245,3 +245,35 @@ export const useEnsureReceiptPdf = () => {
     },
   });
 };
+
+export const useDownloadInvoicePdf = () =>
+  useMutation({
+    mutationFn: (id: string) => feesApi.downloadInvoicePdf(id),
+  });
+
+export const useEnsureInvoicePdf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      feesApi.ensureInvoicePdf(id, force),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: FEES_KEYS.invoice(vars.id) });
+    },
+  });
+};
+
+export const useDownloadOtherInvoicePdf = () =>
+  useMutation({
+    mutationFn: (id: string) => feesApi.downloadOtherInvoicePdf(id),
+  });
+
+export const useEnsureOtherInvoicePdf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      feesApi.ensureOtherInvoicePdf(id, force),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: FEES_KEYS.otherInvoice(vars.id) });
+    },
+  });
+};

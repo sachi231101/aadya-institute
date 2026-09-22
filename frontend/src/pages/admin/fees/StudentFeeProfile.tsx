@@ -38,6 +38,8 @@ import {
 import type { PendingFee, Payment, StudentInvoice } from "@/types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader } from "@/components/layout";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent } from "@/utils/admission-package.utils";
 import { CollectFeeModal } from "./CollectFeeModal";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
@@ -56,6 +58,7 @@ export const StudentFeeProfile: React.FC = () => {
   const [chargeHeadId, setChargeHeadId] = useState("");
   const [chargeAmount, setChargeAmount] = useState(0);
   const [chargeDueDate, setChargeDueDate] = useState("");
+  const [chargeCourseKey, setChargeCourseKey] = useState("");
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
   const [collectOutstanding, setCollectOutstanding] = useState(false);
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
@@ -70,20 +73,31 @@ export const StudentFeeProfile: React.FC = () => {
   const receipts = statement?.receipts || payments.filter((p) => p.status === "SUCCESS");
   const openPending = pendingFees.filter((f) => (f.dueAmount || 0) > 0);
   const outstanding = summary?.dueAmount ?? openPending.reduce((s, f) => s + (f.dueAmount || 0), 0);
+  const enrolledCourses = coursesFromStudent({
+    courses: statement?.student.courses,
+    courseName: statement?.student.courseName,
+  });
 
   const submitCharge = async () => {
     if (!studentId || !chargeHeadId || chargeAmount <= 0) return;
+    const selectedCourse =
+      enrolledCourses.find(
+        (c) => c.id === chargeCourseKey || c.admissionId === chargeCourseKey
+      ) || (enrolledCourses.length === 1 ? enrolledCourses[0] : undefined);
     try {
       await createCharge.mutateAsync({
         studentId,
         feeHeadMasterId: chargeHeadId,
         amount: chargeAmount,
         dueDate: chargeDueDate || undefined,
+        courseName: selectedCourse?.name,
+        admissionId: selectedCourse?.admissionId,
       });
       setShowCharge(false);
       setChargeAmount(0);
       setChargeHeadId("");
       setChargeDueDate("");
+      setChargeCourseKey("");
       showToast("Charge created", "success");
       void refetch();
     } catch (err: unknown) {
@@ -155,14 +169,32 @@ export const StudentFeeProfile: React.FC = () => {
       <PageHeader
         title={statement.student.name}
         description={
-          <span className="font-mono">
-            {statement.student.studentCode}
-            {statement.student.phone ? ` · ${statement.student.phone}` : ""}
+          <span className="flex flex-col gap-1.5">
+            <span className="font-mono">
+              {statement.student.studentCode}
+              {statement.student.phone ? ` · ${statement.student.phone}` : ""}
+            </span>
+            {enrolledCourses.length > 0 && (
+              <CourseChips courses={enrolledCourses} fallback="" maxVisible={6} plainWhenSingle={false} />
+            )}
           </span>
         }
         actions={
           <>
-            <Button variant="outline" onClick={() => setShowCharge(true)} className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (enrolledCourses.length === 1) {
+                  setChargeCourseKey(
+                    enrolledCourses[0].admissionId || enrolledCourses[0].id
+                  );
+                } else {
+                  setChargeCourseKey("");
+                }
+                setShowCharge(true);
+              }}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" /> Add Charge
             </Button>
             {outstanding > 0 && (
@@ -612,6 +644,28 @@ export const StudentFeeProfile: React.FC = () => {
                   placeholder="Select fee head"
                 />
               </div>
+              {enrolledCourses.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Course</Label>
+                  <select
+                    value={chargeCourseKey}
+                    onChange={(e) => setChargeCourseKey(e.target.value)}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="">
+                      {enrolledCourses.length === 1
+                        ? enrolledCourses[0].name
+                        : "Select course"}
+                    </option>
+                    {enrolledCourses.map((c) => (
+                      <option key={c.admissionId || c.id} value={c.admissionId || c.id}>
+                        {c.name}
+                        {c.code ? ` (${c.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Amount</Label>
                 <Input
@@ -634,7 +688,12 @@ export const StudentFeeProfile: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  disabled={!chargeHeadId || chargeAmount <= 0 || createCharge.isPending}
+                  disabled={
+                    !chargeHeadId ||
+                    chargeAmount <= 0 ||
+                    createCharge.isPending ||
+                    (enrolledCourses.length > 1 && !chargeCourseKey)
+                  }
                   onClick={() => void submitCharge()}
                 >
                   {createCharge.isPending ? (

@@ -22,6 +22,7 @@ import {
 } from "./fee.validation";
 import { toAuthUser } from "../../utils/auth-user.util";
 import { AppError } from "../../middlewares/error.middleware";
+import type { InvoiceKind } from "../document-templates/document-data.service";
 
 const handleFeeError = (err: unknown, res: Response, fallback: string): void => {
   if (err instanceof AppError) {
@@ -416,3 +417,45 @@ export const ensureReceiptPdf = async (
     handleFeeError(err, res, "Failed to generate receipt PDF");
   }
 };
+
+const invoicePdfHandlers = (kind: InvoiceKind) => ({
+  download: async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user?.instituteId) {
+        sendError(res, "Institute ID required", 400);
+        return;
+      }
+      const { id } = invoiceIdParamsSchema.parse(req.params);
+      const { absolutePath, filename } = await FeeService.getInvoicePdfPath(
+        toAuthUser(req),
+        kind,
+        id
+      );
+      res.download(absolutePath, filename);
+    } catch (err: unknown) {
+      handleFeeError(err, res, "Failed to download invoice PDF");
+    }
+  },
+  ensure: async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user?.instituteId) {
+        sendError(res, "Institute ID required", 400);
+        return;
+      }
+      const { id } = invoiceIdParamsSchema.parse(req.params);
+      const force = req.query.force === "1" || req.query.force === "true";
+      const result = await FeeService.ensureInvoicePdf(toAuthUser(req), kind, id, force);
+      sendSuccess(res, result, 200, "Invoice PDF ready");
+    } catch (err: unknown) {
+      handleFeeError(err, res, "Failed to generate invoice PDF");
+    }
+  },
+});
+
+const studentInvoicePdf = invoicePdfHandlers("STUDENT");
+const otherInvoicePdf = invoicePdfHandlers("OTHER");
+
+export const downloadStudentInvoicePdf = studentInvoicePdf.download;
+export const ensureStudentInvoicePdf = studentInvoicePdf.ensure;
+export const downloadOtherInvoicePdf = otherInvoicePdf.download;
+export const ensureOtherInvoicePdf = otherInvoicePdf.ensure;

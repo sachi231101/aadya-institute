@@ -7,8 +7,16 @@ import {
   AlertCircle,
   Printer,
   Ban,
+  Download,
+  RefreshCw,
 } from "lucide-react";
-import { useFeeInvoice, useCancelFeeInvoice } from "@/hooks/useFees";
+import {
+  useFeeInvoice,
+  useCancelFeeInvoice,
+  useDownloadInvoicePdf,
+  useEnsureInvoicePdf,
+} from "@/hooks/useFees";
+import { openPdfBlob, pdfErrorMessage } from "@/utils/pdf-blob";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { PageContainer, PageHeader } from "@/components/layout";
@@ -34,14 +42,42 @@ export const InvoiceDetail: React.FC = () => {
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
   const cancelInvoice = useCancelFeeInvoice();
+  const downloadPdf = useDownloadInvoicePdf();
+  const regeneratePdf = useEnsureInvoicePdf();
   const [cancelReason, setCancelReason] = useState("");
   const [showCancel, setShowCancel] = useState(false);
+  const [busy, setBusy] = useState<"download" | "print" | "regenerate" | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useFeeInvoice(id);
   const invoice = data?.data;
 
-  const handlePrint = () => {
-    window.print();
+  const runPdf = async (mode: "download" | "print") => {
+    if (!id || !invoice) return;
+    setBusy(mode);
+    setPdfError(null);
+    try {
+      const blob = await downloadPdf.mutateAsync(id);
+      await openPdfBlob(blob, mode, `${invoice.invoiceNo || id}.pdf`);
+    } catch (err: unknown) {
+      setPdfError(pdfErrorMessage(err, "Failed to prepare invoice PDF"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!id) return;
+    setBusy("regenerate");
+    setPdfError(null);
+    try {
+      await regeneratePdf.mutateAsync({ id, force: true });
+      void refetch();
+    } catch (err: unknown) {
+      setPdfError(pdfErrorMessage(err, "Failed to regenerate invoice PDF"));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleCancel = async () => {
@@ -103,8 +139,44 @@ export const InvoiceDetail: React.FC = () => {
                 </Link>
               </Button>
             )}
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
-              <Printer className="h-4 w-4" /> Print
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void handleRegenerate()}
+            >
+              {busy === "regenerate" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Regenerate PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void runPdf("download")}
+            >
+              {busy === "download" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={busy !== null}
+              onClick={() => void runPdf("print")}
+            >
+              {busy === "print" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Printer className="h-4 w-4" />
+              )}
+              Print PDF
             </Button>
             {canCancel && (
               <PermissionGate itemKey="fees.invoices" mode="write">
@@ -120,6 +192,8 @@ export const InvoiceDetail: React.FC = () => {
           </div>
         }
       />
+
+      {pdfError ? <p className="text-sm text-red-600 print:hidden">{pdfError}</p> : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-border/50">

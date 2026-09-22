@@ -30,6 +30,8 @@ import {
 import type { FeeStudentRow } from "@/types/fee.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent } from "@/utils/admission-package.utils";
 import { PendingFees } from "./PendingFees";
 import { CollectFeeModal } from "./CollectFeeModal";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
@@ -242,7 +244,16 @@ export const StudentFees: React.FC = () => {
                             {row.admissionNo ? ` · ${row.admissionNo}` : ""}
                           </div>
                         </TableCell>
-                        <TableCell>{row.courseName || "—"}</TableCell>
+                        <TableCell>
+                          <CourseChips
+                            courses={coursesFromStudent({
+                              courses: row.courses,
+                              courseName: row.courseName,
+                            })}
+                            fallback="—"
+                            maxVisible={3}
+                          />
+                        </TableCell>
                         <TableCell>{row.batchName || "—"}</TableCell>
                         <TableCell className="font-medium">{formatMoney(row.totalFee)}</TableCell>
                         <TableCell className="text-emerald-700">{formatMoney(row.amountPaid)}</TableCell>

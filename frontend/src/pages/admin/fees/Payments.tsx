@@ -525,7 +525,7 @@ export const Payments: React.FC = () => {
                   <p className="text-xs text-slate-500 mt-1">
                     Branch: {selectedStudent.branch?.name || "—"} · Course:{" "}
                     {selectedStudent.courseName ||
-                      selectedStudent.courses?.[0]?.name ||
+                      (selectedStudent.courses || []).map((c) => c.name).join(", ") ||
                       "—"}
                   </p>
                 )}
@@ -548,7 +548,10 @@ export const Payments: React.FC = () => {
                     <option value="">FIFO across open installments</option>
                     {openInstallments.map((i) => (
                       <option key={i.id} value={i.id}>
-                        #{i.installmentNo} · ₹{i.dueAmount.toLocaleString("en-IN")} due ·{" "}
+                        #{i.installmentNo}
+                        {i.courseName ? ` · ${i.courseName}` : ""}
+                        {i.feeHead ? ` · ${i.feeHead}` : ""} · ₹
+                        {i.dueAmount.toLocaleString("en-IN")} due ·{" "}
                         {new Date(i.dueDate).toLocaleDateString("en-IN")}
                       </option>
                     ))}
