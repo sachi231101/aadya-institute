@@ -76,7 +76,7 @@ const DEV_ACCOUNTS: DevAccount[] = [
     password: "Counsellor@123",
     color: "#16A34A",
     icon: UserCheck,
-    dashboardPath: "/counselor/home",
+    dashboardPath: "/counselor/dashboard",
     demoUser: {
       id: "seed-counsellor-user",
       name: "Priya Singh",
@@ -134,7 +134,7 @@ const DASHBOARD_BY_ROLE: Record<string, string> = {
   [UserRole.ADMIN]: "/admin/dashboard",
   SUPER_ADMIN: "/admin/dashboard",
   [UserRole.CENTER_MANAGER]: "/center/home",
-  [UserRole.COUNSELLOR]: "/counselor/home",
+  [UserRole.COUNSELLOR]: "/counselor/dashboard",
   [UserRole.FACULTY]: "/faculty/home",
   [UserRole.STUDENT]: "/student/dashboard",
 };

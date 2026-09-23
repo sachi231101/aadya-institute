@@ -34,7 +34,7 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
   const getProfilePath = () => {
     if (role.includes("STUDENT")) return "/student/profile";
     if (role.includes("FACULTY")) return "/faculty/home";
-    if (role.includes("COUNSELLOR")) return "/counselor/home";
+    if (role.includes("COUNSELLOR")) return "/counselor/dashboard";
     if (role.includes("CENTER_MANAGER")) return "/center/home";
     return "/admin/settings";
   };

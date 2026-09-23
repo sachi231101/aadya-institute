@@ -158,6 +158,8 @@ export interface LeadQueryParams {
   stages?: string;
   stageMasterId?: string;
   status?: string;
+  /** Comma-separated statuses (e.g. ACTIVE,LOST — lost stays visible, listed last) */
+  statuses?: string;
   source?: string;
   sourceMasterId?: string;
   priority?: string;

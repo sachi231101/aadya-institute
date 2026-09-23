@@ -324,6 +324,8 @@ export const queryLeadsSchema = z.object({
   stages: z.string().optional(),
   stageMasterId: z.string().optional(),
   status: LeadStatusEnum.optional(),
+  /** Comma-separated statuses (e.g. ACTIVE,LOST — keep lost leads visible at end of list) */
+  statuses: z.string().optional(),
   source: z.string().optional(),
   sourceMasterId: z.string().optional(),
   assignedCounsellorId: z.string().optional(),

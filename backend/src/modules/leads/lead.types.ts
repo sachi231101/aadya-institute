@@ -136,6 +136,8 @@ export interface QueryLeadsDTO {
   stages?: string;
   stageMasterId?: string;
   status?: LeadStatus;
+  /** Comma-separated statuses (e.g. ACTIVE,LOST) */
+  statuses?: string;
   source?: string;
   sourceMasterId?: string;
   assignedCounsellorId?: string;

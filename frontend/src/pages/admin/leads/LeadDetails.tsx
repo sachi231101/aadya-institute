@@ -57,6 +57,12 @@ import { useCourses } from "@/hooks/useCourses";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { getApiErrorMessage } from "@/utils/api-error";
 import {
+  FOLLOW_UP_12H_TIME_OPTIONS,
+  DEFAULT_FOLLOW_UP_12H_TIME,
+  combineDateAnd12HourTime,
+  toDateInputValue,
+} from "@/utils/date";
+import {
   DEFAULT_LEAD_STAGE_PIPELINE,
   LeadStageBadge,
   isTerminalAiCallStatus,
@@ -107,6 +113,8 @@ export const LeadDetails: React.FC = () => {
     roles.includes("ADMIN") ||
     roles.includes("SUPER_ADMIN") ||
     roles.includes("CENTER_MANAGER");
+  /** Only Admin / Center Manager assign leads; counsellors are auto-assigned on create. */
+  const canManageAssignment = canBypassAiAssignGate;
 
   const tabFromUrl = searchParams.get("tab") || "profile";
   const allowedTabs = new Set([
@@ -233,7 +241,7 @@ export const LeadDetails: React.FC = () => {
   );
   const isAssigned = Boolean(lead?.assignedCounsellorId);
   const isClosed = lead?.stage === "CONVERTED" || lead?.stage === "LOST";
-  const canAssign = (aiReady || canBypassAiAssignGate) && !isClosed;
+  const canAssign = canManageAssignment && (aiReady || canBypassAiAssignGate) && !isClosed;
   const canAct = isAssigned && !isClosed;
 
   const openDirectAdmission = () => {
@@ -547,7 +555,7 @@ export const LeadDetails: React.FC = () => {
 
       {!aiReady && !canBypassAiAssignGate && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-          AI call is in progress. Assign a counsellor after the call completes,
+          AI call is in progress. Follow-up actions unlock after the call completes,
           no-answers, is busy, or fails.
         </div>
       )}
@@ -556,7 +564,7 @@ export const LeadDetails: React.FC = () => {
           AI call has not finished yet. As Admin/Center Manager you can still assign a counsellor.
         </div>
       )}
-      {aiReady && !isAssigned && !isClosed && (
+      {aiReady && !isAssigned && !isClosed && canManageAssignment && (
         <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-text-secondary">
           AI call finished ({latestCall?.status || "attempted"}). Assign a
           counsellor to continue follow-up.
@@ -1192,13 +1200,17 @@ export const LeadDetails: React.FC = () => {
               const formData = new FormData(e.currentTarget);
               if (!id) return;
               const notes = String(formData.get("notes") || "").trim();
-              if (!notes) return;
+              const scheduledAt = combineDateAnd12HourTime(
+                String(formData.get("scheduledDate") || ""),
+                String(formData.get("scheduledTime") || "")
+              );
+              if (!notes || !scheduledAt) return;
               createFollowUpMutation.mutate(
                 {
                   id,
                   data: {
                     type: formData.get("type") as string,
-                    scheduledAt: formData.get("scheduledAt") as string,
+                    scheduledAt,
                     notes,
                     counsellorId: lead.assignedCounsellorId || lead.createdById,
                     priority: (formData.get("priority") as string) || "MEDIUM",
@@ -1223,7 +1235,26 @@ export const LeadDetails: React.FC = () => {
             </div>
             <div>
               <Label>Scheduled Date & Time</Label>
-              <Input name="scheduledAt" type="datetime-local" className="mt-1" required />
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <Input
+                  name="scheduledDate"
+                  type="date"
+                  defaultValue={toDateInputValue()}
+                  required
+                />
+                <select
+                  name="scheduledTime"
+                  defaultValue={DEFAULT_FOLLOW_UP_12H_TIME}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  required
+                >
+                  {FOLLOW_UP_12H_TIME_OPTIONS.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <Label>Priority</Label>

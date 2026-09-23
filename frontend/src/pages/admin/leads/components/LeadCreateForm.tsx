@@ -88,6 +88,11 @@ export const LeadCreateForm: React.FC<LeadCreateFormProps> = ({
   }, [defaultBranch, form]);
 
   const onSubmit = (data: LeadCreateFormValues) => {
+    const isCounsellorOnly =
+      Boolean(user?.roles?.includes("COUNSELLOR")) &&
+      !user?.roles?.includes("ADMIN") &&
+      !user?.roles?.includes("CENTER_MANAGER");
+
     createLeadMutation.mutate(
       {
         name: data.name,
@@ -98,6 +103,10 @@ export const LeadCreateForm: React.FC<LeadCreateFormProps> = ({
         priority: data.priority,
         branchId: data.branchId,
         notes: data.notes || undefined,
+        // Backend also enforces this; send for clarity when counsellor creates.
+        ...(isCounsellorOnly && user?.id
+          ? { assignedCounsellorId: user.id }
+          : {}),
       },
       {
         onSuccess: (res: { data?: { id?: string } }) => {

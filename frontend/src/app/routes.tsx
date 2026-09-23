@@ -379,10 +379,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Counselor Routes — modules match Counsellor catalog; sub-items match Admin Dashboard */}
       <Route path="/counselor" element={<CounselorLayout />}>
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<AiHome />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="home" element={<Navigate to="/counselor/dashboard" replace />} />
         <Route path="dashboard" element={<CounselorDashboard />} />
-        <Route path="ask-me" element={<Navigate to="/counselor/home" replace />} />
+        <Route path="ask-me" element={<Navigate to="/counselor/dashboard" replace />} />
 
         <Route path="admissions">
           <Route path="all" element={<AllAdmissions />} />
