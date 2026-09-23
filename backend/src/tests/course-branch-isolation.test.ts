@@ -5,6 +5,8 @@ import type { AuthUser } from "../modules/auth/auth.types";
 import * as courseService from "../modules/courses/course.service";
 import * as batchService from "../modules/batches/batch.service";
 import * as moduleService from "../modules/modules/module.service";
+import { AdmissionsService } from "../modules/admissions/admissions.service";
+import { assertCourseAvailableForBranch } from "../utils/course-branch.util";
 import { AppError } from "../middlewares/error.middleware";
 
 const fixtureCode = "TEST-COURSE-BRANCH-ISO";
@@ -123,7 +125,7 @@ describe("Course branch isolation", () => {
   test("Batch create on Branch B rejects Branch-A-only course", async () => {
     await assert.rejects(
       () =>
-        batchService.createBatch(instituteId, branchBId, {
+        batchService.createBatch(managerB, {
           name: "Invalid Batch",
           code: `CBI-BAD-${Date.now()}`,
           branchId: branchBId,
@@ -182,5 +184,147 @@ describe("Course branch isolation", () => {
     );
     const modules = await moduleService.getModulesByCourse(courseAOnlyId, managerA);
     assert.ok(Array.isArray(modules));
+  });
+
+  test("createCourse with empty branchIds fails when institute has multiple branches", async () => {
+    await assert.rejects(
+      () =>
+        courseService.createCourse(admin, {
+          name: "No Branches",
+          code: `CBI-EMPTY-${Date.now()}`,
+          fee: 1000,
+          branchIds: [],
+        }),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 400 &&
+        /select at least one branch/i.test(err.message)
+    );
+  });
+
+  test("createCourse rejects invalid or inactive branch ids", async () => {
+    await assert.rejects(
+      () =>
+        courseService.createCourse(admin, {
+          name: "Bad Branch",
+          code: `CBI-BADBR-${Date.now()}`,
+          fee: 1000,
+          branchIds: ["not-a-real-branch-id"],
+        }),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 400 &&
+        /invalid or inactive/i.test(err.message)
+    );
+  });
+
+  test("createCourse with all branches is visible to every CM (select-all)", async () => {
+    const course = await courseService.createCourse(admin, {
+      name: "All Branches Course",
+      code: `CBI-ALL-${Date.now()}`,
+      fee: 15000,
+      branchIds: [branchAId, branchBId, branchCId],
+    });
+
+    assert.deepEqual(
+      [...(course.branchIds ?? [])].sort(),
+      [branchAId, branchBId, branchCId].sort()
+    );
+
+    for (const manager of [managerA, managerB, managerC]) {
+      const listed = await courseService.getCourses(manager, {});
+      assert.ok(listed.some((c) => c.id === course.id));
+      await courseService.getCourseById(course.id, manager);
+    }
+  });
+
+  test("duplicate branchIds in create are deduped", async () => {
+    const course = await courseService.createCourse(admin, {
+      name: "Deduped Branches",
+      code: `CBI-DEDUP-${Date.now()}`,
+      fee: 5000,
+      branchIds: [branchAId, branchAId, branchBId],
+    });
+    assert.equal(course.branchIds?.length, 2);
+    assert.ok(course.branchIds?.includes(branchAId));
+    assert.ok(course.branchIds?.includes(branchBId));
+  });
+
+  test("single-branch CM create is forced to their own branch even if another id is sent", async () => {
+    const course = await courseService.createCourse(managerA, {
+      name: "CM Forced Branch",
+      code: `CBI-CMFORCE-${Date.now()}`,
+      fee: 8000,
+      branchIds: [branchBId],
+    });
+    assert.deepEqual(course.branchIds, [branchAId]);
+
+    const listB = await courseService.getCourses(managerB, {});
+    assert.ok(!listB.some((c) => c.id === course.id));
+  });
+
+  test("updateCourse rejecting empty branchIds", async () => {
+    await assert.rejects(
+      () =>
+        courseService.updateCourse(courseAOnlyId, admin, {
+          branchIds: [],
+        }),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 400 &&
+        /select at least one branch/i.test(err.message)
+    );
+  });
+
+  test("re-adding a branch restores CM visibility", async () => {
+    await courseService.updateCourse(courseABId, admin, {
+      branchIds: [branchAId],
+    });
+    assert.ok(
+      !(await courseService.getCourses(managerB, {})).some((c) => c.id === courseABId)
+    );
+
+    await courseService.updateCourse(courseABId, admin, {
+      branchIds: [branchAId, branchBId],
+    });
+    assert.ok(
+      (await courseService.getCourses(managerB, {})).some((c) => c.id === courseABId)
+    );
+  });
+
+  test("assertCourseAvailableForBranch rejects wrong branch and accepts linked branch", async () => {
+    await assert.rejects(
+      () => assertCourseAvailableForBranch(instituteId, courseAOnlyId, branchBId),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 400 &&
+        /not available for this branch/i.test(err.message)
+    );
+
+    await assert.doesNotReject(() =>
+      assertCourseAvailableForBranch(instituteId, courseAOnlyId, branchAId)
+    );
+  });
+
+  test("admission create rejects course not linked to target branch", async () => {
+    await assert.rejects(
+      () =>
+        AdmissionsService.createAdmission(
+          instituteId,
+          branchBId,
+          {
+            studentName: "Edge Case Student",
+            phone: `9${String(Date.now()).slice(-9)}`,
+            courseId: courseAOnlyId,
+            branchId: branchBId,
+            status: "PENDING",
+          },
+          { userId: admin.id, currentUser: admin }
+        ),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.statusCode === 400 &&
+        /not available for this branch/i.test(err.message)
+    );
   });
 });

@@ -243,6 +243,7 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
                       value={line.timeslotMasterId}
                       onChange={(id) => patchLine(line.key, { timeslotMasterId: id })}
                       placeholder="Time slot"
+                      branchId={branchId}
                       className="mt-0"
                     />
                   </td>
@@ -251,6 +252,7 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
                       value={line.classroomMasterId}
                       onChange={(id) => patchLine(line.key, { classroomMasterId: id })}
                       placeholder="Classroom"
+                      branchId={branchId}
                       className="mt-0"
                     />
                   </td>

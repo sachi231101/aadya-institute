@@ -201,7 +201,7 @@ describe("Multi-course batch integration", () => {
   });
 
   test("creates batch with multiple BatchCourse rows and per-subject faculty", async () => {
-    const batch = await batchService.createBatch(instituteId, branchId, {
+    const batch = await batchService.createBatch(adminUser(), {
       name: "Full Stack Cohort",
       code: `MCB-${tag}`,
       courseId: course1Id,
@@ -226,14 +226,14 @@ describe("Multi-course batch integration", () => {
   });
 
   test("finds batch when filtering by secondary course", async () => {
-    const listed = await batchService.getBatches(instituteId, branchId, {
+    const listed = await batchService.getBatches(adminUser(), {
       courseId: course2Id,
     });
     assert.ok(listed.some((b) => b.id === batchId));
   });
 
   test("batchIncludesCourse recognizes both primary and junction courses", async () => {
-    const batch = await batchService.getBatchById(batchId, instituteId);
+    const batch = await batchService.getBatchById(batchId, adminUser());
     assert.strictEqual(batchIncludesCourse(batch, course1Id), true);
     assert.strictEqual(batchIncludesCourse(batch, course2Id), true);
     assert.strictEqual(batchIncludesCourse(batch, "nonexistent"), false);
@@ -291,12 +291,12 @@ describe("Multi-course batch integration", () => {
   });
 
   test("updates batch courses and syncs BatchCourse rows", async () => {
-    await batchService.updateBatch(batchId, instituteId, {
+    await batchService.updateBatch(batchId, adminUser(), {
       courses: [{ courseId: course2Id, facultyId: faculty2Id, sequence: 1 }],
       courseId: course2Id,
     });
 
-    const updated = await batchService.getBatchById(batchId, instituteId);
+    const updated = await batchService.getBatchById(batchId, adminUser());
     assert.strictEqual(updated.batchCourses?.length, 1);
     assert.strictEqual(updated.batchCourses?.[0]?.courseId, course2Id);
     assert.strictEqual(updated.courseId, course2Id);

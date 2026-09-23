@@ -8,22 +8,124 @@ import * as facultyAllocationService from "../faculty/faculty-allocation.service
 import type { AuthUser } from "../auth/auth.types";
 import { logger } from "../../config/logger";
 import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
+import {
+  assertBranchRecordAccess,
+  getBranchScopeFilter,
+  hasBranchAccess,
+  isBranchLockedRole,
+} from "../../utils/branch-isolation.util";
+import { assertFacultyOwnsBatch, isPureFaculty } from "../../utils/auth-user.util";
 
-export const getBatches = async (
-  instituteId: string,
-  branchId?: string,
-  filters: BatchQueryFilters = {},
-  branchIds?: string[]
-) => {
-  return repository.findAllBatches(instituteId, branchId, filters, branchIds);
+/**
+ * Resolve and authorize a single branchId for batch create.
+ * - Admin: use requested if ACTIVE; auto-pick when exactly one ACTIVE branch; else 400 if unset
+ * - Branch-locked: force single allowed branch (ignore spoof); multi-allowed require request + hasBranchAccess
+ */
+const resolveAuthorizedBranchId = async (
+  user: AuthUser,
+  requested?: string
+): Promise<string> => {
+  const activeBranches = await prisma.branch.findMany({
+    where: { instituteId: user.instituteId, status: "ACTIVE" },
+    select: { id: true },
+  });
+  const activeIds = new Set(activeBranches.map((b) => b.id));
+
+  if (activeIds.size === 0) {
+    throw new AppError("No active branches available for this institute", 400);
+  }
+
+  if (isBranchLockedRole(user.roles)) {
+    const allowed = user.allowedBranchIds?.length
+      ? user.allowedBranchIds
+      : user.branchId
+        ? [user.branchId]
+        : [];
+
+    if (allowed.length === 0) {
+      throw new AppError("Branch assignment required", 403);
+    }
+
+    if (allowed.length === 1) {
+      const forced = allowed[0];
+      if (!activeIds.has(forced)) {
+        throw new AppError("Assigned branch is invalid or inactive", 400);
+      }
+      return forced;
+    }
+
+    const branchId = requested?.trim() || "";
+    if (!branchId) {
+      throw new AppError("Select a branch", 400);
+    }
+    if (!activeIds.has(branchId)) {
+      throw new AppError("Selected branch is invalid or inactive", 400);
+    }
+    if (!hasBranchAccess(user, branchId)) {
+      throw new AppError("You do not have access to this branch", 403);
+    }
+    return branchId;
+  }
+
+  let branchId = requested?.trim() || "";
+  if (!branchId && activeIds.size === 1) {
+    branchId = activeBranches[0].id;
+  }
+  if (!branchId) {
+    throw new AppError("Select a branch", 400);
+  }
+  if (!activeIds.has(branchId)) {
+    throw new AppError("Selected branch is invalid or inactive", 400);
+  }
+  return branchId;
 };
 
-export const getBatchById = async (id: string, instituteId: string) => {
-  const batch = await repository.findBatchById(id, instituteId);
+/** Load batch by institute, then enforce faculty teaching scope or branch access (404 when out of scope). */
+const loadBatchForUser = async (id: string, user: AuthUser) => {
+  const batch = await repository.findBatchById(id, user.instituteId);
   if (!batch) {
     throw new AppError("Batch not found", 404);
   }
+  if (isPureFaculty(user.roles)) {
+    await assertFacultyOwnsBatch(user, id);
+    return batch;
+  }
+  assertBranchRecordAccess(user, batch.branchId, "Batch not found");
   return batch;
+};
+
+export const getBatches = async (
+  user: AuthUser,
+  filters: BatchQueryFilters = {},
+  options?: {
+    requestedBranchId?: string;
+    /** Pure faculty: teaching desk via facultyId filter; skip branch scope. */
+    skipBranchScope?: boolean;
+  }
+) => {
+  if (options?.skipBranchScope) {
+    return repository.findAllBatches(user.instituteId, undefined, filters);
+  }
+
+  // Misconfigured JWT: branch-locked with no branch assignment → no institute-wide leak
+  if (isBranchLockedRole(user.roles)) {
+    const allowed = user.allowedBranchIds ?? [];
+    if (allowed.length === 0 && !user.branchId) {
+      return [];
+    }
+  }
+
+  const scope = getBranchScopeFilter(user, options?.requestedBranchId);
+  return repository.findAllBatches(
+    user.instituteId,
+    scope.branchId,
+    filters,
+    scope.branchIds
+  );
+};
+
+export const getBatchById = async (id: string, user: AuthUser) => {
+  return loadBatchForUser(id, user);
 };
 
 const validateBatchCourses = async (
@@ -62,28 +164,29 @@ const validateBatchCourses = async (
   }
 };
 
-export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
+export const createBatch = async (user: AuthUser, data: CreateBatchDto) => {
+  const branchId = await resolveAuthorizedBranchId(user, data.branchId);
   const courseItems = repository.normalizeBatchCourses(data);
-  const effectiveBranchId = data.branchId || defaultBranchId;
-  await validateBatchCourses(instituteId, courseItems, effectiveBranchId || undefined);
+  await validateBatchCourses(user.instituteId, courseItems, branchId);
 
   const payload: CreateBatchDto = {
     ...data,
+    branchId,
     courseId: data.courseId || courseItems[0].courseId,
     courses: courseItems,
     scheduleLines: data.scheduleLines,
   };
 
-  const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
+  const existing = await repository.findAllBatches(user.instituteId, undefined, { search: data.code });
   if (existing.some((b) => b.code.toLowerCase() === data.code.toLowerCase())) {
     throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);
   }
-  const batch = await repository.createBatch(instituteId, defaultBranchId, payload);
+  const batch = await repository.createBatch(user.instituteId, payload);
 
   // Bridge schedule lines → ClassSession so faculty dashboard/attendance sees classes immediately.
   if (data.scheduleLines && data.scheduleLines.length > 0) {
     try {
-      const sync = await generateClassSessionsFromSchedule(batch.id, instituteId, {});
+      const sync = await generateClassSessionsFromSchedule(batch.id, user, {});
       return { ...batch, sessionSync: sync };
     } catch (err) {
       logger.warn(
@@ -96,39 +199,56 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
   return batch;
 };
 
-export const updateBatch = async (id: string, instituteId: string, data: UpdateBatchDto) => {
-  const existingBatch = await getBatchById(id, instituteId);
+export const updateBatch = async (id: string, user: AuthUser, data: UpdateBatchDto) => {
+  const existingBatch = await loadBatchForUser(id, user);
 
-  if (data.code) {
-    const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
-    if (existing.some((b) => b.id !== id && b.code.toLowerCase() === data.code!.toLowerCase())) {
-      throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);
+  // Branch reassignment is not supported — ignore any client-supplied branchId
+  const { branchId: _ignoredBranchId, ...safeData } = data;
+
+  if (safeData.code) {
+    const existing = await repository.findAllBatches(user.instituteId, undefined, {
+      search: safeData.code,
+    });
+    if (
+      existing.some(
+        (b) => b.id !== id && b.code.toLowerCase() === safeData.code!.toLowerCase()
+      )
+    ) {
+      throw new AppError(`Batch code '${safeData.code}' already exists for this institute.`, 400);
     }
   }
 
   const targetBranchId = existingBatch.branchId;
 
-  if (data.scheduleLines && data.scheduleLines.length > 0) {
-    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data), targetBranchId);
-  } else if (data.courses && data.courses.length > 0) {
-    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data), targetBranchId);
-  } else if (data.courseId) {
+  if (safeData.scheduleLines && safeData.scheduleLines.length > 0) {
     await validateBatchCourses(
-      instituteId,
-      [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }],
+      user.instituteId,
+      repository.normalizeBatchCourses(safeData),
+      targetBranchId
+    );
+  } else if (safeData.courses && safeData.courses.length > 0) {
+    await validateBatchCourses(
+      user.instituteId,
+      repository.normalizeBatchCourses(safeData),
+      targetBranchId
+    );
+  } else if (safeData.courseId) {
+    await validateBatchCourses(
+      user.instituteId,
+      [{ courseId: safeData.courseId, facultyId: safeData.facultyId, sequence: 1 }],
       targetBranchId
     );
   }
 
-  const result = await repository.updateBatch(id, instituteId, data);
+  const result = await repository.updateBatch(id, user.instituteId, safeData);
   if (result.count === 0) {
     throw new AppError("Batch not found", 404);
   }
 
   // Re-sync upcoming sessions whenever schedule lines are sent (including clearing/disabling Att?).
-  if (data.scheduleLines !== undefined) {
+  if (safeData.scheduleLines !== undefined) {
     try {
-      const sync = await generateClassSessionsFromSchedule(id, instituteId, {});
+      const sync = await generateClassSessionsFromSchedule(id, user, {});
       return { ...result, sessionSync: sync };
     } catch (err) {
       logger.warn({ err, batchId: id }, "Batch updated but class session sync skipped");
@@ -204,18 +324,18 @@ export const transferStudent = async (
   );
 };
 
-export const getBatchStudents = async (batchId: string, instituteId: string) => {
-  await getBatchById(batchId, instituteId);
+export const getBatchStudents = async (batchId: string, user: AuthUser) => {
+  await loadBatchForUser(batchId, user);
   return repository.getBatchStudents(batchId);
 };
 
-export const deleteBatch = async (id: string, instituteId: string) => {
-  await getBatchById(id, instituteId);
+export const deleteBatch = async (id: string, user: AuthUser) => {
+  await loadBatchForUser(id, user);
 
   const result = await prisma.$transaction(async (tx) => {
     // Admissions retain history; batchId is SetNull on delete via FK.
     return tx.batch.deleteMany({
-      where: { id, instituteId },
+      where: { id, instituteId: user.instituteId },
     });
   });
 
@@ -225,17 +345,21 @@ export const deleteBatch = async (id: string, instituteId: string) => {
   return result;
 };
 
-export const getBatchSchedules = async (batchId: string, instituteId: string) => {
-  await getBatchById(batchId, instituteId);
-  return repository.findBatchSchedules(batchId, instituteId);
+export const getBatchSchedules = async (batchId: string, user: AuthUser) => {
+  await loadBatchForUser(batchId, user);
+  return repository.findBatchSchedules(batchId, user.instituteId);
 };
 
-export const addBatchSchedule = async (batchId: string, instituteId: string, data: CreateBatchScheduleDto) => {
-  await getBatchById(batchId, instituteId);
-  const schedule = await repository.createBatchSchedule(batchId, instituteId, data);
+export const addBatchSchedule = async (
+  batchId: string,
+  user: AuthUser,
+  data: CreateBatchScheduleDto
+) => {
+  await loadBatchForUser(batchId, user);
+  const schedule = await repository.createBatchSchedule(batchId, user.instituteId, data);
   if (!schedule) throw new AppError("Failed to create batch schedule", 400);
   try {
-    await generateClassSessionsFromSchedule(batchId, instituteId, {});
+    await generateClassSessionsFromSchedule(batchId, user, {});
   } catch (err) {
     logger.warn({ err, batchId }, "Schedule added but class session sync skipped");
   }
@@ -245,26 +369,39 @@ export const addBatchSchedule = async (batchId: string, instituteId: string, dat
 export const updateBatchScheduleEntry = async (
   batchId: string,
   scheduleId: string,
-  instituteId: string,
+  user: AuthUser,
   data: UpdateBatchScheduleDto
 ) => {
-  await getBatchById(batchId, instituteId);
-  const schedule = await repository.updateBatchSchedule(batchId, scheduleId, instituteId, data);
+  await loadBatchForUser(batchId, user);
+  const schedule = await repository.updateBatchSchedule(
+    batchId,
+    scheduleId,
+    user.instituteId,
+    data
+  );
   if (!schedule) throw new AppError("Batch schedule not found", 404);
   try {
-    await generateClassSessionsFromSchedule(batchId, instituteId, {});
+    await generateClassSessionsFromSchedule(batchId, user, {});
   } catch (err) {
     logger.warn({ err, batchId }, "Schedule updated but class session sync skipped");
   }
   return schedule;
 };
 
-export const deleteBatchScheduleEntry = async (batchId: string, scheduleId: string, instituteId: string) => {
-  await getBatchById(batchId, instituteId);
-  const deleted = await repository.deleteBatchSchedule(batchId, scheduleId, instituteId);
+export const deleteBatchScheduleEntry = async (
+  batchId: string,
+  scheduleId: string,
+  user: AuthUser
+) => {
+  await loadBatchForUser(batchId, user);
+  const deleted = await repository.deleteBatchSchedule(
+    batchId,
+    scheduleId,
+    user.instituteId
+  );
   if (!deleted) throw new AppError("Batch schedule not found", 404);
   try {
-    await generateClassSessionsFromSchedule(batchId, instituteId, {});
+    await generateClassSessionsFromSchedule(batchId, user, {});
   } catch (err) {
     logger.warn({ err, batchId }, "Schedule deleted but class session sync skipped");
   }
@@ -273,10 +410,10 @@ export const deleteBatchScheduleEntry = async (batchId: string, scheduleId: stri
 
 export const generateClassSessionsFromSchedule = async (
   batchId: string,
-  instituteId: string,
+  user: AuthUser,
   options: GenerateSessionsDto = {}
 ) => {
-  const batch = await getBatchById(batchId, instituteId);
+  const batch = await loadBatchForUser(batchId, user);
   const coordinatorFacultyId = batch.facultyId;
   const allSchedules = (batch.schedules || []).filter((s) => {
     const status = String((s as { status?: string }).status || "ACTIVE").toUpperCase();
@@ -588,8 +725,20 @@ export const generateClassSessionsFromSchedule = async (
 };
 
 export const getAvailableFaculty = async (
-  instituteId: string,
+  user: AuthUser,
   query: import("./batch.types").AvailableFacultyQuery
 ) => {
-  return repository.findAvailableFaculty(instituteId, query);
+  if (isBranchLockedRole(user.roles)) {
+    const allowed = user.allowedBranchIds ?? [];
+    if (allowed.length === 0 && !user.branchId) {
+      return [];
+    }
+  }
+
+  const scope = getBranchScopeFilter(user, query.branchId);
+  return repository.findAvailableFaculty(user.instituteId, {
+    ...query,
+    branchId: scope.branchId,
+    branchIds: scope.branchIds,
+  });
 };

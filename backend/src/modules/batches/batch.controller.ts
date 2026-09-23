@@ -1,12 +1,8 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
-import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
+import { isPureFaculty, toAuthUser } from "../../utils/auth-user.util";
 import { sendSuccess } from "../../utils/response";
-import {
-  assertBranchRecordAccess,
-  getBranchScopeFilter,
-} from "../../utils/branch-isolation.util";
 import * as service from "./batch.service";
 import * as curriculumService from "./batch-curriculum.service";
 
@@ -16,23 +12,16 @@ export const getAll = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
     const user = toAuthUser(req);
-    const scope = getBranchScopeFilter(user, req.query.branchId as string | undefined);
     const roles = req.user?.roles || [];
-    const isPureFaculty = roles.includes("FACULTY") &&
-      !roles.includes("ADMIN") &&
-      !roles.includes("CENTER_MANAGER") &&
-      !roles.includes("COUNSELLOR");
+    const pureFaculty = isPureFaculty(roles);
 
-    let facultyFilter = req.query.facultyId as string;
+    let facultyFilter = req.query.facultyId as string | undefined;
+    let skipBranchScope = false;
+
     // Faculty see batches they teach across branches (enrollment/teaching scope),
     // not only the primary user.branchId (which can differ from batch.branchId).
-    // Admin: optional query branchId. CM/Counsellor: full JWT scope (branchId or branchIds).
-    let effectiveBranchId = isPureFaculty ? undefined : scope.branchId;
-    let scopedBranchIds = isPureFaculty ? undefined : scope.branchIds;
-
-    if (isPureFaculty) {
+    if (pureFaculty) {
       const facultyRecord = await prisma.faculty.findFirst({
         where: { userId: req.user!.userId },
       });
@@ -45,8 +34,7 @@ export const getAll = async (
         return;
       }
       facultyFilter = facultyRecord.id;
-      effectiveBranchId = undefined;
-      scopedBranchIds = undefined;
+      skipBranchScope = true;
     }
 
     const filters = {
@@ -55,12 +43,10 @@ export const getAll = async (
       facultyId: facultyFilter,
       status: req.query.status as string,
     };
-    const batches = await service.getBatches(
-      instituteId,
-      effectiveBranchId,
-      filters,
-      scopedBranchIds
-    );
+    const batches = await service.getBatches(user, filters, {
+      requestedBranchId: req.query.branchId as string | undefined,
+      skipBranchScope,
+    });
     res.json({
       success: true,
       message: "Batches retrieved successfully",
@@ -77,19 +63,7 @@ export const getById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const currentUser = toAuthUser(req);
-    await assertFacultyOwnsBatch(currentUser, req.params.id as string);
-    const batch = await service.getBatchById(req.params.id as string, instituteId);
-    const roles = currentUser.roles || [];
-    const isPureFaculty =
-      roles.includes("FACULTY") &&
-      !roles.includes("ADMIN") &&
-      !roles.includes("CENTER_MANAGER") &&
-      !roles.includes("COUNSELLOR");
-    if (!isPureFaculty) {
-      assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
-    }
+    const batch = await service.getBatchById(req.params.id as string, toAuthUser(req));
     res.json({
       success: true,
       message: "Batch details retrieved successfully",
@@ -106,9 +80,7 @@ export const create = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const branchId = req.user!.branchId || "";
-    const batch = await service.createBatch(instituteId, branchId, req.body);
+    const batch = await service.createBatch(toAuthUser(req), req.body);
     res.status(201).json({
       success: true,
       message: "Batch created successfully",
@@ -125,8 +97,7 @@ export const update = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    await service.updateBatch(req.params.id as string, instituteId, req.body);
+    await service.updateBatch(req.params.id as string, toAuthUser(req), req.body);
     res.json({
       success: true,
       message: "Batch updated successfully",
@@ -159,9 +130,10 @@ export const getStudents = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    await assertFacultyOwnsBatch(toAuthUser(req), req.params.id as string);
-    const students = await service.getBatchStudents(req.params.id as string, instituteId);
+    const students = await service.getBatchStudents(
+      req.params.id as string,
+      toAuthUser(req)
+    );
     res.json({
       success: true,
       message: "Batch students retrieved successfully",
@@ -297,8 +269,7 @@ export const remove = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    await service.deleteBatch(req.params.id as string, instituteId);
+    await service.deleteBatch(req.params.id as string, toAuthUser(req));
     sendSuccess(res, { id: req.params.id, deleted: true }, 200, "Batch deleted successfully");
   } catch (error) {
     next(error);
@@ -311,8 +282,10 @@ export const getSchedules = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const schedules = await service.getBatchSchedules(req.params.id as string, instituteId);
+    const schedules = await service.getBatchSchedules(
+      req.params.id as string,
+      toAuthUser(req)
+    );
     sendSuccess(res, schedules, 200, "Batch schedules retrieved successfully");
   } catch (error) {
     next(error);
@@ -325,8 +298,11 @@ export const createSchedule = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const schedule = await service.addBatchSchedule(req.params.id as string, instituteId, req.body);
+    const schedule = await service.addBatchSchedule(
+      req.params.id as string,
+      toAuthUser(req),
+      req.body
+    );
     sendSuccess(res, schedule, 201, "Batch schedule created successfully");
   } catch (error) {
     next(error);
@@ -339,11 +315,10 @@ export const updateSchedule = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
     const schedule = await service.updateBatchScheduleEntry(
       req.params.id as string,
       req.params.scheduleId as string,
-      instituteId,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, schedule, 200, "Batch schedule updated successfully");
@@ -358,11 +333,10 @@ export const deleteSchedule = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
     await service.deleteBatchScheduleEntry(
       req.params.id as string,
       req.params.scheduleId as string,
-      instituteId
+      toAuthUser(req)
     );
     sendSuccess(res, { deleted: true }, 200, "Batch schedule deleted successfully");
   } catch (error) {
@@ -376,10 +350,9 @@ export const generateSessions = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
     const result = await service.generateClassSessionsFromSchedule(
       req.params.id as string,
-      instituteId,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, result, 200, `Generated ${result.created} class session(s)${result.updated ? `, updated ${result.updated}` : ""}`);
@@ -394,8 +367,7 @@ export const getAvailableFaculty = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const faculty = await service.getAvailableFaculty(instituteId, {
+    const faculty = await service.getAvailableFaculty(toAuthUser(req), {
       dayOfWeek: Number(req.query.dayOfWeek),
       startTime: req.query.startTime as string | undefined,
       endTime: req.query.endTime as string | undefined,
