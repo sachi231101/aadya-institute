@@ -23,6 +23,7 @@ import { useBatches } from "../../../hooks/useBatches";
 import type { BatchData, ScheduleLinePayload } from "../../../services/batches.api";
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { batchesApi } from "@/services/batches.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
@@ -71,6 +72,15 @@ export const Batches: React.FC = () => {
   const location = useLocation();
   const batchesBasePath = `${getPortalBasePath(location.pathname)}/batches`;
 
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -92,16 +102,6 @@ export const Batches: React.FC = () => {
     }
   };
 
-  const { courses } = useCourses();
-  const queryClient = useQueryClient();
-  const { batches, loading, createBatch, updateBatch, deleteBatch, refetch } = useBatches({
-    search: searchTerm,
-    courseId: courseFilter !== "ALL" ? courseFilter : undefined,
-    status: statusFilter !== "ALL" ? statusFilter : undefined,
-  });
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const facultyList = facultyResponse?.data ?? [];
-
   // Create / Edit Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
@@ -113,10 +113,34 @@ export const Batches: React.FC = () => {
   const [expectedEndDate, setExpectedEndDate] = useState("");
   const [remark, setRemark] = useState("");
   const [batchStatus, setBatchStatus] = useState<BatchData["status"]>("UPCOMING");
+  /** Explicit branch for create when list filter is All branches. */
+  const [formBranchId, setFormBranchId] = useState("");
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [capacity, setCapacity] = useState<number>(35);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const formScopeBranchId = showModal
+    ? editingBatch?.branchId || formBranchId || branchIdForQuery || undefined
+    : branchIdForQuery;
+
+  const { courses } = useCourses({
+    branchId: formScopeBranchId,
+  });
+  const queryClient = useQueryClient();
+  const { batches, loading, createBatch, updateBatch, deleteBatch, refetch } = useBatches({
+    search: searchTerm,
+    courseId: courseFilter !== "ALL" ? courseFilter : undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+    branchId: branchIdForQuery,
+  });
+  const { data: facultyResponse } = useFacultyList({
+    limit: 100,
+    branchId: formScopeBranchId,
+  });
+  const facultyList = facultyResponse?.data ?? [];
+  const requireFormBranch =
+    showModal && !editingBatch && allowAllBranches && !branchIdForQuery;
 
   // 2-Step Delete Modal State
   const [batchToDelete, setBatchToDelete] = useState<{ id: string; name: string; code: string } | null>(null);
@@ -257,12 +281,14 @@ export const Batches: React.FC = () => {
     setRemark("");
     setBatchStatus("UPCOMING");
     setCapacity(35);
+    setFormBranchId("");
     setFormError(null);
   };
 
   const handleOpenCreateModal = () => {
     setEditingBatch(null);
     resetFormFields();
+    setFormBranchId(branchIdForQuery || "");
     setScheduleLines([createEmptyScheduleLine()]);
     setShowModal(true);
   };
@@ -277,6 +303,7 @@ export const Batches: React.FC = () => {
     setFacultyId(batch.facultyId || batch.faculty?.id || "");
     setBatchStatus(batch.status || "UPCOMING");
     setCapacity(batch.capacity || 35);
+    setFormBranchId(batch.branchId || "");
 
     if (batch.schedules && batch.schedules.length > 0) {
       setScheduleLines(
@@ -328,6 +355,7 @@ export const Batches: React.FC = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingBatch(null);
+    setFormBranchId("");
     setFormError(null);
   };
 
@@ -379,6 +407,12 @@ export const Batches: React.FC = () => {
       return;
     }
 
+    const createBranchId = formBranchId || branchIdForQuery || undefined;
+    if (!editingBatch && !createBranchId) {
+      setFormError("Branch is required. Select a branch before creating a batch.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setFormError(null);
@@ -415,6 +449,7 @@ export const Batches: React.FC = () => {
         capacity,
         remark: remark || undefined,
         status: batchStatus,
+        ...(editingBatch ? {} : { branchId: createBranchId }),
       };
 
       if (editingBatch) {
@@ -641,6 +676,21 @@ export const Batches: React.FC = () => {
                 <option value="UPCOMING">Upcoming</option>
                 <option value="COMPLETED">Completed</option>
               </select>
+
+              {showBranchSelector && (
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                >
+                  {allowAllBranches && <option value="ALL">All branches</option>}
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
       </FilterToolbar>
 
@@ -892,6 +942,26 @@ export const Batches: React.FC = () => {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-4">
+                  {requireFormBranch && (
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Branch <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={formBranchId}
+                        onChange={(e) => setFormBranchId(e.target.value)}
+                        required
+                        className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
+                      >
+                        <option value="">Select branch</option>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
                       Batch Name <span className="text-rose-500">*</span>
@@ -988,6 +1058,7 @@ export const Batches: React.FC = () => {
                   onChange={setScheduleLines}
                   startDate={startDate}
                   endDate={expectedEndDate}
+                  branchId={formScopeBranchId}
                   excludeBatchId={editingBatch?.id}
                 />
               </div>

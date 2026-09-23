@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database";
+import { AppError } from "../../middlewares/error.middleware";
 import {
   CreateBatchDto,
   UpdateBatchDto,
@@ -588,17 +589,10 @@ export const findBatchById = async (id: string, instituteId: string) => {
   });
 };
 
-export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
-  let branchId = data.branchId || defaultBranchId;
-  if (!branchId || branchId.trim() === "") {
-    const firstBranch = await prisma.branch.findFirst({
-      where: { instituteId },
-      select: { id: true },
-    });
-    if (!firstBranch) {
-      throw new Error("No branch found for this institute");
-    }
-    branchId = firstBranch.id;
+export const createBatch = async (instituteId: string, data: CreateBatchDto) => {
+  const branchId = data.branchId?.trim();
+  if (!branchId) {
+    throw new AppError("branchId is required", 400);
   }
 
   const enrichedLines = data.scheduleLines?.length
@@ -977,6 +971,7 @@ export const findAvailableFaculty = async (instituteId: string, query: Available
     startDate,
     endDate,
     branchId,
+    branchIds,
     excludeBatchId,
   } = query;
 
@@ -1013,11 +1008,17 @@ export const findAvailableFaculty = async (instituteId: string, query: Available
   });
   const busyIds = [...new Set(busy.map((b) => b.facultyId).filter(Boolean))] as string[];
 
+  const branchFilter = branchId
+    ? { branchId }
+    : branchIds && branchIds.length > 0
+      ? { branchId: { in: branchIds } }
+      : {};
+
   return prisma.faculty.findMany({
     where: {
       instituteId,
       status: "ACTIVE",
-      ...(branchId ? { branchId } : {}),
+      ...branchFilter,
       ...(busyIds.length > 0 ? { id: { notIn: busyIds } } : {}),
     },
     include: {

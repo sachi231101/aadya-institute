@@ -2,6 +2,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./faculty.repository";
 import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
+import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 
 export const assignFacultyToBatch = async (
   currentUser: AuthUser,
@@ -17,26 +18,14 @@ export const assignFacultyToBatch = async (
     throw new AppError("Only ACTIVE faculty can be assigned to a batch", 400);
   }
 
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    faculty.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Faculty not found", 404);
-  }
+  assertBranchRecordAccess(currentUser, faculty.branchId, "Faculty not found");
 
   const batch = await repo.findBatchForAssign(batchId, currentUser.instituteId);
   if (!batch) {
     throw new AppError("Batch not found", 404);
   }
 
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    batch.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Batch not found", 404);
-  }
+  assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
 
   const subjectCourseId = courseId || batch.courseId;
   const subjectOnBatch =

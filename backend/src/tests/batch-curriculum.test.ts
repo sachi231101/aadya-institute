@@ -314,7 +314,7 @@ describe("batch curriculum service integration", () => {
       })
     ).id;
 
-    const batch = await batchService.createBatch(instituteId, branchId, {
+    const batch = await batchService.createBatch(asUser(adminUserId, ["ADMIN"], { branchId }), {
       name: "Curriculum Cohort",
       code: `BCUR-${tag}`,
       courseId: courseAId,
@@ -499,7 +499,7 @@ describe("batch curriculum service integration", () => {
     assert.equal(before?.isCompleted, true);
     assert.equal(before?.courseModuleId, courseModuleAId);
 
-    await batchService.updateBatch(batchId, instituteId, {
+    await batchService.updateBatch(batchId, asUser(adminUserId, ["ADMIN"], { branchId }), {
       courses: [
         { courseId: courseAId, facultyId: facultyAId, sequence: 1 },
         { courseId: courseBId, facultyId: facultyBId, sequence: 2 },

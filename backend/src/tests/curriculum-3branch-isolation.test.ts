@@ -166,7 +166,7 @@ before(async () => {
 
   // One batch per branch, same shared course, different faculty
   const start = new Date().toISOString().slice(0, 10);
-  const batch1 = await batchService.createBatch(instituteId, branch1Id, {
+  const batch1 = await batchService.createBatch(admin, {
     name: "Batch Branch 1",
     code: `C3B-B1-${tag}`,
     branchId: branch1Id,
@@ -178,7 +178,7 @@ before(async () => {
   });
   batch1Id = batch1.id;
 
-  const batch2 = await batchService.createBatch(instituteId, branch2Id, {
+  const batch2 = await batchService.createBatch(admin, {
     name: "Batch Branch 2",
     code: `C3B-B2-${tag}`,
     branchId: branch2Id,
@@ -190,7 +190,7 @@ before(async () => {
   });
   batch2Id = batch2.id;
 
-  const batch3 = await batchService.createBatch(instituteId, branch3Id, {
+  const batch3 = await batchService.createBatch(admin, {
     name: "Batch Branch 3",
     code: `C3B-B3-${tag}`,
     branchId: branch3Id,

@@ -380,17 +380,14 @@ describe("CM/Counsellor allocation enroll isolation", () => {
 
 describe("CM/Counsellor batch list branch isolation", () => {
   test("CENTER_MANAGER batch list excludes other-branch batches", async () => {
-    const batches = await batchService.getBatches(instituteId, branchAId, {});
+    const batches = await batchService.getBatches(managerA, {});
     const ids = batches.map((b) => b.id);
     assert.ok(ids.includes(batchAId));
     assert.ok(!ids.includes(batchBId));
   });
 
   test("multi-branch scope uses branchIds IN filter", async () => {
-    const batches = await batchService.getBatches(instituteId, undefined, {}, [
-      branchAId,
-      branchBId,
-    ]);
+    const batches = await batchService.getBatches(multiManager, {});
     const ids = batches.map((b) => b.id);
     assert.ok(ids.includes(batchAId));
     assert.ok(ids.includes(batchBId));

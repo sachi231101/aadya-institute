@@ -92,6 +92,8 @@ export interface UpdateBatchDto {
   code?: string;
   courseId?: string;
   facultyId?: string;
+  /** Ignored on update — branch cannot be reassigned after create. */
+  branchId?: string;
   courses?: BatchCourseItemDto[];
   scheduleLines?: ScheduleLineDto[];
   startDate?: string;
@@ -122,5 +124,7 @@ export interface AvailableFacultyQuery {
   startDate?: string;
   endDate?: string;
   branchId?: string;
+  /** Multi-branch scope (UserBranchAccess) for IN filter when branchId is unset. */
+  branchIds?: string[];
   excludeBatchId?: string;
 }
