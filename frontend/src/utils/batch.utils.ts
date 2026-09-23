@@ -136,6 +136,92 @@ const formatShortDate = (value?: string | Date | null): string => {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
 };
 
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+type ScheduleLineLike = {
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  batchCourseId?: string | null;
+  status?: string | null;
+  timeslotMaster?: { name?: string } | null;
+  classroomMaster?: { name?: string } | null;
+  batchCourse?: { id?: string; courseId?: string } | null;
+};
+
+/**
+ * Human-readable schedule for one subject row.
+ * Prefers real BatchSchedule lines (days + time) over the stored CUSTOM pattern label.
+ */
+export const formatCourseScheduleSummary = (opts: {
+  courseId?: string;
+  batchCourseId?: string | null;
+  schedulePattern?: string | null;
+  timeSlot?: string | null;
+  classroomName?: string | null;
+  schedules?: ScheduleLineLike[] | null;
+  rowSchedules?: ScheduleLineLike[] | null;
+}): string => {
+  const {
+    courseId,
+    batchCourseId,
+    schedulePattern,
+    timeSlot,
+    classroomName,
+    schedules,
+    rowSchedules,
+  } = opts;
+
+  const pool = (rowSchedules?.length ? rowSchedules : schedules) || [];
+  const matching = pool.filter((s) => {
+    if (String(s.status || "ACTIVE").toUpperCase() === "INACTIVE") return false;
+    if (batchCourseId && s.batchCourseId) return s.batchCourseId === batchCourseId;
+    if (batchCourseId && s.batchCourse?.id) return s.batchCourse.id === batchCourseId;
+    if (courseId && s.batchCourse?.courseId) return s.batchCourse.courseId === courseId;
+    // No course link on line — include when this is the only context / no id filter
+    if (!batchCourseId && !courseId) return true;
+    if (!s.batchCourseId && !s.batchCourse?.id && !s.batchCourse?.courseId) return true;
+    return false;
+  });
+
+  const parts: string[] = [];
+
+  if (matching.length > 0) {
+    const days = [
+      ...new Set(
+        matching
+          .map((s) =>
+            typeof s.dayOfWeek === "number" ? DAY_ABBR[s.dayOfWeek] : null
+          )
+          .filter(Boolean)
+      ),
+    ] as string[];
+    if (days.length > 0) parts.push(days.join(", "));
+
+    const slot =
+      matching[0]?.timeslotMaster?.name ||
+      (matching[0]?.startTime
+        ? `${matching[0].startTime}${matching[0].endTime ? ` - ${matching[0].endTime}` : ""}`
+        : null) ||
+      timeSlot;
+    if (slot) parts.push(slot);
+
+    const room =
+      matching.find((s) => s.classroomMaster?.name)?.classroomMaster?.name ||
+      classroomName;
+    if (room) parts.push(room);
+  } else {
+    const pattern = schedulePattern?.trim();
+    if (pattern && pattern.toUpperCase() !== "CUSTOM") {
+      parts.push(pattern);
+    }
+    if (timeSlot) parts.push(timeSlot);
+    if (classroomName) parts.push(classroomName);
+  }
+
+  return parts.join(" · ");
+};
+
 /** Zenox-style title: Faculty|Course|Time|DateRange|Pattern */
 export const formatBatchScheduleTitle = (batch: BatchLike & {
   name?: string;

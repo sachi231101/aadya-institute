@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, Link, useNavigate, useLocation } from "react-router-dom";
+import { useSearchParams, Link, useLocation } from "react-router-dom";
 import {
   GraduationCap,
   Plus,
   Search,
-  Users,
-  Calendar,
   CheckCircle2,
   MoreVertical,
   Trash2,
   Pencil,
   Loader2,
   AlertTriangle,
-  Sparkles,
   X,
   Eye,
   RefreshCw,
@@ -38,7 +35,7 @@ import { getPortalBasePath } from "@/utils/portal-path";
 import {
   batchIncludesCourse,
   formatBatchSubjectNames,
-  formatBatchScheduleTitle,
+  formatBatchInstructorsSummary,
 } from "@/utils/batch.utils";
 import {
   BatchScheduleLinesEditor,
@@ -66,7 +63,6 @@ import {
 export const Batches: React.FC = () => {
   const { canEditItem } = usePermissions();
   const canEditBatches = canEditItem("batches.all");
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
   const location = useLocation();
@@ -84,7 +80,6 @@ export const Batches: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (courseIdFromUrl && courseIdFromUrl !== courseFilter) {
@@ -141,100 +136,26 @@ export const Batches: React.FC = () => {
   const facultyList = facultyResponse?.data ?? [];
   const requireFormBranch =
     showModal && !editingBatch && allowAllBranches && !branchIdForQuery;
+  /** Create under list-filter branch: show read-only so staff see where the batch goes. */
+  const lockedCreateBranchId =
+    showModal && !editingBatch && !requireFormBranch
+      ? formBranchId || branchIdForQuery || ""
+      : "";
+  const lockedCreateBranchName =
+    lockedCreateBranchId
+      ? branches.find((b) => b.id === lockedCreateBranchId)?.name
+      : undefined;
+  const editBranchName = editingBatch
+    ? editingBatch.branch?.name ||
+      branches.find((b) => b.id === editingBatch.branchId)?.name ||
+      "—"
+    : "";
 
   // 2-Step Delete Modal State
   const [batchToDelete, setBatchToDelete] = useState<{ id: string; name: string; code: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Generate sessions modal
-  const [batchToGenerate, setBatchToGenerate] = useState<{
-    id: string;
-    name: string;
-    code: string;
-    facultyId?: string | null;
-    startDate: string;
-    expectedEndDate?: string | null;
-    schedules?: Array<{ id: string; dayOfWeek: number; startTime: string; endTime: string }>;
-  } | null>(null);
-  const [generateStartDate, setGenerateStartDate] = useState("");
-  const [generateEndDate, setGenerateEndDate] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
-  const canGenerateSessions = (batch: {
-    facultyId?: string | null;
-    schedules?: Array<{ id: string }>;
-    batchCourses?: Array<{ facultyId?: string | null }>;
-  } | null) => {
-    if (!batch) return false;
-    const hasFaculty =
-      Boolean(batch.facultyId) ||
-      Boolean(batch.batchCourses?.some((bc) => bc.facultyId));
-    if (!hasFaculty) return false;
-    if (!batch.schedules || batch.schedules.length === 0) return false;
-    return true;
-  };
-
-  const openGenerateModal = (batch: (typeof batches)[0]) => {
-    const start = batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "";
-    const end = batch.expectedEndDate
-      ? new Date(batch.expectedEndDate).toISOString().split("T")[0]
-      : start
-        ? (() => {
-          const d = new Date(start);
-          d.setDate(d.getDate() + 90);
-          return d.toISOString().split("T")[0];
-        })()
-        : "";
-    setBatchToGenerate({
-      id: batch.id,
-      name: batch.name,
-      code: batch.code,
-      facultyId: batch.facultyId,
-      startDate: batch.startDate,
-      expectedEndDate: batch.expectedEndDate,
-      schedules: batch.schedules,
-    });
-    setGenerateStartDate(start);
-    setGenerateEndDate(end);
-    setGenerateError(null);
-  };
-
-  const handleGenerateSessions = async () => {
-    if (!batchToGenerate) return;
-    try {
-      setIsGenerating(true);
-      setGenerateError(null);
-      const result = await batchesApi.generateSessions(batchToGenerate.id, {
-        startDate: generateStartDate || undefined,
-        endDate: generateEndDate || undefined,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
-      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
-      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
-      await refetch();
-      setSuccessMsg(
-        `Generated ${(result as { data?: { created?: number; updated?: number } }).data?.created ?? 0} class session(s)${
-          (result as { data?: { updated?: number } }).data?.updated
-            ? `, updated ${(result as { data?: { updated?: number } }).data?.updated}`
-            : ""
-        } for "${batchToGenerate.code}".`
-      );
-      setTimeout(() => setSuccessMsg(null), 4000);
-      setBatchToGenerate(null);
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error)?.message ||
-        "Failed to generate class sessions";
-      setGenerateError(message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const filteredBatches = batches.filter((b) => {
     const facultyName = b.faculty?.user?.name || "";
@@ -321,8 +242,8 @@ export const Batches: React.FC = () => {
             "",
           classroomMasterId: s.classroomMasterId || "",
           facultyId: s.facultyId || s.faculty?.id || "",
-          status: (s.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as "ACTIVE" | "INACTIVE",
-          attendanceEnabled: s.attendanceEnabled !== false,
+          status: "ACTIVE",
+          attendanceEnabled: true,
         }))
       );
     } else if (batch.batchCourses && batch.batchCourses.length > 0) {
@@ -433,8 +354,8 @@ export const Batches: React.FC = () => {
           timeslotMasterId: l.timeslotMasterId || undefined,
           classroomMasterId: l.classroomMasterId || undefined,
           facultyId: l.facultyId || undefined,
-          status: l.status,
-          attendanceEnabled: l.attendanceEnabled,
+          status: "ACTIVE",
+          attendanceEnabled: true,
         };
       });
 
@@ -495,383 +416,291 @@ export const Batches: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ACTIVE":
-        return <Badge variant="success" className="text-xs px-3 py-0.5 font-semibold">Active</Badge>;
+        return <Badge variant="success">Active</Badge>;
       case "UPCOMING":
-        return <Badge variant="warning" className="text-xs px-3 py-0.5 font-semibold">Upcoming</Badge>;
+        return <Badge variant="warning">Upcoming</Badge>;
       case "COMPLETED":
-        return <Badge variant="secondary" className="text-xs px-3 py-0.5 font-semibold bg-[#104886] hover:bg-[#0b3869] text-white border-0">Completed</Badge>;
+        return <Badge variant="secondary">Completed</Badge>;
       default:
-        return <Badge variant="outline" className="text-xs px-3 py-0.5 font-semibold">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const metrics = [
+    { label: "Active Batches", value: activeCount },
+    { label: "Upcoming Batches", value: upcomingCount },
+    { label: "Batch Enrolled", value: `${totalEnrolled} / ${totalCapacity}` },
+    { label: "Avg Occupancy", value: `${avgOccupancy}%` },
+  ];
 
   return (
     <PageContainer className="animate-in fade-in duration-300">
       <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            Batch Schedule
-            {selectedIds.length > 0 && (
-              <Badge className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0 h-5 min-w-5 justify-center">
-                {selectedIds.length}
-              </Badge>
-            )}
-          </span>
-        }
+        title="Batch Schedule"
+        description="Batch schedules, enrollment, and session generation."
         actions={
           <>
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
-            disabled={selectedIds.length !== 1}
-            onClick={() => {
-              const id = selectedIds[0];
-              if (id) navigate(`${batchesBasePath}/${id}`);
-            }}
-          >
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            View
-          </Button>
-          <PermissionGate itemKey="batches.all" mode="write">
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
-            disabled={selectedIds.length !== 1}
-            onClick={() => {
-              const batch = filteredBatches.find((b) => b.id === selectedIds[0]);
-              if (batch) handleOpenEditModal(batch);
-            }}
-          >
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
-            disabled={selectedIds.length !== 1}
-            onClick={() => {
-              const batch = filteredBatches.find((b) => b.id === selectedIds[0]);
-              if (!batch) return;
-              setDeleteError(null);
-              setBatchToDelete({ id: batch.id, name: batch.name, code: batch.code });
-            }}
-          >
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-xs rounded-lg transition-all cursor-pointer"
-            onClick={handleOpenCreateModal}
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add New Batch
-          </Button>
-          </PermissionGate>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0 rounded-lg border-border hover:bg-muted/50 transition-all cursor-pointer"
-            onClick={() => refetch()}
-            title="Refresh"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
+            <PermissionGate itemKey="batches.all" mode="write">
+              <Button size="sm" className="rounded-lg" onClick={handleOpenCreateModal}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add New Batch
+              </Button>
+            </PermissionGate>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0 rounded-lg"
+              onClick={() => refetch()}
+              title="Refresh"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </>
         }
       />
 
-      {/* Success Notification Banner */}
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-600 animate-in slide-in-from-top-2 dark:text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      <MetricGrid>
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Batches</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{activeCount}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Upcoming Batches</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{upcomingCount}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Batch Enrolled</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{totalEnrolled} / {totalCapacity}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Avg Occupancy</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{avgOccupancy}%</h3>
-            </div>
-          </CardContent>
-        </Card>
+      <MetricGrid columns="grid-cols-2 sm:grid-cols-4" density="compact">
+        {metrics.map((kpi) => (
+          <Card
+            key={kpi.label}
+            size="compact"
+            className="border border-border bg-card shadow-none rounded-lg"
+          >
+            <CardContent size="compact">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
+              </p>
+              <h3 className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
       </MetricGrid>
 
-      <FilterToolbar className="flex flex-col md:flex-row justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by batch name, code, course, or instructor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10 bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
-              />
-            </div>
+      <FilterToolbar className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by batch name, code, course, or instructor…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 rounded-lg pl-9 text-sm"
+          />
+        </div>
 
-            {/* Filter Selectors */}
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={courseFilter}
-                onChange={(e) => handleCourseFilterChange(e.target.value)}
-                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="ALL">All Courses</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {showBranchSelector && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-9 cursor-pointer rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {allowAllBranches && <option value="ALL">All branches</option>}
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="UPCOMING">Upcoming</option>
-                <option value="COMPLETED">Completed</option>
-              </select>
+          <select
+            value={courseFilter}
+            onChange={(e) => handleCourseFilterChange(e.target.value)}
+            className="h-9 cursor-pointer rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">All Courses</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
 
-              {showBranchSelector && (
-                <select
-                  value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
-                  className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                >
-                  {allowAllBranches && <option value="ALL">All branches</option>}
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 cursor-pointer rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="UPCOMING">Upcoming</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+        </div>
       </FilterToolbar>
 
-      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-        <CardContent className="p-4 space-y-4">
-          {/* Table Container */}
-          <div className="rounded-xl border border-border overflow-x-auto bg-card shadow-2xs">
-            {loading ? (
-              <div className="py-12 flex justify-center items-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2 text-xs font-bold">Loading batches...</span>
-              </div>
-            ) : (
-              <Table className="w-full border-collapse">
-                <TableHeader className="bg-muted/50 border-b border-border">
-                  <TableRow className="text-[11px] uppercase tracking-wide border-b border-border">
-                    <TableHead className="w-10 pl-4 pr-3 py-3 text-center border-r border-border">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-border cursor-pointer align-middle"
-                        checked={
-                          filteredBatches.length > 0 &&
-                          filteredBatches.every((b) => selectedIds.includes(b.id))
-                        }
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedIds(filteredBatches.map((b) => b.id));
-                          } else {
-                            setSelectedIds([]);
-                          }
-                        }}
-                        aria-label="Select all batches"
-                      />
-                    </TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">CREATED DATE</TableHead>
-                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">BATCH SCHEDULE TITLE</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">START DATE</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">END DATE</TableHead>
-                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">MODULE</TableHead>
-                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">NO. OF STUDENTS</TableHead>
-                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">STATUS</TableHead>
-                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-2 py-3 text-xs w-12 pr-3">ACTIONS</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBatches.length > 0 ? (
-                    filteredBatches.map((batch) => {
-                      const enrolledCount = batch._count?.enrollments || 0;
-                      const isSelected = selectedIds.includes(batch.id);
-                      const createdDate = batch.createdAt
-                        ? new Date(batch.createdAt).toLocaleDateString("en-GB", {
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading batches…</span>
+        </div>
+      ) : (
+        <Card className="border border-border shadow-none rounded-lg overflow-hidden">
+          <div
+            className={
+              "min-w-0 overflow-x-auto " +
+              "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm " +
+              "[&_thead]:bg-muted/50 " +
+              "[&_th]:h-9 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[11px] [&_th]:font-semibold " +
+              "[&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground " +
+              "[&_th]:border [&_th]:border-border [&_th]:whitespace-nowrap " +
+              "[&_td]:px-3 [&_td]:py-2.5 [&_td]:align-middle [&_td]:border [&_td]:border-border " +
+              "[&_tbody_tr]:hover:bg-muted/30 [&_tbody_tr]:transition-colors " +
+              "[&_tr]:border-0"
+            }
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">Created</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead className="whitespace-nowrap">Start</TableHead>
+                  <TableHead className="whitespace-nowrap">End</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead className="whitespace-nowrap text-center">Students</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-12 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBatches.length > 0 ? (
+                  filteredBatches.map((batch) => {
+                    const enrolledCount = batch._count?.enrollments || 0;
+                    const createdDate = batch.createdAt
+                      ? new Date(batch.createdAt).toLocaleDateString("en-GB", {
                           day: "2-digit",
                           month: "short",
                           year: "2-digit",
                         })
-                        : "—";
-                      const startDateLabel = batch.startDate
-                        ? new Date(batch.startDate).toLocaleDateString("en-GB", {
+                      : "—";
+                    const startDateLabel = batch.startDate
+                      ? new Date(batch.startDate).toLocaleDateString("en-GB", {
                           day: "2-digit",
                           month: "short",
                           year: "2-digit",
                         })
-                        : "—";
-                      const endDateLabel = batch.expectedEndDate
-                        ? new Date(batch.expectedEndDate).toLocaleDateString("en-GB", {
+                      : "—";
+                    const endDateLabel = batch.expectedEndDate
+                      ? new Date(batch.expectedEndDate).toLocaleDateString("en-GB", {
                           day: "2-digit",
                           month: "short",
                           year: "2-digit",
                         })
-                        : "—";
-                      const scheduleTitle = formatBatchScheduleTitle(batch);
+                      : "—";
+                    const facultyLabel = formatBatchInstructorsSummary(batch);
 
-                      return (
-                        <TableRow
-                          key={batch.id}
-                          className={`transition-colors border-b border-border text-xs cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/40"
-                            }`}
-                          onClick={() => setSelectedIds([batch.id])}
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                          {createdDate}
+                        </TableCell>
+                        <TableCell className="max-w-[280px]">
+                          <div className="min-w-0 space-y-0.5">
+                            <p
+                              className="truncate text-sm font-semibold leading-snug text-foreground"
+                              title={`${batch.name} · ${batch.code}`}
+                            >
+                              <span className="font-medium">{batch.name}</span>
+                              <span className="mx-1.5 font-normal text-muted-foreground">·</span>
+                              <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                                {batch.code}
+                              </span>
+                            </p>
+                            <p
+                              className="truncate text-[11px] text-muted-foreground"
+                              title={facultyLabel}
+                            >
+                              {facultyLabel}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm tabular-nums">
+                          {startDateLabel}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm tabular-nums">
+                          {endDateLabel}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[140px] text-sm"
+                          title={formatBatchSubjectNames(batch)}
                         >
-                          <TableCell className="w-10 pl-4 pr-3 py-3 text-center align-middle border-r border-border" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-border cursor-pointer align-middle"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedIds([batch.id]);
-                                } else {
-                                  setSelectedIds((prev) => prev.filter((id) => id !== batch.id));
-                                }
-                              }}
-                              aria-label={`Select ${batch.name}`}
-                            />
-                          </TableCell>
-                          <TableCell className="px-3 py-3 whitespace-nowrap text-muted-foreground font-medium text-xs align-middle border-r border-border">
-                            {createdDate}
-                          </TableCell>
-                          <TableCell className="px-3 py-3 align-middle max-w-[260px] border-r border-border">
-                            <div className="space-y-0.5">
-                              <p className="font-semibold text-foreground text-xs leading-snug break-words" title={scheduleTitle}>
-                                {scheduleTitle}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground font-mono truncate">
-                                {batch.code} · {batch.name}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{startDateLabel}</TableCell>
-                          <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{endDateLabel}</TableCell>
-                          <TableCell className="px-3 py-3 max-w-[130px] text-xs font-medium align-middle leading-snug border-r border-border" title={formatBatchSubjectNames(batch)}>
-                            <span className="line-clamp-2 font-medium">
-                              {formatBatchSubjectNames(batch)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 text-center font-bold whitespace-nowrap text-xs align-middle border-r border-border">{enrolledCount}</TableCell>
-                          <TableCell className="px-3 py-3 text-center whitespace-nowrap align-middle border-r border-border">{getStatusBadge(batch.status)}</TableCell>
-                          <TableCell className="text-center px-2 py-3 align-middle w-12 pr-3" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer inline-flex items-center justify-center">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
-                                <DropdownMenuLabel className="text-xs font-bold">Batch Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-border" />
-                                <DropdownMenuItem asChild className="cursor-pointer text-xs font-bold">
-                                  <Link to={`${batchesBasePath}/${batch.id}`}>
-                                    <Eye className="mr-2 h-4 w-4" /> View Details
-                                  </Link>
-                                </DropdownMenuItem>
-                                {canEditBatches && (
-                                  <>
-                                <DropdownMenuItem
-                                  className="cursor-pointer text-xs font-bold"
-                                  disabled={!canGenerateSessions(batch)}
-                                  onClick={() => openGenerateModal(batch)}
-                                >
-                                  <Sparkles className="mr-2 h-4 w-4" /> Generate Class Sessions
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-border" />
-                                <DropdownMenuItem
-                                  className="cursor-pointer text-xs font-bold"
-                                  onClick={() => handleOpenEditModal(batch)}
-                                >
-                                  <Pencil className="mr-2 h-4 w-4" /> Edit Batch
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
-                                  onClick={() => {
-                                    setDeleteError(null);
-                                    setBatchToDelete({
-                                      id: batch.id,
-                                      name: batch.name,
-                                      code: batch.code,
-                                    });
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete Batch
-                                </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={10} className="h-32 text-center text-muted-foreground text-xs font-medium">
-                        No batches found matching criteria.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
+                          <span className="line-clamp-2">{formatBatchSubjectNames(batch)}</span>
+                        </TableCell>
+                        <TableCell className="text-center text-sm font-medium tabular-nums">
+                          {enrolledCount}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 rounded-lg">
+                              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                                Batch Actions
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem asChild className="cursor-pointer gap-2 text-xs font-medium">
+                                <Link to={`${batchesBasePath}/${batch.id}`}>
+                                  <Eye className="h-3.5 w-3.5" /> View Details
+                                </Link>
+                              </DropdownMenuItem>
+                              {canEditBatches && (
+                                <>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer gap-2 text-xs font-medium"
+                                    onClick={() => handleOpenEditModal(batch)}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" /> Edit Batch
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer gap-2 text-xs font-medium text-rose-600 focus:bg-rose-500/10 focus:text-rose-600"
+                                    onClick={() => {
+                                      setDeleteError(null);
+                                      setBatchToDelete({
+                                        id: batch.id,
+                                        name: batch.name,
+                                        code: batch.code,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete Batch
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-28 text-center text-sm text-muted-foreground">
+                      No batches found matching criteria.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* Modal Dialog for Creating / Editing Batch */}
       {showModal && createPortal(
@@ -893,15 +722,6 @@ export const Batches: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseModal}
-                  disabled={submitting}
-                  className="rounded-xl text-xs font-semibold h-9"
-                >
-                  Cancel
-                </Button>
                 <Button
                   type="submit"
                   form="batch-zenox-form"
@@ -960,6 +780,21 @@ export const Batches: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+                  )}
+                  {(lockedCreateBranchId || editingBatch) && (
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Branch
+                      </label>
+                      <Input
+                        type="text"
+                        value={editingBatch ? editBranchName : lockedCreateBranchName || "—"}
+                        disabled
+                        readOnly
+                        className="h-10 rounded-xl text-xs bg-muted/40 text-muted-foreground cursor-not-allowed"
+                        aria-label={`Branch: ${editingBatch ? editBranchName : lockedCreateBranchName || "selected"}`}
+                      />
                     </div>
                   )}
                   <div>
@@ -1063,86 +898,6 @@ export const Batches: React.FC = () => {
                 />
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Generate Class Sessions Modal */}
-      {batchToGenerate && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Generate Class Sessions
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Create class sessions from the weekly schedule for{" "}
-              <span className="font-bold text-foreground">{batchToGenerate.code} – {batchToGenerate.name}</span>.
-            </p>
-
-            {!canGenerateSessions(batchToGenerate) && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
-                {!batchToGenerate.facultyId
-                  ? "Assign faculty to this batch before generating sessions."
-                  : "No weekly schedule slots found. Create the batch with a schedule pattern first."}
-              </div>
-            )}
-
-            {generateError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
-                {generateError}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">From Date</label>
-                <Input
-                  type="date"
-                  value={generateStartDate}
-                  onChange={(e) => setGenerateStartDate(e.target.value)}
-                  className="bg-muted/30 border-border rounded-xl text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">To Date</label>
-                <Input
-                  type="date"
-                  value={generateEndDate}
-                  onChange={(e) => setGenerateEndDate(e.target.value)}
-                  min={generateStartDate}
-                  className="bg-muted/30 border-border rounded-xl text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setBatchToGenerate(null)}
-                disabled={isGenerating}
-                className="rounded-xl text-xs font-bold"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleGenerateSessions}
-                disabled={isGenerating || !canGenerateSessions(batchToGenerate)}
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  "Generate Sessions"
-                )}
-              </Button>
-            </div>
           </div>
         </div>,
         document.body
