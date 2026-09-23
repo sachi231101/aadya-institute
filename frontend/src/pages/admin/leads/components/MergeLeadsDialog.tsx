@@ -71,7 +71,7 @@ export function MergeLeadsDialog({
           <form onSubmit={handleSubmit} className="space-y-4 py-1">
             <p className="text-sm text-muted-foreground">
               Keep one primary lead. Follow-ups, calls, and activities move to the primary;
-              the duplicate is archived.
+              the duplicate is closed.
             </p>
             <div>
               <Label>Primary lead (keep)</Label>
@@ -92,7 +92,7 @@ export function MergeLeadsDialog({
               {options.map((l) => (
                 <p key={l.id}>
                   <span className="font-semibold">
-                    {l.id === primaryId ? "Keep: " : "Archive: "}
+                    {l.id === primaryId ? "Keep: " : "Close duplicate: "}
                   </span>
                   {l.name} — {l.phoneNumber} — {l.course?.name || l.interestedIn || "—"}
                 </p>

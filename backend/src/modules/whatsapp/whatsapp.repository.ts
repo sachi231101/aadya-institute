@@ -469,11 +469,6 @@ export class NotificationRepository {
       }),
     ]);
 
-    if (total === 0 && !filters.search && !filters.type) {
-      await this.seedInitialNotifications(instituteId, userId);
-      return this.listNotifications(instituteId, userId, filters);
-    }
-
     return {
       notifications: notifications.map((n) => ({
         id: n.id,
@@ -562,41 +557,5 @@ export class NotificationRepository {
     if (!notification) throw new Error("Notification not found");
     await prisma.notification.delete({ where: { id: notificationId } });
     return { success: true, message: "Notification deleted" };
-  }
-
-  private static async seedInitialNotifications(instituteId: string, userId: string) {
-    const now = new Date();
-    const initialEvents = [
-      {
-        title: "New Admission Confirmed",
-        message: "Student Rahul Sharma has completed enrollment for Full-Stack Web Development batch.",
-        type: "ADMISSION" as NotificationType,
-        link: "/admin/students",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 12),
-      },
-      {
-        title: "Fee Payment Received",
-        message: "Received ₹25,000 via UPI for Installment #1 from Priya Patel.",
-        type: "PAYMENT" as NotificationType,
-        link: "/admin/fees/payments",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 45),
-      },
-    ];
-
-    for (const item of initialEvents) {
-      await prisma.notification.create({
-        data: {
-          instituteId,
-          userId,
-          title: item.title,
-          message: item.message,
-          type: item.type,
-          link: item.link,
-          isRead: false,
-          createdAt: item.createdAt,
-          channel: "IN_APP",
-        },
-      });
-    }
   }
 }

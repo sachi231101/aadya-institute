@@ -13,11 +13,8 @@ export const updatePersonalSchema = z.object({
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z
-    .string()
-    .min(8, "New password must be at least 8 characters")
-    .regex(/[A-Z]/, "New password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "New password must contain at least one number"),
+  // Complexity is enforced by institute security policy in the service layer.
+  newPassword: z.string().min(1, "New password is required"),
 });
 
 export const updateNotificationsSchema = z.object({

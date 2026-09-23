@@ -68,6 +68,20 @@ export const findBranchByCode = async (code: string, instituteId: string) => {
   });
 };
 
+/** Includes soft-deleted rows — used to free codes that still block the unique constraint. */
+export const findBranchByCodeAnyStatus = async (
+  code: string,
+  instituteId: string
+) => {
+  return prisma.branch.findFirst({
+    where: { code, instituteId },
+  });
+};
+
+/** Soft-delete frees the unique (instituteId, code) slot for reuse. */
+export const releaseBranchCode = (code: string, branchId: string) =>
+  `${code}__del__${branchId}`;
+
 export const findManagerCandidate = async (
   userId: string,
   instituteId: string

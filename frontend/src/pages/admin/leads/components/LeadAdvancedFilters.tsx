@@ -35,7 +35,7 @@ interface LeadAdvancedFiltersProps {
   onClear: () => void;
 }
 
-const STATUS_OPTIONS = ["ACTIVE", "CONVERTED", "LOST", "ARCHIVED"];
+const STATUS_OPTIONS = ["ACTIVE", "CONVERTED", "LOST"];
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH"];
 

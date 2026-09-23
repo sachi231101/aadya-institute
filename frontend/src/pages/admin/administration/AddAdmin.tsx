@@ -35,6 +35,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Sparkles,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   Card,
@@ -163,6 +165,8 @@ export const AddAdmin: React.FC = () => {
   const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? EMPTY_CATALOG;
 
   const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Reset matrix only when role changes — not on every catalog query refetch
   // (refetch was wiping Grant all / Clear all selections).
@@ -211,15 +215,36 @@ export const AddAdmin: React.FC = () => {
     const roleLabel = ROLE_SUCCESS_LABEL[data.role] || data.role;
 
     const handleError = (err: any) => {
+      const responseData = err?.response?.data;
+      const fieldErrors = Array.isArray(responseData?.errors)
+        ? (responseData.errors as { field?: string; message?: string }[])
+        : [];
+      const fieldMessage = fieldErrors
+        .map((e) => e.message)
+        .filter(Boolean)
+        .join(". ");
       const message =
-        err?.response?.data?.message ||
+        fieldMessage ||
+        responseData?.message ||
         err?.message ||
         "Failed to create user.";
 
-      if (message.toLowerCase().includes("email")) {
+      for (const e of fieldErrors) {
+        const field = e.field;
+        if (field === "email" || field === "phone" || field === "password" || field === "branchId") {
+          form.setError(field as "email" | "phone" | "password" | "branchId", {
+            type: "manual",
+            message: e.message || message,
+          });
+        }
+      }
+
+      if (message.toLowerCase().includes("email") && !fieldErrors.length) {
         form.setError("email", { type: "manual", message });
-      } else if (message.toLowerCase().includes("phone")) {
+      } else if (message.toLowerCase().includes("phone") && !fieldErrors.length) {
         form.setError("phone", { type: "manual", message });
+      } else if (message.toLowerCase().includes("password") && !fieldErrors.length) {
+        form.setError("password", { type: "manual", message });
       }
 
       form.setError("root", { type: "manual", message });
@@ -429,11 +454,27 @@ export const AddAdmin: React.FC = () => {
                     <FormItem>
                       <FormLabel>Initial Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            className="pr-9"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -446,11 +487,31 @@ export const AddAdmin: React.FC = () => {
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            className="pr-9"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword((v) => !v)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label={
+                              showConfirmPassword
+                                ? "Hide confirm password"
+                                : "Show confirm password"
+                            }
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

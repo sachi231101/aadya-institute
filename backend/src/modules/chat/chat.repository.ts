@@ -11,9 +11,18 @@ export const findUserConversations = async (
       members: {
         some: { userId },
       },
+      // TEAM chats only for real ACTIVE branches — no orphan/mock leftover channels
+      OR: [
+        { type: "DIRECT" },
+        {
+          type: "TEAM",
+          branchId: { not: null },
+          branch: { status: "ACTIVE" },
+        },
+      ],
     },
     include: {
-      branch: { select: { id: true, name: true, code: true } },
+      branch: { select: { id: true, name: true, code: true, status: true } },
       members: {
         include: {
           user: {
@@ -35,6 +44,31 @@ export const findUserConversations = async (
       },
     },
     orderBy: { updatedAt: "desc" },
+  });
+};
+
+/** Hard-delete TEAM conversation(s) for a branch (members/messages cascade). */
+export const deleteBranchTeamConversations = async (
+  instituteId: string,
+  branchId: string
+) => {
+  return prisma.conversation.deleteMany({
+    where: {
+      instituteId,
+      branchId,
+      type: "TEAM",
+    },
+  });
+};
+
+/** Remove TEAM chats left behind when a branch was deleted (branchId null). */
+export const deleteOrphanTeamConversations = async (instituteId?: string) => {
+  return prisma.conversation.deleteMany({
+    where: {
+      type: "TEAM",
+      branchId: null,
+      ...(instituteId ? { instituteId } : {}),
+    },
   });
 };
 
@@ -140,7 +174,7 @@ export const findConversationById = async (id: string) => {
   return prisma.conversation.findUnique({
     where: { id },
     include: {
-      branch: { select: { id: true, name: true, code: true } },
+      branch: { select: { id: true, name: true, code: true, status: true } },
       members: {
         include: {
           user: {

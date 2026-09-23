@@ -225,11 +225,6 @@ export const leadsApi = {
     return response.data;
   },
 
-  archiveLead: async (id: string) => {
-    const response = await api.delete(`/leads/${id}`);
-    return response.data;
-  },
-
   // Lead Actions
   assignLead: async (id: string, data: { counsellorId: string; notes?: string }) => {
     const response = await api.post(`/leads/${id}/assign`, data);

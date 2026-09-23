@@ -61,11 +61,8 @@ export const acceptInviteTokenParamSchema = z.object({
 
 export const acceptInvitationSchema = z.object({
   token: z.string().min(32, "Invalid invitation token"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
+  // Complexity is enforced by institute security policy in the service layer.
+  password: z.string().min(1, "Password is required"),
 });
 
 export type CreateInvitationDto = z.infer<typeof createInvitationSchema>;
