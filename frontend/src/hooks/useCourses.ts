@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { coursesApi, type CourseData, type CreateCoursePayload } from "../services/courses.api";
 
-export const useCourses = (filters?: { search?: string; status?: string; category?: string }) => {
+export const useCourses = (filters?: {
+  search?: string;
+  status?: string;
+  category?: string;
+  branchId?: string;
+}) => {
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +22,7 @@ export const useCourses = (filters?: { search?: string; status?: string; categor
     } finally {
       setLoading(false);
     }
-  }, [filters?.search, filters?.status, filters?.category]);
+  }, [filters?.search, filters?.status, filters?.category, filters?.branchId]);
 
   useEffect(() => {
     fetchCourses();

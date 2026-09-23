@@ -7,6 +7,8 @@ export interface User {
   roles: string[]; // All assigned roles from backend
   instituteId: string;
   branchId?: string | null;
+  /** Multi-branch access from UserBranchAccess (CM/Counsellor). */
+  allowedBranchIds?: string[];
   permissions?: string[];
   modulePermissions?: string[];
   /** Linked Student row id (from auth login/me) */

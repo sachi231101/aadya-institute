@@ -242,7 +242,7 @@ describe("item-level grant round-trip", () => {
     assert.ok(!permissions.includes(itemShowPermission("leads.new")));
   });
 
-  test("Read-only Batch Management excludes batch.create/update", () => {
+  test("Read-only Batch Management excludes batch.create/update and curriculum mark", () => {
     const readOnly = resolveItemAccessToPermissions(
       { "batches.all": { show: true, editable: false } },
       "CENTER_MANAGER"
@@ -252,10 +252,22 @@ describe("item-level grant round-trip", () => {
     assert.ok(!readOnly.includes(itemWritePermission("batches.all")));
     assert.ok(!readOnly.includes("batch.create"));
     assert.ok(!readOnly.includes("batch.update"));
+    assert.ok(!readOnly.includes("batch_curriculum.mark"));
 
     const access = permissionsToItemAccess(readOnly, "CENTER_MANAGER");
     assert.strictEqual(access["batches.all"]?.show, true);
     assert.strictEqual(access["batches.all"]?.editable, false);
+  });
+
+  test("Editable batches.all includes batch_curriculum.mark for Center Manager", () => {
+    const perms = resolveItemAccessToPermissions(
+      { "batches.all": { show: true, editable: true } },
+      "CENTER_MANAGER"
+    );
+    assert.ok(perms.includes("batch.create"));
+    assert.ok(perms.includes("batch.update"));
+    assert.ok(perms.includes("batch_curriculum.mark"));
+    assert.ok(perms.includes(itemWritePermission("batches.all")));
   });
 });
 
@@ -384,7 +396,7 @@ describe("COUNSELLOR permission catalog", () => {
     assert.strictEqual(access["leads.all"]?.editable, false);
   });
 
-  test("Editable batches.all includes batch.create/update and item write", () => {
+  test("Editable batches.all includes batch.create/update, curriculum mark, and item write", () => {
     const perms = resolveItemAccessToPermissions(
       { "batches.all": { show: true, editable: true } },
       "COUNSELLOR"
@@ -393,6 +405,7 @@ describe("COUNSELLOR permission catalog", () => {
     assert.ok(perms.includes("batch.read"));
     assert.ok(perms.includes("batch.create"));
     assert.ok(perms.includes("batch.update"));
+    assert.ok(perms.includes("batch_curriculum.mark"));
     assert.ok(perms.includes(itemWritePermission("batches.all")));
   });
 });

@@ -10,6 +10,7 @@ import {
   AvailableFacultyQuery,
 } from "./batch.types";
 import { buildDefaultSchedules, derivePatternFromDays, parseTimeSlot } from "./batch-schedule.util";
+import { buildTopicProgressFromCourseTopics } from "./batch-curriculum.util";
 
 const masterSelect = { select: { id: true, name: true, code: true, entityType: true } };
 const facultySelect = {
@@ -452,6 +453,21 @@ const syncSchedulesForCourses = async (
 };
 
 const syncBatchModulesForCourses = async (tx: TxClient, batchId: string, courseIds: string[]) => {
+  // Preserve progress when the same courseModuleId is re-linked after sync.
+  const existing = await tx.batchModule.findMany({
+    where: { batchId },
+    select: {
+      courseModuleId: true,
+      isCompleted: true,
+      completedAt: true,
+      completedById: true,
+      topicProgress: true,
+    },
+  });
+  const progressByCourseModuleId = new Map(
+    existing.map((row) => [row.courseModuleId, row])
+  );
+
   await tx.batchModule.deleteMany({ where: { batchId } });
   let sequenceOffset = 0;
   for (const courseId of courseIds) {
@@ -461,12 +477,22 @@ const syncBatchModulesForCourses = async (tx: TxClient, batchId: string, courseI
     });
     if (courseModules.length > 0) {
       await tx.batchModule.createMany({
-        data: courseModules.map((cm, idx) => ({
-          batchId,
-          courseModuleId: cm.id,
-          sequence: sequenceOffset + (cm.sequence || idx + 1),
-          status: "ACTIVE" as const,
-        })),
+        data: courseModules.map((cm, idx) => {
+          const preserved = progressByCourseModuleId.get(cm.id);
+          return {
+            batchId,
+            courseModuleId: cm.id,
+            sequence: sequenceOffset + (cm.sequence || idx + 1),
+            status: "ACTIVE" as const,
+            isCompleted: preserved?.isCompleted ?? false,
+            completedAt: preserved?.completedAt ?? null,
+            completedById: preserved?.completedById ?? null,
+            topicProgress: buildTopicProgressFromCourseTopics(
+              cm.topics,
+              preserved?.topicProgress
+            ),
+          };
+        }),
         skipDuplicates: true,
       });
       sequenceOffset += courseModules.length;

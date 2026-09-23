@@ -7,6 +7,7 @@ import * as studentAllocationService from "../students/student-allocation.servic
 import * as facultyAllocationService from "../faculty/faculty-allocation.service";
 import type { AuthUser } from "../auth/auth.types";
 import { logger } from "../../config/logger";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 
 export const getBatches = async (
   instituteId: string,
@@ -25,7 +26,11 @@ export const getBatchById = async (id: string, instituteId: string) => {
   return batch;
 };
 
-const validateBatchCourses = async (instituteId: string, items: BatchCourseItemDto[]) => {
+const validateBatchCourses = async (
+  instituteId: string,
+  items: BatchCourseItemDto[],
+  branchId?: string
+) => {
   if (items.length === 0) {
     throw new AppError("Select at least one course", 400);
   }
@@ -41,6 +46,11 @@ const validateBatchCourses = async (instituteId: string, items: BatchCourseItemD
     if (!course) {
       throw new AppError("Active course not found", 404);
     }
+    if (branchId) {
+      await assertCourseAvailableForBranch(instituteId, item.courseId, branchId, {
+        requireActive: true,
+      });
+    }
     if (item.facultyId && item.facultyId.trim() !== "") {
       const faculty = await prisma.faculty.findFirst({
         where: { id: item.facultyId, instituteId, status: "ACTIVE" },
@@ -54,7 +64,8 @@ const validateBatchCourses = async (instituteId: string, items: BatchCourseItemD
 
 export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
   const courseItems = repository.normalizeBatchCourses(data);
-  await validateBatchCourses(instituteId, courseItems);
+  const effectiveBranchId = data.branchId || defaultBranchId;
+  await validateBatchCourses(instituteId, courseItems, effectiveBranchId || undefined);
 
   const payload: CreateBatchDto = {
     ...data,
@@ -86,7 +97,7 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
 };
 
 export const updateBatch = async (id: string, instituteId: string, data: UpdateBatchDto) => {
-  await getBatchById(id, instituteId);
+  const existingBatch = await getBatchById(id, instituteId);
 
   if (data.code) {
     const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
@@ -95,12 +106,18 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
     }
   }
 
+  const targetBranchId = existingBatch.branchId;
+
   if (data.scheduleLines && data.scheduleLines.length > 0) {
-    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data));
+    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data), targetBranchId);
   } else if (data.courses && data.courses.length > 0) {
-    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data));
+    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data), targetBranchId);
   } else if (data.courseId) {
-    await validateBatchCourses(instituteId, [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }]);
+    await validateBatchCourses(
+      instituteId,
+      [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }],
+      targetBranchId
+    );
   }
 
   const result = await repository.updateBatch(id, instituteId, data);

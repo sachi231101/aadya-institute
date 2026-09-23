@@ -4,6 +4,7 @@ import { AppError } from '../../middlewares/error.middleware';
 import { prisma } from '../../config/database';
 import { resolveOptionalMasterFields } from '../masters/master-resolve.service';
 import { logger } from '../../config/logger';
+import { assertCourseAvailableForBranch } from '../../utils/course-branch.util';
 
 // ─── Valid status transitions ─────────────────────────────────────────────────
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -64,13 +65,18 @@ export const createExam = async (
   userId: string,
   data: CreateExamDto
 ) => {
+  const effectiveBranchId = data.branchId || branchId || undefined;
+  if (data.courseId && effectiveBranchId) {
+    await assertCourseAvailableForBranch(instituteId, data.courseId, effectiveBranchId);
+  }
+
   let payload = { ...data };
   if (data.examTermMasterId) {
     const resolved = await resolveOptionalMasterFields({
       instituteId,
       entityType: "examterm",
       masterRecordId: data.examTermMasterId,
-      branchId: data.branchId || branchId,
+      branchId: effectiveBranchId,
     });
     payload = { ...payload, examTermMasterId: resolved?.masterId };
   }
@@ -91,13 +97,20 @@ export const updateExam = async (
     throw new AppError(`Cannot update an exam in ${existing.status} status`, 400);
   }
 
+  const nextCourseId = data.courseId !== undefined ? data.courseId : existing.courseId;
+  const nextBranchId =
+    data.branchId !== undefined ? data.branchId : existing.branchId;
+  if (nextCourseId && nextBranchId) {
+    await assertCourseAvailableForBranch(instituteId, nextCourseId, nextBranchId);
+  }
+
   let payload = { ...data };
   if (data.examTermMasterId) {
     const resolved = await resolveOptionalMasterFields({
       instituteId,
       entityType: "examterm",
       masterRecordId: data.examTermMasterId,
-      branchId: data.branchId || existing.branchId,
+      branchId: nextBranchId,
     });
     payload = { ...payload, examTermMasterId: resolved?.masterId };
   }

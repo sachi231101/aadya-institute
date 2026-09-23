@@ -229,8 +229,6 @@ export const FacultyDetails: React.FC = () => {
     workloadHrs: weeklyHours,
     attendance: attendanceRate,
     batches: assignedBatches.map((assignment) => {
-      const sessions = assignment.classSessions || [];
-      const completed = sessions.filter((session) => session.sessionStatus === "COMPLETED").length;
       const timing = (assignment.schedules || [])
         .filter((slot) => !slot.facultyId || slot.facultyId === assignment.facultyId)
         .map((slot) => `${DAY_NAMES[slot.dayOfWeek] || "Day"} ${slot.startTime}–${slot.endTime}`)
@@ -241,12 +239,39 @@ export const FacultyDetails: React.FC = () => {
         batchName: assignment.name,
         students: assignment._count?.enrollments || 0,
         status: assignment.status,
-        progress: sessions.length > 0 ? Math.round((completed / sessions.length) * 100) : null,
         time: timing || null,
       };
     }),
     schedule,
     sessionStats,
+    curriculumProgress: (backendFaculty as { curriculumProgress?: {
+      overallPct: number | null;
+      topicsCompleted: number;
+      topicsTotal: number;
+      modulesCompleted: number;
+      modulesTotal: number;
+      byAssignment: Array<{
+        batchId: string;
+        batchName: string;
+        batchCode: string;
+        courseId: string;
+        courseName: string;
+        branchId: string;
+        branchName: string;
+        pct: number | null;
+        topicsCompleted: number;
+        topicsTotal: number;
+        modulesCompleted: number;
+        modulesTotal: number;
+      }>;
+    } }).curriculumProgress ?? {
+      overallPct: null,
+      topicsCompleted: 0,
+      topicsTotal: 0,
+      modulesCompleted: 0,
+      modulesTotal: 0,
+      byAssignment: [],
+    },
   };
 
   const workloadState = getWorkloadState(faculty.workloadHrs);
@@ -300,7 +325,7 @@ export const FacultyDetails: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/admin/faculty/courses?facultyId=${faculty.id}`)}
+            onClick={() => setActiveTab("batches")}
             className="rounded-xl shadow-2xs text-xs font-semibold h-9 cursor-pointer"
           >
             Course Allocations
@@ -552,16 +577,6 @@ export const FacultyDetails: React.FC = () => {
                         <Clock className="h-3.5 w-3.5 text-muted-foreground" /> {b.time || "No schedule set"}
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-border/70">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-semibold text-muted-foreground">Completed sessions</span>
-                        <span className="font-bold text-primary">{b.progress === null ? "—" : `${b.progress}%`}</span>
-                      </div>
-                      <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${b.progress ?? 0}%` }} />
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -573,7 +588,94 @@ export const FacultyDetails: React.FC = () => {
         {/* ─── TAB 3: STUDENT PROGRESS & ANALYTICS ───────────────────── */}
         {activeTab === "performance" && (
           <div className="space-y-6">
-            {/* Grade Distribution */}
+            {/* Curriculum progress — this faculty's own marks across assignments */}
+            <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
+                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" /> Curriculum Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-primary/5 p-4 rounded-xl border border-primary/15 text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Overall</span>
+                    <h4 className="text-3xl font-bold text-primary mt-1 tabular-nums">
+                      {faculty.curriculumProgress.overallPct === null
+                        ? "—"
+                        : `${faculty.curriculumProgress.overallPct}%`}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Across assignments</p>
+                  </div>
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Topics</span>
+                    <h4 className="text-3xl font-bold text-foreground mt-1 tabular-nums">
+                      {faculty.curriculumProgress.topicsCompleted}
+                      <span className="text-base text-muted-foreground font-semibold">
+                        /{faculty.curriculumProgress.topicsTotal}
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Completed</p>
+                  </div>
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Modules</span>
+                    <h4 className="text-3xl font-bold text-foreground mt-1 tabular-nums">
+                      {faculty.curriculumProgress.modulesCompleted}
+                      <span className="text-base text-muted-foreground font-semibold">
+                        /{faculty.curriculumProgress.modulesTotal}
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Completed</p>
+                  </div>
+                  <div className="bg-muted/40 p-4 rounded-xl border border-border text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Assignments</span>
+                    <h4 className="text-3xl font-bold text-foreground mt-1 tabular-nums">
+                      {faculty.curriculumProgress.byAssignment.length}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Batch × course</p>
+                  </div>
+                </div>
+
+                {faculty.curriculumProgress.byAssignment.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No curriculum assignments yet. Assign this faculty to a batch course to track progress.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {faculty.curriculumProgress.byAssignment.map((row) => (
+                      <div
+                        key={`${row.batchId}-${row.courseId}`}
+                        className="rounded-xl border border-border bg-muted/20 p-4 space-y-2"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground">{row.courseName}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              <span className="font-mono">{row.batchCode}</span>
+                              {row.batchName !== row.batchCode ? ` · ${row.batchName}` : ""}
+                              {" · "}
+                              {row.branchName}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-primary tabular-nums shrink-0">
+                            {row.pct === null ? "—" : `${row.pct}%`}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${row.pct ?? 0}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {row.topicsCompleted}/{row.topicsTotal} topics · {row.modulesCompleted}/{row.modulesTotal} modules
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">

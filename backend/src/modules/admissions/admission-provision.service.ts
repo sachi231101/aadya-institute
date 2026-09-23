@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
 import { batchIncludesCourse } from "../../utils/batch-course.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import { hashPassword } from "../../utils/password";
 import { SequenceService } from "../masters/sequence.service";
 import { LeadActivityService } from "../leads/services/lead-activity.service";
@@ -256,6 +257,8 @@ export async function provisionAdmissionInTransaction(
   if (!course) {
     throw new AppError("Selected course does not exist", 400);
   }
+
+  await assertCourseAvailableForBranch(instituteId, dto.courseId, branchId, { tx });
 
   let validBatchId = dto.batchId && dto.batchId.trim() !== "" ? dto.batchId : null;
   if (validBatchId) {

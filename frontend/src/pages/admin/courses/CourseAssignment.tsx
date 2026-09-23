@@ -1,23 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import { 
-  BookOpen, 
-  Users, 
-  Clock, 
-  Plus, 
-  GraduationCap,
-  Layers,
-  Loader2,
-  AlertCircle,
-  Building2,
-} from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Plus, Users, Clock, Loader2, AlertCircle, Building2 } from "lucide-react";
 import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
 import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "../../../store/auth.store";
-import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
@@ -25,49 +14,50 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const formatSchedules = (schedules: { dayOfWeek: number; startTime: string; endTime: string }[]) => {
+const formatSchedules = (
+  schedules: { dayOfWeek: number; startTime: string; endTime: string }[]
+) => {
   if (!schedules || schedules.length === 0) return "";
   return schedules
     .map((s) => `${DAY_NAMES[s.dayOfWeek]} ${s.startTime}–${s.endTime}`)
     .join(", ");
 };
 
+const filterSelectClass =
+  "h-[34px] text-xs font-medium border border-border rounded-lg px-3 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer";
+
+const fieldLabel = "block text-xs font-medium text-muted-foreground mb-1.5";
+const fieldSelect =
+  "w-full h-9 px-3 rounded-lg border border-border bg-muted/30 text-sm text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer disabled:opacity-60";
+
 export const CourseAssignment: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialFacultyId = searchParams.get("facultyId") || "";
-
-  const basePath = location.pathname.startsWith("/center")
-    ? "/center"
-    : location.pathname.startsWith("/faculty")
-    ? "/faculty"
-    : "/admin";
 
   const { user } = useAuthStore();
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isAdmin = userRoles.includes("ADMIN");
   const isBranchManager = userRoles.includes("CENTER_MANAGER");
   const isCounsellor = userRoles.includes("COUNSELLOR");
-  const isFacultyOnly = userRoles.includes("FACULTY") && !isAdmin && !isBranchManager && !isCounsellor;
+  const isFacultyOnly =
+    userRoles.includes("FACULTY") && !isAdmin && !isBranchManager && !isCounsellor;
 
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(initialFacultyId || "ALL");
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(
+    initialFacultyId || "ALL"
+  );
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("ALL");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("ALL");
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("ALL");
-  const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const { batches: liveBatches } = useBatches();
   const { courses: allCoursesList } = useCourses();
-  const { data: branchesResponse } = useBranches({ limit: 50 });
-  const branches = branchesResponse?.data || [];
 
   useEffect(() => {
     if (initialFacultyId && initialFacultyId !== selectedFacultyId) {
       setSelectedFacultyId(initialFacultyId);
     }
-  }, [initialFacultyId]);
+  }, [initialFacultyId, selectedFacultyId]);
 
   const handleFacultyFilterChange = (value: string) => {
     setSelectedFacultyId(value);
@@ -79,18 +69,21 @@ export const CourseAssignment: React.FC = () => {
     }
   };
 
-  // Modal Form state (Admin/Manager/Counsellor only)
-  const [newFacultyId, setNewFacultyId] = useState<string>("");
-  const [newBatchId, setNewBatchId] = useState<string>("");
-  const [newCourseId, setNewCourseId] = useState<string>("");
+  const [newFacultyId, setNewFacultyId] = useState("");
+  const [newBatchId, setNewBatchId] = useState("");
+  const [newCourseId, setNewCourseId] = useState("");
 
-  // Fetch data from backend
   const coursesParams = {
     limit: 100,
-    facultyId: isFacultyOnly ? undefined : (selectedFacultyId !== "ALL" ? selectedFacultyId : undefined),
+    facultyId: isFacultyOnly
+      ? undefined
+      : selectedFacultyId !== "ALL"
+        ? selectedFacultyId
+        : undefined,
   };
 
-  const { data: coursesResponse, isLoading, isError, refetch } = useFacultyCourses(coursesParams);
+  const { data: coursesResponse, isLoading, isError, refetch } =
+    useFacultyCourses(coursesParams);
   const { data: facultyResponse } = useFacultyList(
     { limit: 100, status: "ACTIVE" },
     { enabled: !isFacultyOnly }
@@ -100,25 +93,17 @@ export const CourseAssignment: React.FC = () => {
   const actualAssignments = coursesResponse?.data ?? [];
   const facultyList = (facultyResponse?.data ?? []).filter((f) => f.status === "ACTIVE");
 
-  // Filter assignments according to role and status
   const assignments = useMemo(() => {
     return actualAssignments.filter((a) => {
-      const matchesStatus = selectedStatusFilter === "ALL" || a.status === selectedStatusFilter;
-      const matchesCourse = selectedCourseFilter === "ALL" || 
-        a.course?.id === selectedCourseFilter || 
+      const matchesStatus =
+        selectedStatusFilter === "ALL" || a.status === selectedStatusFilter;
+      const matchesCourse =
+        selectedCourseFilter === "ALL" ||
+        a.course?.id === selectedCourseFilter ||
         a.course?.name === selectedCourseFilter;
-      const matchesBranch = selectedBranchFilter === "ALL" || 
-        a.branchId === selectedBranchFilter || 
-        a.branch?.id === selectedBranchFilter;
-
-      // Pure faculty: backend already scopes to teaching desk — no client faculty-list filter needed
-      return matchesStatus && matchesCourse && matchesBranch;
+      return matchesStatus && matchesCourse;
     });
-  }, [actualAssignments, selectedStatusFilter, selectedCourseFilter, selectedBranchFilter]);
-
-  const totalCoursesCount = new Set(assignments.map((a) => a.course?.id || a.courseId)).size;
-  const activeBatchesCount = assignments.filter((a) => a.status === "ACTIVE" || !a.status).length;
-  const totalStudentsTaught = assignments.reduce((acc, curr) => acc + (curr._count?.enrollments ?? 0), 0);
+  }, [actualAssignments, selectedStatusFilter, selectedCourseFilter]);
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +122,9 @@ export const CourseAssignment: React.FC = () => {
       setShowAssignModal(false);
       refetch();
     } catch (error: any) {
-      setAssignError(error?.response?.data?.message || "Failed to assign faculty to batch");
+      setAssignError(
+        error?.response?.data?.message || "Failed to assign faculty to batch"
+      );
     }
   };
 
@@ -162,277 +149,239 @@ export const CourseAssignment: React.FC = () => {
     }
   }, [newBatchId, assignSubjectOptions, newCourseId]);
 
+  const closeModal = () => {
+    setShowAssignModal(false);
+    setAssignError(null);
+  };
+
   return (
-    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
+    <PageContainer className="animate-in fade-in duration-300">
       <PageHeader
-        title={isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
-        description={
-          isFacultyOnly
-            ? "View and manage the courses and batches assigned to you."
-            : "Assign faculty instructors to courses and batches across the institute."
-        }
+        title={isFacultyOnly ? "My courses" : "Faculty assignment"}
         actions={
           !isFacultyOnly ? (
             <PermissionGate itemKey="courses.course_assignment" mode="write">
               <Button
+                size="sm"
                 onClick={() => setShowAssignModal(true)}
-                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-4 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-medium h-9 px-3.5 rounded-lg cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
-                Assign Batch to Faculty
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Assign
               </Button>
             </PermissionGate>
           ) : undefined
         }
       />
 
-      <MetricGrid columns="grid-cols-1 sm:grid-cols-3">
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 text-primary dark:text-sky-400 shrink-0">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                {isFacultyOnly ? "My Assigned Courses" : "Assigned Courses"}
-              </p>
-              <h3 className="text-xl font-bold text-foreground mt-0.5">{totalCoursesCount}</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Distinct curricula</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 shrink-0">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Batches</p>
-              <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{activeBatchesCount}</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Currently running cohorts</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 shrink-0">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Students Impacted</p>
-              <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{totalStudentsTaught}</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Enrolled in your batches</p>
-            </div>
-          </CardContent>
-        </Card>
-      </MetricGrid>
-
-      <FilterToolbar className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border overflow-x-auto">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+        <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/80 overflow-x-auto">
           {["ALL", "ACTIVE", "UPCOMING", "COMPLETED"].map((status) => (
             <button
               key={status}
+              type="button"
               onClick={() => setSelectedStatusFilter(status)}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
                 selectedStatusFilter === status
-                  ? "bg-primary text-white shadow-xs"
+                  ? "bg-primary text-white"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {status === "ALL" ? "All Courses" : status.charAt(0) + status.slice(1).toLowerCase()}
+              {status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase()}
             </button>
           ))}
         </div>
 
-        {/* Optional Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Faculty Selector (Visible ONLY to Admin / Center Manager / Counsellor) */}
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {!isFacultyOnly && (
-            <div className="relative min-w-[200px]">
-              <select
-                value={selectedFacultyId}
-                onChange={(e) => handleFacultyFilterChange(e.target.value)}
-                className="w-full h-9 pl-3 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
-              >
-                <option value="ALL">All Faculty Members</option>
-                {facultyList.map((f: any) => (
-                  <option key={f.id} value={f.id}>
-                    {f.user?.name || f.name} ({f.employeeCode || "FA"})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Course Filter */}
-          <div className="relative min-w-[180px]">
             <select
-              value={selectedCourseFilter}
-              onChange={(e) => setSelectedCourseFilter(e.target.value)}
-              className="w-full h-9 pl-3 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
+              value={selectedFacultyId}
+              onChange={(e) => handleFacultyFilterChange(e.target.value)}
+              className={`${filterSelectClass} min-w-[160px]`}
             >
-              <option value="ALL">All Courses</option>
-              {allCoursesList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="ALL">All faculty</option>
+              {facultyList.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.user?.name || (f as { name?: string }).name || "Faculty"}
                 </option>
               ))}
             </select>
-          </div>
+          )}
+
+          <select
+            value={selectedCourseFilter}
+            onChange={(e) => setSelectedCourseFilter(e.target.value)}
+            className={`${filterSelectClass} min-w-[140px]`}
+          >
+            <option value="ALL">All courses</option>
+            {allCoursesList.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
       </FilterToolbar>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-card rounded-xl border border-border">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-          <p className="text-xs font-bold text-muted-foreground">Loading assigned batches and courses...</p>
+        <div className="py-14 flex justify-center items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Loading…
         </div>
       ) : isError ? (
-        <Card className="border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 text-center py-12 rounded-xl">
-          <AlertCircle className="mx-auto h-10 w-10 text-rose-500 mb-3" />
-          <h3 className="text-sm font-bold text-rose-900 dark:text-rose-300 mb-1">Failed to load course assignments</h3>
-          <p className="text-xs text-rose-600 dark:text-rose-400 max-w-sm mx-auto">Please check your network connection or try again.</p>
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="py-12 text-center space-y-2">
+            <AlertCircle className="mx-auto h-8 w-8 text-rose-500" />
+            <p className="text-sm font-medium text-foreground">Failed to load</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 rounded-lg cursor-pointer"
+              onClick={() => refetch()}
+            >
+              Retry
+            </Button>
+          </CardContent>
         </Card>
       ) : assignments.length === 0 ? (
-        /* ─── EXACT EMPTY STATE ─── */
-        <div className="bg-card rounded-xl border border-border p-12 text-center max-w-xl mx-auto space-y-3 shadow-xs">
-          <div className="w-14 h-14 mx-auto rounded-xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 text-primary dark:text-sky-400 flex items-center justify-center text-2xl shadow-2xs">
-            📚
-          </div>
-          <h3 className="text-lg font-bold text-foreground">No Courses Assigned Yet</h3>
-          <p className="text-xs text-muted-foreground font-medium">
-            You currently do not have any course or batch assignments.
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            Please contact your Center Manager or Administrator.
-          </p>
-        </div>
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="py-14 text-center space-y-2">
+            <p className="text-sm text-muted-foreground">No assignments yet</p>
+            {!isFacultyOnly && (
+              <PermissionGate itemKey="courses.course_assignment" mode="write">
+                <Button
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-medium h-9 rounded-lg cursor-pointer"
+                  onClick={() => setShowAssignModal(true)}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Assign
+                </Button>
+              </PermissionGate>
+            )}
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {assignments.map((item) => {
             const courseName = item.course?.name || "Course";
             const batchName = item.name;
             const batchCode = item.code;
-            const branchName = item.branch?.name || "Aadya Central Branch";
+            const branchName = item.branch?.name || "—";
             const studentCount = item._count?.enrollments ?? 0;
-            const scheduleDisplay = formatSchedules(item.schedules) || (item as any).timeSlot || "Mon–Sat • 10:00 AM – 11:00 AM";
-            const facultyName = item.faculty?.user?.name || user?.name || "Faculty Member";
+            const scheduleDisplay =
+              formatSchedules(item.schedules) ||
+              (item as { timeSlot?: string }).timeSlot ||
+              "—";
+            const facultyName =
+              item.faculty?.user?.name || user?.name || "—";
 
-            const statusVariant = 
-              item.status === "ACTIVE" 
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
-                : item.status === "COMPLETED" 
-                ? "bg-slate-500/10 text-muted-foreground border-border" 
-                : "bg-blue-500/10 text-primary dark:text-sky-400 border-blue-500/20";
+            const statusClass =
+              item.status === "ACTIVE"
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                : item.status === "COMPLETED"
+                  ? "bg-muted text-muted-foreground border-border"
+                  : "bg-primary/10 text-primary border-primary/20";
 
             return (
-              <Card 
-                key={item.id} 
-                className="border border-border shadow-xs bg-card rounded-xl hover:border-primary/50 transition-all flex flex-col justify-between overflow-hidden"
+              <Card
+                key={item.id}
+                className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden"
               >
-                <div className="p-5 space-y-4">
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                        <h3 className="text-sm font-bold text-foreground truncate" title={courseName}>
-                          {courseName}
-                        </h3>
-                      </div>
-                      <p className="text-xs font-mono text-muted-foreground font-medium">
-                        Batch: <strong className="text-foreground">{batchCode}</strong>
-                        {batchName && batchName !== batchCode ? (
-                          <span className="font-sans font-normal"> · {batchName}</span>
-                        ) : null}
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {courseName}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        <span className="font-mono">{batchCode}</span>
+                        {batchName && batchName !== batchCode ? ` · ${batchName}` : ""}
                       </p>
                     </div>
-
-                    <Badge className={`text-[10px] font-bold shrink-0 ${statusVariant}`}>
-                      ● {item.status || "ACTIVE"}
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium shrink-0 ${statusClass}`}
+                    >
+                      {item.status || "ACTIVE"}
                     </Badge>
                   </div>
 
-                  {/* Card Details */}
-                  <div className="space-y-2.5 text-xs pt-3 border-t border-border/70">
-                    <div className="flex items-center justify-between text-foreground">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                        👨‍🏫 Instructor:
+                  <div className="space-y-2 text-xs border-t border-border/70 pt-3">
+                    {!isFacultyOnly && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground">Faculty</span>
+                        <span className="font-medium text-foreground truncate max-w-[60%] text-right">
+                          {facultyName}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground inline-flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        Branch
                       </span>
-                      <span className="font-bold text-foreground">
-                        {isFacultyOnly ? `${facultyName} — You` : facultyName}
+                      <span className="font-medium text-foreground truncate max-w-[60%] text-right">
+                        {branchName}
                       </span>
                     </div>
-
-                    <div className="flex items-center justify-between text-foreground">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Location:
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground inline-flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        Students
                       </span>
-                      <span className="font-medium text-foreground truncate max-w-[180px]">{branchName}</span>
+                      <span className="font-medium text-foreground tabular-nums">
+                        {studentCount}
+                      </span>
                     </div>
-
-                    <div className="flex items-center justify-between text-foreground">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" /> Enrolled:
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-muted-foreground inline-flex items-center gap-1 shrink-0">
+                        <Clock className="h-3 w-3" />
+                        Schedule
                       </span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{studentCount} Students</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-foreground">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" /> Schedule:
-                      </span>
-                      <span className="font-mono text-[11px] font-bold text-foreground text-right truncate max-w-[200px]">
+                      <span className="font-medium text-foreground text-right text-[11px] leading-snug">
                         {scheduleDisplay}
                       </span>
                     </div>
                   </div>
-                </div>
+                </CardContent>
               </Card>
             );
           })}
         </div>
       )}
 
-      {/* ─── ASSIGN BATCH TO FACULTY MODAL (Admin / Center Manager / Counsellor only) ─── */}
-      {!isFacultyOnly && (
-        <div className={showAssignModal ? "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" : "hidden"}>
-          <div className="bg-card rounded-xl border border-border max-w-md w-full p-6 space-y-4 shadow-xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-bold text-foreground">Assign Batch to Faculty</h3>
-              <button onClick={() => setShowAssignModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAssignSubmit} className="space-y-4 text-xs">
-              {assignError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+      {!isFacultyOnly && showAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card border border-border rounded-xl shadow-lg w-full max-w-md p-5 space-y-4">
+            <h3 className="text-base font-semibold text-foreground">Assign faculty</h3>
+            <form onSubmit={handleAssignSubmit} className="space-y-3.5">
+              {assignError ? (
+                <p className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
                   {assignError}
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground">Select Faculty Member *</label>
+                </p>
+              ) : null}
+
+              <div>
+                <label className={fieldLabel}>Faculty *</label>
                 <select
                   value={newFacultyId}
                   onChange={(e) => setNewFacultyId(e.target.value)}
                   required
-                  className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer"
+                  className={fieldSelect}
                 >
-                  <option value="">-- Choose Faculty --</option>
+                  <option value="">Select…</option>
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.user?.name || "Faculty"} ({f.employeeCode || "FA"})
+                      {f.user?.name || "Faculty"}
+                      {f.employeeCode ? ` (${f.employeeCode})` : ""}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground">Select Batch *</label>
+              <div>
+                <label className={fieldLabel}>Batch *</label>
                 <select
                   value={newBatchId}
                   onChange={(e) => {
@@ -440,53 +389,60 @@ export const CourseAssignment: React.FC = () => {
                     setNewCourseId("");
                   }}
                   required
-                  className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer"
+                  className={fieldSelect}
                 >
-                  <option value="">-- Choose Batch --</option>
+                  <option value="">Select…</option>
                   {liveBatches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.code} – {b.name} ({formatBatchSubjectNames(b)})
-                      {b.facultyId ? " · coordinator set" : ""}
+                      {b.name} ({b.code}) · {formatBatchSubjectNames(b)}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-foreground">Select Subject *</label>
+              <div>
+                <label className={fieldLabel}>Subject *</label>
                 <select
                   value={newCourseId}
                   onChange={(e) => setNewCourseId(e.target.value)}
                   required
                   disabled={!newBatchId || assignSubjectOptions.length === 0}
-                  className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer disabled:opacity-60"
+                  className={fieldSelect}
                 >
-                  <option value="">-- Choose Subject --</option>
+                  <option value="">Select…</option>
                   {assignSubjectOptions.map((row) => (
                     <option key={row.courseId} value={row.courseId}>
                       {row.course?.name || row.courseId}
-                      {row.faculty?.user?.name ? ` · ${row.faculty.user.name}` : " · unassigned"}
+                      {row.faculty?.user?.name
+                        ? ` · ${row.faculty.user.name}`
+                        : " · unassigned"}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/70">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowAssignModal(false)}
-                  className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
+                  onClick={closeModal}
+                  className="rounded-lg text-xs font-medium h-9 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={assignMutation.isPending || !newFacultyId || !newBatchId || !newCourseId}
-                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-xl cursor-pointer"
+                  size="sm"
+                  disabled={
+                    assignMutation.isPending ||
+                    !newFacultyId ||
+                    !newBatchId ||
+                    !newCourseId
+                  }
+                  className="bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-medium h-9 cursor-pointer"
                 >
-                  {assignMutation.isPending ? "Assigning..." : "Assign Faculty"}
+                  {assignMutation.isPending ? "Saving…" : "Save"}
                 </Button>
               </div>
             </form>

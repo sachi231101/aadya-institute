@@ -148,7 +148,6 @@ export const AddStudent: React.FC = () => {
   const { data: branchResponse } = useBranches();
   const branches = branchResponse?.data ?? [];
 
-  const { courses } = useCourses();
   const { batches } = useBatches();
   const { options: educationOptions } = useMasterDropdown("education");
   const { data: studentSeriesData, refetch: refetchStudentPreview, isLoading: isStudentPreviewLoading } =
@@ -196,6 +195,12 @@ export const AddStudent: React.FC = () => {
       transactionRef: "",
       whatsappEnabled: true,
     },
+  });
+
+  const watchedBranchId = form.watch("branchId");
+  const { courses } = useCourses({
+    status: "ACTIVE",
+    branchId: watchedBranchId || undefined,
   });
 
   React.useEffect(() => {

@@ -9,6 +9,7 @@ import {
   getBranchScopeFilter,
   hasBranchAccess,
 } from "../../utils/branch-isolation.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import {
   assertFacultyCanAccessStudent,
   isPureFaculty,
@@ -425,6 +426,12 @@ export const createStudent = async (
     assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
   }
 
+  if (dto.courseId && dto.courseId.trim() !== "") {
+    await assertCourseAvailableForBranch(instituteId, dto.courseId.trim(), dto.branchId, {
+      requireActive: true,
+    });
+  }
+
   // Determine studentCode: auto-generate via SequenceService if omitted, or validate uniqueness
   let studentCode = dto.studentCode?.trim();
   const sequenceContext = { branchCode: branch.code };
@@ -551,6 +558,28 @@ export const updateStudent = async (
       throw new AppError("Batch not found", 404);
     }
     assertBranchRecordAccess(currentUser, batch.branchId, "Batch not found");
+  }
+
+  const finalBranchId =
+    dto.branchId && dto.branchId.trim() !== "" ? dto.branchId.trim() : student.branchId;
+  const existingCourseId = student.admissions?.[0]?.courseId || "";
+  const branchChanging =
+    Boolean(dto.branchId?.trim()) && dto.branchId!.trim() !== student.branchId;
+
+  if (dto.courseId !== undefined && dto.courseId.trim() !== "") {
+    await assertCourseAvailableForBranch(
+      student.instituteId,
+      dto.courseId.trim(),
+      finalBranchId,
+      { requireActive: true }
+    );
+  } else if (branchChanging && existingCourseId) {
+    await assertCourseAvailableForBranch(
+      student.instituteId,
+      existingCourseId,
+      finalBranchId,
+      { requireActive: true }
+    );
   }
 
   let qualification = dto.qualification;

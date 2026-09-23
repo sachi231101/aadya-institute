@@ -1,6 +1,7 @@
 import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./faculty.repository";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 
 export const assignFacultyToBatch = async (
   currentUser: AuthUser,
@@ -45,6 +46,13 @@ export const assignFacultyToBatch = async (
   if (!subjectOnBatch) {
     throw new AppError("Selected subject is not part of this batch", 400);
   }
+
+  await assertCourseAvailableForBranch(
+    currentUser.instituteId,
+    subjectCourseId,
+    batch.branchId,
+    { requireActive: true }
+  );
 
   return repo.assignFacultyToBatchSubject(batchId, facultyId, subjectCourseId);
 };

@@ -2,6 +2,7 @@ import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import { LeadRepository } from "./lead.repository";
 import { LeadAssignmentService } from "./services/lead-assignment.service";
 import { LeadFollowupService } from "./services/lead-followup.service";
@@ -78,11 +79,16 @@ export const LeadService = {
         where: {
           instituteId,
           name: { contains: dto.interestedIn, mode: "insensitive" },
+          courseBranches: { some: { branchId } },
         },
       });
       if (matchedCourse) {
         courseId = matchedCourse.id;
       }
+    }
+
+    if (courseId) {
+      await assertCourseAvailableForBranch(instituteId, courseId, branchId);
     }
 
     // 4. Leads start unassigned — AI call runs before counsellor allocation
@@ -238,7 +244,15 @@ export const LeadService = {
 
   // ─── Update Lead Info ───────────────────────────────────────────────────────
   async updateLead(leadId: string, currentUser: AuthUser, dto: UpdateLeadDTO) {
-    await this.getLeadById(leadId, currentUser); // Ensures authorization & existence
+    const lead = await this.getLeadById(leadId, currentUser); // Ensures authorization & existence
+
+    if (dto.courseId) {
+      await assertCourseAvailableForBranch(
+        currentUser.instituteId,
+        dto.courseId,
+        lead.branchId
+      );
+    }
 
     const updated = await LeadRepository.updateLead(leadId, {
       ...(dto.name ? { name: dto.name } : {}),
@@ -548,6 +562,9 @@ export const LeadService = {
     if (!courseId) {
       throw new AppError("Course is required to create an application", 400);
     }
+
+    const applicationBranchId = dto?.branchId || lead.branchId;
+    await assertCourseAvailableForBranch(lead.instituteId, courseId, applicationBranchId);
 
     const isPaid = dto?.feeStatus === "PAID";
     if (isPaid) {

@@ -1,14 +1,32 @@
 import { prisma } from "../../config/database";
+import type { Prisma } from "@prisma/client";
 import { CreateCourseDto, UpdateCourseDto, CourseQueryFilters } from "./course.types";
+import { buildCourseBranchVisibilityWhere } from "../../utils/course-branch.util";
+import type { BranchScopeFilter } from "../../utils/branch-isolation.util";
 
-export const findAllCourses = (instituteId: string, filters: CourseQueryFilters) => {
-  const where: Record<string, unknown> = {
+const courseBranchInclude = {
+  courseBranches: {
+    include: {
+      branch: { select: { id: true, name: true, code: true } },
+    },
+  },
+} as const;
+
+export const findAllCourses = (
+  instituteId: string,
+  filters: CourseQueryFilters,
+  scope?: BranchScopeFilter
+) => {
+  const visibility = scope ? buildCourseBranchVisibilityWhere(scope) : undefined;
+
+  const where: Prisma.CourseWhereInput = {
     instituteId,
+    ...(visibility || {}),
   };
 
   // Soft-deleted courses are hidden unless explicitly requested
   if (filters.status) {
-    where.status = filters.status;
+    where.status = filters.status as Prisma.EnumStatusFilter["equals"];
   } else {
     where.status = { not: "DELETED" };
   }
@@ -29,6 +47,7 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
   return prisma.course.findMany({
     where,
     include: {
+      ...courseBranchInclude,
       modules: {
         where: { status: { not: "DELETED" } },
         select: {
@@ -52,10 +71,21 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
   });
 };
 
-export const findCourseById = (id: string, instituteId: string) => {
+export const findCourseById = (
+  id: string,
+  instituteId: string,
+  scope?: BranchScopeFilter
+) => {
+  const visibility = scope ? buildCourseBranchVisibilityWhere(scope) : undefined;
+
   return prisma.course.findFirst({
-    where: { id, instituteId },
+    where: {
+      id,
+      instituteId,
+      ...(visibility || {}),
+    },
     include: {
+      ...courseBranchInclude,
       modules: {
         where: { status: { not: "DELETED" } },
         orderBy: { sequence: "asc" },
@@ -100,15 +130,37 @@ export const createCourse = (instituteId: string, data: CreateCourseDto) => {
       level: data.level || "BEGINNER",
       totalHours: data.totalHours || 100,
       fee: data.fee,
+      courseBranches: {
+        create: (data.branchIds ?? []).map((branchId) => ({ branchId })),
+      },
     },
+    include: courseBranchInclude,
   });
 };
 
-export const updateCourse = async (id: string, instituteId: string, data: UpdateCourseDto) => {
-  await prisma.course.updateMany({
-    where: { id, instituteId },
-    data,
+export const updateCourse = async (
+  id: string,
+  instituteId: string,
+  data: UpdateCourseDto
+) => {
+  const { branchIds, ...courseData } = data;
+
+  await prisma.$transaction(async (tx) => {
+    if (Object.keys(courseData).length > 0) {
+      await tx.course.updateMany({
+        where: { id, instituteId },
+        data: courseData,
+      });
+    }
+
+    if (branchIds && branchIds.length > 0) {
+      await tx.courseBranch.deleteMany({ where: { courseId: id } });
+      await tx.courseBranch.createMany({
+        data: branchIds.map((branchId) => ({ courseId: id, branchId })),
+      });
+    }
   });
+
   return findCourseById(id, instituteId);
 };
 
@@ -125,5 +177,3 @@ export const deleteCourse = async (id: string, instituteId: string) => {
     },
   });
 };
-
-

@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./module.service";
 
 export const getByCourse = async (
@@ -13,7 +14,7 @@ export const getByCourse = async (
       res.status(400).json({ success: false, message: "courseId parameter is required" });
       return;
     }
-    const modules = await service.getModulesByCourse(courseId, req.user!.instituteId);
+    const modules = await service.getModulesByCourse(courseId, toAuthUser(req));
     res.json({
       success: true,
       message: "Modules retrieved successfully",
@@ -30,7 +31,7 @@ export const create = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const moduleItem = await service.createModule(req.user!.instituteId, req.body);
+    const moduleItem = await service.createModule(toAuthUser(req), req.body);
     res.status(201).json({
       success: true,
       message: "Module created successfully",
@@ -49,7 +50,7 @@ export const update = async (
   try {
     const updated = await service.updateModule(
       req.params.id as string,
-      req.user!.instituteId,
+      toAuthUser(req),
       req.body
     );
     res.json({
@@ -70,7 +71,7 @@ export const addTopic = async (
   try {
     const updated = await service.addTopic(
       req.params.id as string,
-      req.user!.instituteId,
+      toAuthUser(req),
       req.body
     );
     res.json({
@@ -91,7 +92,7 @@ export const toggleTopic = async (
   try {
     const updated = await service.toggleTopic(
       req.params.id as string,
-      req.user!.instituteId,
+      toAuthUser(req),
       req.params.topicId as string
     );
     res.json({
@@ -112,7 +113,7 @@ export const removeTopic = async (
   try {
     const updated = await service.deleteTopic(
       req.params.id as string,
-      req.user!.instituteId,
+      toAuthUser(req),
       req.params.topicId as string
     );
     res.json({
@@ -131,7 +132,7 @@ export const remove = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    await service.deleteModule(req.params.id as string, req.user!.instituteId);
+    await service.deleteModule(req.params.id as string, toAuthUser(req));
     res.json({
       success: true,
       message: "Module deleted successfully",

@@ -163,6 +163,8 @@ export const ROUTES = {
   FACULTY: {
     DASHBOARD: "/faculty/dashboard",
     CLASSES: "/faculty/classes",
+    COURSES: "/faculty/courses",
+    CURRICULUM: "/faculty/curriculum",
     STUDENTS: "/faculty/students/all",
     ATTENDANCE: "/faculty/attendance/take",
     ATTENDANCE_TAKE: "/faculty/attendance/take",
@@ -181,6 +183,8 @@ export const ROUTES = {
   STUDENT: {
     DASHBOARD: "/student/dashboard",
     SCHEDULE: "/student/schedule",
+    STUDY_MATERIALS: "/student/study-materials",
+    CURRICULUM: "/student/curriculum",
     RECORDINGS: "/student/recordings",
     ASSIGNMENTS: "/student/assignments",
     CERTIFICATES: "/student/certificates",

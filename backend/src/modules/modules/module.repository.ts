@@ -104,6 +104,29 @@ export const countBatchModuleUsage = (courseModuleId: string) => {
   });
 };
 
+export const findBatchModulesForCourseModule = (courseModuleId: string) => {
+  return prisma.batchModule.findMany({
+    where: { courseModuleId },
+    select: {
+      id: true,
+      isCompleted: true,
+      topicProgress: true,
+    },
+  });
+};
+
+export const countClassSessionsForCourseModule = (courseModuleId: string) => {
+  return prisma.classSession.count({
+    where: { batchModule: { courseModuleId } },
+  });
+};
+
+export const deleteBatchModulesForCourseModule = (courseModuleId: string) => {
+  return prisma.batchModule.deleteMany({
+    where: { courseModuleId },
+  });
+};
+
 export const deleteModule = (id: string) => {
   return prisma.courseModule.delete({
     where: { id },

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
+import { useBranches } from "../../../hooks/useBranches";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useAuthStore } from "@/store/auth.store";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,15 +13,26 @@ import { Input } from "@/components/ui/input";
 /** Keep the typed digits. Empty stays empty, and a leading 0 is not forced back in. */
 const toNumericInput = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 
+const fieldClass = "rounded-lg text-sm";
+const selectClass =
+  "w-full h-9 px-3 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer";
+const labelClass = "block text-xs font-medium text-foreground mb-1.5";
+
 export const AddCourse: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { canEditItem, isAdmin, roleScope } = usePermissions();
+  const user = useAuthStore((s) => s.user);
   const coursesListPath = location.pathname.startsWith("/center")
     ? "/center/courses/all"
     : "/admin/courses/all";
   const canWrite = isAdmin || !roleScope || canEditItem("courses.all");
   const { createCourse } = useCourses();
+  const { data: branchesResponse, isLoading: branchesLoading } = useBranches({
+    limit: 100,
+    status: "ACTIVE",
+  });
+  const branches = branchesResponse?.data ?? [];
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -29,16 +42,58 @@ export const AddCourse: React.FC = () => {
   const [totalHours, setTotalHours] = useState("");
   const [fee, setFee] = useState("");
   const [description, setDescription] = useState("");
+  const [branchIds, setBranchIds] = useState<string[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+
+  const showBranchSelector = branches.length >= 2;
+  const lockedBranchId = useMemo(() => {
+    if (isAdmin) return undefined;
+    const allowed = user?.allowedBranchIds?.length
+      ? user.allowedBranchIds
+      : user?.branchId
+        ? [user.branchId]
+        : [];
+    return allowed.length === 1 ? allowed[0] : undefined;
+  }, [isAdmin, user?.allowedBranchIds, user?.branchId]);
 
   useEffect(() => {
     if (!canWrite) {
       navigate(coursesListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
     }
   }, [canWrite, navigate, coursesListPath]);
+
+  useEffect(() => {
+    if (branches.length === 0) return;
+    if (lockedBranchId) {
+      setBranchIds([lockedBranchId]);
+      return;
+    }
+    if (branches.length === 1) {
+      setBranchIds([branches[0].id]);
+    }
+  }, [branches, lockedBranchId]);
+
+  const toggleBranch = (id: string) => {
+    if (lockedBranchId) return;
+    setBranchIds((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+    );
+  };
+
+  const allBranchesSelected =
+    branches.length > 0 && branches.every((b) => branchIds.includes(b.id));
+
+  const handleSelectAllBranches = () => {
+    if (lockedBranchId) return;
+    if (allBranchesSelected) {
+      setBranchIds([]);
+      return;
+    }
+    setBranchIds(branches.map((b) => b.id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +114,10 @@ export const AddCourse: React.FC = () => {
       setError("Enter a valid number of teaching hours");
       return;
     }
+    if (showBranchSelector && branchIds.length === 0) {
+      setError("Select at least one branch");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -72,6 +131,12 @@ export const AddCourse: React.FC = () => {
         totalHours: hoursValue,
         fee: feeValue,
         description,
+        branchIds:
+          branchIds.length > 0
+            ? branchIds
+            : branches.length === 1
+              ? [branches[0].id]
+              : undefined,
       });
 
       setIsSaved(true);
@@ -91,105 +156,82 @@ export const AddCourse: React.FC = () => {
 
   return (
     <PageContainer maxWidth="narrow" className="animate-in fade-in duration-300">
-      <div className="flex items-start gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(coursesListPath)}
-          className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Courses
-        </Button>
-        <PageHeader
-          className="flex-1 min-w-0"
-          title="Add New Course"
-          description="Fill in details to register a new course in the academy portal."
-        />
-      </div>
+      <PageHeader
+        title="Add Course"
+        description="Register a new course for the academy."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-lg"
+            onClick={() => navigate(coursesListPath)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
+          </Button>
+        }
+      />
 
       {isSaved && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
-          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-          <div>
-            <p className="text-sm font-bold">Course Created Successfully!</p>
-            <p className="text-xs text-muted-foreground">Redirecting to course directory...</p>
-          </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-3 text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <p className="text-sm">Course created. Redirecting…</p>
         </div>
       )}
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center gap-3 animate-in fade-in shadow-2xs">
-          <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
-          <div>
-            <p className="text-sm font-bold">Failed to Create Course</p>
-            <p className="text-xs text-rose-600/90 dark:text-rose-300">{error}</p>
-          </div>
+        <div className="flex items-start gap-2.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3.5 py-3 text-rose-700 dark:text-rose-400">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <p className="text-sm">{error}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-          <CardHeader className="border-b border-border p-6 bg-muted/20">
-            <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              Course Specification
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground font-medium">
-              Provide general metadata, schedule mode, and course structure.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="p-6 space-y-6">
-            {/* Section 1: Basic Information */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">1. Basic Information</h4>
+        <Card className="border border-border bg-card shadow-none rounded-lg">
+          <CardContent className="p-5 sm:p-6 space-y-6">
+            <section className="space-y-4">
+              <h2 className="text-sm font-semibold text-foreground">Basic information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Course Title *</label>
+                  <label className={labelClass}>Course title *</label>
                   <Input
                     type="text"
-                    placeholder="e.g. Advanced Cloud Architecture & DevOps"
+                    placeholder="e.g. Advanced Cloud Architecture"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    className={fieldClass}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Course Code *</label>
+                  <label className={labelClass}>Course code *</label>
                   <Input
                     type="text"
                     placeholder="e.g. CLOUD-2026"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     required
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    className={fieldClass}
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Delivery Mode</label>
+                  <label className={labelClass}>Delivery mode</label>
                   <select
                     value={mode}
-                    onChange={(e) => setMode(e.target.value as any)}
-                    className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    onChange={(e) => setMode(e.target.value as typeof mode)}
+                    className={selectClass}
                   >
-                    <option value="HYBRID">Hybrid (Offline + Online)</option>
-                    <option value="OFFLINE">Offline (Campus)</option>
-                    <option value="ONLINE">Online (Live Virtual)</option>
+                    <option value="HYBRID">Hybrid</option>
+                    <option value="OFFLINE">Offline</option>
+                    <option value="ONLINE">Online</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Target Skill Level</label>
+                  <label className={labelClass}>Skill level</label>
                   <select
                     value={level}
-                    onChange={(e) => setLevel(e.target.value as any)}
-                    className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    onChange={(e) => setLevel(e.target.value as typeof level)}
+                    className={selectClass}
                   >
                     <option value="BEGINNER">Beginner</option>
                     <option value="INTERMEDIATE">Intermediate</option>
@@ -197,38 +239,35 @@ export const AddCourse: React.FC = () => {
                   </select>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Section 2: Duration, Hours & Fee */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2. Duration, Hours & Fee</h4>
+            <section className="space-y-4 pt-2 border-t border-border">
+              <h2 className="text-sm font-semibold text-foreground">Duration & fee</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Duration (Months)</label>
+                  <label className={labelClass}>Duration (months)</label>
                   <Input
                     type="text"
                     inputMode="numeric"
                     value={durationMonths}
                     onChange={(e) => setDurationMonths(toNumericInput(e.target.value))}
                     placeholder="e.g. 6"
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    className={fieldClass}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Total Teaching Hours</label>
+                  <label className={labelClass}>Teaching hours</label>
                   <Input
                     type="text"
                     inputMode="numeric"
                     value={totalHours}
                     onChange={(e) => setTotalHours(toNumericInput(e.target.value))}
                     placeholder="e.g. 200"
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    className={fieldClass}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Course Fee (₹) *</label>
+                  <label className={labelClass}>Fee (₹) *</label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -236,47 +275,106 @@ export const AddCourse: React.FC = () => {
                     onChange={(e) => setFee(toNumericInput(e.target.value))}
                     required
                     placeholder="e.g. 35000"
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    className={fieldClass}
                   />
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Section 3: Description */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Description & Syllabus Overview</h4>
+            {showBranchSelector && (
+              <section className="space-y-3 pt-2 border-t border-border">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">Branches *</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Select at least one branch that can offer this course.
+                    </p>
+                  </div>
+                  {!lockedBranchId && !branchesLoading && branches.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg h-8 text-xs shrink-0"
+                      onClick={handleSelectAllBranches}
+                    >
+                      {allBranchesSelected ? "Clear all" : "Select all"}
+                    </Button>
+                  ) : null}
+                </div>
+                {branchesLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading branches…
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {branches.map((b) => {
+                      const checked = branchIds.includes(b.id);
+                      const locked = Boolean(lockedBranchId);
+                      return (
+                        <label
+                          key={b.id}
+                          className={`flex items-center gap-2.5 rounded-lg border border-border px-3 py-2.5 ${
+                            locked
+                              ? "opacity-70 cursor-not-allowed"
+                              : "cursor-pointer hover:bg-muted/40"
+                          } ${checked ? "border-primary/40 bg-primary/5" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={locked}
+                            onChange={() => toggleBranch(b.id)}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium min-w-0 truncate">{b.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono ml-auto shrink-0">
+                            {b.code}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            <section className="space-y-3 pt-2 border-t border-border">
+              <h2 className="text-sm font-semibold text-foreground">Description</h2>
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Course Overview / Prerequisites</label>
+                <label className={labelClass}>Overview / prerequisites</label>
                 <textarea
                   rows={4}
-                  placeholder="Outline key learning outcomes, prerequisites, tools taught, and project assignments..."
+                  placeholder="Learning outcomes, prerequisites, tools, projects…"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground font-medium"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
                 />
               </div>
-            </div>
+            </section>
 
-            {/* Form Actions */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-border">
-              <Button 
-                type="button" 
-                variant="outline" 
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-lg"
                 onClick={() => navigate(coursesListPath)}
-                className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
                 disabled={submitting}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
-                disabled={submitting}
+              <Button
+                type="submit"
+                size="sm"
+                className="rounded-lg"
+                disabled={submitting || branchesLoading}
               >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    Saving…
                   </>
                 ) : (
                   <>

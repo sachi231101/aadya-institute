@@ -8,6 +8,7 @@ import {
   getBranchScopeFilter,
 } from "../../utils/branch-isolation.util";
 import * as service from "./batch.service";
+import * as curriculumService from "./batch-curriculum.service";
 
 export const getAll = async (
   req: AuthenticatedRequest,
@@ -405,6 +406,62 @@ export const getAvailableFaculty = async (
       excludeBatchId: req.query.excludeBatchId as string | undefined,
     });
     sendSuccess(res, faculty, 200, "Available faculty retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCurriculum = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const data = await curriculumService.getBatchCurriculum(
+      req.params.id as string,
+      req.user!.instituteId,
+      toAuthUser(req)
+    );
+    sendSuccess(res, data, 200, "Batch curriculum retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markModuleCompletion = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const data = await curriculumService.markBatchModuleCompletion(
+      req.params.id as string,
+      req.params.batchModuleId as string,
+      req.user!.instituteId,
+      toAuthUser(req),
+      Boolean(req.body.isCompleted)
+    );
+    sendSuccess(res, data, 200, "Batch module progress updated successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markTopicCompletion = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const data = await curriculumService.markBatchTopicCompletion(
+      req.params.id as string,
+      req.params.batchModuleId as string,
+      req.params.topicId as string,
+      req.user!.instituteId,
+      toAuthUser(req),
+      Boolean(req.body.isCompleted)
+    );
+    sendSuccess(res, data, 200, "Batch topic progress updated successfully");
   } catch (error) {
     next(error);
   }

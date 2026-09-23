@@ -139,7 +139,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     description: "Batches and scheduling (create and assign faculty from All Batches)",
     category: "ERP Modules",
     items: [
-      { key: "batches.all", label: "All Batches", readPermissions: ["batch.read"], writePermissions: ["batch.create", "batch.update"] },
+      { key: "batches.all", label: "All Batches", readPermissions: ["batch.read"], writePermissions: ["batch.create", "batch.update", "batch_curriculum.mark"] },
     ],
   },
   {

@@ -7,6 +7,7 @@ import type { AuthUser } from "../../auth/auth.types";
 import type { ConvertLeadDTO } from "../lead.types";
 import { SequenceService } from "../../masters/sequence.service";
 import { provisionAdmission } from "../../admissions/admission-provision.service";
+import { assertCourseAvailableForBranch } from "../../../utils/course-branch.util";
 
 export const LeadConversionService = {
   async convertLead(
@@ -54,6 +55,8 @@ export const LeadConversionService = {
     if (!courseId) {
       throw new AppError("Course is required to convert this lead", 400);
     }
+
+    await assertCourseAvailableForBranch(lead.instituteId, courseId, lead.branchId);
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },

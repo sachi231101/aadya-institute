@@ -241,13 +241,15 @@ async function main() {
 
   for (const c of courses) {
     const existingCourse = await prisma.course.findFirst({ where: { code: c.code } });
+    let courseId: string;
     if (existingCourse) {
       await prisma.course.update({
         where: { id: existingCourse.id },
         data: { name: c.name, duration: c.duration, category: c.category },
       });
+      courseId = existingCourse.id;
     } else {
-      await prisma.course.create({
+      const created = await prisma.course.create({
         data: {
           instituteId: institute.id,
           name: c.name,
@@ -255,6 +257,21 @@ async function main() {
           category: c.category,
           duration: c.duration,
         },
+      });
+      courseId = created.id;
+    }
+
+    const activeBranches = await prisma.branch.findMany({
+      where: { instituteId: institute.id, status: "ACTIVE" },
+      select: { id: true },
+    });
+    for (const branch of activeBranches) {
+      await prisma.courseBranch.upsert({
+        where: {
+          courseId_branchId: { courseId, branchId: branch.id },
+        },
+        update: {},
+        create: { courseId, branchId: branch.id },
       });
     }
   }

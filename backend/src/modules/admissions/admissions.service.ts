@@ -3,6 +3,7 @@ import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import { sendStudentCredentialsWhatsAppService } from "../students/student.service";
 import type {
   CreateApplicationDTO,
@@ -156,6 +157,12 @@ export const AdmissionsService = {
   async createApplication(currentUser: AuthUser, dto: CreateApplicationDTO) {
     const branchId = await resolveApplicationBranchId(currentUser, dto.branchId);
 
+    await assertCourseAvailableForBranch(
+      currentUser.instituteId,
+      dto.courseId,
+      branchId
+    );
+
     if (dto.feeStatus === "PAID") {
       if (dto.applicationFee == null || Number.isNaN(Number(dto.applicationFee))) {
         throw new AppError("Application fee amount is required when marked as paid", 400);
@@ -244,6 +251,17 @@ export const AdmissionsService = {
       throw new AppError("Application not found", 404);
     }
     assertBranchRecordAccess(currentUser, existing.branchId);
+
+    if (dto.courseId && dto.courseId !== existing.courseId) {
+      if (!existing.branchId) {
+        throw new AppError("Application has no branch assigned", 400);
+      }
+      await assertCourseAvailableForBranch(
+        currentUser.instituteId,
+        dto.courseId,
+        existing.branchId
+      );
+    }
 
     if (dto.feeStatus === "PAID") {
       if (dto.applicationFee == null || Number.isNaN(Number(dto.applicationFee))) {
@@ -470,6 +488,8 @@ export const AdmissionsService = {
       branchId = defaultBranch.id;
     }
 
+    await assertCourseAvailableForBranch(instituteId, dto.courseId, branchId);
+
     const branch = await prisma.branch.findFirst({
       where: { id: branchId, instituteId },
       select: { code: true },
@@ -533,6 +553,15 @@ export const AdmissionsService = {
     if (!hasBranchAccess(currentUser, existing.branchId)) {
       throw new AppError("Admission not found", 404);
     }
+
+    if (dto.courseId && dto.courseId !== existing.courseId) {
+      await assertCourseAvailableForBranch(
+        currentUser.instituteId,
+        dto.courseId,
+        existing.branchId
+      );
+    }
+
     const normalizedDto: UpdateAdmissionDTO =
       dto.status && dto.status !== "PENDING"
         ? {

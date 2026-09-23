@@ -10,6 +10,8 @@ export const createCourseSchema = z.object({
   level: z.string().optional(),
   totalHours: z.number().int().positive().optional(),
   fee: z.number().nonnegative().optional(),
+  // Optional: single-branch institutes are auto-assigned in the service.
+  branchIds: z.array(z.string().min(1)).min(1, "Select at least one branch").optional().default([]),
 });
 
 export const updateCourseSchema = z.object({
@@ -23,5 +25,5 @@ export const updateCourseSchema = z.object({
   totalHours: z.number().int().positive().optional(),
   fee: z.number().nonnegative().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
+  branchIds: z.array(z.string().min(1)).min(1, "Select at least one branch").optional(),
 });
-

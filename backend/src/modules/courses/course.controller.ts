@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./course.service";
 
 export const getAll = async (
@@ -8,13 +9,13 @@ export const getAll = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
     const filters = {
       search: req.query.search as string | undefined,
       status: req.query.status as string | undefined,
       category: req.query.category as string | undefined,
+      branchId: req.query.branchId as string | undefined,
     };
-    const courses = await service.getCourses(instituteId, filters);
+    const courses = await service.getCourses(toAuthUser(req), filters);
     res.json({
       success: true,
       message: "Courses retrieved successfully",
@@ -31,8 +32,11 @@ export const getById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const course = await service.getCourseById(req.params.id as string, instituteId);
+    const course = await service.getCourseById(
+      req.params.id as string,
+      toAuthUser(req),
+      req.query.branchId as string | undefined
+    );
     res.json({
       success: true,
       message: "Course details retrieved successfully",
@@ -49,8 +53,7 @@ export const create = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const course = await service.createCourse(instituteId, req.body);
+    const course = await service.createCourse(toAuthUser(req), req.body);
     res.status(201).json({
       success: true,
       message: "Course created successfully",
@@ -67,8 +70,11 @@ export const update = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const course = await service.updateCourse(req.params.id as string, instituteId, req.body);
+    const course = await service.updateCourse(
+      req.params.id as string,
+      toAuthUser(req),
+      req.body
+    );
     res.json({
       success: true,
       message: "Course updated successfully",
@@ -85,8 +91,7 @@ export const remove = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    await service.deleteCourse(req.params.id as string, instituteId);
+    await service.deleteCourse(req.params.id as string, toAuthUser(req));
     res.json({
       success: true,
       message: "Course deleted successfully",
