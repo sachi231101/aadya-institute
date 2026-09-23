@@ -134,17 +134,7 @@ export const Batches: React.FC = () => {
     branchId: formScopeBranchId,
   });
   const facultyList = facultyResponse?.data ?? [];
-  const requireFormBranch =
-    showModal && !editingBatch && allowAllBranches && !branchIdForQuery;
-  /** Create under list-filter branch: show read-only so staff see where the batch goes. */
-  const lockedCreateBranchId =
-    showModal && !editingBatch && !requireFormBranch
-      ? formBranchId || branchIdForQuery || ""
-      : "";
-  const lockedCreateBranchName =
-    lockedCreateBranchId
-      ? branches.find((b) => b.id === lockedCreateBranchId)?.name
-      : undefined;
+  const requireFormBranch = showModal && !editingBatch && branches.length > 0;
   const editBranchName = editingBatch
     ? editingBatch.branch?.name ||
       branches.find((b) => b.id === editingBatch.branchId)?.name ||
@@ -782,18 +772,18 @@ export const Batches: React.FC = () => {
                       </select>
                     </div>
                   )}
-                  {(lockedCreateBranchId || editingBatch) && (
+                  {editingBatch && (
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-1.5">
                         Branch
                       </label>
                       <Input
                         type="text"
-                        value={editingBatch ? editBranchName : lockedCreateBranchName || "—"}
+                        value={editBranchName}
                         disabled
                         readOnly
                         className="h-10 rounded-xl text-xs bg-muted/40 text-muted-foreground cursor-not-allowed"
-                        aria-label={`Branch: ${editingBatch ? editBranchName : lockedCreateBranchName || "selected"}`}
+                        aria-label={`Branch: ${editBranchName}`}
                       />
                     </div>
                   )}

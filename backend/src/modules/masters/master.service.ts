@@ -143,6 +143,22 @@ const getBranchFilter = (currentUser: MasterAuthUser, requestedBranchId?: string
   return currentUser.branchId ?? undefined;
 };
 
+/** CM may only mutate masters scoped to their own branch — not shared (null) or other branches. */
+const assertCenterManagerCanMutateMaster = (
+  currentUser: MasterAuthUser,
+  existing: { branchId: string | null }
+) => {
+  if (
+    !currentUser.roles.includes("CENTER_MANAGER") ||
+    currentUser.roles.includes("ADMIN")
+  ) {
+    return;
+  }
+  if (!existing.branchId || existing.branchId !== currentUser.branchId) {
+    throw new AppError("Master record not found", 404);
+  }
+};
+
 export const listMastersService = async (
   currentUser: MasterAuthUser,
   entityType: string,
@@ -266,11 +282,12 @@ export const createMasterService = async (
     return series;
   }
 
-  // Duplicate name check for other master entity types
+  // Duplicate name check for other master entity types (scoped by branch)
   const duplicate = await findDuplicateMasterRecord(
     instituteId,
     input.entityType,
-    input.name
+    input.name,
+    branchId ?? null
   );
   if (duplicate) {
     throw new AppError(
@@ -295,27 +312,33 @@ export const updateMasterService = async (
     throw new AppError("Master record not found", 404);
   }
 
-  // Branch isolation guard
-  if (
+  assertCenterManagerCanMutateMaster(currentUser, existing);
+
+  // CM cannot reassign branch scope (including shared → own branch)
+  const isCenterManagerOnly =
     currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    existing.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Master record not found", 404);
+    !currentUser.roles.includes("ADMIN");
+  if (isCenterManagerOnly && input.branchId !== undefined) {
+    input = { ...input, branchId: existing.branchId };
   }
 
-  // Duplicate name check on update (if name is being changed)
-  if (input.name && input.name !== existing.name) {
+  // Duplicate name check on update when name or branch scope changes
+  const nextName = input.name ?? existing.name;
+  const nextBranchId =
+    input.branchId === undefined ? existing.branchId : input.branchId;
+  const nameOrBranchChanged =
+    nextName !== existing.name || nextBranchId !== existing.branchId;
+  if (nameOrBranchChanged) {
     const duplicate = await findDuplicateMasterRecord(
       instituteId,
       existing.entityType,
-      input.name,
+      nextName,
+      nextBranchId ?? null,
       id
     );
     if (duplicate) {
       throw new AppError(
-        `A record with the name "${input.name}" already exists in ${existing.entityType}`,
+        `A record with the name "${nextName}" already exists in ${existing.entityType}`,
         409
       );
     }
@@ -393,15 +416,7 @@ export const deleteMasterService = async (
     throw new AppError("Master record not found", 404);
   }
 
-  // Branch isolation guard
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    existing.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Master record not found", 404);
-  }
+  assertCenterManagerCanMutateMaster(currentUser, existing);
 
   // Soft delete: set status to INACTIVE
   const deactivated = await softDeleteMasterRecord(id, instituteId);
@@ -422,15 +437,7 @@ export const toggleMasterStatusService = async (
     throw new AppError("Master record not found", 404);
   }
 
-  // Branch isolation guard
-  if (
-    currentUser.roles.includes("CENTER_MANAGER") &&
-    !currentUser.roles.includes("ADMIN") &&
-    existing.branchId &&
-    existing.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Master record not found", 404);
-  }
+  assertCenterManagerCanMutateMaster(currentUser, existing);
 
   const newStatus = existing.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
 

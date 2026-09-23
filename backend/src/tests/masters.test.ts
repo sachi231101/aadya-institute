@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { prisma } from "../config/database";
 import { assertActiveMaster } from "../modules/masters/master.validator";
 import { isAllowedMasterEntityType } from "../modules/masters/master.entity-types";
-import { createMasterService } from "../modules/masters/master.service";
+import { createMasterService, updateMasterService, deleteMasterService, toggleMasterStatusService } from "../modules/masters/master.service";
 
 describe("Master Module Integration Tests", () => {
   let instituteId: string;
@@ -285,5 +285,129 @@ describe("Master Module Integration Tests", () => {
 
     await prisma.payment.deleteMany({ where: { instituteId: otherInstitute.id } });
     await prisma.institute.delete({ where: { id: otherInstitute.id } });
+  });
+
+  test("timeslot uniqueness is scoped by branchId; active list returns branch + shared", async () => {
+    const { findActiveMasterRecords } = await import(
+      "../modules/masters/master.repository"
+    );
+
+    const branchB = await prisma.branch.create({
+      data: {
+        instituteId,
+        name: "Master Test Branch B",
+        code: `BR-M-${Date.now().toString().slice(-5)}`,
+      },
+    });
+
+    const slotName = "11:00 AM - 11:15 AM";
+    const slotData = {
+      startTime: "11:00 AM",
+      endTime: "11:15 AM",
+      slotType: "BREAK",
+    };
+
+    const shared = await createMasterService(
+      { userId: "admin", instituteId, roles: ["ADMIN"] },
+      {
+        entityType: "timeslot",
+        name: "9:00 AM - 10:00 AM",
+        data: { startTime: "9:00 AM", endTime: "10:00 AM", slotType: "TEACHING" },
+      }
+    );
+    assert.strictEqual(shared.branchId, null);
+
+    const onA = await createMasterService(
+      { userId: "admin", instituteId, roles: ["ADMIN"] },
+      {
+        entityType: "timeslot",
+        name: slotName,
+        branchId,
+        data: slotData,
+      }
+    );
+    assert.strictEqual(onA.branchId, branchId);
+
+    const onB = await createMasterService(
+      { userId: "admin", instituteId, roles: ["ADMIN"] },
+      {
+        entityType: "timeslot",
+        name: slotName,
+        branchId: branchB.id,
+        data: slotData,
+      }
+    );
+    assert.strictEqual(onB.branchId, branchB.id);
+
+    await assert.rejects(
+      () =>
+        createMasterService(
+          { userId: "admin", instituteId, roles: ["ADMIN"] },
+          {
+            entityType: "timeslot",
+            name: slotName,
+            branchId,
+            data: slotData,
+          }
+        ),
+      (err: Error) => err.message.includes("already exists")
+    );
+
+    const forA = await findActiveMasterRecords(instituteId, "timeslot", branchId);
+    const idsForA = forA.map((r) => r.id);
+    assert.ok(idsForA.includes(shared.id), "shared (null branch) slot visible for branch A");
+    assert.ok(idsForA.includes(onA.id), "branch A break visible for branch A");
+    assert.ok(!idsForA.includes(onB.id), "branch B break hidden for branch A");
+
+    const forB = await findActiveMasterRecords(instituteId, "timeslot", branchB.id);
+    const idsForB = forB.map((r) => r.id);
+    assert.ok(idsForB.includes(shared.id));
+    assert.ok(idsForB.includes(onB.id));
+    assert.ok(!idsForB.includes(onA.id));
+
+    await prisma.branch.delete({ where: { id: branchB.id } });
+  });
+
+  test("center manager cannot mutate shared (All branches) timeslot", async () => {
+    const shared = await createMasterService(
+      { userId: "admin", instituteId, roles: ["ADMIN"] },
+      {
+        entityType: "timeslot",
+        name: "2:00 PM - 2:15 PM CM-GUARD",
+        data: { startTime: "2:00 PM", endTime: "2:15 PM", slotType: "BREAK" },
+      }
+    );
+    assert.strictEqual(shared.branchId, null);
+
+    const cm = {
+      userId: "cm-user",
+      instituteId,
+      branchId,
+      roles: ["CENTER_MANAGER"],
+    };
+
+    await assert.rejects(
+      () =>
+        updateMasterService(cm, shared.id, {
+          name: "2:00 PM - 2:15 PM hijacked",
+          branchId,
+        }),
+      (err: Error & { statusCode?: number }) =>
+        err.message.includes("not found") || err.statusCode === 404
+    );
+
+    await assert.rejects(
+      () => deleteMasterService(cm, shared.id),
+      (err: Error & { statusCode?: number }) =>
+        err.message.includes("not found") || err.statusCode === 404
+    );
+
+    await assert.rejects(
+      () => toggleMasterStatusService(cm, shared.id),
+      (err: Error & { statusCode?: number }) =>
+        err.message.includes("not found") || err.statusCode === 404
+    );
+
+    await prisma.masterRecord.delete({ where: { id: shared.id } });
   });
 });

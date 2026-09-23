@@ -39,6 +39,7 @@ interface MasterSelectProps {
   className?: string;
   includeEmpty?: boolean;
   entityLabel?: string;
+  /** When set (e.g. timeslot quick-create on a branch form), scopes the new master to that branch. Omit = All branches. */
   branchId?: string;
   disabled?: boolean;
   /**
@@ -88,6 +89,9 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
 
   const handleOpen = () => {
     resetForm();
+    if (entityType.toLowerCase() === "timeslot") {
+      setFormValues({ slotType: "TEACHING" });
+    }
     setOpen(true);
   };
 
@@ -136,7 +140,8 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
         payload: {
           name,
           description: values.description?.trim() || undefined,
-          branchId: branchId || undefined,
+          // Timeslot (and other masters): use parent branch when available; omit = All branches
+          ...(branchId ? { branchId } : {}),
           status: "ACTIVE",
           data: dataObj,
         },
@@ -273,6 +278,30 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
                       placeholder={`Select ${field.label.toLowerCase()}`}
                       className="mt-1"
                     />
+                  </div>
+                );
+              }
+
+              if (field.inputType === "select" && field.options?.length) {
+                return (
+                  <div key={field.key}>
+                    <Label className="text-xs">
+                      {field.label}
+                      {field.required ? " *" : ""}
+                    </Label>
+                    <select
+                      value={formValues[field.key] || field.options[0]?.value || ""}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      className="mt-1 w-full h-9 px-3 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    >
+                      {field.options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 );
               }
