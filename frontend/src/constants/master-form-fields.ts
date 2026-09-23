@@ -11,12 +11,27 @@ export interface MasterFormField {
   label: string;
   required?: boolean;
   /** HTML input type when rendered in create/edit forms */
-  inputType?: "text" | "time" | "number" | "date" | "textarea";
+  inputType?: "text" | "time" | "number" | "date" | "textarea" | "select";
+  /** Options for `inputType: "select"`. */
+  options?: { value: string; label: string }[];
   /** Render a MasterSelect backed by this entity type. */
   masterEntityType?: string;
   /** When true, field is derived (e.g. timeslot name from start/end). */
   readOnly?: boolean;
 }
+
+/** Time Slot master `data.slotType` values (default TEACHING when missing). */
+export const TIMESLOT_SLOT_TYPE_OPTIONS = [
+  { value: "TEACHING", label: "Teaching" },
+  { value: "BREAK", label: "Break" },
+  { value: "LUNCH", label: "Lunch" },
+] as const;
+
+export const timeslotSlotTypeLabel = (value: unknown): string => {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
+  const match = TIMESLOT_SLOT_TYPE_OPTIONS.find((o) => o.value === raw);
+  return match?.label ?? "Teaching";
+};
 
 /** Top-level payload keys (not nested under data) */
 export const MASTER_TOP_LEVEL_KEYS = new Set(["name", "code", "description"]);
@@ -48,6 +63,17 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
   timeslot: [
     { key: "startTime", label: "Start Time", required: true, inputType: "time" },
     { key: "endTime", label: "End Time", required: true, inputType: "time" },
+    {
+      key: "slotType",
+      label: "Slot Type",
+      required: true,
+      inputType: "select",
+      options: [
+        { value: "TEACHING", label: "Teaching" },
+        { value: "BREAK", label: "Break" },
+        { value: "LUNCH", label: "Lunch" },
+      ],
+    },
     { key: "name", label: "Time Slot", required: true, readOnly: true },
   ],
   examterm: [

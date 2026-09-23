@@ -89,6 +89,7 @@ import {
 import {
   MASTER_QUICK_CREATE_FIELDS,
   MASTER_TOP_LEVEL_KEYS,
+  timeslotSlotTypeLabel,
 } from "@/constants/master-form-fields";
 import {
   buildTimeslotName,
@@ -97,6 +98,9 @@ import {
 } from "@/utils/master.utils";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { useBranches } from "@/hooks/useBranches";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
 
 // ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
@@ -120,7 +124,8 @@ export interface MasterEntity {
     key: string;
     label: string;
     required?: boolean;
-    inputType?: "text" | "time" | "number" | "date" | "textarea";
+    inputType?: "text" | "time" | "number" | "date" | "textarea" | "select";
+    options?: { value: string; label: string }[];
     masterEntityType?: string;
     readOnly?: boolean;
   }[];
@@ -418,6 +423,11 @@ export const MasterSetup: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [recordSearchQuery, setRecordSearchQuery] = useState("");
   const [recordStatusFilter, setRecordStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  /** Admin-only list filter for timeslot branch scope */
+  const [recordBranchFilter, setRecordBranchFilter] = useState<string>("ALL");
+  /** Timeslot form: All branches (null) vs specific branch id(s) */
+  const [timeslotBranchScope, setTimeslotBranchScope] = useState<"ALL" | "SPECIFIC">("ALL");
+  const [timeslotBranchIds, setTimeslotBranchIds] = useState<string[]>([]);
   const [recordPage, setRecordPage] = useState(1);
   const RECORDS_PER_PAGE = 20;
 
@@ -430,6 +440,19 @@ export const MasterSetup: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // ─── HOOKS ──────────────────────────────────────────────────────────────────
+
+  const { isAdmin } = usePermissions();
+  const user = useAuthStore((s) => s.user);
+  const lockedTimeslotBranchId = useMemo(() => {
+    if (isAdmin) return undefined;
+    return user?.branchId || undefined;
+  }, [isAdmin, user?.branchId]);
+
+  const { data: branchesResponse, isLoading: branchesLoading } = useBranches({
+    limit: 100,
+    status: "ACTIVE",
+  });
+  const branches = branchesResponse?.data ?? [];
 
   // Real entity counts from PostgreSQL
   const { data: entityCountsData, isLoading: isCountsLoading } = useMasterEntityCounts();
@@ -448,8 +471,22 @@ export const MasterSetup: React.FC = () => {
     };
     if (recordSearchQuery.trim()) params.search = recordSearchQuery.trim();
     if (recordStatusFilter !== "ALL") params.status = recordStatusFilter;
+    if (
+      selectedMasterEntity?.id === "timeslot" &&
+      isAdmin &&
+      recordBranchFilter !== "ALL"
+    ) {
+      params.branchId = recordBranchFilter;
+    }
     return params;
-  }, [recordPage, recordSearchQuery, recordStatusFilter]);
+  }, [
+    recordPage,
+    recordSearchQuery,
+    recordStatusFilter,
+    recordBranchFilter,
+    selectedMasterEntity?.id,
+    isAdmin,
+  ]);
 
   const { data: entityApiData, isLoading: isEntityLoading, isError: isEntityError, error: entityError } = useMasterRecords(
     isRecordsModalOpen ? selectedMasterEntity?.id : undefined,
@@ -529,6 +566,7 @@ export const MasterSetup: React.FC = () => {
     setSelectedMasterEntity(entity);
     setRecordSearchQuery("");
     setRecordStatusFilter("ALL");
+    setRecordBranchFilter("ALL");
     setRecordPage(1);
     setIsRecordsModalOpen(true);
   };
@@ -548,6 +586,19 @@ export const MasterSetup: React.FC = () => {
       initialForm.pattern = "AADYA/{YEAR}/{SEQ:4}";
       initialForm.startNumber = "1";
       initialForm.resetFrequency = "YEARLY";
+    }
+    if (entity.id === "timeslot") {
+      initialForm.slotType = "TEACHING";
+      if (lockedTimeslotBranchId) {
+        setTimeslotBranchScope("SPECIFIC");
+        setTimeslotBranchIds([lockedTimeslotBranchId]);
+      } else {
+        setTimeslotBranchScope("ALL");
+        setTimeslotBranchIds([]);
+      }
+    } else {
+      setTimeslotBranchScope("ALL");
+      setTimeslotBranchIds([]);
     }
     setRecordFormValues(initialForm);
     setFormErrors({});
@@ -580,11 +631,31 @@ export const MasterSetup: React.FC = () => {
       formVals.endTime = parseAmPmToTimeInput(
         rec.data?.endTime || formVals.endTime || ""
       );
+      formVals.slotType = formVals.slotType || "TEACHING";
       formVals.name =
         buildTimeslotName(formVals.startTime, formVals.endTime) ||
         formVals.name ||
         rec.name ||
         "";
+      if (lockedTimeslotBranchId) {
+        // CM: keep existing scope; never reassign shared (All branches) slots to own branch
+        if (rec.branchId) {
+          setTimeslotBranchScope("SPECIFIC");
+          setTimeslotBranchIds([rec.branchId]);
+        } else {
+          setTimeslotBranchScope("ALL");
+          setTimeslotBranchIds([]);
+        }
+      } else if (rec.branchId) {
+        setTimeslotBranchScope("SPECIFIC");
+        setTimeslotBranchIds([rec.branchId]);
+      } else {
+        setTimeslotBranchScope("ALL");
+        setTimeslotBranchIds([]);
+      }
+    } else {
+      setTimeslotBranchScope("ALL");
+      setTimeslotBranchIds([]);
     }
     setRecordFormValues(formVals);
     setFormErrors({});
@@ -612,6 +683,10 @@ export const MasterSetup: React.FC = () => {
       errors.name = isTimeslot
         ? "Start Time and End Time are required"
         : "Name is required";
+    }
+
+    if (isTimeslot && timeslotBranchScope === "SPECIFIC" && timeslotBranchIds.length === 0) {
+      errors.branchIds = "Select at least one branch";
     }
 
     setFormErrors(errors);
@@ -666,6 +741,11 @@ export const MasterSetup: React.FC = () => {
 
     try {
       if (editingRecordId) {
+        const editBranchId = isTimeslot
+          ? timeslotBranchScope === "ALL"
+            ? null
+            : timeslotBranchIds[0] || null
+          : undefined;
         await updateMasterMutation.mutateAsync({
           entityType: entityId,
           id: editingRecordId,
@@ -674,9 +754,29 @@ export const MasterSetup: React.FC = () => {
             ...(entityId === "numberingseries" ? { code: recordCode } : {}),
             description: recordDesc,
             data: dataObj,
+            ...(isTimeslot ? { branchId: editBranchId } : {}),
           },
         });
         showToast(`Record updated in ${selectedMasterEntity.name} successfully.`);
+      } else if (isTimeslot && timeslotBranchScope === "SPECIFIC") {
+        // One MasterRecord per selected branch
+        for (const branchId of timeslotBranchIds) {
+          await createMasterMutation.mutateAsync({
+            entityType: entityId,
+            payload: {
+              name: recordName,
+              description: recordDesc,
+              branchId,
+              data: dataObj,
+            },
+          });
+        }
+        const n = timeslotBranchIds.length;
+        showToast(
+          n > 1
+            ? `Created ${n} time slot records (one per branch).`
+            : `New record created in ${selectedMasterEntity.name} successfully.`
+        );
       } else {
         await createMasterMutation.mutateAsync({
           entityType: entityId,
@@ -685,6 +785,7 @@ export const MasterSetup: React.FC = () => {
             ...(entityId === "numberingseries" ? { code: recordCode } : {}),
             description: recordDesc,
             data: dataObj,
+            // timeslot All branches → omit branchId (null)
           },
         });
         showToast(`New record created in ${selectedMasterEntity.name} successfully.`);
@@ -1154,6 +1255,20 @@ export const MasterSetup: React.FC = () => {
                     className="h-9 pl-9 text-xs rounded-xl bg-slate-50"
                   />
                 </div>
+                {selectedMasterEntity.id === "timeslot" && isAdmin && (
+                  <select
+                    value={recordBranchFilter}
+                    onChange={(e) => { setRecordBranchFilter(e.target.value); setRecordPage(1); }}
+                    className="h-9 px-3 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none appearance-none cursor-pointer min-w-[140px]"
+                  >
+                    <option value="ALL">All branches</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <select
                   value={recordStatusFilter}
                   onChange={(e) => { setRecordStatusFilter(e.target.value as any); setRecordPage(1); }}
@@ -1208,6 +1323,9 @@ export const MasterSetup: React.FC = () => {
                       <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         <tr>
                           <th className="py-2.5 px-3">Name</th>
+                          {selectedMasterEntity.id === "timeslot" && (
+                            <th className="py-2.5 px-3">Branch</th>
+                          )}
                           {selectedMasterEntity.id === "numberingseries" && (
                             <th className="py-2.5 px-3">Target Document</th>
                           )}
@@ -1227,6 +1345,11 @@ export const MasterSetup: React.FC = () => {
                         {entityApiData.data.map((rec: any) => (
                           <tr key={rec.id} className="hover:bg-slate-50">
                             <td className="py-2.5 px-3 text-slate-800 font-semibold">{rec.name || "—"}</td>
+                            {selectedMasterEntity.id === "timeslot" && (
+                              <td className="py-2.5 px-3 text-slate-600 font-medium">
+                                {rec.branch?.name || "All branches"}
+                              </td>
+                            )}
                             {selectedMasterEntity.id === "numberingseries" && (
                               <td className="py-2.5 px-3 text-slate-600 font-medium">{rec.code || "—"}</td>
                             )}
@@ -1237,9 +1360,11 @@ export const MasterSetup: React.FC = () => {
                                   {selectedMasterEntity.id === "timeslot" &&
                                   (col.key === "startTime" || col.key === "endTime")
                                     ? formatTimeToAmPm(String(rec.data?.[col.key] || "")) || "—"
-                                    : col.masterEntityType
-                                      ? rec.data?.type || "—"
-                                      : rec.data?.[col.key] || "—"}
+                                    : selectedMasterEntity.id === "timeslot" && col.key === "slotType"
+                                      ? timeslotSlotTypeLabel(rec.data?.slotType)
+                                      : col.masterEntityType
+                                        ? rec.data?.type || "—"
+                                        : rec.data?.[col.key] || "—"}
                                 </td>
                               ))}
                             {selectedMasterEntity.id === "numberingseries" && (
@@ -1252,6 +1377,19 @@ export const MasterSetup: React.FC = () => {
                             </td>
                             <td className="py-2.5 px-3 text-center">
                               <PermissionGate itemKey="admin.masters" mode="write">
+                                {(() => {
+                                  const cmCannotMutateSharedOrForeign =
+                                    Boolean(lockedTimeslotBranchId) &&
+                                    selectedMasterEntity.id === "timeslot" &&
+                                    rec.branchId !== lockedTimeslotBranchId;
+                                  if (cmCannotMutateSharedOrForeign) {
+                                    return (
+                                      <span className="text-[10px] text-slate-400 font-medium">
+                                        {rec.branchId ? "Other branch" : "Shared"}
+                                      </span>
+                                    );
+                                  }
+                                  return (
                                 <div className="inline-flex items-center gap-1">
                                   <button
                                     type="button"
@@ -1285,6 +1423,8 @@ export const MasterSetup: React.FC = () => {
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
+                                  );
+                                })()}
                               </PermissionGate>
                             </td>
                           </tr>
@@ -1500,6 +1640,43 @@ export const MasterSetup: React.FC = () => {
                     );
                   }
 
+                  if (col.inputType === "select" && col.options?.length) {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label}
+                          {col.required && <span className="text-rose-500 ml-0.5">*</span>}
+                        </Label>
+                        <select
+                          value={recordFormValues[col.key] || col.options[0]?.value || ""}
+                          onChange={(e) => {
+                            setRecordFormValues((prev) => ({
+                              ...prev,
+                              [col.key]: e.target.value,
+                            }));
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[col.key];
+                              return next;
+                            });
+                          }}
+                          className={`w-full h-9 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none ${
+                            formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
+                          }`}
+                        >
+                          {col.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        {formErrors[col.key] && (
+                          <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
+                        )}
+                      </div>
+                    );
+                  }
+
                   if (col.inputType === "textarea") {
                     return (
                       <div key={col.key} className="space-y-1">
@@ -1596,6 +1773,139 @@ export const MasterSetup: React.FC = () => {
                     </div>
                   );
                 })}
+
+                {/* Timeslot branch scope — create: All / one / multi; edit: single or All */}
+                {selectedMasterEntity.id === "timeslot" && (
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
+                    <Label className="text-[11px] font-bold text-slate-700">
+                      Branch scope <span className="text-rose-500">*</span>
+                    </Label>
+                    {lockedTimeslotBranchId ? (
+                      <p className="text-[11px] text-slate-600 font-medium px-1">
+                        Locked to your branch:{" "}
+                        {branches.find((b) => b.id === lockedTimeslotBranchId)?.name ||
+                          "your branch"}
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTimeslotBranchScope("ALL");
+                              setTimeslotBranchIds([]);
+                              setFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.branchIds;
+                                return next;
+                              });
+                            }}
+                            className={`flex-1 h-8 text-[11px] font-bold rounded-xl border cursor-pointer transition-colors ${
+                              timeslotBranchScope === "ALL"
+                                ? "bg-primary text-white border-primary"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            All branches
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTimeslotBranchScope("SPECIFIC")}
+                            className={`flex-1 h-8 text-[11px] font-bold rounded-xl border cursor-pointer transition-colors ${
+                              timeslotBranchScope === "SPECIFIC"
+                                ? "bg-primary text-white border-primary"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            Specific branch{editingRecordId ? "" : "es"}
+                          </button>
+                        </div>
+                        {timeslotBranchScope === "SPECIFIC" && (
+                          <div className="space-y-1.5">
+                            {branchesLoading ? (
+                              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                <Loader2 className="h-3 w-3 animate-spin" /> Loading branches…
+                              </div>
+                            ) : editingRecordId ? (
+                              <select
+                                value={timeslotBranchIds[0] || ""}
+                                onChange={(e) => {
+                                  setTimeslotBranchIds(e.target.value ? [e.target.value] : []);
+                                  setFormErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete next.branchIds;
+                                    return next;
+                                  });
+                                }}
+                                className="w-full h-9 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                              >
+                                <option value="">Select branch…</option>
+                                {branches.map((b) => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} ({b.code})
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
+                                {branches.map((b) => {
+                                  const checked = timeslotBranchIds.includes(b.id);
+                                  return (
+                                    <label
+                                      key={b.id}
+                                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer ${
+                                        checked
+                                          ? "bg-blue-50 border-blue-200"
+                                          : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          setTimeslotBranchIds((prev) =>
+                                            prev.includes(b.id)
+                                              ? prev.filter((id) => id !== b.id)
+                                              : [...prev, b.id]
+                                          );
+                                          setFormErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.branchIds;
+                                            return next;
+                                          });
+                                        }}
+                                        className="rounded"
+                                      />
+                                      <span className="text-xs font-medium text-slate-800 truncate">
+                                        {b.name}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-mono ml-auto shrink-0">
+                                        {b.code}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {timeslotBranchScope === "SPECIFIC" && !editingRecordId && (
+                              <p className="text-[10px] text-slate-500">
+                                Creates one record per selected branch (same time range).
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {timeslotBranchScope === "ALL" && (
+                          <p className="text-[10px] text-slate-500">
+                            Applies to every branch (shared institute-wide slot).
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {formErrors.branchIds && (
+                      <p className="text-[10px] text-rose-500 font-bold">{formErrors.branchIds}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Live Preview for numbering series */}
                 {selectedMasterEntity.id === "numberingseries" && (

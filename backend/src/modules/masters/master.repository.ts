@@ -64,18 +64,21 @@ export const findMasterRecordById = async (id: string, instituteId: string) => {
 };
 
 /**
- * Check for duplicate name within the same entity type and institute
+ * Check for duplicate name within the same entity type, institute, and branch scope.
+ * `branchId: null` = All branches (institute-wide); must match null exactly.
  */
 export const findDuplicateMasterRecord = async (
   instituteId: string,
   entityType: string,
   name: string,
+  branchId?: string | null,
   excludeId?: string
 ) => {
   const where: Prisma.MasterRecordWhereInput = {
     instituteId,
     entityType,
     name: { equals: name, mode: "insensitive" },
+    branchId: branchId ?? null,
   };
 
   if (excludeId) {

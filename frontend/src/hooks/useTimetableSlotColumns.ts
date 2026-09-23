@@ -17,8 +17,11 @@ export const useTimetableSlotColumns = (branchId?: string) => {
     [options]
   );
 
-  // All configured master slots are bookable (no invented break/lunch).
-  const bookableSlots = slots;
+  // Teaching periods only — Break/Lunch columns are structural, not bookable.
+  const bookableSlots = useMemo(
+    () => slots.filter((s) => !s.isBreak && !s.isLunch),
+    [slots]
+  );
 
   return {
     slots,

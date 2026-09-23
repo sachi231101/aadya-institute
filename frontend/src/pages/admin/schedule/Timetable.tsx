@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Download,
   Search,
-  Filter,
   CheckCircle2,
   Save,
   Edit3,
@@ -43,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { SearchableSelect } from "@/components/common/SearchableSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
@@ -61,7 +61,6 @@ import {
   addDaysToDateKey,
   formatDateKeyLabel,
   getWeekRangeFromOffset,
-  toHolidayDateKey,
   isMasterHolidayDate,
   getMasterHolidayLabel,
   localTodayKey,
@@ -125,7 +124,6 @@ export interface WorkingDayConfig {
   dateKey: string;
   dateStr: string;
   isWorking: boolean;
-  statusType: "WORKING" | "HOLIDAY" | "CUSTOM";
   note?: string;
 }
 
@@ -147,7 +145,6 @@ interface HolidayOption {
 
 const buildDaysConfig = (
   mondayKey: string,
-  overrides?: WorkingDayConfig[],
   holidays: HolidayOption[] = []
 ): WorkingDayConfig[] => {
   const labels: Record<DayKey, { label: string; fullDay: string }> = {
@@ -163,7 +160,6 @@ const buildDaysConfig = (
   return DAY_KEYS.map((key, idx) => {
     const dateKey = addDaysToDateKey(mondayKey, idx);
     const dateStr = formatDateKeyLabel(dateKey);
-    const override = overrides?.find((d) => d.key === key);
     const isHoliday = isMasterHolidayDate(dateKey, holidays);
     const holidayLabel = getMasterHolidayLabel(dateKey, holidays);
     return {
@@ -172,9 +168,8 @@ const buildDaysConfig = (
       fullDay: labels[key].fullDay,
       dateKey,
       dateStr,
-      isWorking: isHoliday ? false : override?.isWorking ?? true,
-      statusType: isHoliday ? "HOLIDAY" : override?.statusType ?? "WORKING",
-      note: holidayLabel ?? override?.note,
+      isWorking: !isHoliday,
+      note: holidayLabel,
     };
   });
 };
@@ -267,7 +262,6 @@ export const Timetable: React.FC = () => {
     return found?.name || "Assigned Center";
   }, [userCenterId, branches]);
 
-  const [showFilters, setShowFilters] = useState(false);
 
   // Selected Day & Week Navigation
   const [selectedDayKey, setSelectedDayKey] = useState<DayKey>(todayDayKey);
@@ -319,21 +313,10 @@ export const Timetable: React.FC = () => {
   const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
   const classSessions = sessionsResponse?.data ?? [];
 
-  // Working Days Configuration (weekday overrides + master holidays)
-  const [workingDayOverrides, setWorkingDayOverrides] = useState<WorkingDayConfig[]>([]);
-  const [isWorkingDaysModalOpen, setIsWorkingDaysModalOpen] = useState(false);
-
+  // Day config from master holidays (all weekdays working unless marked holiday)
   const daysConfig = useMemo(
-    () => buildDaysConfig(weekRange.mondayKey, workingDayOverrides, holidayOptions),
-    [weekRange.mondayKey, workingDayOverrides, holidayOptions]
-  );
-  const visibleWeekHolidays = useMemo(
-    () =>
-      holidayOptions.filter((holiday) => {
-        const date = toHolidayDateKey(holiday.data?.date);
-        return Boolean(date) && date >= weekRange.from && date <= weekRange.to;
-      }),
-    [holidayOptions, weekRange.from, weekRange.to]
+    () => buildDaysConfig(weekRange.mondayKey, holidayOptions),
+    [weekRange.mondayKey, holidayOptions]
   );
 
   const mapSessionToCell = (raw: BackendClassSession, period: number): TimetableCellItem => {
@@ -447,6 +430,8 @@ export const Timetable: React.FC = () => {
   // Add / Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [modalFacultyId, setModalFacultyId] = useState<string>("");
+  /** When true (opened from a faculty row/cell), faculty is fixed and shown read-only. */
+  const [modalFacultyLocked, setModalFacultyLocked] = useState(false);
   const [modalDayKey, setModalDayKey] = useState<DayKey>("MON");
   const [modalPeriod, setModalPeriod] = useState<number>(1);
   const [modalSessionId, setModalSessionId] = useState<string | null>(null);
@@ -527,21 +512,75 @@ export const Timetable: React.FC = () => {
   }, [weekOffset]);
 
   const facultyBatches = useMemo(() => {
-    if (!modalFacultyId) return batches;
-    const linked = batches.filter((b) => batchIncludesFaculty(b, modalFacultyId));
-    // Admin can assign any batch; still prefer faculty-linked batches first.
-    if (isAdmin) {
-      if (linked.length === 0) return batches;
+    // Wait for faculty before offering batches (header "Add class" searchable path).
+    if (!modalFacultyId) return [];
+
+    const fac =
+      facultyMembers.find((f: { id: string; branchId?: string }) => f.id === modalFacultyId) ||
+      facultyRoster.find((f) => f.id === modalFacultyId);
+    const facultyBranchId =
+      fac && "branchId" in fac ? (fac as { branchId?: string }).branchId : undefined;
+
+    // Page/center branch wins; when Timetable is "All branches", fall back to faculty home branch.
+    const pageBranchId =
+      selectedBranch !== "ALL"
+        ? selectedBranch
+        : !isAdmin && userCenterId !== "ALL"
+          ? userCenterId
+          : undefined;
+
+    const preferLinked = (scoped: typeof batches) => {
+      const linked = scoped.filter((b) => batchIncludesFaculty(b, modalFacultyId));
+      if (!isAdmin) return linked;
+      if (linked.length === 0) return scoped;
       const linkedIds = new Set(linked.map((b) => b.id));
-      return [...linked, ...batches.filter((b) => !linkedIds.has(b.id))];
+      return [...linked, ...scoped.filter((b) => !linkedIds.has(b.id))];
+    };
+
+    // Specific branch (or locked center): only batches for that branchId.
+    if (pageBranchId) {
+      return preferLinked(batches.filter((b) => b.branchId === pageBranchId));
     }
-    return linked.length > 0 ? linked : batches;
-  }, [batches, modalFacultyId, isAdmin]);
+
+    // All branches + faculty: faculty home branch ∪ any batch they teach on (no institute-wide dump).
+    const linkedAnywhere = batches.filter((b) => batchIncludesFaculty(b, modalFacultyId));
+    if (!facultyBranchId) return linkedAnywhere;
+
+    const sameBranch = batches.filter((b) => b.branchId === facultyBranchId);
+    if (!isAdmin) {
+      // Non-admin: assigned batches only (may include teach-on batches outside home branch).
+      return linkedAnywhere;
+    }
+
+    const seen = new Set<string>();
+    const merged: typeof batches = [];
+    for (const b of [...linkedAnywhere, ...sameBranch]) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      merged.push(b);
+    }
+    return merged;
+  }, [
+    batches,
+    modalFacultyId,
+    isAdmin,
+    selectedBranch,
+    userCenterId,
+    facultyMembers,
+    facultyRoster,
+  ]);
 
   const modalBatch = useMemo(
     () => batches.find((b) => b.id === modalBatchId),
     [batches, modalBatchId]
   );
+
+  /** Scoped list for the Batch select; keep an in-edit selection visible if it falls outside scope. */
+  const batchSelectOptions = useMemo(() => {
+    if (!modalBatchId || facultyBatches.some((b) => b.id === modalBatchId)) return facultyBatches;
+    const current = batches.find((b) => b.id === modalBatchId);
+    return current ? [current, ...facultyBatches] : facultyBatches;
+  }, [facultyBatches, modalBatchId, batches]);
 
   const modalSubjectOptions = useMemo(() => {
     if (!modalBatch) return [];
@@ -567,15 +606,25 @@ export const Timetable: React.FC = () => {
     }
   }, [modalBatchId, modalSubjectOptions, modalSubjectCourseId]);
 
-  // Prefill the only (or first linked) batch when opening a new CLASS slot.
+  // Prefill the only (or first linked) batch once faculty is known on a new CLASS slot.
   useEffect(() => {
     if (!isEditModalOpen || modalSlotType !== "CLASS" || modalSessionId) return;
-    if (modalBatchId) return;
+    if (!modalFacultyId || modalBatchId) return;
     if (facultyBatches.length === 0) return;
     const preferred =
       facultyBatches.find((b) => batchIncludesFaculty(b, modalFacultyId)) || facultyBatches[0];
     if (preferred) setModalBatchId(preferred.id);
   }, [isEditModalOpen, modalSlotType, modalSessionId, modalBatchId, facultyBatches, modalFacultyId]);
+
+  // Drop batch when it falls outside branch/faculty scope (e.g. faculty or page branch changed).
+  // Keep selection while editing an existing session so the current batch stays visible.
+  useEffect(() => {
+    if (!isEditModalOpen || !modalBatchId) return;
+    if (facultyBatches.some((b) => b.id === modalBatchId)) return;
+    if (modalSessionId) return;
+    setModalBatchId("");
+    setModalSubjectCourseId("");
+  }, [isEditModalOpen, modalBatchId, facultyBatches, modalSessionId]);
 
   // Current Selected Day Config
   const currentDayConfig = useMemo(() => {
@@ -665,6 +714,51 @@ export const Timetable: React.FC = () => {
     allCourses,
   ]);
 
+  /** Faculty picker options for header "Add class" — branch-scoped when a branch is selected. */
+  const modalFacultyPickerOptions = useMemo(() => {
+    const branchScoped = facultyRoster.filter((fac) => {
+      if (isAdmin) {
+        if (selectedBranch !== "ALL") {
+          const teachesInBranch = classSessions.some(
+            (s) => s.facultyId === fac.id && s.branchId === selectedBranch
+          );
+          if (fac.branchId !== selectedBranch && !teachesInBranch) return false;
+        }
+      } else {
+        const teachesInCenter = classSessions.some(
+          (s) => s.facultyId === fac.id && s.branchId === userCenterId
+        );
+        if (fac.branchId !== userCenterId && !teachesInCenter) return false;
+      }
+      return true;
+    });
+
+    // Keep current selection visible even if it falls outside branch filter
+    const list =
+      modalFacultyId && !branchScoped.some((f) => f.id === modalFacultyId)
+        ? [
+            ...branchScoped,
+            ...(facultyRoster.filter((f) => f.id === modalFacultyId)),
+          ]
+        : branchScoped;
+
+    return list.map((f) => ({
+      value: f.id,
+      label: `${f.name} (${f.department}) – ${f.branchName}`,
+    }));
+  }, [
+    facultyRoster,
+    isAdmin,
+    selectedBranch,
+    userCenterId,
+    classSessions,
+    modalFacultyId,
+  ]);
+
+  const modalFacultyDisplay = useMemo(() => {
+    return facultyRoster.find((f) => f.id === modalFacultyId) || null;
+  }, [facultyRoster, modalFacultyId]);
+
   // Pagination Slice
   const totalFacultyCount = filteredFaculty.length;
   const totalPages = Math.ceil(totalFacultyCount / rowsPerPage) || 1;
@@ -691,6 +785,39 @@ export const Timetable: React.FC = () => {
 
   // ─── ACTIONS: OPEN ADD/EDIT MODAL ──────────────────────────────────────────
 
+  const resetModalFormFields = () => {
+    setModalSessionId(null);
+    setModalTitle("");
+    setModalBatchId("");
+    setModalClassroomMasterId("");
+    setModalSubjectCourseId("");
+    setModalSlotType("CLASS");
+    setModalMode("OFFLINE");
+    setModalFormErrors({});
+  };
+
+  /** Header "Add class" — faculty must be chosen via searchable picker. */
+  const handleOpenHeaderAddClass = () => {
+    if (isSelectedDayOff) return;
+    const dayConfig = daysConfig.find((d) => d.key === selectedDayKey);
+    if (dayConfig && !dayConfig.isWorking) {
+      setNotificationMsg(
+        `${dayConfig.note || "Holiday"} — scheduling is closed for this day. Manage holidays in Master Setup.`
+      );
+      setTimeout(() => setNotificationMsg(null), 4000);
+      return;
+    }
+
+    const defaultPeriod = bookableSlots[0]?.period ?? 1;
+    setModalFacultyLocked(false);
+    setModalFacultyId("");
+    setModalDayKey(selectedDayKey);
+    setModalPeriod(defaultPeriod);
+    resetModalFormFields();
+    setIsEditModalOpen(true);
+  };
+
+  /** Grid cell / faculty row — faculty is already known (locked read-only). */
   const handleOpenAddOrEditModal = (
     facultyId: string,
     dayKey: DayKey,
@@ -720,6 +847,7 @@ export const Timetable: React.FC = () => {
       return;
     }
 
+    setModalFacultyLocked(true);
     setModalFacultyId(facultyId);
     setModalDayKey(dayKey);
     setModalPeriod(period);
@@ -732,27 +860,11 @@ export const Timetable: React.FC = () => {
       setModalClassroomMasterId(existingSlot.classroomMasterId || "");
       setModalSubjectCourseId(existingSlot.courseId || "");
       setModalMode(existingSlot.mode || "OFFLINE");
-    } else if (existingSlot && existingSlot.type !== "FREE") {
-      // FREE / structural only → schedule a class
-      setModalSlotType("CLASS");
-      setModalSessionId(null);
-      setModalTitle("");
-      setModalBatchId("");
-      setModalClassroomMasterId("");
-      setModalSubjectCourseId("");
-      setModalMode("OFFLINE");
+      setModalFormErrors({});
     } else {
-      setModalSlotType("CLASS");
-      setModalSessionId(null);
-      setModalTitle("");
-      setModalBatchId("");
-      setModalClassroomMasterId("");
-      setModalSubjectCourseId("");
-      setModalMode("OFFLINE");
+      resetModalFormFields();
     }
 
-    setModalMode("OFFLINE");
-    setModalFormErrors({});
     setIsEditModalOpen(true);
   };
 
@@ -796,8 +908,13 @@ export const Timetable: React.FC = () => {
       errors.batch =
         batches.length === 0
           ? "No batches available. Create a batch first."
-          : "Batch is required.";
-    } else if (!batchIncludesFaculty(batch, modalFacultyId) && facultyBatches.length > 0) {
+          : facultyBatches.length === 0
+            ? selectedBranch !== "ALL" || (!isAdmin && userCenterId !== "ALL")
+              ? "No batches for this faculty in the selected branch."
+              : "No batches assigned to this faculty. Assign them on the batch first."
+            : "Batch is required.";
+    } else if (!isAdmin && !batchIncludesFaculty(batch, modalFacultyId)) {
+      // Admins may schedule any batch (dropdown lists all). Others must use assigned batches only.
       errors.batch = "Selected batch is not assigned to this faculty.";
     }
 
@@ -1003,59 +1120,57 @@ export const Timetable: React.FC = () => {
   };
 
   return (
-    <PageContainer density="compact" className="text-slate-800 font-sans">
+    <PageContainer density="compact">
       <PageHeader
         title="Timetable"
-        description={`${branchLabel} · ${weekDateLabel}`}
+        description={branchLabel}
         actions={
           <>
             <PermissionGate itemKey="schedule.timetable" mode="write">
               <Button
-                variant="outline"
                 size="sm"
                 disabled={isSelectedDayOff}
-                onClick={() => {
-                  if (isSelectedDayOff) return;
-                  const defaultFac = filteredFaculty[0] || facultyRoster[0];
-                  if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
-                }}
-                className="text-xs h-9 gap-1.5"
+                onClick={handleOpenHeaderAddClass}
+                className="h-9 gap-1.5 font-semibold shadow-sm"
                 title={isSelectedDayOff ? selectedDayHolidayNote : undefined}
               >
                 <Plus className="h-3.5 w-3.5" /> Add class
               </Button>
             </PermissionGate>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs h-9 gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9 gap-1.5">
               <Download className="h-3.5 w-3.5" /> Export
             </Button>
           </>
         }
       />
 
-      <FilterToolbar className="flex flex-col gap-3">
+      <FilterToolbar className="flex flex-col gap-2.5 !items-stretch !py-0">
+        {/* Row 1: week + search + filters */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+          <div className="inline-flex items-center h-9 rounded-lg border border-border bg-background shrink-0">
             <button
               type="button"
               onClick={() => setWeekOffset((p) => p - 1)}
-              className="p-1.5 rounded-md hover:bg-slate-200/60 text-slate-600"
+              className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-l-lg transition-colors"
               title="Previous week"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="px-2 text-xs font-semibold text-slate-700 whitespace-nowrap">{weekDateLabel}</span>
+            <span className="px-2.5 text-xs font-semibold text-foreground whitespace-nowrap tabular-nums min-w-[9.5rem] text-center">
+              {weekDateLabel}
+            </span>
             <button
               type="button"
               onClick={() => setWeekOffset((p) => p + 1)}
-              className="p-1.5 rounded-md hover:bg-slate-200/60 text-slate-600"
+              className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-r-lg transition-colors"
               title="Next week"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="relative flex-1 min-w-[180px] max-w-md">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search faculty or batch..."
               value={searchQuery}
@@ -1063,55 +1178,47 @@ export const Timetable: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 pl-8 text-xs rounded-lg border-slate-200"
+              className="h-9 pl-8 text-sm border-border"
             />
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters((v) => !v)}
-            className="text-xs h-9 gap-1.5 shrink-0"
-          >
-            <Filter className="h-3.5 w-3.5" />
-            Filters
-          </Button>
-        </div>
-
-        {showFilters && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-            {isAdmin ? (
-              <select
-                value={selectedBranch}
-                onChange={(e) => {
-                  setSelectedBranch(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50"
-              >
-                <option value="ALL">All branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-xs text-slate-600 flex items-center gap-1 px-2">
-                <Lock className="h-3 w-3" /> {userCenterName}
-              </span>
-            )}
+          {isAdmin ? (
             <select
-              value={selectedCourse}
+              value={selectedBranch}
               onChange={(e) => {
-                setSelectedCourse(e.target.value);
+                setSelectedBranch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50"
+              className="h-9 min-w-[140px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
-              <option value="ALL">All courses</option>
-              {allCourses.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              <option value="ALL">All branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 h-9 px-2.5 text-xs text-muted-foreground border border-border rounded-lg bg-muted/30">
+              <Lock className="h-3 w-3" /> {userCenterName}
+            </span>
+          )}
+
+          <select
+            value={selectedCourse}
+            onChange={(e) => {
+              setSelectedCourse(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-9 min-w-[140px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          >
+            <option value="ALL">All courses</option>
+            {allCourses.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {((isAdmin && selectedBranch !== "ALL") ||
+            selectedCourse !== "ALL" ||
+            searchQuery.trim().length > 0) && (
             <Button
               variant="ghost"
               size="sm"
@@ -1121,25 +1228,15 @@ export const Timetable: React.FC = () => {
                 setSearchQuery("");
                 setCurrentPage(1);
               }}
-              className="text-xs h-9 text-slate-500"
+              className="h-9 px-2.5 text-muted-foreground hover:text-foreground"
             >
-              Clear filters
+              Clear
             </Button>
-            <PermissionGate itemKey="schedule.timetable" mode="write">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsWorkingDaysModalOpen(true)}
-                className="text-xs h-9 text-slate-600 ml-auto"
-              >
-                <Calendar className="h-3.5 w-3.5 mr-1" /> Working days
-              </Button>
-            </PermissionGate>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Compact day picker */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Row 2: day picker */}
+        <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-xl border border-border bg-muted/30 w-fit max-w-full">
           {daysConfig.map((d) => {
             const isSelected = selectedDayKey === d.key;
             const classCount = dayClassCounts[d.key] || 0;
@@ -1151,20 +1248,21 @@ export const Timetable: React.FC = () => {
                   setUserPickedDay(true);
                   setSelectedDayKey(d.key);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`h-8 px-2.5 rounded-lg text-xs transition-colors ${
                   isSelected
                     ? d.isWorking
-                      ? "bg-primary text-white"
-                      : "bg-rose-600 text-white"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                      : "bg-rose-600 text-white font-semibold shadow-sm"
                     : d.isWorking
-                      ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
+                      ? "text-muted-foreground hover:bg-background hover:text-foreground font-medium"
+                      : "text-rose-600 hover:bg-rose-50 font-medium"
                 }`}
                 title={d.isWorking ? undefined : d.note || "Holiday / Off"}
               >
-                {d.fullDay.slice(0, 3)} {d.dateStr}
+                <span className="font-semibold">{d.fullDay.slice(0, 3)}</span>
+                <span className="opacity-80"> {d.dateStr}</span>
                 {!d.isWorking
-                  ? ` · ${d.statusType === "HOLIDAY" ? "Holiday" : "Off"}`
+                  ? " · Holiday"
                   : classCount > 0
                     ? ` · ${classCount}`
                     : ""}
@@ -1174,7 +1272,6 @@ export const Timetable: React.FC = () => {
         </div>
       </FilterToolbar>
 
-      {/* Notifications Alert */}
       {notificationMsg && (
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-medium">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -1265,9 +1362,7 @@ export const Timetable: React.FC = () => {
                         <span>{selectedDayHolidayNote}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {currentDayConfig.statusType === "HOLIDAY"
-                          ? "This date is marked as a holiday in Master Setup. Class scheduling is closed for the day."
-                          : "This day is marked non-working. Open Working days to adjust weekday settings, or manage dated holidays in Master Setup."}
+                        This date is marked as a holiday in Master Setup. Class scheduling is closed for the day.
                       </p>
                       <Button asChild variant="outline" size="sm" className="mt-1 text-xs h-8">
                         <Link to={ROUTES.ADMIN.ADMINISTRATION.MASTERS}>Open Master Setup</Link>
@@ -1545,54 +1640,83 @@ export const Timetable: React.FC = () => {
       </Card>
 
       {/* ─── MODAL 1: ADD / EDIT CLASS SCHEDULE ─────────────────────────── */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
-          <DialogHeader className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-primary border border-blue-200 uppercase">
-                {modalDayKey} • Period {modalPeriod} ({timeSlotColumns.find((c) => c.period === modalPeriod)?.label})
-              </span>
-            </div>
-            <DialogTitle className="text-xl font-bold text-slate-900">
-              Manage Faculty Schedule
+      <Dialog
+        open={isEditModalOpen}
+        onOpenChange={(open) => {
+          setIsEditModalOpen(open);
+          if (!open) setModalFacultyLocked(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto bg-card border-border text-foreground rounded-xl p-0 gap-0 shadow-xl">
+          <DialogHeader className="space-y-1.5 px-6 pt-6 pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-semibold text-foreground tracking-tight">
+              {modalSessionId ? "Edit class" : "Add class"}
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
-              Create, edit, or configure status for the selected faculty timetable slot.
+            <DialogDescription className="text-sm text-muted-foreground">
+              {`${daysConfig.find((d) => d.key === modalDayKey)?.fullDay ?? modalDayKey} · Period ${modalPeriod}${
+                timeSlotColumns.find((c) => c.period === modalPeriod)?.label
+                  ? ` (${timeSlotColumns.find((c) => c.period === modalPeriod)?.label})`
+                  : ""
+              }`}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 my-2 text-xs">
-            {/* Faculty Selection */}
-            <div>
-              <Label className="text-[11px] font-bold text-slate-700">Faculty Instructor *</Label>
-              <select
-                value={modalFacultyId}
-                onChange={(e) => {
-                  setModalFacultyId(e.target.value);
-                  setModalBatchId("");
-                  setModalSubjectCourseId("");
-                }}
-                className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
-              >
-                {facultyRoster.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} ({f.department}) – {f.branchName}
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-4 px-6 py-5 text-sm">
+            {/* Faculty — locked when opened from a faculty row/cell */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Faculty instructor *</Label>
+              {modalFacultyLocked ? (
+                <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                  <p className="text-sm font-medium text-foreground leading-snug">
+                    {modalFacultyDisplay?.name || "Selected faculty"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    {[modalFacultyDisplay?.department, modalFacultyDisplay?.branchName]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <SearchableSelect
+                    value={modalFacultyId}
+                    onChange={(value) => {
+                      setModalFacultyId(value);
+                      setModalBatchId("");
+                      setModalSubjectCourseId("");
+                      setModalFormErrors((prev) => ({ ...prev, faculty: "" }));
+                    }}
+                    options={modalFacultyPickerOptions}
+                    placeholder={
+                      selectedBranch !== "ALL"
+                        ? "Search faculty in this branch…"
+                        : "Search faculty by name or department…"
+                    }
+                    emptyLabel="No faculty match this branch filter"
+                  />
+                  {modalFormErrors.faculty && (
+                    <p className="text-xs text-destructive">{modalFormErrors.faculty}</p>
+                  )}
+                  {selectedBranch !== "ALL" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Showing faculty for the selected branch. Change the branch filter to see others.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[11px] font-bold text-slate-700">Day of Week</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Day</Label>
                 <select
                   value={modalDayKey}
                   onChange={(e) => {
                     setModalDayKey(e.target.value as DayKey);
                     setModalFormErrors((prev) => ({ ...prev, day: "" }));
                   }}
-                  className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
-                    modalFormErrors.day ? "border-rose-400" : "border-slate-200"
+                  className={`w-full h-9 px-2.5 text-sm rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary border ${
+                    modalFormErrors.day ? "border-destructive" : "border-border"
                   }`}
                 >
                   {daysConfig.map((d) => (
@@ -1602,20 +1726,20 @@ export const Timetable: React.FC = () => {
                   ))}
                 </select>
                 {modalFormErrors.day && (
-                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.day}</p>
+                  <p className="text-xs text-destructive">{modalFormErrors.day}</p>
                 )}
               </div>
 
-              <div>
-                <Label className="text-[11px] font-bold text-slate-700">Time Period *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Period *</Label>
                 <select
                   value={modalPeriod}
                   onChange={(e) => {
                     setModalPeriod(Number(e.target.value));
                     setModalFormErrors((prev) => ({ ...prev, period: "" }));
                   }}
-                  className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
-                    modalFormErrors.period ? "border-rose-400" : "border-slate-200"
+                  className={`w-full h-9 px-2.5 text-sm rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary border ${
+                    modalFormErrors.period ? "border-destructive" : "border-border"
                   }`}
                 >
                   {bookableSlots.map((col) => (
@@ -1625,57 +1749,50 @@ export const Timetable: React.FC = () => {
                   ))}
                 </select>
                 {modalFormErrors.period && (
-                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.period}</p>
+                  <p className="text-xs text-destructive">{modalFormErrors.period}</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[11px] font-bold text-slate-700">Slot Status *</Label>
-                <select
-                  value={modalSlotType}
-                  onChange={(e) => setModalSlotType(e.target.value as SlotType)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-primary outline-none"
-                >
-                  <option value="CLASS">Class Scheduled</option>
-                  <option value="FREE">Free (clear class)</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <p className="text-[10px] text-slate-500 pb-2">
-                  {timeSlotColumns.find((c) => c.period === modalPeriod)?.label}
-                </p>
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Slot status *</Label>
+              <select
+                value={modalSlotType}
+                onChange={(e) => setModalSlotType(e.target.value as SlotType)}
+                className="w-full h-9 px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="CLASS">Class scheduled</option>
+                <option value="FREE">Free (clear class)</option>
+              </select>
             </div>
 
             {/* Course & Batch (If Class) */}
             {modalSlotType === "CLASS" && (
               <>
-                <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Session Title</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Session title</Label>
                   <Input
                     value={modalTitle}
                     onChange={(e) => setModalTitle(e.target.value)}
                     placeholder="e.g. Module topic or class title"
-                    className="h-9 mt-1 text-xs rounded-xl"
+                    className="h-9 text-sm border-border"
                   />
                 </div>
 
-                <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Batch *</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Batch *</Label>
                   <select
                     value={modalBatchId}
                     onChange={(e) => {
                       setModalBatchId(e.target.value);
                       setModalFormErrors((prev) => ({ ...prev, batch: "", subject: "" }));
                     }}
-                    className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
-                      modalFormErrors.batch ? "border-rose-400" : "border-slate-200"
+                    className={`w-full h-9 px-2.5 text-sm rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary border ${
+                      modalFormErrors.batch ? "border-destructive" : "border-border"
                     }`}
                   >
                     <option value="">Select batch</option>
-                    {facultyBatches.map((batch) => (
+                    {batchSelectOptions.map((batch) => (
                       <option key={batch.id} value={batch.id}>
                         {batch.code} — {batch.name}
                         {` (${formatBatchSubjectNames(batch)})`}
@@ -1683,27 +1800,37 @@ export const Timetable: React.FC = () => {
                     ))}
                   </select>
                   {modalFormErrors.batch ? (
-                    <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.batch}</p>
-                  ) : (
-                    facultyBatches.length === 0 && (
-                      <p className="text-[10px] text-rose-500 mt-1">
-                        No batches found. Create a batch and assign this faculty first.
-                      </p>
-                    )
-                  )}
+                    <p className="text-xs text-destructive">{modalFormErrors.batch}</p>
+                  ) : !modalFacultyId ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Select a faculty instructor to see available batches.
+                    </p>
+                  ) : facultyBatches.length === 0 ? (
+                    <p className="text-xs text-destructive">
+                      {batches.length === 0
+                        ? "No batches found. Create a batch first."
+                        : selectedBranch !== "ALL" || (!isAdmin && userCenterId !== "ALL")
+                          ? "No batches for this faculty in the selected branch. Assign them on a batch for this branch first."
+                          : "No batches assigned to this faculty. Assign them on the batch first."}
+                    </p>
+                  ) : isAdmin && modalBatch && !batchIncludesFaculty(modalBatch, modalFacultyId) ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      This batch is not linked to the faculty — admin override allowed.
+                    </p>
+                  ) : null}
                 </div>
 
                 {modalBatch && (
-                  <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Subject *</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-foreground">Subject *</Label>
                     <select
                       value={modalSubjectCourseId}
                       onChange={(e) => {
                         setModalSubjectCourseId(e.target.value);
                         setModalFormErrors((prev) => ({ ...prev, subject: "" }));
                       }}
-                      className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
-                        modalFormErrors.subject ? "border-rose-400" : "border-slate-200"
+                      className={`w-full h-9 px-2.5 text-sm rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary border ${
+                        modalFormErrors.subject ? "border-destructive" : "border-border"
                       }`}
                       disabled={modalSubjectOptions.length === 0}
                     >
@@ -1718,35 +1845,33 @@ export const Timetable: React.FC = () => {
                       )}
                     </select>
                     {modalFormErrors.subject && (
-                      <p className="text-[10px] text-rose-600 mt-1 font-medium">
-                        {modalFormErrors.subject}
-                      </p>
+                      <p className="text-xs text-destructive">{modalFormErrors.subject}</p>
                     )}
                   </div>
                 )}
 
-                <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Class Mode</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Class mode</Label>
                   <select
                     value={modalMode}
                     onChange={(e) =>
                       setModalMode(e.target.value as "OFFLINE" | "ONLINE" | "HYBRID")
                     }
-                    className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                    className="w-full h-9 px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   >
-                    <option value="OFFLINE">Offline (In-Person)</option>
-                    <option value="ONLINE">Online (Virtual Meeting)</option>
+                    <option value="OFFLINE">Offline (in-person)</option>
+                    <option value="ONLINE">Online (virtual meeting)</option>
                     <option value="HYBRID">Hybrid</option>
                   </select>
                 </div>
 
-                <div>
-                  <Label className="text-[11px] font-bold text-slate-700">
-                    {modalMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">
+                    {modalMode === "ONLINE" ? "Meeting type" : "Classroom / lab"}
                   </Label>
                   {modalMode === "ONLINE" ? (
-                    <div className="h-9 mt-1 px-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center gap-2 font-bold">
-                      <Video className="h-4 w-4" />
+                    <div className="h-9 px-2.5 rounded-lg bg-primary/5 border border-primary/20 text-primary flex items-center gap-2 text-sm font-medium">
+                      <Video className="h-3.5 w-3.5 shrink-0" />
                       Google Meet (auto-created)
                     </div>
                   ) : (
@@ -1757,6 +1882,7 @@ export const Timetable: React.FC = () => {
                         facultyRoster.find((f) => f.id === modalFacultyId)?.branchId ||
                         modalBatch?.branchId
                       }
+                      className="h-9 rounded-lg border-border"
                     />
                   )}
                 </div>
@@ -1766,30 +1892,31 @@ export const Timetable: React.FC = () => {
 
           {notificationMsg && isEditModalOpen && (
             <div
-              className={`mb-2 p-2.5 rounded-xl text-[11px] font-medium border ${
+              className={`mx-6 mb-4 p-2.5 rounded-lg text-xs font-medium border ${
                 notificationMsg.startsWith("✓")
                   ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-rose-50 border-rose-200 text-rose-700"
+                  : "bg-destructive/10 border-destructive/30 text-destructive"
               }`}
             >
               {notificationMsg}
             </div>
           )}
 
-          <DialogFooter className="flex gap-2 mt-3">
+          <DialogFooter className="flex flex-row justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sm:space-x-0">
             <Button
               variant="outline"
               onClick={() => setIsEditModalOpen(false)}
-              className="text-xs font-bold h-9 rounded-xl"
+              className="h-9 px-3 text-sm border-border"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSaveSlot}
               disabled={createSession.isPending || updateSession.isPending}
-              className="bg-primary hover:bg-primary text-white text-xs font-bold h-9 rounded-xl"
+              className="h-9 gap-1.5 px-3 text-sm font-semibold shadow-sm"
             >
-              <Save className="h-3.5 w-3.5 mr-1" /> Save Schedule Entry
+              <Save className="h-3.5 w-3.5" />
+              {createSession.isPending || updateSession.isPending ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1797,23 +1924,23 @@ export const Timetable: React.FC = () => {
 
       {/* ─── MODAL 2: MOVE TIME SLOT ────────────────────────────────────── */}
       <Dialog open={isMoveModalOpen} onOpenChange={setIsMoveModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900">
-              Move Class Time Slot
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-xl p-0 gap-0 shadow-xl">
+          <DialogHeader className="space-y-1.5 px-6 pt-6 pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-semibold text-foreground tracking-tight">
+              Move class
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
-              Select a new time slot to relocate this scheduled session.
+            <DialogDescription className="text-sm text-muted-foreground">
+              Choose a free period for this session.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 my-3 text-xs">
-            <div>
-              <Label className="text-[11px] font-bold text-slate-700">Target Time Slot</Label>
+          <div className="px-6 py-5">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Target period</Label>
               <select
                 value={targetPeriod}
                 onChange={(e) => setTargetPeriod(Number(e.target.value))}
-                className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-primary outline-none"
+                className="w-full h-9 px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               >
                 {bookableSlots.map((col) => (
                   <option key={col.period} value={col.period}>
@@ -1824,152 +1951,19 @@ export const Timetable: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsMoveModalOpen(false)} className="text-xs font-bold rounded-xl">
+          <DialogFooter className="flex flex-row justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sm:space-x-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsMoveModalOpen(false)}
+              className="h-9 px-3 text-sm border-border"
+            >
               Cancel
             </Button>
-            <Button onClick={handleExecuteMoveSlot} className="bg-primary text-white text-xs font-bold rounded-xl">
-              Confirm Move
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── MODAL 3: MANAGE WORKING DAYS & HOLIDAYS ───────────────────── */}
-      <Dialog open={isWorkingDaysModalOpen} onOpenChange={setIsWorkingDaysModalOpen}>
-        <DialogContent className="sm:max-w-xl bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-primary border border-blue-200 uppercase">
-                Academy Schedule Config
-              </span>
-            </div>
-            <DialogTitle className="text-xl font-bold text-slate-900 mt-1">
-              Manage Working Days & Holidays
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
-              Configure working days, Sunday class operations, and holidays for your center.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3.5 my-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
-            {daysConfig.map((d) => {
-              const isMasterHoliday = isMasterHolidayDate(d.dateKey, visibleWeekHolidays);
-              return (
-              <div key={d.key} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">{d.fullDay}</span>
-                    <span className="text-[11px] text-slate-400 font-medium">({d.dateStr})</span>
-                  </div>
-                  <span className={`text-[10px] font-semibold block mt-0.5 ${d.isWorking ? "text-emerald-700" : "text-rose-600"}`}>
-                    {d.isWorking ? "● Scheduled Working Day" : `● ${d.note || "Holiday / Off"}`}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {isMasterHoliday ? (
-                    <span className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
-                      Master holiday
-                    </span>
-                  ) : d.key === "SUN" ? (
-                    <select
-                      value={d.statusType}
-                      onChange={(e) => {
-                        const val = e.target.value as "WORKING" | "HOLIDAY" | "CUSTOM";
-                        setWorkingDayOverrides((prev) => {
-                          const base = buildDaysConfig(weekRange.mondayKey, prev, holidayOptions);
-                          return base.map((item) =>
-                            item.key === "SUN"
-                              ? {
-                                  ...item,
-                                  statusType: val,
-                                  isWorking: val !== "HOLIDAY",
-                                  note: val === "HOLIDAY" ? "Holiday" : val === "CUSTOM" ? "Custom Classes" : "Working Day",
-                                }
-                              : item
-                          );
-                        });
-                      }}
-                      className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-primary outline-none cursor-pointer"
-                    >
-                      <option value="HOLIDAY">Holiday</option>
-                      <option value="WORKING">Working Day</option>
-                      <option value="CUSTOM">Custom Classes</option>
-                    </select>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWorkingDayOverrides((prev) => {
-                          const base = buildDaysConfig(weekRange.mondayKey, prev, holidayOptions);
-                          return base.map((item) =>
-                            item.key === d.key
-                              ? {
-                                  ...item,
-                                  isWorking: !item.isWorking,
-                                  statusType: !item.isWorking ? "WORKING" : "CUSTOM",
-                                  note: !item.isWorking ? undefined : "Non-working day",
-                                }
-                              : item
-                          );
-                        });
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                        d.isWorking
-                          ? "bg-emerald-600 text-white shadow-xs"
-                          : "bg-slate-200 text-slate-600"
-                      }`}
-                    >
-                      {d.isWorking ? "Working" : "Closed"}
-                    </button>
-                  )}
-                </div>
-              </div>
-              );
-            })}
-            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-bold text-slate-900">Dated holidays this week</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">
-                    Holidays are read-only here and managed in Master Setup.
-                  </p>
-                </div>
-                <Link
-                  to="/admin/masters"
-                  className="text-[11px] font-bold text-blue-700 hover:text-blue-800"
-                >
-                  Open Master Setup
-                </Link>
-              </div>
-              {visibleWeekHolidays.length > 0 ? (
-                <ul className="mt-2 space-y-1">
-                  {visibleWeekHolidays.map((holiday) => (
-                    <li key={holiday.value} className="text-xs text-slate-700">
-                      <span className="font-semibold">{holiday.label}</span>
-                      {" · "}
-                      {String(holiday.data?.date)}
-                      {holiday.data?.note ? ` · ${String(holiday.data.note)}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-xs text-slate-500">No holiday masters fall in this week.</p>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
             <Button
-              onClick={() => {
-                setIsWorkingDaysModalOpen(false);
-                setNotificationMsg("✓ Working days and holiday configuration updated successfully.");
-                setTimeout(() => setNotificationMsg(null), 3000);
-              }}
-              className="w-full bg-primary hover:bg-primary text-white font-bold rounded-xl"
+              onClick={handleExecuteMoveSlot}
+              className="h-9 px-3 text-sm font-semibold shadow-sm"
             >
-              Save Configuration
+              Confirm move
             </Button>
           </DialogFooter>
         </DialogContent>

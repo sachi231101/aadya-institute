@@ -33,7 +33,7 @@ export const TIME_SLOT_COLUMNS: TimetablePeriodSlot[] = [
   { period: 8, label: "04:00 - 05:00 PM", timeTitle: "04:00 – 05:00", subTitle: "PM", start: "04:00 PM", end: "05:00 PM", hour24: 16, minute: 0 },
 ];
 
-/** @deprecated Prefer bookableSlots from useTimetableSlotColumns — all master slots are bookable. */
+/** @deprecated Prefer bookableSlots from useTimetableSlotColumns — teaching periods only. */
 export const BOOKABLE_TIME_SLOTS = TIME_SLOT_COLUMNS;
 
 export const parseTimeToHour24 = (time: string): number | null => {
@@ -69,7 +69,7 @@ const slotSortKey = (startRaw: string): number => {
 
 /**
  * Build timetable columns from active Time Slot masters.
- * Every configured master becomes a column (no invented break/lunch).
+ * Maps master `data.slotType` to structural break/lunch columns (default TEACHING).
  */
 export const buildTimetableSlotsFromMasters = (
   options: MasterDropdownOption[]
@@ -90,6 +90,10 @@ export const buildTimetableSlotsFromMasters = (
       const minute = mStr ? Number(mStr) : 0;
       const timeTitle = `${start.replace(/\s*(AM|PM)$/i, "").trim()} – ${end.replace(/\s*(AM|PM)$/i, "").trim()}`;
       const subTitle = (end.match(/\s*(AM|PM)$/i)?.[1] || start.match(/\s*(AM|PM)$/i)?.[1] || "").toUpperCase();
+      const slotTypeRaw =
+        typeof opt.data?.slotType === "string" ? opt.data.slotType.trim().toUpperCase() : "";
+      const isBreak = slotTypeRaw === "BREAK";
+      const isLunch = slotTypeRaw === "LUNCH";
       return {
         label,
         timeTitle,
@@ -99,6 +103,8 @@ export const buildTimetableSlotsFromMasters = (
         timeslotMasterId: opt.value,
         hour24: hour24 ?? undefined,
         minute: Number.isFinite(minute) ? minute : 0,
+        isBreak: isBreak || undefined,
+        isLunch: isLunch || undefined,
         sortKey: slotSortKey(start),
         sortOrder:
           typeof opt.data?.sortOrder === "number"
@@ -119,6 +125,8 @@ export const buildTimetableSlotsFromMasters = (
     timeslotMasterId: slot.timeslotMasterId,
     hour24: slot.hour24,
     minute: slot.minute,
+    isBreak: slot.isBreak,
+    isLunch: slot.isLunch,
   }));
 };
 
