@@ -295,6 +295,9 @@ before(async () => {
       instituteId,
       name: "CM Permission Course",
       code: "CM-PERM-COURSE",
+      courseBranches: {
+        create: [{ branchId: branchAId }, { branchId: branchBId }],
+      },
     },
   });
   const student = await prisma.student.create({

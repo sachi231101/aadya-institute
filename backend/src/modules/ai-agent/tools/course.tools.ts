@@ -1,12 +1,22 @@
 import { prisma } from "../../../config/database";
 import type { AIToolAuthContext } from "../security/ai-scope.service";
+import { buildCourseBranchVisibilityWhere } from "../../../utils/course-branch.util";
 
 export const executeGetCourseSummary = async (
   context: AIToolAuthContext,
   _args: Record<string, any>
 ) => {
+  const visibility = buildCourseBranchVisibilityWhere({
+    instituteId: context.instituteId,
+    ...(context.branchId ? { branchId: context.branchId } : {}),
+  });
+
   const courses = await prisma.course.findMany({
-    where: { instituteId: context.instituteId },
+    where: {
+      instituteId: context.instituteId,
+      status: { not: "DELETED" },
+      ...(visibility || {}),
+    },
     include: {
       modules: { select: { id: true, name: true, sequence: true } },
       admissions: {

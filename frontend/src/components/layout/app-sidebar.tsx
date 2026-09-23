@@ -118,7 +118,6 @@ const data = {
       items: [
         { title: L["courses.all"] ?? "All Courses", url: A.COURSES.ALL },
         { title: L["courses.curriculum"] ?? "Course Curriculum", url: A.COURSES.CURRICULUM },
-        { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: A.COURSES.COURSE_ASSIGNMENT },
       ],
     },
     {

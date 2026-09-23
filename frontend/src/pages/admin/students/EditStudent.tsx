@@ -98,7 +98,6 @@ export const EditStudent: React.FC = () => {
   const { data: response, isLoading, isError } = useStudent(id);
   const { data: branchResponse } = useBranches();
   const branches = branchResponse?.data ?? [];
-  const { courses } = useCourses();
   const updateMutation = useUpdateStudent();
   const { options: educationOptions } = useMasterDropdown("education");
   const { options: areaOptions } = useMasterDropdown("area");
@@ -136,6 +135,10 @@ export const EditStudent: React.FC = () => {
 
   const selectedCourseId = form.watch("courseId");
   const selectedBranchId = form.watch("branchId");
+  const { courses } = useCourses({
+    status: "ACTIVE",
+    branchId: selectedBranchId || undefined,
+  });
   const { batches } = useBatches({
     courseId: selectedCourseId || undefined,
   });

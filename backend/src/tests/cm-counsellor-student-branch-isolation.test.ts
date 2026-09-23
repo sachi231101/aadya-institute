@@ -75,6 +75,9 @@ before(async () => {
       name: "Isolation Course",
       code: "ISO-COURSE",
       fee: 10000,
+      courseBranches: {
+        create: [{ branchId: branchAId }, { branchId: branchBId }],
+      },
     },
   });
   courseId = course.id;

@@ -96,7 +96,7 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "courses.all": ["course.create", "course.update"],
   "courses.curriculum": ["module.create", "module.update"],
   "courses.course_assignment": ["faculty.update", "batch.update"],
-  "batches.all": ["batch.create", "batch.update"],
+  "batches.all": ["batch.create", "batch.update", "batch_curriculum.mark"],
   "schedule.timetable": ["schedule.update"],
   "schedule.classes": ["schedule.create", "schedule.update", "schedule.delete"],
   "schedule.live": ["google_meet.create", "schedule.update"],

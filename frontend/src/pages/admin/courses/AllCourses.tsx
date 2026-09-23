@@ -6,7 +6,6 @@ import {
   Search,
   Layers,
   Users,
-  CheckCircle2,
   Clock,
   MoreVertical,
   Trash2,
@@ -14,13 +13,14 @@ import {
   LayoutGrid,
   List,
   GraduationCap,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { getPortalBasePath } from "@/utils/portal-path";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,13 +41,53 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { CourseData } from "@/services/courses.api";
+
+const courseBranchLabels = (course: CourseData) => {
+  const fromLinks =
+    course.courseBranches
+      ?.map((cb) => cb.branch?.name || cb.branch?.code)
+      .filter(Boolean) ?? [];
+  if (fromLinks.length > 0) return fromLinks as string[];
+  return [];
+};
+
+const BranchChips = ({ labels, max = 2 }: { labels: string[]; max?: number }) => {
+  if (labels.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  const shown = labels.slice(0, max);
+  const rest = labels.length - shown.length;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {shown.map((label) => (
+        <Badge key={label} variant="outline" className="text-[10px] font-medium px-1.5 py-0">
+          {label}
+        </Badge>
+      ))}
+      {rest > 0 ? (
+        <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0">
+          +{rest}
+        </Badge>
+      ) : null}
+    </div>
+  );
+};
 
 export const AllCourses: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const coursesBasePath = location.pathname.startsWith("/center") ? "/center/courses" : "/admin/courses";
+  const coursesBasePath = location.pathname.startsWith("/center")
+    ? "/center/courses"
+    : "/admin/courses";
   const { canEditItem } = usePermissions();
   const canEditCourses = canEditItem("courses.all");
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -58,6 +98,7 @@ export const AllCourses: React.FC = () => {
     search: searchTerm,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
     category: categoryFilter !== "ALL" ? categoryFilter : undefined,
+    branchId: branchIdForQuery,
   });
 
   const categories = Array.from(
@@ -82,14 +123,42 @@ export const AllCourses: React.FC = () => {
   const totalEnrolled = courses.reduce((acc, c) => acc + (c._count?.admissions || 0), 0);
   const totalModules = courses.reduce((acc, c) => acc + (c.modules?.length || 0), 0);
 
+  const metrics = [
+    { label: "Total Courses", value: totalCourses },
+    { label: "Active Courses", value: activeCourses },
+    { label: "Total Enrolled", value: totalEnrolled },
+    { label: "Total Modules", value: totalModules },
+  ];
+
   const getModeBadge = (mode?: string) => {
     switch (mode) {
       case "HYBRID":
-        return <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-200">Hybrid</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900/40"
+          >
+            Hybrid
+          </Badge>
+        );
       case "OFFLINE":
-        return <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">Offline</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/40"
+          >
+            Offline
+          </Badge>
+        );
       case "ONLINE":
-        return <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">Online</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/40"
+          >
+            Online
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{mode || "HYBRID"}</Badge>;
     }
@@ -105,13 +174,15 @@ export const AllCourses: React.FC = () => {
 
   const handleOpenBatches = (courseId?: string) => {
     const batchesBase = `${getPortalBasePath(location.pathname)}/batches`;
-    navigate(
-      courseId ? `${batchesBase}?courseId=${courseId}` : batchesBase
-    );
+    navigate(courseId ? `${batchesBase}?courseId=${courseId}` : batchesBase);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this course? It will be deactivated and hidden from active lists.")) {
+    if (
+      confirm(
+        "Are you sure you want to delete this course? It will be deactivated and hidden from active lists."
+      )
+    ) {
       try {
         await deleteCourse(id);
       } catch (err: any) {
@@ -120,90 +191,104 @@ export const AllCourses: React.FC = () => {
     }
   };
 
+  const courseMenuItems = (course: (typeof courses)[number]) => (
+    <>
+      {canEditCourses && (
+        <DropdownMenuItem
+          onClick={() => handleEditCourse(course)}
+          className="cursor-pointer text-xs font-medium gap-2"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Edit Course
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        onClick={() => handleOpenCurriculum(course.id)}
+        className="cursor-pointer text-xs font-medium gap-2"
+      >
+        <Layers className="h-3.5 w-3.5" /> View Curriculum
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => handleOpenBatches(course.id)}
+        className="cursor-pointer text-xs font-medium gap-2"
+      >
+        <GraduationCap className="h-3.5 w-3.5" /> View Batches
+      </DropdownMenuItem>
+      {canEditCourses && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-rose-600 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-medium gap-2"
+            onClick={() => handleDelete(course.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete Course
+          </DropdownMenuItem>
+        </>
+      )}
+    </>
+  );
+
+  const emptyState = (
+    <div className="py-16 text-center">
+      <BookOpen className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
+      <p className="text-sm font-medium text-foreground">No courses found</p>
+      <p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filters.</p>
+    </div>
+  );
+
   return (
     <PageContainer className="animate-in fade-in duration-300">
       <PageHeader
         title="Course Directory"
-        description="Manage academy courses, learning tracks, and active curriculums."
+        description="Academy courses and learning tracks."
         actions={
           <PermissionGate itemKey="courses.all" mode="write">
             <Button
-              className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-9 px-4 rounded-xl cursor-pointer"
+              size="sm"
+              className="rounded-lg"
               onClick={() => navigate(`${coursesBasePath}/add`)}
             >
               <Plus className="mr-1.5 h-4 w-4" />
-              Add New Course
+              Add Course
             </Button>
           </PermissionGate>
         }
       />
 
-      <MetricGrid>
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Courses</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{totalCourses}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Courses</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{activeCourses}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Enrolled</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{totalEnrolled}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border bg-card shadow-xs rounded-xl">
-          <CardContent size="compact" className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Modules</p>
-              <h3 className="text-2xl font-bold text-foreground mt-0.5">{totalModules}</h3>
-            </div>
-          </CardContent>
-        </Card>
+      <MetricGrid columns="grid-cols-2 sm:grid-cols-4" density="compact">
+        {metrics.map((kpi) => (
+          <Card
+            key={kpi.label}
+            size="compact"
+            className="border border-border bg-card shadow-none rounded-lg"
+          >
+            <CardContent size="compact">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
+              </p>
+              <h3 className="text-xl font-semibold text-foreground mt-0.5 tabular-nums">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
       </MetricGrid>
 
-      <FilterToolbar className="flex flex-col md:flex-row justify-between gap-3 w-full">
-        <div className="relative flex-1">
+      <FilterToolbar className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by course name, code, or category..."
+            placeholder="Search by name, code, or category…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-9 bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
+            className="pl-9 h-9 text-sm rounded-lg"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-9 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            className="h-9 text-sm border border-border rounded-lg px-3 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
             <option value="ALL">All Categories</option>
             {categories.map((cat) => (
@@ -216,250 +301,258 @@ export const AllCourses: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            className="h-9 text-sm border border-border rounded-lg px-3 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
 
-          <div className="flex items-center border border-border rounded-xl overflow-hidden bg-muted/30 p-0.5">
+          {showBranchSelector && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-9 text-sm border border-border rounded-lg px-3 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            >
+              {allowAllBranches && <option value="ALL">All branches</option>}
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <div className="inline-flex items-center rounded-lg border border-border p-0.5 h-9">
             <Button
+              type="button"
               variant="ghost"
               size="sm"
-              className={`h-9 px-3 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-primary text-white shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Grid view"
+              className={`h-full px-2.5 rounded-md ${
+                viewMode === "grid"
+                  ? "bg-primary text-white hover:bg-primary hover:text-white"
+                  : "text-muted-foreground"
+              }`}
               onClick={() => setViewMode("grid")}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-3.5 w-3.5" />
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
-              className={`h-9 px-3 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-primary text-white shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Table view"
+              className={`h-full px-2.5 rounded-md ${
+                viewMode === "table"
+                  ? "bg-primary text-white hover:bg-primary hover:text-white"
+                  : "text-muted-foreground"
+              }`}
               onClick={() => setViewMode("table")}
             >
-              <List className="h-4 w-4" />
+              <List className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </FilterToolbar>
 
-      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-        <CardContent className="p-4 space-y-4">
-          {loading ? (
-            <div className="py-12 flex justify-center items-center text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-xs font-bold">Loading courses...</span>
-            </div>
-          ) : error ? (
-            <div className="py-8 text-center text-rose-500 font-bold text-xs">
-              {error}
-            </div>
-          ) : viewMode === "grid" ? (
-            /* Grid View */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              {filteredCourses.length > 0 ? (
-                filteredCourses.map((course) => (
-                  <Card key={course.id} className="border border-border bg-card hover:border-primary/50 shadow-xs hover:shadow-md transition-all flex flex-col justify-between rounded-xl overflow-hidden">
-                    <CardHeader className="p-5 pb-3">
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <Badge variant="outline" className="font-mono text-xs text-primary border-primary/20 bg-primary/10">
+      {loading ? (
+        <div className="py-16 flex justify-center items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading courses…</span>
+        </div>
+      ) : error ? (
+        <div className="py-12 text-center text-rose-600 text-sm">{error}</div>
+      ) : viewMode === "grid" ? (
+        filteredCourses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filteredCourses.map((course) => {
+              const durationMonths = course.duration || course.durationMonths || 6;
+              const totalHours = course.totalHours || 100;
+              const moduleCount = course.modules?.length || 0;
+              const studentCount = course._count?.admissions || 0;
+              const branches = courseBranchLabels(course);
+
+              return (
+                <Card
+                  key={course.id}
+                  className="border border-border bg-card shadow-none rounded-lg overflow-hidden flex flex-col hover:border-primary/40 transition-colors"
+                >
+                  <div className="flex flex-col flex-1 p-4 gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                        <Badge variant="outline" className="font-mono text-[11px]">
                           {course.code}
                         </Badge>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
-                            {course.status}
-                          </Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
-                              <DropdownMenuLabel className="text-xs font-bold">Course Options</DropdownMenuLabel>
-                              <DropdownMenuSeparator className="bg-border" />
-                              {canEditCourses && (
-                              <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
-                                <Pencil className="mr-2 h-4 w-4" /> Edit Course
-                              </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
-                                <Layers className="mr-2 h-4 w-4" /> View Curriculum
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
-                                <GraduationCap className="mr-2 h-4 w-4" /> View Batches
-                              </DropdownMenuItem>
-                              {canEditCourses && (
-                              <>
-                              <DropdownMenuSeparator className="bg-border" />
-                              <DropdownMenuItem
-                                className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
-                                onClick={() => handleDelete(course.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Course
-                              </DropdownMenuItem>
-                              </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
+                          {course.status}
+                        </Badge>
                       </div>
-                      <CardTitle className="text-base font-bold text-foreground line-clamp-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44 rounded-lg">
+                          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                            Course Options
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {courseMenuItems(course)}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-1">
                         {course.name}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium">
-                        {course.description || "No description provided."}
+                      </h3>
+                      {course.description ? (
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {course.description}
+                        </p>
+                      ) : null}
+                      {course.category ? (
+                        <p className="text-xs text-muted-foreground">{course.category}</p>
+                      ) : null}
+                      {branches.length > 0 ? <BranchChips labels={branches} /> : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {durationMonths} mo · {totalHours}h
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Layers className="h-3 w-3" />
+                        {moduleCount} modules
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {studentCount} enrolled
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground tabular-nums">
+                        ₹{(course.fee ?? 0).toLocaleString()}
                       </p>
-                    </CardHeader>
+                      {getModeBadge(course.mode)}
+                    </div>
 
-                    <CardContent className="p-5 pt-0 space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-xs text-foreground pt-3 border-t border-border/70">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)</span>
+                    <div className="flex items-center gap-2 mt-auto pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs rounded-lg"
+                        onClick={() => handleOpenCurriculum(course.id)}
+                      >
+                        <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                        Curriculum
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs rounded-lg"
+                        onClick={() => handleOpenBatches(course.id)}
+                      >
+                        <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
+                        Batches
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="border border-dashed border-border rounded-lg">{emptyState}</div>
+        )
+      ) : (
+        <Card className="border border-border shadow-none rounded-lg overflow-hidden">
+          <div className="min-w-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Branches</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Fee</TableHead>
+                  <TableHead className="text-center">Modules</TableHead>
+                  <TableHead className="text-center">Enrolled</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCourses.length > 0 ? (
+                  filteredCourses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell>
+                        <div className="min-w-0">
+                          <p className="text-xs font-mono text-primary">{course.code}</p>
+                          <p className="text-sm font-medium text-foreground">{course.name}</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{course.modules?.length || 0} Modules</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{course._count?.admissions || 0} Students</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
-                          <span>₹{(course.fee ?? 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {getModeBadge(course.mode)}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
-                          onClick={() => handleOpenCurriculum(course.id)}
-                        >
-                          <BookOpen className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                          Curriculum
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="w-full text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white cursor-pointer"
-                          onClick={() => handleOpenBatches(course.id)}
-                        >
-                          <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
-                          Batches
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="col-span-full py-12 text-center text-muted-foreground">
-                  <BookOpen className="mx-auto h-12 w-12 opacity-20 mb-3" />
-                  <p className="text-base font-bold text-foreground">No courses found</p>
-                  <p className="text-xs text-muted-foreground mt-1">Try adjusting your search query or category filter.</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Table View */
-            <div className="rounded-xl border border-border overflow-hidden bg-card shadow-2xs">
-              <Table>
-                <TableHeader className="bg-muted/50 border-b border-border">
-                  <TableRow className="text-xs">
-                    <TableHead className="font-bold text-foreground pl-6">Course Code & Title</TableHead>
-                    <TableHead className="font-bold text-foreground">Category</TableHead>
-                    <TableHead className="font-bold text-foreground">Mode</TableHead>
-                    <TableHead className="font-bold text-foreground">Duration</TableHead>
-                    <TableHead className="font-bold text-foreground">Fee</TableHead>
-                    <TableHead className="font-bold text-foreground">Modules</TableHead>
-                    <TableHead className="font-bold text-foreground">Enrolled</TableHead>
-                    <TableHead className="font-bold text-foreground">Status</TableHead>
-                    <TableHead className="text-right font-bold text-foreground pr-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCourses.length > 0 ? (
-                    filteredCourses.map((course) => (
-                      <TableRow key={course.id} className="hover:bg-muted/40 transition-colors border-b border-border/70 text-xs">
-                        <TableCell className="pl-6 py-3.5">
-                          <div>
-                            <span className="font-mono text-xs font-bold text-primary block">
-                              {course.code}
-                            </span>
-                            <span className="font-bold text-foreground text-sm">
-                              {course.name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-foreground font-medium py-3.5">{course.category || "General"}</TableCell>
-                        <TableCell className="py-3.5">{getModeBadge(course.mode)}</TableCell>
-                        <TableCell className="text-xs text-foreground py-3.5">
-                          {course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)
-                        </TableCell>
-                        <TableCell className="text-xs font-bold text-emerald-600 dark:text-emerald-400 py-3.5">
-                          ₹{(course.fee ?? 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-xs text-foreground py-3.5">{course.modules?.length || 0}</TableCell>
-                        <TableCell className="text-xs font-bold text-foreground py-3.5">{course._count?.admissions || 0}</TableCell>
-                        <TableCell className="py-3.5">
-                          <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
-                            {course.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right pr-6 py-3.5">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
-                              {canEditCourses && (
-                              <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
-                                <Pencil className="mr-2 h-4 w-4" /> Edit Course
-                              </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
-                                <Layers className="mr-2 h-4 w-4" /> Curriculum
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
-                                <GraduationCap className="mr-2 h-4 w-4" /> Batches
-                              </DropdownMenuItem>
-                              {canEditCourses && (
-                              <>
-                              <DropdownMenuSeparator className="bg-border" />
-                              <DropdownMenuItem
-                                className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
-                                onClick={() => handleDelete(course.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
-                              </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-xs font-medium">
-                        No courses found matching criteria.
+                      </TableCell>
+                      <TableCell className="text-sm">{course.category || "—"}</TableCell>
+                      <TableCell>
+                        <BranchChips labels={courseBranchLabels(course)} max={2} />
+                      </TableCell>
+                      <TableCell>{getModeBadge(course.mode)}</TableCell>
+                      <TableCell className="text-sm tabular-nums whitespace-nowrap">
+                        {course.duration || course.durationMonths || 6} mo ·{" "}
+                        {course.totalHours || 100}h
+                      </TableCell>
+                      <TableCell className="text-sm font-medium tabular-nums whitespace-nowrap">
+                        ₹{(course.fee ?? 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-center text-sm tabular-nums">
+                        {course.modules?.length || 0}
+                      </TableCell>
+                      <TableCell className="text-center text-sm tabular-nums">
+                        {course._count?.admissions || 0}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
+                          {course.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 rounded-lg">
+                            {courseMenuItems(course)}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-28 text-center text-sm text-muted-foreground">
+                      No courses found matching criteria.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
     </PageContainer>
   );
 };

@@ -138,6 +138,7 @@ import { FacultyAttendance as FacultyPortalAttendance } from "../pages/faculty/F
 import { FacultyTakeAttendance } from "../pages/faculty/TakeAttendance";
 import { FacultyStudentAttendanceHistory } from "../pages/faculty/StudentAttendanceHistory";
 import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
+import { FacultyCurriculum } from "../pages/faculty/Curriculum";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -146,6 +147,7 @@ import { StudentFeedback } from "../pages/student/Feedback";
 import { StudentSchedule } from "../pages/student/Schedule";
 import { StudentProfile } from "../pages/student/Profile";
 import { StudentStudyMaterials } from "../pages/student/StudyMaterials";
+import { StudentCurriculum } from "../pages/student/Curriculum";
 import { StudentCertificates } from "../pages/student/Certificates";
 
 
@@ -213,7 +215,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
           <Route path="assign-students" element={<Navigate to="/center/students/student-allocation" replace />} />
-          <Route path="assign-faculty" element={<Navigate to="/center/courses/course-assignment" replace />} />
+          <Route path="assign-faculty" element={<Navigate to="/center/batches" replace />} />
         </Route>
 
         {/* Faculty */}
@@ -221,11 +223,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllFaculty />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
-          <Route path="batch-assignment" element={<Navigate to="/center/courses/course-assignment" replace />} />
-          <Route path="faculty-allocation" element={<Navigate to="/center/courses/course-assignment" replace />} />
+          <Route path="batch-assignment" element={<Navigate to="/center/batches" replace />} />
+          <Route path="faculty-allocation" element={<Navigate to="/center/batches" replace />} />
           <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
-          <Route path="courses" element={<Navigate to="/center/courses/course-assignment" replace />} />
+          <Route path="courses" element={<Navigate to="/center/batches" replace />} />
           <Route path="attendance" element={<FacultyAttendance />} />
           <Route path="ratings" element={<FacultyRatings />} />
         </Route>
@@ -252,7 +254,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<AllBatches />} />
           <Route path="create" element={<Navigate to="/center/batches" replace />} />
           <Route path="student-allocation" element={<Navigate to="/center/students/student-allocation" replace />} />
-          <Route path="faculty-allocation" element={<Navigate to="/center/courses/course-assignment" replace />} />
+          <Route path="faculty-allocation" element={<Navigate to="/center/batches" replace />} />
           <Route path=":id" element={<BatchDetails />} />
         </Route>
 
@@ -292,7 +294,7 @@ export const AppRoutes: React.FC = () => {
           />
           <Route path="curriculum" element={<Curriculum />} />
           <Route path="modules" element={<Navigate to="/center/courses/curriculum" replace />} />
-          <Route path="course-assignment" element={<CourseAssignment />} />
+          <Route path="course-assignment" element={<Navigate to="/center/batches" replace />} />
         </Route>
 
         {/* Reports */}
@@ -491,6 +493,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<FacultyDashboard />} />
         <Route path="ask-me" element={<Navigate to="/faculty/home" replace />} />
         <Route path="courses" element={<CourseAssignment />} />
+        <Route path="curriculum" element={<FacultyCurriculum />} />
         <Route path="class-session" element={<FacultyClassSession />} />
         <Route path="classes/:id" element={<FacultyClassSession />} />
         <Route path="attendance">
@@ -544,6 +547,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="announcements" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="schedule" element={<StudentSchedule />} />
         <Route path="study-materials" element={<StudentStudyMaterials />} />
+        <Route path="curriculum" element={<StudentCurriculum />} />
         <Route path="recordings" element={<StudentRecordings />} />
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="certificates" element={<StudentCertificates />} />

@@ -64,15 +64,17 @@ export const StudentDetails: React.FC = () => {
 
   const { data: response, isLoading, isError } = useStudent(id);
   const student = response?.data;
+  const studentBranchId = student?.branchId || student?.branch?.id || "";
 
-  const { courses } = useCourses();
+  const { courses } = useCourses({
+    status: "ACTIVE",
+    branchId: studentBranchId || undefined,
+  });
   const updateMutation = useUpdateStudent();
 
   const { batches } = useBatches({
     courseId: selectedCourseId || undefined,
   });
-
-  const studentBranchId = student?.branchId || student?.branch?.id || "";
 
   const availableBatches = useMemo(() => {
     if (!batches || batches.length === 0) return [];

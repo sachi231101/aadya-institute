@@ -6,6 +6,9 @@ import { isBranchLockedUser } from "@/utils/branch-scope.util";
 
 type BranchOption = { id: string; name: string };
 
+const EMPTY_BRANCHES: BranchOption[] = [];
+const BRANCHES_LIST_PARAMS = { limit: 100 } as const;
+
 /**
  * Branch filter scope for shared student list pages.
  * Center Manager / Counsellor: hide "All branches", always send a concrete branchId.
@@ -14,12 +17,14 @@ type BranchOption = { id: string; name: string };
 export function useBranchScopeForLists() {
   const user = useAuthStore((s) => s.user);
   const isBranchLocked = isBranchLockedUser(user);
-  const { selectedBranchId: storedBranchId, setSelectedBranchId: setStored } =
-    useBranchStore();
-  const { data: branchesResponse, isLoading: branchesLoading } = useBranches({
-    limit: 100,
-  });
-  const branches = (branchesResponse?.data ?? []) as BranchOption[];
+  const storedBranchId = useBranchStore((s) => s.selectedBranchId);
+  const setStored = useBranchStore((s) => s.setSelectedBranchId);
+  const { data: branchesResponse, isLoading: branchesLoading } = useBranches(
+    BRANCHES_LIST_PARAMS
+  );
+  // Stable empty fallback — `?? []` would be a new array every render while loading
+  // and retrigger effects that depend on `branches` / `setSelectedBranchId`.
+  const branches = (branchesResponse?.data ?? EMPTY_BRANCHES) as BranchOption[];
 
   const preferredLockedBranchId = useMemo(() => {
     if (!branches.length) return undefined;

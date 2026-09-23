@@ -680,9 +680,16 @@ export class ReportRepository {
       leftAt: null,
     };
 
+    const courseBranchVisibility = branchId
+      ? { courseBranches: { some: { branchId } } }
+      : branchIds?.length
+        ? { courseBranches: { some: { branchId: { in: branchIds } } } }
+        : {};
+
     const courses = await prisma.course.findMany({
       where: {
         instituteId,
+        ...courseBranchVisibility,
         ...(status
           ? { status: status as "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED" }
           : { status: { not: "DELETED" } }),
@@ -1142,7 +1149,15 @@ export class ReportRepository {
         select: { id: true, name: true },
       }),
       prisma.course.findMany({
-        where: { instituteId, status: { not: "DELETED" } },
+        where: {
+          instituteId,
+          status: { not: "DELETED" },
+          ...(branchId
+            ? { courseBranches: { some: { branchId } } }
+            : branchIds?.length
+              ? { courseBranches: { some: { branchId: { in: branchIds } } } }
+              : {}),
+        },
         select: { id: true, name: true, code: true },
         orderBy: { name: "asc" },
       }),

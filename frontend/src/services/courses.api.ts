@@ -1,5 +1,11 @@
 import { api } from "./api";
 
+export interface CourseBranchLink {
+  id: string;
+  branchId: string;
+  branch?: { id: string; name: string; code: string };
+}
+
 export interface CourseData {
   id: string;
   name: string;
@@ -14,6 +20,8 @@ export interface CourseData {
   level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   createdAt: string;
+  branchIds?: string[];
+  courseBranches?: CourseBranchLink[];
   modules?: Array<{ id: string; name: string; code?: string; sequence: number; duration?: number; topics?: any }>;
   _count?: { batches: number; admissions: number };
 }
@@ -28,6 +36,7 @@ export interface CreateCoursePayload {
   level?: string;
   totalHours?: number;
   fee?: number;
+  branchIds?: string[];
 }
 
 export interface UpdateCoursePayload extends Partial<CreateCoursePayload> {
@@ -43,10 +52,19 @@ const toCourseFee = (fee: unknown): number | null => {
 const normalizeCourse = (course: CourseData): CourseData => ({
   ...course,
   fee: toCourseFee(course.fee),
+  branchIds:
+    course.branchIds ??
+    course.courseBranches?.map((cb) => cb.branchId) ??
+    [],
 });
 
 export const coursesApi = {
-  getAll: async (params?: { search?: string; status?: string; category?: string }) => {
+  getAll: async (params?: {
+    search?: string;
+    status?: string;
+    category?: string;
+    branchId?: string;
+  }) => {
     const response = await api.get<{ success: boolean; data: CourseData[] }>("/courses", { params });
     const payload = response.data;
     return {

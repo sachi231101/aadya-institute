@@ -20,6 +20,7 @@ import {
   Star,
   Inbox,
   CheckCircle2,
+  Layers,
 } from "lucide-react"
 
 import {
@@ -110,6 +111,11 @@ const facultyNavItems: NavItem[] = [
     title: "My Batches & Courses",
     url: "/faculty/courses",
     icon: BookOpen,
+  },
+  {
+    title: "Curriculum",
+    url: "/faculty/curriculum",
+    icon: Layers,
   },
   {
     title: "Students & Attendance",

@@ -111,7 +111,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Courses", url: "/center/courses/all", itemKey: "courses.all" },
       { title: L["courses.curriculum"] ?? "Course Curriculum", url: "/center/courses/curriculum", itemKey: "courses.curriculum" },
-      { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: "/center/courses/course-assignment", itemKey: "courses.course_assignment" },
     ],
   },
   {

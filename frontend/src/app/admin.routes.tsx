@@ -27,7 +27,6 @@ import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { EditCourse } from "../pages/admin/courses/EditCourse";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
 import { CourseDetails } from "../pages/admin/courses/CourseDetails";
-import { CourseAssignment } from "../pages/admin/courses/CourseAssignment";
 
 import { AllBatches } from "../pages/admin/batches/AllBatches";
 import { BatchDetails } from "../pages/admin/batches/BatchDetails";
@@ -186,12 +185,12 @@ export const adminChildRoutes = (
     <Route path="faculty">
       <Route path="all" element={<AllFaculty />} />
       <Route path="add" element={<AddFaculty />} />
-      <Route path="faculty-allocation" element={<Navigate to="/admin/courses/course-assignment" replace />} />
-      <Route path="batch-assignment" element={<Navigate to="/admin/courses/course-assignment" replace />} />
-      <Route path="course-assignment" element={<Navigate to="/admin/courses/course-assignment" replace />} />
+      <Route path="faculty-allocation" element={<Navigate to="/admin/batches" replace />} />
+      <Route path="batch-assignment" element={<Navigate to="/admin/batches" replace />} />
+      <Route path="course-assignment" element={<Navigate to="/admin/batches" replace />} />
       <Route path="attendance" element={<FacultyAttendance />} />
       <Route path="performance" element={<FacultyRatings />} />
-      <Route path="courses" element={<Navigate to="/admin/courses/course-assignment" replace />} />
+      <Route path="courses" element={<Navigate to="/admin/batches" replace />} />
       <Route path="ratings" element={<Navigate to="/admin/faculty/performance" replace />} />
       <Route path="timetable" element={<Timetable />} />
       <Route path=":id/edit" element={<EditFaculty />} />
@@ -204,7 +203,7 @@ export const adminChildRoutes = (
       <Route path="add" element={<AddCourse />} />
       <Route path="curriculum" element={<Curriculum />} />
       <Route path="modules" element={<Navigate to="/admin/courses/curriculum" replace />} />
-      <Route path="course-assignment" element={<CourseAssignment />} />
+      <Route path="course-assignment" element={<Navigate to="/admin/batches" replace />} />
       <Route path="batches" element={<Navigate to="/admin/batches" replace />} />
       <Route path=":id/edit" element={<EditCourse />} />
       <Route path=":id" element={<CourseDetails />} />
@@ -215,7 +214,7 @@ export const adminChildRoutes = (
       <Route index element={<AllBatches />} />
       <Route path="create" element={<Navigate to="/admin/batches" replace />} />
       <Route path="student-allocation" element={<Navigate to="/admin/students/student-allocation" replace />} />
-      <Route path="faculty-allocation" element={<Navigate to="/admin/courses/course-assignment" replace />} />
+      <Route path="faculty-allocation" element={<Navigate to="/admin/batches" replace />} />
       <Route path=":id" element={<BatchDetails />} />
     </Route>
 
@@ -344,7 +343,7 @@ export const adminChildRoutes = (
       <Route path="all" element={<Navigate to="/admin/counsellors" replace />} />
       <Route path="batches" element={<Navigate to="/admin/batches" replace />} />
       <Route path="assign-students" element={<Navigate to="/admin/students/student-allocation" replace />} />
-      <Route path="assign-faculty" element={<Navigate to="/admin/courses/course-assignment" replace />} />
+      <Route path="assign-faculty" element={<Navigate to="/admin/batches" replace />} />
     </Route>
     <Route path="masters" element={<Navigate to="/admin/administration/masters" replace />} />
     <Route path="settings" element={<Navigate to="/admin/administration/settings" replace />} />

@@ -28,6 +28,14 @@ router.get(
   controller.getMyDashboard
 );
 
+// GET /api/v1/students/me/curriculum — Completed batch curriculum only
+router.get(
+  "/me/curriculum",
+  requireRole("STUDENT"),
+  requirePermission("module.read"),
+  controller.getMyCurriculum
+);
+
 // ─── Student Attendance Endpoints ─────────────────────────────────────────────
 router.get(
   "/:studentId/attendance/summary",

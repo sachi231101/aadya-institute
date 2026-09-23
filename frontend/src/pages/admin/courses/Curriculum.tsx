@@ -1,34 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { 
-  Layers, 
-  Plus, 
-  CheckCircle2, 
-  Circle, 
-  Clock, 
-  ChevronDown, 
+import {
+  Layers,
+  Plus,
+  Clock,
+  ChevronDown,
   ChevronRight,
   FileText,
-  Bookmark,
   Loader2,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
 import { useModules } from "../../../hooks/useModules";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { usePermissions } from "@/hooks/usePermissions";
 import { PageContainer, PageHeader } from "@/components/layout";
 
 export const Curriculum: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
   const { courses, loading: coursesLoading } = useCourses();
-  const { canEditItem } = usePermissions();
-  const canEditCurriculum = canEditItem("courses.curriculum");
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courseIdFromUrl);
 
   useEffect(() => {
@@ -51,20 +45,17 @@ export const Curriculum: React.FC = () => {
     loading: modulesLoading,
     createModule,
     addTopic,
-    toggleTopic,
     deleteTopic,
     deleteModule,
   } = useModules(selectedCourseId);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
-  // Module Modal State
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleCode, setModuleCode] = useState("");
   const [moduleSubmitting, setModuleSubmitting] = useState(false);
 
-  // Topic Modal State
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<string>("");
   const [topicTitle, setTopicTitle] = useState("");
@@ -89,7 +80,6 @@ export const Curriculum: React.FC = () => {
         name: moduleTitle,
         code: moduleCode || `MOD-${Date.now().toString().slice(-3)}`,
       });
-
       setModuleTitle("");
       setModuleCode("");
       setShowModuleModal(false);
@@ -111,7 +101,6 @@ export const Curriculum: React.FC = () => {
         durationHours: topicHours,
         description: topicDescription,
       });
-
       setTopicTitle("");
       setTopicHours(4);
       setTopicDescription("");
@@ -120,14 +109,6 @@ export const Curriculum: React.FC = () => {
       alert(err.response?.data?.message || err.message || "Failed to add topic");
     } finally {
       setTopicSubmitting(false);
-    }
-  };
-
-  const handleToggleTopic = async (moduleId: string, topicId: string) => {
-    try {
-      await toggleTopic(moduleId, topicId);
-    } catch (err: any) {
-      console.error(err);
     }
   };
 
@@ -147,221 +128,175 @@ export const Curriculum: React.FC = () => {
     }
   };
 
-  // Calculate totals
   const totalTopics = modules.reduce((acc, m) => acc + ((m.topics as any[])?.length || 0), 0);
-  const completedTopics = modules.reduce(
-    (acc, m) => acc + ((m.topics as any[])?.filter((t) => t.isCompleted)?.length || 0),
-    0
-  );
-  const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
   return (
     <PageContainer className="animate-in fade-in duration-300">
       <PageHeader
         title="Course Curriculum"
-        description="Structure course syllabi, module sequences, topic hours, and learning progress."
+        description="Modules and topics for each course."
+        actions={
+          <PermissionGate itemKey="courses.curriculum" mode="write">
+            <Button
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setShowModuleModal(true)}
+              disabled={!selectedCourseId}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add Module
+            </Button>
+          </PermissionGate>
+        }
       />
 
-      <Card className="border border-border bg-card shadow-xs rounded-xl overflow-hidden">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="space-y-1 flex-1">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Course Curriculum</span>
-              <div className="flex items-center gap-3">
-                {coursesLoading ? (
-                  <div className="flex items-center text-xs font-bold text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2 text-primary" /> Loading courses...
-                  </div>
-                ) : (
-                  <select
-                    value={selectedCourseId}
-                    onChange={(e) => handleSelectCourse(e.target.value)}
-                    className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-sm font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary min-w-[280px] cursor-pointer"
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.code})
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {selectedCourse?.category && (
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-bold text-xs">
-                    {selectedCourse.category}
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Course Summary Metrics */}
-            <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 text-xs">
-              <div>
-                <span className="block text-[11px] font-bold text-muted-foreground uppercase">Total Duration</span>
-                <span className="font-bold text-foreground text-sm">
-                  {selectedCourse?.duration || selectedCourse?.durationMonths || 6} Mos ({selectedCourse?.totalHours || 100} hrs)
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-bold text-muted-foreground uppercase">Modules Count</span>
-                <span className="font-bold text-foreground text-sm">{modules.length} Modules</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-bold text-muted-foreground uppercase">Topics Completion</span>
-                <span className="font-bold text-foreground text-sm">{completedTopics} / {totalTopics} ({progressPercent}%)</span>
-              </div>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {coursesLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading courses…
           </div>
+        ) : (
+          <select
+            value={selectedCourseId}
+            onChange={(e) => handleSelectCourse(e.target.value)}
+            className="h-9 w-full sm:w-auto sm:min-w-[260px] px-3 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+          >
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+        )}
+        {selectedCourse?.category && (
+          <Badge variant="outline" className="text-xs font-medium w-fit">
+            {selectedCourse.category}
+          </Badge>
+        )}
+        {!modulesLoading && selectedCourseId ? (
+          <span className="text-xs text-muted-foreground sm:ml-auto">
+            {selectedCourse?.duration || selectedCourse?.durationMonths || 6} mos
+            {" · "}
+            {selectedCourse?.totalHours || 100} hrs
+            {" · "}
+            {modules.length} modules · {totalTopics} topics
+          </span>
+        ) : null}
+      </div>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-            <div 
-              className="bg-primary h-full rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modules List */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         {modulesLoading ? (
-          <div className="py-12 text-center text-muted-foreground flex justify-center items-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-            <span className="text-xs font-bold">Loading curriculum modules...</span>
+          <div className="py-16 flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">Loading modules…</span>
           </div>
         ) : modules.length > 0 ? (
           modules.map((module, index) => {
-            const isExpanded = expandedModules[module.id] !== false; // Default expanded
+            const isExpanded = expandedModules[module.id] !== false;
             const moduleTopics: any[] = (module.topics as any[]) || [];
-            const moduleCompletedCount = moduleTopics.filter((t) => t.isCompleted).length;
 
             return (
-              <Card key={module.id} className="border border-border bg-card shadow-xs rounded-xl overflow-hidden">
-                <CardHeader className="p-4 bg-muted/30 hover:bg-muted/50 border-b border-border cursor-pointer transition-colors" onClick={() => toggleModuleAccordion(module.id)}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground">
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </Button>
-                      <Badge variant="outline" className="font-mono text-xs bg-muted/50 text-foreground border-border">
-                        {module.code || `MOD-${index + 1}`}
-                      </Badge>
-                      <div>
-                        <CardTitle className="text-base font-bold text-foreground">
-                          {module.name}
-                        </CardTitle>
-                        <CardDescription className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 font-medium">
-                          <span>{moduleTopics.length} Topics</span>
-                          <span>•</span>
-                          <span>{moduleCompletedCount} of {moduleTopics.length} completed</span>
-                        </CardDescription>
-                      </div>
-                    </div>
-
-                    <PermissionGate itemKey="courses.curriculum" mode="write">
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
+              <Card
+                key={module.id}
+                className="border border-border bg-card shadow-none rounded-lg overflow-hidden"
+              >
+                <div
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
+                  onClick={() => toggleModuleAccordion(module.id)}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  )}
+                  <Badge variant="outline" className="font-mono text-[11px] shrink-0">
+                    {module.code || `MOD-${index + 1}`}
+                  </Badge>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{module.name}</p>
+                    <p className="text-xs text-muted-foreground">{moduleTopics.length} topics</p>
+                  </div>
+                  <PermissionGate itemKey="courses.curriculum" mode="write">
+                    <div
+                      className="flex items-center gap-1.5 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-lg"
                         onClick={() => {
                           setActiveModuleId(module.id);
                           setShowTopicModal(true);
                         }}
                       >
-                        <Plus className="mr-1 h-3.5 w-3.5 text-primary" />
-                        Add Topic
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Topic
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg cursor-pointer"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
                         onClick={() => handleDeleteModule(module.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    </PermissionGate>
-                  </div>
-                </CardHeader>
+                  </PermissionGate>
+                </div>
 
                 {isExpanded && (
-                  <CardContent className="p-4 space-y-3 bg-card">
+                  <CardContent className="px-4 pb-3 pt-0">
                     {moduleTopics.length > 0 ? (
-                      <div className="divide-y divide-border/70 border border-border rounded-xl overflow-hidden">
+                      <ul className="border border-border rounded-lg divide-y divide-border">
                         {moduleTopics.map((topic) => (
-                          <div 
+                          <li
                             key={topic.id}
-                            className="p-3.5 flex items-start justify-between gap-4 hover:bg-muted/40 transition-colors"
+                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30"
                           >
-                            <div className="flex items-start gap-3">
-                              {canEditCurriculum ? (
-                              <button 
-                                type="button"
-                                className="mt-0.5 text-muted-foreground hover:text-emerald-500 transition-colors cursor-pointer"
-                                onClick={() => handleToggleTopic(module.id, topic.id)}
-                              >
-                                {topic.isCompleted ? (
-                                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                                ) : (
-                                  <Circle className="h-5 w-5 text-muted-foreground/40" />
-                                )}
-                              </button>
-                              ) : (
-                                <span className="mt-0.5">
-                                  {topic.isCompleted ? (
-                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                                  ) : (
-                                    <Circle className="h-5 w-5 text-muted-foreground/40" />
-                                  )}
-                                </span>
-                              )}
-                              <div>
-                                <h5 className={`text-xs font-bold ${topic.isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                                  {topic.title}
-                                </h5>
-                                {topic.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{topic.description}</p>
-                                )}
-                              </div>
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-foreground">{topic.title}</p>
+                              {topic.description ? (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {topic.description}
+                                </p>
+                              ) : null}
                             </div>
-
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground font-semibold whitespace-nowrap">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>{topic.durationHours || 4} hrs</span>
-                              </div>
-                              <PermissionGate itemKey="courses.curriculum" mode="write">
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                              <Clock className="h-3 w-3" />
+                              {topic.durationHours || 4}h
+                            </span>
+                            <PermissionGate itemKey="courses.curriculum" mode="write">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md cursor-pointer"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
                                 onClick={() => handleDeleteTopic(module.id, topic.id)}
                                 title="Remove topic"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
-                              </PermissionGate>
-                            </div>
-                          </div>
+                            </PermissionGate>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     ) : (
-                      <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
-                        <Bookmark className="mx-auto h-8 w-8 text-muted-foreground/40 mb-1" />
-                        <p className="font-semibold">No topics added to this module yet.</p>
+                      <div className="py-6 text-center border border-dashed border-border rounded-lg">
+                        <p className="text-sm text-muted-foreground">No topics yet</p>
                         <PermissionGate itemKey="courses.curriculum" mode="write">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-xs font-bold text-primary hover:text-primary/80 mt-1 cursor-pointer"
-                          onClick={() => {
-                            setActiveModuleId(module.id);
-                            setShowTopicModal(true);
-                          }}
-                        >
-                          + Add First Topic
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-primary mt-1"
+                            onClick={() => {
+                              setActiveModuleId(module.id);
+                              setShowTopicModal(true);
+                            }}
+                          >
+                            + Add first topic
+                          </Button>
                         </PermissionGate>
                       </div>
                     )}
@@ -371,80 +306,72 @@ export const Curriculum: React.FC = () => {
             );
           })
         ) : (
-          <Card className="border border-border bg-card py-12 text-center shadow-xs rounded-xl">
-            <CardContent>
-              <Layers className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
-              <h3 className="text-base font-bold text-foreground">No Modules Created</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1 mb-4 font-medium">
-                This course currently has no curriculum modules defined. Start by adding your first module.
-              </p>
-              <PermissionGate itemKey="courses.curriculum" mode="write">
-              <Button 
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
+          <div className="py-16 text-center border border-dashed border-border rounded-lg">
+            <Layers className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
+            <p className="text-sm font-medium text-foreground">No modules yet</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">
+              Add a module to start this course curriculum.
+            </p>
+            <PermissionGate itemKey="courses.curriculum" mode="write">
+              <Button
+                size="sm"
+                className="rounded-lg"
                 onClick={() => setShowModuleModal(true)}
                 disabled={!selectedCourseId}
               >
                 <Plus className="mr-1.5 h-4 w-4" />
                 Add Module
               </Button>
-              </PermissionGate>
-            </CardContent>
-          </Card>
+            </PermissionGate>
+          </div>
         )}
       </div>
 
-      {/* Modal Dialog for Adding Module */}
       {showModuleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
-              Add Course Module
+              Add Module
             </h3>
-
             <form onSubmit={handleAddModuleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Module Title *</label>
+                <label className="block text-xs font-medium mb-1.5">Module Title *</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Module 4: Cloud Infrastructure & Docker"
+                  placeholder="e.g. Cloud Infrastructure & Docker"
                   value={moduleTitle}
                   onChange={(e) => setModuleTitle(e.target.value)}
                   required
-                  className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  className="rounded-lg text-sm"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Module Code (Optional)</label>
+                <label className="block text-xs font-medium mb-1.5">Module Code (optional)</label>
                 <Input
                   type="text"
                   placeholder="e.g. MOD-104"
                   value={moduleCode}
                   onChange={(e) => setModuleCode(e.target.value)}
-                  className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  className="rounded-lg text-sm"
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <div className="flex justify-end gap-2 pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
+                  className="rounded-lg"
                   onClick={() => setShowModuleModal(false)}
                   disabled={moduleSubmitting}
-                  className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
-                  disabled={moduleSubmitting}
-                >
+                <Button type="submit" size="sm" className="rounded-lg" disabled={moduleSubmitting}>
                   {moduleSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      Creating…
                     </>
                   ) : (
                     "Create Module"
@@ -456,69 +383,61 @@ export const Curriculum: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Dialog for Adding Topic */}
       {showTopicModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Add Syllabus Topic
+              Add Topic
             </h3>
-
             <form onSubmit={handleAddTopicSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Topic Title *</label>
+                <label className="block text-xs font-medium mb-1.5">Topic Title *</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Containerizing Node.js Apps with Dockerfile"
+                  placeholder="e.g. Containerizing Node.js Apps"
                   value={topicTitle}
                   onChange={(e) => setTopicTitle(e.target.value)}
                   required
-                  className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  className="rounded-lg text-sm"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Estimated Hours</label>
+                <label className="block text-xs font-medium mb-1.5">Estimated Hours</label>
                 <Input
                   type="number"
                   min={1}
                   value={topicHours}
                   onChange={(e) => setTopicHours(Number(e.target.value))}
-                  className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  className="rounded-lg text-sm"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Description / Key Objectives</label>
+                <label className="block text-xs font-medium mb-1.5">Description (optional)</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Multi-stage builds, port binding, and volume mounts"
+                  placeholder="e.g. Multi-stage builds, port binding"
                   value={topicDescription}
                   onChange={(e) => setTopicDescription(e.target.value)}
-                  className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  className="rounded-lg text-sm"
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <div className="flex justify-end gap-2 pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
+                  className="rounded-lg"
                   onClick={() => setShowTopicModal(false)}
                   disabled={topicSubmitting}
-                  className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
-                  disabled={topicSubmitting}
-                >
+                <Button type="submit" size="sm" className="rounded-lg" disabled={topicSubmitting}>
                   {topicSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      Saving…
                     </>
                   ) : (
                     "Add Topic"

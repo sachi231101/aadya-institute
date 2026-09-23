@@ -142,6 +142,7 @@ async function main() {
     { name: "module.read", description: "View course modules" },
     { name: "module.create", description: "Create module" },
     { name: "module.update", description: "Update module" },
+    { name: "batch_curriculum.mark", description: "Mark batch curriculum module/topic progress" },
 
     // Batches & Schedules
     { name: "batch.read", description: "View batches" },
@@ -401,6 +402,7 @@ async function main() {
     "branch.read",
     "course.read",
     "module.read",
+    "batch_curriculum.mark",
     "batch.read",
     "schedule.read",
     "attendance.read",

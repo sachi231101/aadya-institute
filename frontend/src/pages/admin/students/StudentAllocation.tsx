@@ -130,7 +130,10 @@ export const StudentAllocation: React.FC = () => {
     enrollmentStatus: activeTab,
   });
 
-  const { courses } = useCourses({ status: "ACTIVE" });
+  const { courses } = useCourses({
+    status: "ACTIVE",
+    branchId: branchId && branchId !== "ALL" ? branchId : undefined,
+  });
 
   useEffect(() => {
     if (initialBatchId && batches.some((b) => b.id === initialBatchId)) {

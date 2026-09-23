@@ -47,17 +47,35 @@ describe("Multi-course batch integration", () => {
     branchId = branch.id;
 
     const course1 = await prisma.course.create({
-      data: { instituteId, name: "Python Programming", code: `PY-${tag}`, fee: 25000 },
+      data: {
+        instituteId,
+        name: "Python Programming",
+        code: `PY-${tag}`,
+        fee: 25000,
+        courseBranches: { create: [{ branchId }] },
+      },
     });
     course1Id = course1.id;
 
     const course2 = await prisma.course.create({
-      data: { instituteId, name: "Django Web", code: `DJ-${tag}`, fee: 30000 },
+      data: {
+        instituteId,
+        name: "Django Web",
+        code: `DJ-${tag}`,
+        fee: 30000,
+        courseBranches: { create: [{ branchId }] },
+      },
     });
     course2Id = course2.id;
 
     const courseOther = await prisma.course.create({
-      data: { instituteId, name: "Unrelated Course", code: `XX-${tag}`, fee: 10000 },
+      data: {
+        instituteId,
+        name: "Unrelated Course",
+        code: `XX-${tag}`,
+        fee: 10000,
+        courseBranches: { create: [{ branchId }] },
+      },
     });
     courseOtherId = courseOther.id;
 

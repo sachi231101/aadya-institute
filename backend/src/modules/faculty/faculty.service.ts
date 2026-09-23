@@ -20,6 +20,7 @@ import { prisma } from "../../config/database";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./faculty.repository";
 import * as facultyAllocationService from "./faculty-allocation.service";
+import * as batchCurriculumService from "../batches/batch-curriculum.service";
 import {
   formatBatchSubjectNames,
   getSessionSubjectLabel,
@@ -164,7 +165,12 @@ export const getFacultyById = async (currentUser: AuthUser, id: string) => {
     assertBranchRecordAccess(currentUser, faculty.branchId, "Faculty not found");
   }
 
-  return faculty;
+  const curriculumProgress = await batchCurriculumService.getFacultyCurriculumProgress(
+    faculty.id,
+    faculty.instituteId
+  );
+
+  return { ...faculty, curriculumProgress };
 };
 
 /**

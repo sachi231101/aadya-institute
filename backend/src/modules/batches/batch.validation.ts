@@ -184,3 +184,7 @@ export const availableFacultyQuerySchema = z.object({
   branchId: z.string().optional(),
   excludeBatchId: z.string().optional(),
 });
+
+export const markCurriculumCompletionSchema = z.object({
+  isCompleted: z.boolean(),
+});

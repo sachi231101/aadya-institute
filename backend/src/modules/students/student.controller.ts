@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./student.service";
+import * as curriculumService from "../batches/batch-curriculum.service";
 
 export const getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -100,5 +101,12 @@ export const getMyDashboard = async (req: AuthenticatedRequest, res: Response, n
   try {
     const data = await service.getMyDashboard(toAuthUser(req));
     sendSuccess(res, data, 200, "Student dashboard retrieved successfully");
+  } catch (err) { next(err); }
+};
+
+export const getMyCurriculum = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await curriculumService.getMyCurriculum(toAuthUser(req));
+    sendSuccess(res, data, 200, "Student curriculum retrieved successfully");
   } catch (err) { next(err); }
 };

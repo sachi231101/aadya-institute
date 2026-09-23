@@ -107,6 +107,40 @@ export interface StudentDashboardData {
   }>;
 }
 
+export interface StudentCurriculumTopic {
+  topicId: string;
+  title: string;
+  durationHours?: number;
+  description?: string;
+  isCompleted: boolean;
+  completedAt: string | null;
+  completedById: string | null;
+}
+
+export interface StudentCurriculumModule {
+  id: string;
+  courseModuleId: string;
+  sequence: number;
+  isCompleted: boolean;
+  completedAt: string | null;
+  completedById: string | null;
+  completedBy: { id: string; name: string } | null;
+  name: string;
+  code: string | null;
+  description: string | null;
+  duration: number | null;
+  courseId: string;
+  course: { id: string; name: string; code: string | null };
+  topics: StudentCurriculumTopic[];
+}
+
+export interface StudentCurriculumBatch {
+  batchId: string;
+  batchName: string;
+  batchCode: string;
+  modules: StudentCurriculumModule[];
+}
+
 export const studentsApi = {
   getAll: async (params?: StudentListParams): Promise<PaginatedResponse<Student>> => {
     const response = await api.get<PaginatedResponse<Student>>("/students", { params });
@@ -140,6 +174,11 @@ export const studentsApi = {
 
   getMyDashboard: async (): Promise<SingleResponse<StudentDashboardData>> => {
     const response = await api.get<SingleResponse<StudentDashboardData>>("/students/me/dashboard");
+    return response.data;
+  },
+
+  getMyCurriculum: async (): Promise<SingleResponse<StudentCurriculumBatch[]>> => {
+    const response = await api.get<SingleResponse<StudentCurriculumBatch[]>>("/students/me/curriculum");
     return response.data;
   },
 

@@ -5,6 +5,7 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { batchIncludesCourse, getBatchCourseIds } from "../../utils/batch-course.util";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import type { AuthUser } from "../auth/auth.types";
 
 const formatBatchDate = (value: Date | string | null | undefined): string => {
@@ -153,6 +154,15 @@ export const assignStudentToBatch = async (
   // Validate admission/course fit before the already-enrolled guard so callers
   // get a precise error when linking a wrong admissionId.
   const admission = await resolveAdmissionForBatch(studentId, instituteId, batch, admissionId);
+
+  if (admission?.courseId) {
+    await assertCourseAvailableForBranch(
+      instituteId,
+      admission.courseId,
+      batch.branchId,
+      { requireActive: true }
+    );
+  }
 
   const alreadyInThisBatch = await prisma.batchEnrollment.findFirst({
     where: { batchId, studentId, status: "ACTIVE" },

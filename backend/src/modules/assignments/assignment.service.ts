@@ -5,6 +5,7 @@ import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { buildMeta } from "../../utils/pagination";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import { saveFile, getFileUrl } from "../../integrations/storage/storage.client";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
@@ -139,6 +140,13 @@ const validateAndNormalizeTargets = async (
       include: { batchCourses: { select: { courseId: true } } },
     });
     if (!batch) throw new AppError("Batch not found in target", 400);
+
+    await assertCourseAvailableForBranch(
+      currentUser.instituteId,
+      target.courseId,
+      batch.branchId,
+      { requireActive: true }
+    );
 
     const batchHasCourse =
       batch.courseId === target.courseId ||

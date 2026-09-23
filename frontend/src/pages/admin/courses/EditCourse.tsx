@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { coursesApi, type CourseData } from "../../../services/courses.api";
+import { useBranches } from "../../../hooks/useBranches";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ const populateFormFromCourse = (
     setFee: (v: string) => void;
     setStatus: (v: "ACTIVE" | "INACTIVE") => void;
     setDescription: (v: string) => void;
+    setBranchIds: (v: string[]) => void;
   }
 ) => {
   setters.setName(course.name);
@@ -36,6 +39,11 @@ const populateFormFromCourse = (
   setters.setFee(toFormNumber(course.fee));
   setters.setStatus(course.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
   setters.setDescription(course.description || "");
+  setters.setBranchIds(
+    course.branchIds ??
+      course.courseBranches?.map((cb) => cb.branchId) ??
+      []
+  );
 };
 
 export const EditCourse: React.FC = () => {
@@ -43,12 +51,19 @@ export const EditCourse: React.FC = () => {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { canEditItem, isAdmin, roleScope } = usePermissions();
+  const user = useAuthStore((s) => s.user);
   const courseFromState = (location.state as { course?: CourseData } | null)?.course;
 
   const coursesListPath = location.pathname.startsWith("/center")
     ? "/center/courses/all"
     : "/admin/courses/all";
   const canWrite = isAdmin || !roleScope || canEditItem("courses.all");
+
+  const { data: branchesResponse, isLoading: branchesLoading } = useBranches({
+    limit: 100,
+    status: "ACTIVE",
+  });
+  const branches = branchesResponse?.data ?? [];
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -59,11 +74,23 @@ export const EditCourse: React.FC = () => {
   const [fee, setFee] = useState("");
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const [description, setDescription] = useState("");
+  const [branchIds, setBranchIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+
+  const showBranchSelector = branches.length >= 2;
+  const lockedBranchId = useMemo(() => {
+    if (isAdmin) return undefined;
+    const allowed = user?.allowedBranchIds?.length
+      ? user.allowedBranchIds
+      : user?.branchId
+        ? [user.branchId]
+        : [];
+    return allowed.length === 1 ? allowed[0] : undefined;
+  }, [isAdmin, user?.allowedBranchIds, user?.branchId]);
 
   useEffect(() => {
     if (!canWrite) {
@@ -88,6 +115,7 @@ export const EditCourse: React.FC = () => {
       setFee,
       setStatus,
       setDescription,
+      setBranchIds,
     };
 
     if (courseFromState && courseFromState.id === id) {
@@ -117,6 +145,28 @@ export const EditCourse: React.FC = () => {
     loadCourse();
   }, [id, courseFromState]);
 
+  useEffect(() => {
+    if (lockedBranchId) {
+      setBranchIds([lockedBranchId]);
+    }
+  }, [lockedBranchId]);
+
+  const toggleBranch = (branchId: string) => {
+    if (lockedBranchId) return;
+    setBranchIds((prev) =>
+      prev.includes(branchId) ? prev.filter((b) => b !== branchId) : [...prev, branchId]
+    );
+  };
+
+  const allBranchIds = useMemo(() => branches.map((b) => b.id), [branches]);
+  const allBranchesSelected =
+    allBranchIds.length > 0 && allBranchIds.every((id) => branchIds.includes(id));
+
+  const handleSelectAllBranches = () => {
+    if (lockedBranchId) return;
+    setBranchIds(allBranchesSelected ? [] : allBranchIds);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const durationValue = durationMonths === "" ? undefined : Number(durationMonths);
@@ -136,6 +186,10 @@ export const EditCourse: React.FC = () => {
       setError("Enter a valid number of teaching hours");
       return;
     }
+    if (showBranchSelector && branchIds.length === 0) {
+      setError("Select at least one branch");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -150,6 +204,12 @@ export const EditCourse: React.FC = () => {
         fee: feeValue,
         description,
         status,
+        branchIds:
+          branchIds.length > 0
+            ? branchIds
+            : branches.length === 1
+              ? [branches[0].id]
+              : undefined,
       });
 
       setIsSaved(true);
@@ -337,8 +397,57 @@ export const EditCourse: React.FC = () => {
               </div>
             </div>
 
+            {showBranchSelector && (
+              <div className="space-y-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Branches *
+                  </h4>
+                  {!lockedBranchId && (
+                    <button
+                      type="button"
+                      onClick={handleSelectAllBranches}
+                      className="text-xs font-medium text-primary hover:underline cursor-pointer"
+                    >
+                      {allBranchesSelected ? "Clear" : "Select all"}
+                    </button>
+                  )}
+                </div>
+                {branchesLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading branches...
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {branches.map((b) => {
+                      const checked = branchIds.includes(b.id);
+                      const locked = Boolean(lockedBranchId);
+                      return (
+                        <label
+                          key={b.id}
+                          className={`flex items-center gap-3 rounded-xl border border-border px-3 py-2 ${
+                            locked ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-muted/30"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={locked}
+                            onChange={() => toggleBranch(b.id)}
+                          />
+                          <span className="text-sm font-semibold">{b.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-4 pt-4 border-t border-border">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Description & Syllabus Overview</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                {showBranchSelector ? "4" : "3"}. Description & Syllabus Overview
+              </h4>
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1">Course Overview / Prerequisites</label>
                 <textarea
@@ -363,7 +472,7 @@ export const EditCourse: React.FC = () => {
               <Button
                 type="submit"
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
-                disabled={submitting}
+                disabled={submitting || branchesLoading}
               >
                 {submitting ? (
                   <>

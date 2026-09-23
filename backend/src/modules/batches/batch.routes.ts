@@ -14,8 +14,9 @@ import {
   generateSessionsSchema,
   transferStudentSchema,
   availableFacultyQuerySchema,
+  markCurriculumCompletionSchema,
 } from "./batch.validation";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requireAnyPermission, requirePermission } from "../../middlewares/permission.middleware";
 
 const router = Router();
 
@@ -38,6 +39,26 @@ router.get(
   "/:id",
   requirePermission("batch.read"),
   controller.getById
+);
+
+router.get(
+  "/:id/curriculum",
+  requireAnyPermission("module.read", "batch.read"),
+  controller.getCurriculum
+);
+
+router.patch(
+  "/:id/curriculum/modules/:batchModuleId",
+  requirePermission("batch_curriculum.mark"),
+  validate(markCurriculumCompletionSchema),
+  controller.markModuleCompletion
+);
+
+router.patch(
+  "/:id/curriculum/modules/:batchModuleId/topics/:topicId",
+  requirePermission("batch_curriculum.mark"),
+  validate(markCurriculumCompletionSchema),
+  controller.markTopicCompletion
 );
 
 router.get(

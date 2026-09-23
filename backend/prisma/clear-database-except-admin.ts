@@ -206,6 +206,7 @@ async function clearDatabaseExceptAdmin() {
     { name: "module.read", description: "View course modules" },
     { name: "module.create", description: "Create module" },
     { name: "module.update", description: "Update module" },
+    { name: "batch_curriculum.mark", description: "Mark batch curriculum module/topic progress" },
 
     // Batches & Schedules
     { name: "batch.read", description: "View batches" },

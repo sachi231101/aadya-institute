@@ -67,6 +67,10 @@ const userHasPermission = async (
       "recording.read",
       "student.read",
       "feedback.create",
+      "module.read",
+      "course.read",
+      "batch.read",
+      "dashboard.read",
     ].includes(permission)
   ) {
     return true;

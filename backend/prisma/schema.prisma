@@ -291,6 +291,7 @@ model Branch {
   callLogs              CallLog[]
   leaveRequests         LeaveRequest[]
   announcements         Announcement[]
+  courseBranches        CourseBranch[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -360,6 +361,7 @@ model User {
   googleConnection     GoogleWorkspaceConnection?
   organizedMeetSpaces  GoogleMeetSpace[]
   chatMemberships      ConversationMember[]
+  batchModulesCompleted BatchModule[] @relation("BatchModuleCompletedBy")
   sentMessages         Message[]
   createdTargetPlans   TargetPlan[]               @relation("TargetPlanCreatedBy")
   assignedTargets      Target[]                   @relation("TargetAssignedTo")
@@ -542,6 +544,7 @@ model Course {
 
   batches           Batch[]
   batchCourses      BatchCourse[]
+  courseBranches    CourseBranch[]
   leads             Lead[]
   exams             Exam[]
   questions         Question[]
@@ -552,6 +555,20 @@ model Course {
 
   @@unique([instituteId, code])
   @@index([instituteId])
+}
+
+model CourseBranch {
+  id        String   @id @default(cuid())
+  courseId  String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, branchId])
+  @@index([branchId])
+  @@index([courseId])
 }
 
 model CourseModule {
@@ -802,16 +819,24 @@ model BatchModule {
   startDate      DateTime?
   endDate        DateTime?
   status         Status    @default(ACTIVE)
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
+  completedById  String?
+  /// Per-topic progress aligned to CourseModule topic ids:
+  /// { topicId, isCompleted, completedAt?, completedById? }[]
+  topicProgress  Json      @default("[]")
   createdAt      DateTime  @default(now())
 
   batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
   courseModule CourseModule @relation(fields: [courseModuleId], references: [id], onDelete: Restrict)
+  completedBy  User?        @relation("BatchModuleCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
 
   classSessions ClassSession[]
 
   @@unique([batchId, sequence])
   @@index([batchId])
   @@index([courseModuleId])
+  @@index([completedById])
 }
 
 model BatchEnrollment {
