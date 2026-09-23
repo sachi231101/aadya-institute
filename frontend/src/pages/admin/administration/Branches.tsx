@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { MapPin, Plus, Loader2, AlertCircle, Pencil, Trash2, Power } from "lucide-react";
+import {
+  MapPin,
+  Plus,
+  Loader2,
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Power,
+  AlertTriangle,
+} from "lucide-react";
 import {
   useBranches,
   useCreateBranch,
@@ -17,6 +26,7 @@ import { PageContainer, PageHeader } from "@/components/layout";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,6 +39,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+type ConfirmAction =
+  | { type: "delete"; branch: BranchResponse }
+  | { type: "deactivate" | "activate"; branch: BranchResponse };
 
 type BranchForm = {
   name: string;
@@ -68,6 +82,8 @@ export const Branches: React.FC = () => {
   const [editingBranch, setEditingBranch] = useState<BranchResponse | null>(null);
   const [form, setForm] = useState<BranchForm>(emptyForm);
   const [formError, setFormError] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmError, setConfirmError] = useState("");
 
   const { data, isLoading, isError, refetch } = useBranches();
   const createMutation = useCreateBranch();
@@ -136,37 +152,72 @@ export const Branches: React.FC = () => {
       setShowModal(false);
       setForm(emptyForm);
       setEditingBranch(null);
-    } catch {
-      setFormError("Failed to save branch. Please check the details and try again.");
+    } catch (err: unknown) {
+      const apiMessage =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        (err as { response?: { data?: { message?: string } } }).response?.data
+          ?.message;
+      setFormError(
+        apiMessage ||
+          "Failed to save branch. Please check the details and try again."
+      );
     }
   };
 
-  const handleDelete = async (branch: BranchResponse) => {
-    if (!window.confirm(`Delete branch "${branch.name}"? This cannot be undone.`)) return;
-    try {
-      await deleteMutation.mutateAsync(branch.id);
-    } catch {
-      alert("Failed to delete branch.");
-    }
+  const askDelete = (branch: BranchResponse) => {
+    setConfirmError("");
+    setConfirmAction({ type: "delete", branch });
   };
 
-  const handleToggleStatus = async (branch: BranchResponse) => {
-    const nextStatus = branch.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const label = nextStatus === "INACTIVE" ? "deactivate" : "activate";
-    if (!window.confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} branch "${branch.name}"?`)) {
-      return;
-    }
+  const askToggleStatus = (branch: BranchResponse) => {
+    setConfirmError("");
+    setConfirmAction({
+      type: branch.status === "ACTIVE" ? "deactivate" : "activate",
+      branch,
+    });
+  };
+
+  const closeConfirm = () => {
+    if (deleteMutation.isPending || updateMutation.isPending) return;
+    setConfirmAction(null);
+    setConfirmError("");
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    setConfirmError("");
     try {
-      await updateMutation.mutateAsync({
-        id: branch.id,
-        data: { status: nextStatus },
-      });
-    } catch {
-      alert(`Failed to ${label} branch.`);
+      if (confirmAction.type === "delete") {
+        await deleteMutation.mutateAsync(confirmAction.branch.id);
+      } else {
+        await updateMutation.mutateAsync({
+          id: confirmAction.branch.id,
+          data: {
+            status: confirmAction.type === "deactivate" ? "INACTIVE" : "ACTIVE",
+          },
+        });
+      }
+      setConfirmAction(null);
+    } catch (err: unknown) {
+      const apiMessage =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        (err as { response?: { data?: { message?: string } } }).response?.data
+          ?.message;
+      setConfirmError(
+        apiMessage ||
+          (confirmAction.type === "delete"
+            ? "Failed to delete branch."
+            : `Failed to ${confirmAction.type} branch.`)
+      );
     }
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isConfirming = deleteMutation.isPending || updateMutation.isPending;
 
   return (
     <PageContainer>
@@ -253,8 +304,8 @@ export const Branches: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           title={b.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                          onClick={() => handleToggleStatus(b)}
-                          disabled={updateMutation.isPending}
+                          onClick={() => askToggleStatus(b)}
+                          disabled={isConfirming}
                         >
                           <Power
                             className={`h-4 w-4 ${
@@ -269,8 +320,9 @@ export const Branches: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(b)}
-                          disabled={deleteMutation.isPending}
+                          title="Delete"
+                          onClick={() => askDelete(b)}
+                          disabled={isConfirming}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -332,7 +384,7 @@ export const Branches: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="branch-phone">Phone</Label>
+                <Label htmlFor="branch-phone">Phone <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input
                   id="branch-phone"
                   value={form.phone}
@@ -340,7 +392,7 @@ export const Branches: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="branch-email">Email</Label>
+                <Label htmlFor="branch-email">Email <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input
                   id="branch-email"
                   type="email"
@@ -408,6 +460,78 @@ export const Branches: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!confirmAction}
+        onOpenChange={(open) => {
+          if (!open) closeConfirm();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle
+                className={`h-5 w-5 ${
+                  confirmAction?.type === "delete" ? "text-red-500" : "text-amber-500"
+                }`}
+              />
+              {confirmAction?.type === "delete"
+                ? "Delete branch?"
+                : confirmAction?.type === "deactivate"
+                  ? "Deactivate branch?"
+                  : "Activate branch?"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction?.type === "delete" ? (
+                <>
+                  Are you sure you want to delete{" "}
+                  <strong>"{confirmAction.branch.name}"</strong>? This cannot be
+                  undone.
+                </>
+              ) : confirmAction?.type === "deactivate" ? (
+                <>
+                  Are you sure you want to deactivate{" "}
+                  <strong>"{confirmAction.branch.name}"</strong>? It will be
+                  hidden from active selections.
+                </>
+              ) : confirmAction ? (
+                <>
+                  Are you sure you want to activate{" "}
+                  <strong>"{confirmAction.branch.name}"</strong>?
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeConfirm}
+              disabled={isConfirming}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmAction}
+              disabled={isConfirming}
+              className={
+                confirmAction?.type === "delete"
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-primary text-white"
+              }
+            >
+              {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {confirmAction?.type === "delete"
+                ? "Delete"
+                : confirmAction?.type === "deactivate"
+                  ? "Deactivate"
+                  : "Activate"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageContainer>

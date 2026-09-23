@@ -32,11 +32,16 @@ export const getOrCreateBranchTeamChat = async (
   branchId: string,
   userId: string
 ) => {
+  const branch = await prisma.branch.findFirst({
+    where: { id: branchId, instituteId, status: "ACTIVE" },
+  });
+  // Never create/join team chat for missing or soft-deleted branches
+  if (!branch) return null;
+
   let teamConv = await repo.findBranchTeamConversation(instituteId, branchId);
 
   if (!teamConv) {
-    const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-    const title = branch ? `${branch.name} Team` : "Branch Team";
+    const title = `${branch.name} Team`;
 
     teamConv = await repo.createConversation({
       instituteId,
@@ -65,11 +70,14 @@ export const getUserConversations = async (
   assertInternalStaff(currentUser);
   const userId = currentUser.id || currentUser.userId!;
 
+  // Drop leftover TEAM chats from deleted/mock branches (branchId cleared via SetNull)
+  await repo.deleteOrphanTeamConversations(currentUser.instituteId);
+
   // If user is attached to a branch, ensure they are in their branch's team chat
   if (currentUser.branchId) {
     await getOrCreateBranchTeamChat(currentUser.instituteId, currentUser.branchId, userId);
   } else if (currentUser.roles.includes("ADMIN")) {
-    // Admins without a fixed branch can access all branch team channels in their institute
+    // Admins without a fixed branch can access all ACTIVE branch team channels only
     const branches = await prisma.branch.findMany({
       where: { instituteId: currentUser.instituteId, status: "ACTIVE" },
       select: { id: true },
@@ -84,6 +92,11 @@ export const getUserConversations = async (
   const summaries: ConversationSummaryDTO[] = [];
 
   for (const conv of rawConversations) {
+    // Extra guard: never surface TEAM chat without a live branch
+    if (conv.type === "TEAM" && (!conv.branchId || !conv.branch)) {
+      continue;
+    }
+
     const lastMsg = conv.messages[0] || null;
     const unreadCount = await repo.countUnreadMessages(conv.id, userId);
 
@@ -163,6 +176,13 @@ export const getConversationById = async (
   const conv = await repo.findConversationById(conversationId);
   if (!conv || conv.instituteId !== currentUser.instituteId) {
     throw new AppError("Conversation not found", 404);
+  }
+
+  // TEAM chats must belong to an ACTIVE branch (no orphan/mock leftovers)
+  if (conv.type === "TEAM") {
+    if (!conv.branchId || !conv.branch || conv.branch.status !== "ACTIVE") {
+      throw new AppError("Conversation not found", 404);
+    }
   }
 
   // Branch isolation for TEAM chats: non-ADMIN must belong to the branch

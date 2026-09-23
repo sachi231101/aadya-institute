@@ -13,11 +13,14 @@ import {
   findBranches,
   findBranchById,
   findBranchByCode,
+  findBranchByCodeAnyStatus,
   findManagerCandidate,
   createBranch,
   updateBranch,
   getBranchStats,
+  releaseBranchCode,
 } from "./branch.repository";
+import { deleteBranchTeamConversations } from "../chat/chat.repository";
 import type { Status, Prisma } from "@prisma/client";
 
 const assertManagerInInstitute = async (
@@ -81,9 +84,20 @@ export const createBranchService = async (
     throw new AppError("Forbidden — Admin access required to create branches", 403);
   }
 
-  const existing = await findBranchByCode(input.code, currentUser.instituteId);
-  if (existing) {
+  const activeExisting = await findBranchByCode(input.code, currentUser.instituteId);
+  if (activeExisting) {
     throw new AppError(`Branch code '${input.code}' already exists in this institute`, 409);
+  }
+
+  // Soft-deleted rows still occupy the unique (instituteId, code) slot — free it first.
+  const deletedWithCode = await findBranchByCodeAnyStatus(
+    input.code,
+    currentUser.instituteId
+  );
+  if (deletedWithCode?.status === "DELETED") {
+    await updateBranch(deletedWithCode.id, currentUser.instituteId, {
+      code: releaseBranchCode(deletedWithCode.code, deletedWithCode.id),
+    });
   }
 
   await assertManagerInInstitute(input.managerUserId, currentUser.instituteId);
@@ -128,6 +142,19 @@ export const updateBranchService = async (
     const codeDuplicate = await findBranchByCode(input.code, currentUser.instituteId);
     if (codeDuplicate && codeDuplicate.id !== branchId) {
       throw new AppError(`Branch code '${input.code}' is already in use`, 409);
+    }
+
+    const deletedWithCode = await findBranchByCodeAnyStatus(
+      input.code,
+      currentUser.instituteId
+    );
+    if (
+      deletedWithCode?.status === "DELETED" &&
+      deletedWithCode.id !== branchId
+    ) {
+      await updateBranch(deletedWithCode.id, currentUser.instituteId, {
+        code: releaseBranchCode(deletedWithCode.code, deletedWithCode.id),
+      });
     }
   }
 
@@ -198,9 +225,14 @@ export const deleteBranchService = async (
   const existing = await findBranchById(branchId, currentUser.instituteId);
   if (!existing) throw new AppError("Branch not found", 404);
 
+  // Rename code so soft-delete does not block recreating the same branch code.
   const deleted = await updateBranch(branchId, currentUser.instituteId, {
     status: "DELETED",
+    code: releaseBranchCode(existing.code, existing.id),
   });
+
+  // Remove branch team chat so it never reappears as orphan "Koramangala Team" etc.
+  await deleteBranchTeamConversations(currentUser.instituteId, branchId);
 
   await createAuditLog({
     userId: currentUser.userId || currentUser.id,

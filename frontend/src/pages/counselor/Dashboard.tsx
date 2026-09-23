@@ -1024,18 +1024,18 @@ export const CounselorDashboard: React.FC = () => {
     }
   };
 
-  // Delete Lead — soft-archive via LOST OTHER (no hard delete API)
+  // Mark lead lost (no hard delete API)
   const handleDeleteLead = async (leadId: string) => {
-    if (!window.confirm("Mark this lead as lost / archived?")) return;
+    if (!window.confirm("Mark this lead as lost?")) return;
     try {
       await markLostMutation.mutateAsync({
         id: leadId,
-        data: { reason: "OTHER", notes: "Archived from counsellor dashboard" },
+        data: { reason: "OTHER", notes: "Marked lost from counsellor dashboard" },
       });
-      setFollowUpSuccessMsg("✓ Lead archived");
+      setFollowUpSuccessMsg("✓ Lead marked as lost");
       setTimeout(() => setFollowUpSuccessMsg(null), 3500);
     } catch (err: any) {
-      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to archive lead");
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to mark lead as lost");
       setTimeout(() => setFollowUpSuccessMsg(null), 4500);
     }
   };

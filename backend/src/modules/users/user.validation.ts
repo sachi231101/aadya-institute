@@ -20,14 +20,11 @@ export const createUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
   email: z.string().email("Invalid email").trim().toLowerCase().optional(),
   phone: phoneSchema,
+  // Complexity is enforced by institute security policy in the service layer.
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .or(z.literal(""))
     .optional()
-    .transform((val) => (val && val.trim().length >= 8 ? val : "Password@123")),
+    .transform((val) => (val && val.trim().length > 0 ? val : "Password@123")),
   roles: z
     .array(z.string().min(1))
     .min(1, "At least one role is required"),
@@ -97,11 +94,8 @@ export const updateUserStatusSchema = z.object({
 });
 
 export const resetUserPasswordSchema = z.object({
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
+  // Complexity is enforced by institute security policy in the service layer.
+  password: z.string().min(1, "Password is required"),
 });
 
 export const userListQuerySchema = z.object({

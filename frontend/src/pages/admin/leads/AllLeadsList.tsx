@@ -11,12 +11,12 @@ import {
   Filter,
   Upload,
   Download,
+  FileDown,
   MoreHorizontal,
   Check,
   StickyNote,
   Calendar,
   UserCheck,
-  Archive,
   GitMerge,
   Eye,
   GitBranch,
@@ -26,7 +26,6 @@ import {
   useLeadDashboard,
   useAssignLead,
   useChangeLeadStage,
-  useArchiveLead,
   useCreateFollowUp,
   useMarkLeadLost,
 } from "@/hooks/useLeads";
@@ -76,6 +75,7 @@ import {
 } from "@/components/common/LeadStageBadge";
 import type { Lead, LeadQueryParams } from "@/services/leads.api";
 import { leadsApi } from "@/services/leads.api";
+import { dataManagementApi } from "@/services/data-management.api";
 import { LeadSummaryCards, type LeadKpiKey } from "./components/LeadSummaryCards";
 import {
   LeadAdvancedFilters,
@@ -128,6 +128,7 @@ export const AllLeadsList: React.FC = () => {
     counsellorFromUrl || "ALL"
   );
   const [branchFilter, setBranchFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [page, setPage] = useState(1);
   const [kanbanLimit, setKanbanLimit] = useState(100);
   const [view, setView] = useState<ViewMode>("list");
@@ -173,7 +174,6 @@ export const AllLeadsList: React.FC = () => {
 
   const assignMutation = useAssignLead();
   const changeStageMutation = useChangeLeadStage();
-  const archiveMutation = useArchiveLead();
   const createFollowUpMutation = useCreateFollowUp();
   const markLostMutation = useMarkLeadLost();
 
@@ -258,15 +258,16 @@ export const AllLeadsList: React.FC = () => {
     }
 
     // Default Lead Management = open pipeline only (ACTIVE).
-    // Admitted leads are CONVERTED and must not clutter All Leads unless
-    // user explicitly filters Stage/Status = Converted (or Lost).
-    if (advancedApplied.status) {
+    // Use Status filter for Converted / Lost when needed.
+    if (advancedApplied.status && advancedApplied.status !== "ARCHIVED") {
       params.status = advancedApplied.status;
+    } else if (statusFilter && statusFilter !== "ALL" && statusFilter !== "ARCHIVED") {
+      params.status = statusFilter;
     } else if (stageFilter === "CONVERTED") {
       params.status = "CONVERTED";
     } else if (stageFilter === "LOST") {
       params.status = "LOST";
-    } else {
+    } else if (statusFilter !== "ALL") {
       params.status = "ACTIVE";
     }
 
@@ -279,6 +280,7 @@ export const AllLeadsList: React.FC = () => {
     stageFilter,
     counsellorFilter,
     branchFilter,
+    statusFilter,
     isAdmin,
     advancedApplied,
   ]);
@@ -438,6 +440,25 @@ export const AllLeadsList: React.FC = () => {
     }
   };
 
+  const handleDownloadLeadTemplate = async () => {
+    try {
+      const res = await dataManagementApi.getTemplate("leads");
+      const csv =
+        res.data?.csv ||
+        "Name,Phone Number,Email,Interested In,Branch Name,Source\n";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.data?.fileName || "leads-import-template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Template downloaded — fill rows, then upload the CSV");
+    } catch {
+      showToast("Failed to download template");
+    }
+  };
+
   const handlePickImportFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     const csvFiles = Array.from(files).filter(
@@ -527,22 +548,6 @@ export const AllLeadsList: React.FC = () => {
     await queryClient.invalidateQueries({ queryKey: ["leads"] });
     refetchImportJobs();
     showToast("Import confirmed — leads refreshed");
-  };
-
-  const handleArchive = (lead: Lead) => {
-    if (!window.confirm(`Archive lead "${lead.name}"?`)) return;
-    archiveMutation.mutate(lead.id, {
-      onSuccess: () => {
-        showToast("Lead archived");
-        setSelectedIds((prev) => prev.filter((id) => id !== lead.id));
-      },
-      onError: (err: unknown) => {
-        const msg =
-          (err as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message || "Archive failed";
-        showToast(msg);
-      },
-    });
   };
 
   const activeFilterCount = countActiveAdvancedFilters(advancedApplied);
@@ -704,6 +709,31 @@ export const AllLeadsList: React.FC = () => {
                   {c.name}
                 </option>
               ))}
+            </select>
+
+            <select
+              value={advancedApplied.status || statusFilter}
+              onChange={(e) => {
+                const value = e.target.value;
+                setPage(1);
+                setActiveKpi(null);
+                setStatusFilter(value);
+                setAdvancedApplied((prev) => ({
+                  ...prev,
+                  status: value === "ACTIVE" ? undefined : value === "ALL" ? undefined : value,
+                }));
+                setAdvancedDraft((prev) => ({
+                  ...prev,
+                  status: value === "ACTIVE" ? undefined : value === "ALL" ? undefined : value,
+                }));
+              }}
+              className="h-9 w-[140px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
+              aria-label="Filter by status"
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="CONVERTED">Converted</option>
+              <option value="LOST">Lost</option>
+              <option value="ALL">All statuses</option>
             </select>
 
             {isAdmin && (
@@ -1011,13 +1041,6 @@ export const AllLeadsList: React.FC = () => {
                                   >
                                     <StickyNote className="h-4 w-4" /> Add Remark
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => handleArchive(lead)}
-                                  >
-                                    <Archive className="h-4 w-4" /> Archive
-                                  </DropdownMenuItem>
                                 </PermissionGate>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1063,7 +1086,18 @@ export const AllLeadsList: React.FC = () => {
         values={advancedDraft}
         onChange={setAdvancedDraft}
         onApply={() => {
-          setAdvancedApplied(advancedDraft);
+          const nextStatus =
+            advancedDraft.status && advancedDraft.status !== "ARCHIVED"
+              ? advancedDraft.status
+              : "ACTIVE";
+          setAdvancedApplied({
+            ...advancedDraft,
+            status:
+              advancedDraft.status === "ARCHIVED"
+                ? undefined
+                : advancedDraft.status,
+          });
+          setStatusFilter(nextStatus);
           setActiveKpi(null);
           setPage(1);
         }}
@@ -1071,6 +1105,7 @@ export const AllLeadsList: React.FC = () => {
           const empty = {};
           setAdvancedDraft(empty);
           setAdvancedApplied(empty);
+          setStatusFilter("ACTIVE");
           setActiveKpi(null);
           setPage(1);
         }}
@@ -1516,9 +1551,17 @@ export const AllLeadsList: React.FC = () => {
             <DialogTitle>Import leads</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Upload one or more lead CSVs via data-management import (same flow as AI
-            Calling).
+            Download the CSV template, fill in your leads, then upload the file.
           </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleDownloadLeadTemplate}
+          >
+            <FileDown className="h-4 w-4" />
+            Download CSV template
+          </Button>
           <Input
             type="file"
             accept=".csv,text/csv"

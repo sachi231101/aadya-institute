@@ -118,16 +118,6 @@ export const useUpdateLead = () => {
   });
 };
 
-export const useArchiveLead = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => leadsApi.archiveLead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-    },
-  });
-};
-
 export const useAssignLead = () => {
   const queryClient = useQueryClient();
   return useMutation({

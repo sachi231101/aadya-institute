@@ -46,7 +46,6 @@ const ACCENT_BG_LIGHT = ["bg-blue-50", "bg-purple-50", "bg-orange-50", "bg-emera
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>("This Month");
 
   const activeBranchId = selectedBranchId === "all" ? undefined : selectedBranchId;
 
@@ -240,17 +239,6 @@ export const AdminDashboard: React.FC = () => {
               {apiBranches.map(b => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
-            </select>
-            <select
-              className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
-              value={selectedDateFilter}
-              onChange={(e) => setSelectedDateFilter(e.target.value)}
-            >
-              <option>Today</option>
-              <option>This Week</option>
-              <option>This Month</option>
-              <option>Last Month</option>
-              <option>This Year</option>
             </select>
             <Button
               onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
