@@ -54,8 +54,8 @@ export const createEmptyScheduleLine = (
   timeslotMasterId: defaults?.timeslotMasterId || "",
   classroomMasterId: defaults?.classroomMasterId || "",
   facultyId: defaults?.facultyId || "",
-  status: defaults?.status || "ACTIVE",
-  attendanceEnabled: defaults?.attendanceEnabled ?? true,
+  status: "ACTIVE",
+  attendanceEnabled: true,
 });
 
 interface Props {
@@ -178,13 +178,11 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
       <div className="rounded-xl border border-border overflow-x-auto">
         <table className="w-full text-xs table-fixed">
           <colgroup>
-            <col className="w-[18%]" />
+            <col className="w-[22%]" />
             <col className="w-[12%]" />
-            <col className="w-[16%]" />
-            <col className="w-[16%]" />
             <col className="w-[20%]" />
-            <col className="w-[8%]" />
-            <col className="w-[5%]" />
+            <col className="w-[20%]" />
+            <col className="w-[21%]" />
             <col className="w-[5%]" />
           </colgroup>
           <thead className="bg-blue-200 border-b border-blue-200">
@@ -194,15 +192,13 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
               <th className="px-3 py-2.5 font-bold">Time Slot <span className="text-rose-500">*</span></th>
               <th className="px-3 py-2.5 font-bold">Classroom</th>
               <th className="px-3 py-2.5 font-bold">Faculty <span className="text-rose-500">*</span></th>
-              <th className="px-3 py-2.5 font-bold">Status</th>
-              <th className="px-3 py-2.5 font-bold text-center">Att?</th>
               <th className="px-3 py-2.5 font-bold" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No schedule lines yet. Click Add New Line or Weekly.
                 </td>
               </tr>
@@ -310,30 +306,6 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
                         </p>
                       )}
                     </div>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <select
-                      value={line.status}
-                      onChange={(e) =>
-                        patchLine(line.key, {
-                          status: e.target.value as "ACTIVE" | "INACTIVE",
-                        })
-                      }
-                      className="w-full h-9 px-2 border border-border rounded-lg bg-background text-xs"
-                    >
-                      <option value="ACTIVE">Active</option>
-                      <option value="INACTIVE">Inactive</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <input
-                      type="checkbox"
-                      checked={line.attendanceEnabled}
-                      onChange={(e) =>
-                        patchLine(line.key, { attendanceEnabled: e.target.checked })
-                      }
-                      className="h-4 w-4 rounded border-border"
-                    />
                   </td>
                   <td className="px-3 py-2.5 text-center">
                     <button

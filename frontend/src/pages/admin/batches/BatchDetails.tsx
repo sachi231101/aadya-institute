@@ -1,48 +1,40 @@
 import React, { useMemo, useState } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Loader2,
   AlertCircle,
-  Sparkles,
-  Trash2,
-  Pencil,
-  Plus,
-  X,
-  MoreVertical,
 } from "lucide-react";
 import { batchesApi } from "@/services/batches.api";
 import { ROUTES } from "@/constants/routes";
-import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { usePermissions } from "@/hooks/usePermissions";
 import { BatchEnrolledStudents } from "./BatchEnrolledStudents";
-import { BatchAssignedFaculty } from "./BatchAssignedFaculty";
 import { BatchSubjectsFacultyTable } from "@/components/batches/BatchSubjectFacultyDisplay";
 import {
   formatBatchSubjectNames,
-  formatBatchScheduleTitle,
   getBatchCourseRows,
+  getSessionSubjectLabel,
 } from "@/utils/batch.utils";
+import { getPortalBasePath } from "@/utils/portal-path";
+import { useClassSessions } from "@/hooks/useClassSessions";
+import type { BackendClassSession } from "@/services/class-sessions.api";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Tab =
   | "overview"
   | "current"
-  | "upcoming"
-  | "attendance"
-  | "activities"
-  | "generate";
+  | "upcoming";
 
 const DAY_NAMES = [
   "Sunday",
@@ -63,6 +55,11 @@ const formatLongDate = (value?: string | null) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const todayDateKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -97,18 +94,8 @@ export const BatchDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const batchesBasePath = `${getPortalBasePath(location.pathname)}/batches`;
-  const { canEditItem } = usePermissions();
-  const canEditBatches = canEditItem("batches.all");
+  const basePath = getPortalBasePath(location.pathname);
   const [tab, setTab] = useState<Tab>("overview");
-  const queryClient = useQueryClient();
-
-  const [generateStartDate, setGenerateStartDate] = useState("");
-  const [generateEndDate, setGenerateEndDate] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [generateSuccess, setGenerateSuccess] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["batches", id],
@@ -119,31 +106,42 @@ export const BatchDetails: React.FC = () => {
   const batch = data?.data;
   const subjectCount = getBatchCourseRows(batch ?? { courseId: "" }).length;
 
-  const hasSubjectFaculty =
-    Boolean(batch?.facultyId) ||
-    Boolean(batch?.batchCourses?.some((bc) => bc.facultyId)) ||
-    Boolean(batch?.schedules?.some((s) => s.facultyId));
-  const canGenerate =
-    hasSubjectFaculty && Array.isArray(batch?.schedules) && (batch?.schedules.length ?? 0) > 0;
-
-  const summaryTitle = useMemo(
-    () => (batch ? formatBatchScheduleTitle(batch) : ""),
-    [batch]
+  const {
+    data: upcomingSessionsRes,
+    isLoading: upcomingLoading,
+    isError: upcomingError,
+    refetch: refetchUpcoming,
+  } = useClassSessions(
+    id
+      ? {
+          batchId: id,
+          status: "UPCOMING",
+          startDate: todayDateKey(),
+          limit: 100,
+        }
+      : undefined
   );
+
+  const upcomingSessions = useMemo(() => {
+    const rows = (upcomingSessionsRes?.data ?? []) as BackendClassSession[];
+    return [...rows].sort((a, b) => {
+      const da = new Date(a.scheduledDate).getTime();
+      const db = new Date(b.scheduledDate).getTime();
+      if (da !== db) return da - db;
+      return String(a.startTime || "").localeCompare(String(b.startTime || ""));
+    });
+  }, [upcomingSessionsRes?.data]);
+
+  const summaryTitle = batch?.name ?? "";
 
   const attributeRows = useMemo(() => {
     if (!batch) return [];
-    const primaryModule =
-      batch.batchCourses?.[0]?.course?.name ||
-      batch.course?.name ||
-      formatBatchSubjectNames(batch);
     return [
       { label: "Batch Code", value: batch.code },
       { label: "Batch Name", value: batch.name },
       { label: "Start Date", value: formatLongDate(batch.startDate) },
       { label: "End Date", value: formatLongDate(batch.expectedEndDate) },
       { label: "Course", value: formatBatchSubjectNames(batch) },
-      { label: "Module", value: primaryModule },
       { label: "Branch", value: batch.branch?.name || "—" },
       { label: "Capacity", value: String(batch.capacity ?? "—") },
       {
@@ -160,65 +158,6 @@ export const BatchDetails: React.FC = () => {
       { label: "Remark", value: batch.remark?.trim() || "—" },
     ];
   }, [batch]);
-
-  const defaultEndDate = () => {
-    if (!batch) return "";
-    if (batch.expectedEndDate) {
-      return new Date(batch.expectedEndDate).toISOString().split("T")[0];
-    }
-    const start = new Date(batch.startDate);
-    start.setDate(start.getDate() + 90);
-    return start.toISOString().split("T")[0];
-  };
-
-  const handleGenerateSessions = async () => {
-    if (!batch) return;
-    try {
-      setIsGenerating(true);
-      setGenerateError(null);
-      setGenerateSuccess(null);
-      const start =
-        generateStartDate || new Date(batch.startDate).toISOString().split("T")[0];
-      const end = generateEndDate || defaultEndDate();
-      const result = await batchesApi.generateSessions(batch.id, {
-        startDate: start,
-        endDate: end,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
-      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
-      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
-      await refetch();
-      const created = (result as { data?: { created?: number } }).data?.created ?? 0;
-      setGenerateSuccess(`Generated ${created} class session(s).`);
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error)?.message ||
-        "Failed to generate class sessions";
-      setGenerateError(message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!batch) return;
-    if (!window.confirm(`Delete batch "${batch.name}" (${batch.code})?`)) return;
-    try {
-      setIsDeleting(true);
-      await batchesApi.delete(batch.id);
-      navigate(batchesBasePath);
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error)?.message ||
-        "Failed to delete batch";
-      window.alert(message);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -242,11 +181,8 @@ export const BatchDetails: React.FC = () => {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "overview", label: "Overview" },
-    { key: "current", label: "Current Batch" },
-    { key: "upcoming", label: "Upcoming Batch" },
-    { key: "attendance", label: "Attendance Details" },
-    { key: "activities", label: "Recent Activities" },
-    ...(canEditBatches ? [{ key: "generate" as Tab, label: "Generate Sessions" }] : []),
+    { key: "current", label: "Courses & Students" },
+    { key: "upcoming", label: "Upcoming Classes" },
   ];
 
   return (
@@ -255,81 +191,20 @@ export const BatchDetails: React.FC = () => {
         title="Batch Schedule"
         className="border-b border-border pb-3"
         actions={
-          <>
-          <PermissionGate itemKey="batches.all" mode="write">
           <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs rounded-lg transition-all cursor-pointer"
-            disabled={isDeleting}
-            onClick={handleDelete}
-          >
-            {isDeleting ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Delete
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-lg transition-all cursor-pointer"
-            asChild
-          >
-            <Link to={`${batchesBasePath}?edit=${batch.id}`}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
-            </Link>
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 px-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-xs rounded-lg transition-all cursor-pointer"
-            asChild
-          >
-            <Link to={`${batchesBasePath}?create=1`}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add New
-            </Link>
-          </Button>
-          </PermissionGate>
-          <Button
-            size="sm"
             variant="outline"
-            className="h-8 px-2.5 text-xs font-semibold rounded-lg border-border hover:bg-muted/50 transition-all cursor-pointer"
-            onClick={() => navigate(batchesBasePath)}
+            size="sm"
+            onClick={() => navigate(`${basePath}/batches`)}
+            className="gap-2"
           >
-            <X className="mr-1.5 h-3.5 w-3.5" />
-            Cancel
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold rounded-lg border-border hover:bg-muted/50 transition-all cursor-pointer">
-                More Action
-                <MoreVertical className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canEditBatches && (
-              <DropdownMenuItem onClick={() => setTab("generate")}>
-                Generate Class Sessions
-              </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => setTab("current")}>
-                View Students
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTab("activities")}>
-                View Faculty
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          </>
         }
       />
 
       {/* Summary bar */}
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm font-medium text-foreground">
-        <span className="mr-2" aria-hidden>
-          👉
-        </span>
         <span className="break-words">{summaryTitle}</span>
       </div>
 
@@ -409,9 +284,7 @@ export const BatchDetails: React.FC = () => {
                       <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Day</th>
                       <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Time Slot</th>
                       <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Class Room</th>
-                      <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Lecturer/Instructor/Trainer</th>
-                      <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap border-r border-border">Status</th>
-                      <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap pr-3.5">Attendance Applicable</th>
+                      <th className="px-3 py-2.5 font-bold whitespace-nowrap pr-3.5">Lecturer/Instructor/Trainer</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -420,7 +293,18 @@ export const BatchDetails: React.FC = () => {
                       .map((s) => (
                         <tr key={s.id} className="hover:bg-muted/20 transition-colors border-b border-border last:border-b-0">
                           <td className="px-3 py-2.5 font-medium whitespace-nowrap border-r border-border">
-                            {DAY_NAMES[s.dayOfWeek] || `Day ${s.dayOfWeek}`}
+                            <span className="inline-flex items-center gap-1.5">
+                              {DAY_NAMES[s.dayOfWeek] || `Day ${s.dayOfWeek}`}
+                              {s.status === "INACTIVE" && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] font-bold px-1.5 py-0"
+                                  title="Legacy inactive — sessions are not generated for this slot"
+                                >
+                                  Inactive
+                                </Badge>
+                              )}
+                            </span>
                           </td>
                           <td className="px-3 py-2.5 font-mono whitespace-nowrap text-muted-foreground border-r border-border">
                             {s.timeslotMaster?.name || (s.startTime ? `${s.startTime} - ${s.endTime}` : "—")}
@@ -428,25 +312,10 @@ export const BatchDetails: React.FC = () => {
                           <td className="px-3 py-2.5 whitespace-nowrap border-r border-border">
                             {s.classroomMaster?.name || "—"}
                           </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap font-medium border-r border-border">
+                          <td className="px-3 py-2.5 whitespace-nowrap font-medium pr-3.5">
                             {s.faculty?.user?.name ||
                               batch.faculty?.user?.name ||
                               "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-center border-r border-border">
-                            <Badge
-                              variant={s.status === "INACTIVE" ? "secondary" : "outline"}
-                              className="text-[10px] font-bold px-2 py-0.5"
-                            >
-                              {s.status === "INACTIVE" ? "I" : "A"}
-                            </Badge>
-                          </td>
-                          <td className="px-3 py-2.5 text-center whitespace-nowrap pr-3.5">
-                            {s.attendanceEnabled === false ? (
-                              <span className="text-muted-foreground">No</span>
-                            ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Yes</span>
-                            )}
                           </td>
                         </tr>
                       ))}
@@ -466,7 +335,7 @@ export const BatchDetails: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-foreground">
-              Current Batch · Subjects ({subjectCount})
+              Courses & Students ({subjectCount})
             </h3>
             <Badge variant="outline">{statusLabel(batch.status)}</Badge>
           </div>
@@ -476,136 +345,93 @@ export const BatchDetails: React.FC = () => {
       )}
 
       {tab === "upcoming" && (
-        <Card className="border-border">
-          <CardContent className="p-8 text-center space-y-2">
-            <p className="text-sm font-semibold text-foreground">Upcoming Batch</p>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              {batch.status === "UPCOMING"
-                ? `This batch is scheduled to start on ${formatLongDate(batch.startDate)}.`
-                : "No separate upcoming schedule is linked. Use Overview for the active timetable."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === "attendance" && (
-        <Card className="border-border">
-          <CardContent className="p-8 text-center space-y-3">
-            <p className="text-sm font-semibold text-foreground">Attendance Details</p>
-            <p className="text-xs text-muted-foreground">
-              Open the attendance module for session-wise marking and reports for this batch.
-            </p>
-            <Button asChild size="sm" className="text-xs font-bold">
-              <Link to={ROUTES.ADMIN.STUDENTS.ATTENDANCE}>Go to Attendance</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === "activities" && id && (
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-foreground">Assigned Faculty</h3>
-          <BatchAssignedFaculty batchId={id} />
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-foreground">
+              Upcoming Classes ({upcomingSessions.length})
+            </h3>
+            <Button asChild variant="outline" size="sm" className="text-xs">
+              <Link to={`${ROUTES.ADMIN.SCHEDULE.CLASSES}?batchId=${batch.id}`}>
+                Open Classes
+              </Link>
+            </Button>
+          </div>
+
+          {upcomingLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Loading upcoming classes…</span>
+            </div>
+          ) : upcomingError ? (
+            <Card className="border-border">
+              <CardContent className="p-8 text-center space-y-3">
+                <p className="text-sm text-rose-600">Failed to load upcoming classes.</p>
+                <Button variant="outline" size="sm" onClick={() => refetchUpcoming()}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : upcomingSessions.length === 0 ? (
+            <Card className="border-border">
+              <CardContent className="p-8 text-center space-y-2">
+                <p className="text-sm font-semibold text-foreground">No upcoming classes</p>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  There are no upcoming class sessions for this batch from today onward.
+                  Sessions are created automatically when the batch timetable is saved.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border border-border shadow-none rounded-lg overflow-hidden">
+              <div className="min-w-0 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Faculty</TableHead>
+                      <TableHead>Room</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingSessions.map((session) => (
+                      <TableRow key={session.id}>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {formatLongDate(session.scheduledDate)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
+                          {session.startTime || "—"}
+                          {session.endTime ? ` – ${session.endTime}` : ""}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {getSessionSubjectLabel({
+                            title: session.title,
+                            batch: session.batch,
+                          })}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {session.faculty?.user?.name || "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {session.roomNo || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="ghost" size="sm" className="text-xs h-8">
+                            <Link to={ROUTES.ADMIN.SCHEDULE.CLASS_DETAIL(session.id)}>
+                              View
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          )}
         </div>
-      )}
-
-      {tab === "generate" && canEditBatches && (
-        <Card className="border-border">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold text-foreground">Generate Class Sessions</h3>
-              </div>
-            <p className="text-xs text-muted-foreground">
-              Materialize class sessions from the weekly timetable for the portal and attendance views.
-              </p>
-
-              {!canGenerate && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs">
-                {!hasSubjectFaculty
-                  ? "Assign faculty on at least one schedule line before generating sessions."
-                    : "No weekly schedule slots found for this batch."}
-                </div>
-              )}
-
-              {generateError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs">
-                  {generateError}
-                </div>
-              )}
-
-              {generateSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs space-y-2">
-                  <p>{generateSuccess}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      to={`${ROUTES.ADMIN.SCHEDULE.CLASSES}?batchId=${batch.id}`}
-                      className="underline font-semibold"
-                    >
-                      Open Classes & Sessions
-                    </Link>
-                    <span className="text-emerald-600/60">·</span>
-                    <Link
-                      to={ROUTES.ADMIN.SCHEDULE.TIMETABLE}
-                      className="underline font-semibold"
-                    >
-                      Open Timetable
-                    </Link>
-                    <span className="text-emerald-600/60">·</span>
-                    <Link
-                      to={`${ROUTES.ADMIN.SCHEDULE.RECORDINGS}?batchId=${batch.id}`}
-                      className="underline font-semibold"
-                    >
-                      Open Recordings
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-                <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                  From Date
-                </label>
-                  <Input
-                    type="date"
-                    value={generateStartDate}
-                    onChange={(e) => setGenerateStartDate(e.target.value)}
-                    className="text-xs"
-                  />
-                </div>
-                <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                  To Date
-                </label>
-                  <Input
-                    type="date"
-                    value={generateEndDate}
-                    onChange={(e) => setGenerateEndDate(e.target.value)}
-                    className="text-xs"
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleGenerateSessions}
-                disabled={!canGenerate || isGenerating}
-              className="bg-primary hover:bg-primary/90 text-white text-xs"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Class Sessions
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
       )}
     </PageContainer>
   );

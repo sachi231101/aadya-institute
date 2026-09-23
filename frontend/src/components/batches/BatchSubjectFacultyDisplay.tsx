@@ -62,43 +62,35 @@ export const BatchSubjectsFacultyTable: React.FC<SubjectTableProps> = ({ batchCo
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="bg-muted/40 px-4 py-2.5 flex items-center gap-2 border-b border-border">
         <BookOpen className="h-4 w-4 text-primary" />
-        <span className="text-xs font-bold text-foreground">Subjects & Faculty</span>
-        <span className="text-[10px] text-muted-foreground ml-auto">{rows.length} subject{rows.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs font-bold text-foreground">Courses & Faculty</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">{rows.length} course{rows.length !== 1 ? "s" : ""}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8 px-4">No subjects linked to this batch.</p>
+        <p className="text-sm text-muted-foreground text-center py-8 px-4">No courses linked to this batch.</p>
       ) : (
         <div className="divide-y divide-border/70">
-          {rows.map((row, idx) => (
+          {rows.map((row, idx) => {
+            const item = row as BatchCourseItem;
+
+            return (
             <div
               key={row.id || `${row.courseId}-${idx}`}
               className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 text-sm"
             >
               <div className="flex items-start gap-2.5 min-w-0">
                 <span className="text-[10px] font-mono text-muted-foreground w-4 shrink-0 pt-0.5">
-                  {(row as BatchCourseItem).sequence ?? idx + 1}.
+                  {item.sequence ?? idx + 1}.
                 </span>
                 <div className="min-w-0">
                   <p className="font-semibold text-foreground truncate">{row.course?.name || "Course"}</p>
                   {row.course?.code && (
                     <p className="text-[10px] font-mono text-muted-foreground">{row.course.code}</p>
                   )}
-                  {(row as BatchCourseItem).schedulePattern || (row as BatchCourseItem).timeSlot ? (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {(row as BatchCourseItem).schedulePattern || "—"}
-                      {(row as BatchCourseItem).timeSlot
-                        ? ` · ${(row as BatchCourseItem).timeSlot}`
-                        : ""}
-                      {(row as BatchCourseItem).classroomMaster?.name
-                        ? ` · ${(row as BatchCourseItem).classroomMaster?.name}`
-                        : ""}
-                    </p>
-                  ) : null}
-                  {(row as BatchCourseItem).startDate ? (
+                  {item.startDate ? (
                     <p className="text-[10px] text-muted-foreground">
-                      {new Date((row as BatchCourseItem).startDate!).toLocaleDateString("en-IN")}
-                      {(row as BatchCourseItem).expectedEndDate
-                        ? ` → ${new Date((row as BatchCourseItem).expectedEndDate!).toLocaleDateString("en-IN")}`
+                      {new Date(item.startDate).toLocaleDateString("en-IN")}
+                      {item.expectedEndDate
+                        ? ` → ${new Date(item.expectedEndDate).toLocaleDateString("en-IN")}`
                         : ""}
                     </p>
                   ) : null}
@@ -118,7 +110,8 @@ export const BatchSubjectsFacultyTable: React.FC<SubjectTableProps> = ({ batchCo
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
