@@ -75,6 +75,7 @@ import {
   useTriggerLeadCall,
 } from "@/hooks/useLeads";
 import { useMyCurrentTargets } from "@/hooks/useTargets";
+import { usePendingLeaveRequests } from "@/hooks/useLeaveRequests";
 import { batchesApi } from "@/services/batches.api";
 import type { BatchCoursePayload } from "@/services/batches.api";
 import {
@@ -194,7 +195,7 @@ export const CounselorDashboard: React.FC = () => {
   // Real Database Leads + mutations (PostgreSQL source of truth)
   const { data: dbLeadsResponse, isLoading: loadingLeads } = useLeads({
     limit: 100,
-    status: "ACTIVE",
+    statuses: "ACTIVE,LOST",
     branchId: user?.branchId || undefined,
   });
   const createLeadMutation = useCreateLead();
@@ -383,9 +384,9 @@ export const CounselorDashboard: React.FC = () => {
     return rawDbLeads.map(mapApiLeadToUnified);
   }, [dbLeadsResponse, user?.name]);
 
-  // Filtered Leads
+  // Filtered Leads — Lost stays visible but always sorted to the end
   const filteredLeads = useMemo(() => {
-    return combinedLeadsList.filter((lead) => {
+    const filtered = combinedLeadsList.filter((lead) => {
       if (leadSearchText.trim()) {
         const q = leadSearchText.toLowerCase();
         const matchName = lead.name.toLowerCase().includes(q);
@@ -426,6 +427,11 @@ export const CounselorDashboard: React.FC = () => {
         if (lead.priority !== "Due Today") return false;
       }
       return true;
+    });
+    return [...filtered].sort((a, b) => {
+      const aLost = a.stage === "LOST" || a.pipelineStage === "LOST" ? 1 : 0;
+      const bLost = b.stage === "LOST" || b.pipelineStage === "LOST" ? 1 : 0;
+      return aLost - bLost;
     });
   }, [combinedLeadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter, leadSourceOptions, leadStageOptions]);
 
@@ -1224,1062 +1230,360 @@ export const CounselorDashboard: React.FC = () => {
     window.open(`https://wa.me/91${lead.phone}?text=${text}`, "_blank");
   };
 
+  const { data: pendingLeaveRes } = usePendingLeaveRequests();
+  const pendingLeaveCount = pendingLeaveRes?.data?.length ?? 0;
+  const activeTargetsCount = myTargetsData?.targets?.length ?? 0;
+
+  const dueLeadsPreview = useMemo(() => {
+    const lists = followUpDashboardData?.lists;
+    const overdue = Array.isArray(lists?.overdue) ? lists.overdue : [];
+    const today = Array.isArray(lists?.today) ? lists.today : [];
+    const seen = new Set<string>();
+    const items: {
+      id: string;
+      leadId: string;
+      name: string;
+      phone: string;
+      badge: "Overdue" | "Due Today";
+    }[] = [];
+
+    for (const item of overdue) {
+      const leadId = item.lead?.id || item.leadId;
+      if (!leadId || seen.has(leadId)) continue;
+      seen.add(leadId);
+      items.push({
+        id: item.id,
+        leadId,
+        name: item.lead?.name || "Lead",
+        phone: item.lead?.phoneNumber || "",
+        badge: "Overdue",
+      });
+    }
+    for (const item of today) {
+      const leadId = item.lead?.id || item.leadId;
+      if (!leadId || seen.has(leadId)) continue;
+      seen.add(leadId);
+      items.push({
+        id: item.id,
+        leadId,
+        name: item.lead?.name || "Lead",
+        phone: item.lead?.phoneNumber || "",
+        badge: "Due Today",
+      });
+    }
+    return items.slice(0, 6);
+  }, [followUpDashboardData?.lists]);
+
+  const feesDuePreview = useMemo(() => {
+    return liveStudents
+      .filter((s) => {
+        const feeSummary = (s as { fees?: { dueAmount?: number; status?: string } }).fees;
+        if (!feeSummary) return false;
+        return (
+          (feeSummary.dueAmount ?? 0) > 0 ||
+          ["Pending", "Overdue", "Partial"].includes(feeSummary.status || "")
+        );
+      })
+      .slice(0, 6)
+      .map((s) => ({
+        id: s.id,
+        name: (s as { name?: string }).name,
+        studentName: (s as { studentName?: string }).studentName,
+        studentCode: (s as { studentCode?: string }).studentCode,
+        phone: (s as { phone?: string }).phone,
+      }));
+  }, [liveStudents]);
+
   return (
     <PageContainer density="compact" className="animate-in fade-in duration-300">
       <PageHeader
         title="Counsellor Dashboard"
-        description={
-          <>
-            Lead Pipeline, Student Admissions & Counselling Operations —{" "}
-            <span className="text-foreground font-semibold">Aadya Institute</span>
-          </>
-        }
-        actions={
-          hasAnyModuleAccess ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              {canCreateBatch && (
-                <Button
-                  onClick={() => setShowCreateBatchModal(true)}
-                  className="bg-primary hover:bg-primary/90 text-white font-semibold px-4 rounded-xl shadow-xs gap-2 h-9 transition-all"
-                >
-                  <Layers className="h-4 w-4" /> Create Batch & Schedule
-                </Button>
-              )}
-              {canCreateLead && (
-                <Button
-                  onClick={() => setShowAddModal(true)}
-                  variant="outline"
-                  className="border-border text-foreground hover:bg-muted font-semibold px-4 rounded-xl shadow-xs gap-2 h-9 transition-all"
-                >
-                  <Plus className="h-4 w-4 text-primary" /> New Lead Enquiry
-                </Button>
-              )}
-              {canRegisterAdmission && (
-                <Button
-                  onClick={() => navigate("/counselor/admissions/direct-entry")}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 rounded-xl shadow-sm gap-2 h-9 transition-all"
-                >
-                  <Plus className="h-4 w-4" /> Register Students
-                </Button>
-              )}
-            </div>
-          ) : undefined
-        }
+        description="Focus on leads due, fees, leave, and targets — create batch, add lead, or register students."
       />
 
       <InstallDashboardBanner />
-
-      <LeaveRequestReviewPanel />
 
       {!hasAnyModuleAccess ? (
         <DashboardBaselineView role="COUNSELLOR" userName={user?.name} />
       ) : (
         <>
-      {/* ─── FOLLOW-UP / ACTION SUCCESS NOTIFICATION ─── */}
-      {followUpSuccessMsg && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <span>{followUpSuccessMsg}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFollowUpSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      <MetricGrid columns={METRIC_GRID_COLUMNS[4]} density="compact">
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact">
-            <p className="text-xs font-semibold text-muted-foreground">New Leads</p>
-            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{newLeadsToday}</p>
-            <p className="text-[11px] font-medium text-emerald-600 mt-0.5">Today</p>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact">
-            <p className="text-xs font-semibold text-muted-foreground">Follow-ups Due</p>
-            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{followupsDueCount}</p>
-            <p className="text-[11px] font-medium text-amber-600 mt-0.5">Require attention</p>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact">
-            <p className="text-xs font-semibold text-muted-foreground">Counselling Sessions</p>
-            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{counsellingSessionsCount}</p>
-            <p className="text-[11px] font-medium text-blue-600 mt-0.5">Scheduled today</p>
-          </CardContent>
-        </Card>
-
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl">
-          <CardContent size="compact">
-            <p className="text-xs font-semibold text-muted-foreground">Confirmed Admissions</p>
-            <p className="text-2xl font-semibold text-foreground mt-0.5 tracking-tight">{confirmedAdmissionsCount}</p>
-            <p className="text-[11px] font-medium text-purple-600 mt-0.5">This month</p>
-          </CardContent>
-        </Card>
-      </MetricGrid>
-
-      <PageSection
-        title="My Active Targets & Potential Incentives"
-        description="System calculated performance from admissions, payments, and lead calls."
-        density="compact"
-        actions={
-          <Button
-            onClick={() => navigate("/counselor/performance")}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs gap-1.5 h-9"
-          >
-            View Performance & Rewards <ArrowRight className="w-3.5 h-3.5" />
-          </Button>
-        }
-      >
-      <div className="bg-card border border-border rounded-xl p-5 shadow-xs text-foreground">
-        {myTargetsData?.targets && myTargetsData.targets.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-            {myTargetsData.targets.map((t) => {
-              const achievement = Number(t.currentProgress?.achievementPercentage || 0);
-              const achieved = t.currentProgress?.achievedValue || 0;
-              const incentive = Number(t.currentProgress?.potentialIncentive || 0);
-              const isRevenue = t.metric === "ADMISSION_REVENUE" || t.metric === "FEE_COLLECTION";
-
-              return (
-                <div key={t.id} className="bg-muted/30 dark:bg-slate-950/60 border border-border rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-sm text-foreground">{t.title}</h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        Goal: {isRevenue ? `₹${Number(t.targetValue).toLocaleString()}` : `${t.targetValue} units`}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        achievement >= 100
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                      }`}
-                    >
-                      {achievement}%
-                    </span>
-                  </div>
-
-                  <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(achievement, 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex justify-between text-[11px] font-medium text-muted-foreground pt-1">
-                    <span>
-                      Achieved: <strong className="text-emerald-600 dark:text-emerald-400">{isRevenue ? `₹${Number(achieved).toLocaleString()}` : achieved}</strong>
-                    </span>
-                    <span>
-                      Est. Reward: <strong className="text-amber-600 dark:text-amber-400">₹{incentive.toLocaleString()}</strong>
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="py-4 text-center text-xs text-muted-foreground">
-            No active targets assigned for current period. Contact your branch administrator.
-          </div>
-        )}
-      </div>
-      </PageSection>
-
-      <PageSection title="Revenue & Fee Overview" density="compact">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <Card className="border border-border shadow-xs bg-card rounded-xl p-5 hover:shadow-md transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3.5">
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
-                  <Wallet className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Pending Fee</p>
-                  <h3 className="text-2xl font-semibold text-amber-600 mt-0.5 tracking-tight">
-                    {formatINR(pendingFeeAmount)}
-                  </h3>
-                  <p className="text-xs font-medium text-muted-foreground mt-0.5">Outstanding balance</p>
-                </div>
+          {followUpSuccessMsg && (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{followUpSuccessMsg}</span>
               </div>
-              <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px] px-2 py-0.5">
-                Pending
-              </Badge>
+              <button
+                type="button"
+                onClick={() => setFollowUpSuccessMsg(null)}
+                className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          </Card>
-
-          <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-5 hover:shadow-md transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3.5">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
-                  <CreditCard className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Collected Till This Month</p>
-                  <h3 className="text-2xl font-black text-emerald-600 mt-0.5 tracking-tight">
-                    {formatINR(collectedThisMonthAmount)}
-                  </h3>
-                  <p className="text-xs font-medium text-slate-400 mt-0.5">{currentDateFormatted}</p>
-                </div>
-              </div>
-              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[10px] px-2 py-0.5">
-                Collected
-              </Badge>
+          )}
+          {batchSuccessMsg && (
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-between gap-2 text-sm font-medium">
+              <span>{batchSuccessMsg}</span>
+              <button
+                type="button"
+                onClick={() => setBatchSuccessMsg(null)}
+                className="p-1 cursor-pointer"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          </Card>
+          )}
 
-          <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-5 hover:shadow-md transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3.5">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                  <BarChart2 className="h-6 w-6" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {canCreateBatch && (
+              <button
+                type="button"
+                onClick={() => setShowCreateBatchModal(true)}
+                className="group text-left rounded-xl border border-border bg-card p-4 shadow-xs hover:border-primary/50 hover:shadow-sm transition-all"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary mb-3">
+                  <Layers className="h-4 w-4" />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Previous Month Revenue</p>
-                  <h3 className="text-2xl font-black text-[#0A2540] mt-0.5 tracking-tight">
-                    {formatINR(prevMonthRevenueAmount)}
-                  </h3>
-                  <p className="text-xs font-medium text-slate-400 mt-0.5">{prevMonthFormatted}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                {revenueGrowthPct !== null ? (
-                  <p
-                    className={`text-xs font-extrabold flex items-center justify-end gap-0.5 ${
-                      revenueGrowthPct >= 0 ? "text-emerald-600" : "text-rose-600"
-                    }`}
-                  >
-                    {revenueGrowthPct >= 0 ? (
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    )}
-                    {revenueGrowthPct >= 0 ? `+${revenueGrowthPct}%` : `${revenueGrowthPct}%`}
-                  </p>
-                ) : (
-                  <p className="text-xs font-extrabold text-slate-400">—</p>
-                )}
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">vs previous month</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </PageSection>
-
-      {/* ─── 4. COUNSELLOR LEADS & PIPELINE PROGRESS SECTION ─── */}
-      <Card className="border border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden">
-        {/* SECTION HEADER */}
-        <CardHeader className="p-5 sm:p-6 border-b border-slate-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/30">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100/80">
-                <UserCheck className="h-4.5 w-4.5" />
-              </div>
-              <h2 className="text-base sm:text-lg font-black text-[#0A2540] tracking-tight">
-                Leads Requiring Attention
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Track lead progress, latest interactions, and follow-up actions.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => navigate("/counselor/leads")}
-              className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>View All Leads</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+                <p className="text-sm font-semibold text-foreground">Create Batch</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Schedule & assign faculty</p>
+              </button>
+            )}
             {canCreateLead && (
-            <Button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Lead</span>
-            </Button>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="group text-left rounded-xl border border-border bg-card p-4 shadow-xs hover:border-primary/50 hover:shadow-sm transition-all"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 mb-3">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">New Lead</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Capture a student enquiry</p>
+              </button>
+            )}
+            {canRegisterAdmission && (
+              <button
+                type="button"
+                onClick={() => navigate("/counselor/admissions/direct-entry")}
+                className="group text-left rounded-xl border border-border bg-card p-4 shadow-xs hover:border-emerald-500/50 hover:shadow-sm transition-all"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 mb-3">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">Register Student</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Direct admission entry</p>
+              </button>
             )}
           </div>
-        </CardHeader>
 
-        {/* SUMMARY CHIPS & FILTERS TOOLBAR */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 space-y-4 bg-white">
-          {/* SUMMARY CHIPS */}
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 text-xs">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 font-bold shrink-0">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-              <span>{leadSummaryCounts.overdue} Overdue</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/counselor/leads/follow-ups")}
+              className="rounded-xl border border-border bg-card p-4 text-left shadow-xs hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-amber-600">
+                <Clock className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Lead Due</span>
+              </div>
+              <p className="text-2xl font-semibold text-foreground mt-2 tabular-nums">{followupsDueCount}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Today + overdue</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/counselor/fees/students")}
+              className="rounded-xl border border-border bg-card p-4 text-left shadow-xs hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-rose-600">
+                <Wallet className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Fees Due</span>
+              </div>
+              <p className="text-2xl font-semibold text-foreground mt-2 tabular-nums">
+                {formatINR(pendingFeeAmount)}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {studentMetrics.pendingFees} students
+              </p>
+            </button>
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+              <div className="flex items-center gap-2 text-violet-600">
+                <CalendarDays className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Leave</span>
+              </div>
+              <p className="text-2xl font-semibold text-foreground mt-2 tabular-nums">
+                {pendingLeaveCount}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Pending requests</p>
             </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200/80 text-amber-800 font-bold shrink-0">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>{leadSummaryCounts.today} Follow-ups Today</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#2563EB] font-bold shrink-0">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              <span>{leadSummaryCounts.active} Active Leads</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 font-bold shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{leadSummaryCounts.converted} Converted This Month</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/counselor/performance")}
+              className="rounded-xl border border-border bg-card p-4 text-left shadow-xs hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-indigo-600">
+                <Target className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Targets</span>
+              </div>
+              <p className="text-2xl font-semibold text-foreground mt-2 tabular-nums">
+                {activeTargetsCount}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Active this period</p>
+            </button>
           </div>
 
-          {/* FILTERS CONTROLS */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search leads by name, phone, or note..."
-                value={leadSearchText}
-                onChange={(e) => setLeadSearchText(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-xs bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all font-medium text-slate-700 placeholder:text-slate-400"
-              />
-              {leadSearchText && (
-                <button
-                  type="button"
-                  onClick={() => setLeadSearchText("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Courses Filter */}
-              <select
-                value={leadCourseFilter}
-                onChange={(e) => setLeadCourseFilter(e.target.value)}
-                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Courses</option>
-                <option value="Digital Marketing">Digital Marketing</option>
-                <option value="Graphic Design">Graphic Design</option>
-                <option value="Web Development">Web Development</option>
-                <option value="Data Science">Data Science</option>
-                <option value="UI/UX Design">UI/UX Design</option>
-                <option value="Python / AI">Python / AI</option>
-                <option value="Java Full Stack">Java Full Stack</option>
-              </select>
-
-              <MasterSelect
-                entityType="leadsource"
-                value={leadSourceFilter === "ALL" ? "" : leadSourceFilter}
-                onChange={(id) => setLeadSourceFilter(id || "ALL")}
-                placeholder="All Lead Sources"
-                className="text-xs bg-white border border-slate-200 rounded-xl min-w-[140px] mt-0 h-auto py-2"
-              />
-
-              <MasterSelect
-                entityType="leadstage"
-                value={leadStageFilter === "ALL" ? "" : leadStageFilter}
-                onChange={(id) => setLeadStageFilter(id || "ALL")}
-                placeholder="All Pipeline Stages"
-                className="text-xs bg-white border border-slate-200 rounded-xl min-w-[140px] mt-0 h-auto py-2"
-              />
-
-              {/* Priority Filter */}
-              <select
-                value={leadPriorityFilter}
-                onChange={(e) => setLeadPriorityFilter(e.target.value)}
-                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">Follow-up Priority</option>
-                <option value="Urgent">🔴 Urgent / Overdue</option>
-                <option value="Due Today">🟠 Follow-up Today</option>
-                <option value="Upcoming">🔵 Active / Upcoming</option>
-              </select>
-
-              {/* Attention Filter */}
-              <select
-                value={leadAttentionFilter}
-                onChange={(e) => setLeadAttentionFilter(e.target.value)}
-                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Leads</option>
-                <option value="ATTENTION_REQUIRED">Attention Required (Overdue + Today)</option>
-                <option value="OVERDUE">Overdue Only</option>
-                <option value="TODAY">Today's Follow-ups</option>
-              </select>
-
-              {(leadSearchText || leadSourceFilter !== "ALL" || leadCourseFilter !== "ALL" || leadStageFilter !== "ALL" || leadPriorityFilter !== "ALL" || leadAttentionFilter !== "ALL") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLeadSearchText("");
-                    setLeadSourceFilter("ALL");
-                    setLeadCourseFilter("ALL");
-                    setLeadStageFilter("ALL");
-                    setLeadPriorityFilter("ALL");
-                    setLeadAttentionFilter("ALL");
-                  }}
-                  className="text-xs font-bold text-rose-600 hover:text-rose-700 px-2 py-1.5 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* LEAD LIST TABLE (WITH OMNICHANNEL SOURCES & AI VOICE CALLING OUTCOME COLUMN) */}
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[1150px]">
-            <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 text-[10.5px] uppercase tracking-wider whitespace-nowrap">
-              <tr>
-                <th className="py-3.5 px-4 font-bold">LEAD & SOURCE</th>
-                <th className="py-3.5 px-3 font-bold">COURSE</th>
-                <th className="py-3.5 px-3 font-bold text-center">PIPELINE PROGRESS</th>
-                <th className="py-3.5 px-3 font-bold">AI VOICE QUALIFICATION</th>
-                <th className="py-3.5 px-3 font-bold">ATTEMPTS & NOTES</th>
-                <th className="py-3.5 px-3 font-bold">NEXT FOLLOW-UP</th>
-                <th className="py-3.5 px-3 font-bold text-center">ACTION</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {filteredLeads.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <UserCheck className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-semibold text-sm text-slate-600">No leads found</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Try clearing filters or search terms</p>
-                  </td>
-                </tr>
-              ) : (
-                filteredLeads.map((lead) => {
-                  const isLost = lead.stage === "LOST" || lead.pipelineStage === "LOST";
-                  const isConverted = lead.stage === "CONVERTED" || lead.pipelineStage === "CONVERTED";
-
-                  const STAGE_STEPS = stageSteps.length > 0 ? stageSteps : [
-                    { key: "NEW", label: "AI Calling" },
-                    { key: "CONTACTED", label: "Counsellor Contacting" },
-                    { key: "INTERESTED", label: "Interested" },
-                    { key: "FOLLOW_UP", label: "Follow-up" },
-                    { key: "CONVERTED", label: "Converted" },
-                  ];
-
-                  const currentStageKey = lead.stage || lead.pipelineStage || "NEW";
-                  const activeStageIdx = STAGE_STEPS.findIndex((s) => s.key === currentStageKey);
-
-                  // Priority Dot Indicator
-                  let priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-slate-300 ring-2 ring-slate-100 shrink-0" title="Normal Priority" />;
-                  if (lead.priority === "Urgent") {
-                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-red-500 ring-4 ring-red-100 shrink-0 animate-pulse" title="🔴 Urgent / Overdue" />;
-                  } else if (lead.priority === "Due Today") {
-                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 shrink-0" title="🟠 Follow-up Today" />;
-                  } else if (lead.priority === "Upcoming") {
-                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] ring-4 ring-blue-100 shrink-0" title="🔵 Active Lead" />;
-                  }
-
-                  // Next Follow-up formatting
-                  const isOverdue = lead.priority === "Urgent" || (lead.nextFollowUp || "").toLowerCase().includes("overdue");
-                  const isToday = (lead.nextFollowUp || "").toLowerCase().includes("today");
-
-                  return (
-                    <tr key={lead.id} className="hover:bg-slate-50/60 transition-colors whitespace-nowrap group">
-                      {/* 1. LEAD (PRIORITY DOT + NAME + PHONE + SOURCE BADGE) */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          {priorityDot}
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight group-hover:text-[#2563EB] transition-colors text-left hover:underline"
-                                onClick={() => navigate(`/counselor/leads/${lead.id}`)}
-                              >
-                                {lead.name}
-                              </button>
-                              {lead.hotLead && (
-                                <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[8.5px] font-black shrink-0">
-                                  🔥 Hot
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <p className="text-[11px] text-slate-500 font-mono font-medium">
-                                {lead.phone}
-                              </p>
-                              <span className="text-slate-300 text-[9px]">•</span>
-                              <span className="text-[9.5px] font-bold text-slate-600 truncate">
-                                {lead.source === "Website"
-                                  ? "🌐 Web"
-                                  : lead.source === "Google Ads"
-                                    ? "🔍 Google"
-                                    : lead.source === "Meta Ads"
-                                      ? "⚡ Meta"
-                                      : lead.source === "Instagram"
-                                        ? "📱 Insta"
-                                        : lead.source === "Referral"
-                                          ? "👥 Referral"
-                                          : lead.source === "Walk-in"
-                                            ? "🏢 Walk-in"
-                                            : `📞 ${lead.source || "Inbound"}`}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 2. COURSE INTERESTED */}
-                      <td className="py-3.5 px-3 font-semibold text-slate-700 text-xs">
-                        <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold border border-slate-200/60 text-[10.5px]">
-                          {lead.course}
-                        </span>
-                      </td>
-
-                      {/* 3. UNIQUE CONNECTED PIPELINE PROGRESS TRACKER */}
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Connected Journey Track */}
-                          <div className="flex items-center">
-                            {STAGE_STEPS.map((step, idx) => {
-                              const isCurrent = currentStageKey === step.key;
-                              const isPassed = !isLost && activeStageIdx >= 0 && activeStageIdx > idx;
-
-                              return (
-                                <React.Fragment key={step.key}>
-                                  {/* Connector Line */}
-                                  {idx > 0 && (
-                                    <div
-                                      className={`h-[2px] w-4 sm:w-5 transition-all duration-300 ${isLost
-                                        ? "bg-slate-200"
-                                        : isPassed || isCurrent
-                                          ? "bg-[#2563EB]"
-                                          : "bg-slate-200"
-                                        }`}
-                                    />
-                                  )}
-
-                                  {/* Interactive Stage Node */}
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      canEditLeads && handleToggleStageCheckbox(lead.id, step.key)
-                                    }
-                                    disabled={!canEditLeads}
-                                    className={`group/node flex flex-col items-center focus:outline-none transition-transform ${
-                                      canEditLeads
-                                        ? "cursor-pointer hover:scale-110"
-                                        : "cursor-default opacity-80"
-                                    }`}
-                                    title={
-                                      canEditLeads
-                                        ? `Click to set stage to ${step.label}`
-                                        : "Read-only — cannot change stage"
-                                    }
-                                  >
-                                    {step.key === "CONVERTED" && isConverted ? (
-                                      <div className="w-4.5 h-4.5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs ring-2 ring-emerald-100">
-                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                      </div>
-                                    ) : isPassed ? (
-                                      <div className="w-3.5 h-3.5 rounded-full bg-[#2563EB] text-white flex items-center justify-center shadow-2xs">
-                                        <Check className="w-2 h-2 stroke-[3]" />
-                                      </div>
-                                    ) : isCurrent ? (
-                                      <div className="w-4.5 h-4.5 rounded-full bg-[#2563EB] text-white flex items-center justify-center shadow-md ring-2 ring-blue-100">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-3 h-3 rounded-full border border-slate-300 bg-white hover:border-[#2563EB] hover:bg-blue-50 transition-colors" />
-                                    )}
-
-                                    <span
-                                      className={`text-[8.5px] mt-0.5 tracking-tight select-none transition-colors ${isCurrent
-                                        ? "text-[#2563EB] font-black"
-                                        : isPassed
-                                          ? "text-slate-700 font-bold"
-                                          : isConverted && step.key === "CONVERTED"
-                                            ? "text-emerald-700 font-black"
-                                            : "text-slate-400 font-medium group-hover/node:text-slate-600"
-                                        }`}
-                                    >
-                                      {step.label}
-                                    </span>
-                                  </button>
-                                </React.Fragment>
-                              );
-                            })}
-                          </div>
-
-                          {/* Divider */}
-                          <div className="h-3.5 w-px bg-slate-200 mx-1 shrink-0" />
-
-                          {/* Separate Lost Stage Node */}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              canEditLeads &&
-                              handleToggleStageCheckbox(lead.id, isLost ? "NEW" : "LOST")
-                            }
-                            disabled={!canEditLeads}
-                            className={`group/lost flex flex-col items-center focus:outline-none transition-transform ${
-                              canEditLeads
-                                ? "cursor-pointer hover:scale-110"
-                                : "cursor-default opacity-80"
-                            }`}
-                            title={
-                              !canEditLeads
-                                ? "Read-only — cannot change stage"
-                                : isLost
-                                  ? "Reopen Lead to AI Calling"
-                                  : "Mark Lead as Lost"
-                            }
-                          >
-                            {isLost ? (
-                              <div className="w-4.5 h-4.5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md ring-2 ring-rose-100">
-                                <X className="w-2.5 h-2.5 stroke-[3]" />
-                              </div>
-                            ) : (
-                              <div className="w-3 h-3 rounded-full border border-slate-200 bg-white text-slate-300 hover:border-rose-300 hover:text-rose-600 flex items-center justify-center transition-colors">
-                                <X className="w-1.5 h-1.5 stroke-[2.5]" />
-                              </div>
-                            )}
-                            <span
-                              className={`text-[8.5px] mt-0.5 tracking-tight select-none ${isLost ? "text-rose-600 font-black" : "text-slate-400 font-medium group-hover/lost:text-rose-600"
-                                }`}
-                            >
-                              Lost
-                            </span>
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* 4. AI VOICE QUALIFICATION & OUTCOME COLUMN */}
-                      <td className="py-3.5 px-3 max-w-[260px]">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {lead.attemptsCount === 0 || lead.aiOutcome === "PENDING_CALL" ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  triggerCallMutation.mutate(lead.id);
-                                }}
-                                disabled={triggerCallMutation.isPending}
-                                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-[#2563EB] border border-slate-200 hover:border-blue-200 inline-flex items-center gap-1 transition-all cursor-pointer"
-                                title="Queue automated AI voice call"
-                              >
-                                <Bot className="w-2.5 h-2.5 text-slate-400" />
-                                Not Called (Queue Call)
-                              </button>
-                            ) : lead.callStatus === "FAILED" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
-                                <X className="w-2.5 h-2.5 text-rose-600" />
-                                Call Failed
-                              </span>
-                            ) : lead.callStatus === "IN_PROGRESS" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 inline-flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 text-[#2563EB] animate-spin" />
-                                Call In Progress
-                              </span>
-                            ) : lead.aiOutcome === "INTERESTED" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
-                                <Check className="w-2.5 h-2.5 text-emerald-600 stroke-[3]" />
-                                High Intent {lead.aiScore > 0 ? `(${lead.aiScore}%)` : ""}
-                              </span>
-                            ) : lead.aiOutcome === "CALLBACK_REQUESTED" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 text-amber-600" />
-                                Callback Requested
-                              </span>
-                            ) : lead.aiOutcome === "NEEDS_COUNSELLOR" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1">
-                                <UserCheck className="w-2.5 h-2.5 text-sky-600" />
-                                Needs Counsellor
-                              </span>
-                            ) : lead.aiOutcome === "NOT_INTERESTED" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
-                                <X className="w-2.5 h-2.5 text-rose-600" />
-                                Not Interested
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 text-slate-400" />
-                                No Answer / Retry
-                              </span>
-                            )}
-
-                            {/* View AI Transcript Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAiDrawer(lead)}
-                              className="px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white border border-blue-200 text-[9.5px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                              title="View AI Call Transcript & Audio Details"
-                            >
-                              <Bot className="w-3 h-3" />
-                              <span>{lead.attemptsCount > 0 ? "Transcript" : "Details"}</span>
-                            </button>
-                          </div>
-
-                          <p
-                            className="text-[10.5px] text-slate-600 truncate italic max-w-[240px]"
-                            title={lead.aiSummaryShort || lead.latestResponse}
-                          >
-                            "{lead.aiSummaryShort || lead.latestResponse}"
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* 5. ATTEMPTS & LATEST RESPONSE */}
-                      <td className="py-3.5 px-3 max-w-[180px]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="bg-blue-50 text-[#2563EB] text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border border-blue-100 shrink-0 shadow-2xs">
-                            {lead.attemptsCount === 0 ? "No calls yet" : `${lead.attemptsCount} ${lead.attemptsCount === 1 ? "call" : "calls"}`}
-                          </span>
-                          <p
-                            className="text-[11px] text-slate-600 truncate font-medium"
-                            title={lead.latestResponse}
-                          >
-                            {lead.latestResponse}
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* 6. NEXT FOLLOW-UP */}
-                      <td className="py-3.5 px-3 whitespace-nowrap">
-                        {isOverdue ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1 shadow-2xs">
-                            <Clock className="w-3 h-3 text-rose-600" />
-                            {lead.nextFollowUp || "Overdue"}
-                          </span>
-                        ) : isToday ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1 shadow-2xs">
-                            <Clock className="w-3 h-3 text-amber-600" />
-                            {lead.nextFollowUp || "Today"}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            {lead.nextFollowUp || "Scheduled"}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* 7. ACTION COLUMN */}
-                      <td className="py-3.5 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {canEditLeads && (
-                          <Button
-                            type="button"
-                            onClick={() => handleOpenFollowUp(lead)}
-                            size="sm"
-                            className={`h-7.5 px-2.5 rounded-xl font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5 ${isOverdue
-                                ? "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 ring-2 ring-rose-100"
-                                : isToday
-                                  ? "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
-                                  : "bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white border border-blue-200"
-                              }`}
-                          >
-                            <Phone className="h-3 w-3" />
-                            <span>Follow Up</span>
-                          </Button>
-                          )}
-
-                          {/* Three Dot Dropdown Menu */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="w-7.5 h-7.5 rounded-xl border border-slate-200/80 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-                                title="More Actions"
-                              >
-                                <MoreVertical className="h-3.5 w-3.5" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border-slate-200">
-                              {canEditLeads && (
-                              <DropdownMenuItem
-                                onClick={() => handleOpenFollowUp(lead)}
-                                className="text-xs font-semibold py-2 cursor-pointer text-[#2563EB]"
-                              >
-                                <CalendarDays className="h-3.5 w-3.5 mr-2 text-[#2563EB]" />
-                                Schedule Follow-up
-                              </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onClick={() => handleOpenAiDrawer(lead)}
-                                className="text-xs font-semibold py-2 cursor-pointer text-indigo-700"
-                              >
-                                <Bot className="h-3.5 w-3.5 mr-2 text-indigo-600" />
-                                View AI Call Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setActiveLead(lead);
-                                  setShowHistoryModal(true);
-                                }}
-                                className="text-xs font-semibold py-2 cursor-pointer"
-                              >
-                                <History className="h-3.5 w-3.5 mr-2 text-blue-600" />
-                                View Interaction History
-                              </DropdownMenuItem>
-                              {canEditLeads && (
-                              <>
-                              <DropdownMenuItem
-                                onClick={() => handleCall(lead)}
-                                className="text-xs font-semibold py-2 cursor-pointer"
-                              >
-                                <PhoneCall className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                                Call & Log Attempt
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleWhatsApp(lead as any)}
-                                className="text-xs font-semibold py-2 cursor-pointer"
-                              >
-                                <MessageSquare className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                                Send WhatsApp Message
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleOpenLostModal(lead)}
-                                className="text-xs font-semibold py-2 text-amber-700 hover:text-amber-900 cursor-pointer"
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5 mr-2 text-amber-600" />
-                                Mark as Lost
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <div className="px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                                Set Master Pipeline Stage
-                              </div>
-                              {leadStageOptions.map((opt) => (
-                                <DropdownMenuItem
-                                  key={opt.value}
-                                  onClick={() => handleToggleStageCheckbox(lead.id, opt.code || opt.label)}
-                                  className="text-xs font-semibold py-1.5 cursor-pointer flex items-center justify-between"
-                                >
-                                  <span>{opt.label}</span>
-                                  {(lead.pipelineStage === (opt.code || opt.label) || lead.stage === (opt.code || opt.label)) && (
-                                    <Check className="h-3 w-3 text-emerald-600" />
-                                  )}
-                                </DropdownMenuItem>
-                              ))}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteLead(lead.id)}
-                                className="text-xs font-semibold py-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-2 text-rose-600" />
-                                Delete Lead
-                              </DropdownMenuItem>
-                              </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
-      {/* ─── 5. LOWER DASHBOARD (4 CARDS) ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        {/* Card 1: Admission Funnel */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between p-5">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="h-4 w-4 text-cyan-600" />
-              <h3 className="text-sm font-bold text-[#0A2540]">Admission Funnel <span className="text-slate-400 font-normal text-xs">(This Month)</span></h3>
-            </div>
-
-            <div className="space-y-1.5 my-2">
-              {admissionFunnelData.map((tier, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <div className="w-20 shrink-0 text-slate-600 font-medium text-[11px] truncate flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${tier.color}`} />
-                    {tier.label}
-                  </div>
-                  <div className="flex-1 bg-slate-100 rounded-md h-4 overflow-hidden flex items-center px-1.5">
-                    <div
-                      className={`h-2.5 rounded-sm ${tier.color} transition-all`}
-                      style={{ width: tier.width }}
-                    />
-                  </div>
-                  <span className="text-[11px] font-bold text-slate-800 shrink-0 w-12 text-right">
-                    {tier.count} {tier.percentage && <span className="text-slate-400 font-normal">({tier.percentage})</span>}
-                  </span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
+              <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Leads due</h2>
+                  <p className="text-xs text-muted-foreground">Follow up today or overdue</p>
                 </div>
-              ))}
-            </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => navigate("/counselor/leads/follow-ups")}
+                >
+                  View all <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {dueLeadsPreview.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No leads due right now.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {dueLeadsPreview.map((lead) => (
+                      <li key={lead.id}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/counselor/leads/${lead.leadId}`)}
+                          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{lead.name}</p>
+                            <p className="text-xs text-muted-foreground tabular-nums">{lead.phone || "—"}</p>
+                          </div>
+                          <Badge
+                            variant={lead.badge === "Overdue" ? "destructive" : "warning"}
+                            className="text-[10px] shrink-0"
+                          >
+                            {lead.badge}
+                          </Badge>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
+              <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Fees due</h2>
+                  <p className="text-xs text-muted-foreground">Students with pending balance</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => navigate("/counselor/fees/students")}
+                >
+                  View all <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {feesDuePreview.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No pending fee students.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {feesDuePreview.map((student) => (
+                      <li key={student.id}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/counselor/students/${student.id}`)}
+                          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {student.name || student.studentName || "Student"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {student.studentCode || student.phone || "—"}
+                            </p>
+                          </div>
+                          <span className="text-xs font-semibold text-amber-600 shrink-0">Due</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 mt-2 text-center">
-            <p className="text-xs font-semibold text-slate-600">
-              Conversion Rate (Lead → Admission): <strong className="text-emerald-600 font-extrabold">{funnelConversionRate}</strong>
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <LeaveRequestReviewPanel />
+
+            <Card className="border border-border shadow-xs rounded-xl">
+              <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">My targets</h2>
+                  <p className="text-xs text-muted-foreground">Current period progress</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => navigate("/counselor/performance")}
+                >
+                  Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {myTargetsData?.targets && myTargetsData.targets.length > 0 ? (
+                  myTargetsData.targets.slice(0, 4).map((t) => {
+                    const achievement = Number(t.currentProgress?.achievementPercentage || 0);
+                    const isRevenue =
+                      t.metric === "ADMISSION_REVENUE" || t.metric === "FEE_COLLECTION";
+                    return (
+                      <div key={t.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                            {achievement}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{ width: `${Math.min(achievement, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Goal:{" "}
+                          {isRevenue
+                            ? `₹${Number(t.targetValue).toLocaleString()}`
+                            : `${t.targetValue} units`}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    No active targets for this period.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </Card>
-
-        {/* Card 2: Lead Sources */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between p-5">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="h-4 w-4 text-red-500" />
-              <h3 className="text-sm font-bold text-[#0A2540]">Lead Sources <span className="text-slate-400 font-normal text-xs">(This Month)</span></h3>
-            </div>
-
-            <div className="grid grid-cols-12 items-center gap-2 py-1">
-              <div className="col-span-5 h-[130px] relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <RechartsTooltip
-                      formatter={(val: any) => [`${val} Leads`, "Count"]}
-                      contentStyle={{ borderRadius: "8px", fontSize: "10px", border: "none", boxShadow: "0 2px 4px rgb(0 0 0 / 0.1)" }}
-                    />
-                    <Pie
-                      data={leadSourcesData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={36}
-                      outerRadius={56}
-                      paddingAngle={3}
-                      dataKey="count"
-                    >
-                      {leadSourcesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="col-span-7 space-y-1 text-xs">
-                {leadSourcesData.map((s, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                      <span className="text-slate-600 truncate">{s.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-800 shrink-0 ml-1">
-                      {s.count} <span className="text-slate-400 text-[10px]">({s.percentage})</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>Total Leads: <strong className="text-slate-800">{combinedLeadsList.length}</strong></span>
-            <span>Conversion Rate: <strong className="text-emerald-600">{funnelConversionRate}</strong></span>
-          </div>
-        </Card>
-
-        {/* Card 3: Student Overview */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between p-5">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="h-4 w-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-[#0A2540]">Student Overview</h3>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Total Students</span>
-                <span className="font-bold text-slate-900 text-sm">{studentMetrics.total}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">New Students (This Month)</span>
-                <span className="font-bold text-slate-900 text-sm">{studentMetrics.newThisMonth}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Active Students</span>
-                <span className="font-bold text-slate-900 text-sm">{studentMetrics.active}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-amber-600 font-semibold">Students with Pending Fees</span>
-                <span className="font-extrabold text-amber-600 text-sm">{studentMetrics.pendingFees}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-red-600 font-semibold">Low Attendance Students</span>
-                <span className="font-extrabold text-red-600 text-sm">
-                  {isRiskLoading ? "—" : lowAttendanceCount}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 text-center">
-            <button
-              type="button"
-              onClick={() => navigate("/counselor/students/all")}
-              className="text-xs font-bold text-[#2563EB] hover:underline inline-flex items-center gap-1"
-            >
-              View All Students <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </Card>
-
-        {/* Card 4: My Performance */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between p-5">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-[#0A2540]">My Performance <span className="text-slate-400 font-normal text-xs">(This Month)</span></h3>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Leads Assigned</span>
-                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.leadsAssigned}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Follow-ups Completed</span>
-                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.followUpsCompleted}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Counselling Sessions</span>
-                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.counsellingSessions}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Admissions Converted</span>
-                <span className="font-bold text-slate-900 text-sm">{myPerformanceMetrics.admissionsConverted}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Conversion Rate</span>
-                <span className="font-extrabold text-emerald-600 text-sm">{myPerformanceMetrics.conversionRate}</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Revenue Generated</span>
-                <span className="font-extrabold text-emerald-600 text-sm">
-                  {formatINR(myPerformanceMetrics.revenueGenerated)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 text-center">
-            <button
-              type="button"
-              onClick={() => navigate("/counselor/reports/students")}
-              className="text-xs font-bold text-[#2563EB] hover:underline inline-flex items-center gap-1"
-            >
-              View Full Report <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </Card>
-      </div>
-
         </>
       )}
 

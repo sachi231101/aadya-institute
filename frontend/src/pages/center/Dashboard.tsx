@@ -1,29 +1,18 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Lock,
-  RefreshCw,
-  TrendingUp,
   CreditCard,
   Users,
   IndianRupee,
-  Calendar,
   UserCheck,
-  ArrowRight,
   FileText,
   UserPlus,
   GraduationCap,
-  BookOpen,
   Layers,
   BarChart2,
-  CheckCircle2,
-  Clock,
-  ChevronDown,
   Info,
-  Sparkles,
-  Zap,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -31,8 +20,17 @@ import { DashboardBaselineView } from "@/components/dashboard/DashboardBaselineV
 import { useBranch, useBranchStats } from "@/hooks/useBranches";
 import { useBatches } from "@/hooks/useBatches";
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
-import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
-import { useLeadDashboard } from "@/hooks/useLeads";
+import {
+  useStudentReport,
+  useFinancialReport,
+  useAdmissionsReport,
+} from "@/hooks/useReports";
+import {
+  useLeadDashboard,
+  useCounsellorPerformance,
+  useFollowUpDashboard,
+} from "@/hooks/useLeads";
+import { usePendingFees } from "@/hooks/useFees";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,158 +54,51 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMISSIONS TREND CHART DATA (Malleshwaram Branch Only)
-// ─────────────────────────────────────────────────────────────────────────────
-const ADMISSIONS_CHART_DATA = [
-  { day: "01 May", thisMonth: 8, lastMonth: 5 },
-  { day: "05 May", thisMonth: 14, lastMonth: 7 },
-  { day: "10 May", thisMonth: 19, lastMonth: 12 },
-  { day: "15 May", thisMonth: 15, lastMonth: 10 },
-  { day: "20 May", thisMonth: 23, lastMonth: 14 },
-  { day: "25 May", thisMonth: 27, lastMonth: 18 },
-  { day: "31 May", thisMonth: 32, lastMonth: 22 },
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+  "bg-purple-100 text-purple-700",
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FEE DONUT SLICES (Malleshwaram Branch Only)
-// ─────────────────────────────────────────────────────────────────────────────
-const FEE_DONUT_DATA = [
-  { name: "Collected", value: 1725000, percentage: 68, color: "#10B981" },
-  { name: "Pending", value: 642000, percentage: 17, color: "#2563EB" },
-  { name: "Overdue", value: 531000, percentage: 15, color: "#F59E0B" },
-];
+const getInitials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "—";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COUNSELLORS AT MALLESHWARAM BRANCH
-// ─────────────────────────────────────────────────────────────────────────────
-const BRANCH_COUNSELLORS = [
-  {
-    id: "c-1",
-    name: "Priya Sharma",
-    initials: "PS",
-    avatarBg: "bg-blue-100 text-blue-700",
-    leads: 58,
-    admissions: 12,
-    conversion: "20.7%",
-  },
-  {
-    id: "c-2",
-    name: "Rahul Kumar",
-    initials: "RK",
-    avatarBg: "bg-emerald-100 text-emerald-700",
-    leads: 46,
-    admissions: 9,
-    conversion: "19.6%",
-  },
-  {
-    id: "c-3",
-    name: "Anjali Singh",
-    initials: "AS",
-    avatarBg: "bg-amber-100 text-amber-700",
-    leads: 38,
-    admissions: 6,
-    conversion: "15.8%",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RECENT ADMISSIONS (Malleshwaram Branch Only)
-// ─────────────────────────────────────────────────────────────────────────────
-const RECENT_ADMISSIONS = [
-  {
-    id: "adm-1",
-    studentName: "Rohit Sharma",
-    initials: "RS",
-    avatarBg: "bg-blue-100 text-blue-700",
-    course: "Java Full Stack Development",
-    time: "Today, 10:30 AM",
-    status: "Completed",
-  },
-  {
-    id: "adm-2",
-    studentName: "Megha R",
-    initials: "MR",
-    avatarBg: "bg-rose-100 text-rose-700",
-    course: "Digital Marketing",
-    time: "Today, 09:45 AM",
-    status: "Completed",
-  },
-  {
-    id: "adm-3",
-    studentName: "Karthik M",
-    initials: "KM",
-    avatarBg: "bg-emerald-100 text-emerald-700",
-    course: "Python Programming",
-    time: "Yesterday, 04:20 PM",
-    status: "Completed",
-  },
-  {
-    id: "adm-4",
-    studentName: "Sneha P",
-    initials: "SP",
-    avatarBg: "bg-purple-100 text-purple-700",
-    course: "UI/UX Design",
-    time: "Yesterday, 02:15 PM",
-    status: "Completed",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PENDING TASKS (Malleshwaram Branch Only)
-// ─────────────────────────────────────────────────────────────────────────────
-const PENDING_TASKS = [
-  {
-    id: "task-1",
-    label: "Follow up for leads",
-    count: 23,
-    icon: Users,
-    iconColor: "text-rose-600",
-    iconBg: "bg-rose-50",
-    url: "/center/leads/follow-ups",
-    itemKey: "leads.followups",
-  },
-  {
-    id: "task-2",
-    label: "Pending fee reminders",
-    count: 17,
-    icon: CreditCard,
-    iconColor: "text-amber-600",
-    iconBg: "bg-amber-50",
-    url: "/center/fees/students?tab=pending",
-    itemKey: "fees.students",
-  },
-  {
-    id: "task-3",
-    label: "Documents to verify",
-    count: 12,
-    icon: FileText,
-    iconColor: "text-purple-600",
-    iconBg: "bg-purple-50",
-    url: "/center/admissions/applications",
-    itemKey: "admissions.applications",
-  },
-  {
-    id: "task-4",
-    label: "Admissions in progress",
-    count: 6,
-    icon: UserCheck,
-    iconColor: "text-emerald-600",
-    iconBg: "bg-emerald-50",
-    url: "/center/admissions",
-    itemKey: "admissions.all",
-  },
-];
+const formatRelativeAdmissionTime = (value?: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startThatDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round(
+    (startToday.getTime() - startThatDay.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const time = date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (dayDiff === 0) return `Today, ${time}`;
+  if (dayDiff === 1) return `Yesterday, ${time}`;
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 export const CenterDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { hasAnyModuleAccess, canReadItem, canEditItem } = usePermissions();
   const branchId = user?.branchId ?? undefined;
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [timeFilter, setTimeFilter] = useState("This Month");
-  const [periodFilter, setPeriodFilter] = useState("Daily");
 
   const { data: branchResponse } = useBranch(branchId);
   const { data: branchStatsResponse, isLoading: isBranchStatsLoading } = useBranchStats(branchId);
@@ -215,11 +106,26 @@ export const CenterDashboard: React.FC = () => {
   const { data: studentReport, isLoading: isStudentReportLoading } = useStudentReport(branchId);
   const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(branchId);
   const { data: leadDashboard, isLoading: isLeadLoading } = useLeadDashboard(branchId);
+  const { data: counsellorPerfRes, isLoading: isCounsellorLoading } =
+    useCounsellorPerformance(branchId);
+  const { data: followUpDashRes, isLoading: isFollowUpLoading } = useFollowUpDashboard({
+    branchId,
+    limit: 1,
+  });
+  const { data: admissionsReport, isLoading: isAdmissionsReportLoading } = useAdmissionsReport({
+    branchId,
+  });
+  const { data: pendingFeesRes, isLoading: isPendingFeesLoading } = usePendingFees({
+    limit: 1,
+    status: "PENDING",
+  });
   const { batches, loading: batchesLoading } = useBatches({ status: "ACTIVE" });
 
   const branchName = branchResponse?.data?.name || "Your Branch";
   const branchStats = branchStatsResponse?.data;
   const leadSummary = leadDashboard?.data ?? leadDashboard;
+  const followUpSummary =
+    followUpDashRes?.data?.summary ?? followUpDashRes?.summary ?? null;
 
   const branchBatches = useMemo(
     () => batches.filter((b) => b.branchId === branchId || b.branch?.id === branchId),
@@ -232,45 +138,38 @@ export const CenterDashboard: React.FC = () => {
   const todayClasses = scheduleSummary?.todayClasses ?? 0;
   const totalCollected = financialReport?.summary?.totalCollected ?? 0;
   const totalPending = financialReport?.summary?.totalPending ?? 0;
-  const collectionRate = financialReport?.summary?.collectionRate ?? 0;
-  const enrollmentTrend = studentReport?.enrollmentTrend ?? [];
 
   const formatCurrency = (value: number) => {
     if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
     return `₹${value.toLocaleString("en-IN")}`;
   };
 
-  const trendSub = (key: "students" | "collected" | "pending") => {
-    if (enrollmentTrend.length < 2 && key === "students") return "Live from database";
-    const trend = key === "students" ? enrollmentTrend : financialReport?.monthlyTrend;
-    if (!trend || trend.length < 2) return "Live from database";
-    const current = (trend[trend.length - 1] as unknown as Record<string, number>)?.[key] ?? 0;
-    const previous = (trend[trend.length - 2] as unknown as Record<string, number>)?.[key] ?? 0;
-    if (previous === 0) return current > 0 ? "New this month" : "Live from database";
-    const pct = Math.round(((current - previous) / previous) * 100);
-    return pct >= 0 ? `+${pct}% vs last month` : `${pct}% vs last month`;
-  };
-
   const isKpiLoading =
-    isBranchStatsLoading || isScheduleLoading || isStudentReportLoading || isFinancialLoading || isLeadLoading || batchesLoading;
+    isBranchStatsLoading ||
+    isScheduleLoading ||
+    isStudentReportLoading ||
+    isFinancialLoading ||
+    isLeadLoading ||
+    batchesLoading;
 
   const kpiValue = (value: string | number) => (isKpiLoading ? "—" : value);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["branches"] }),
-      queryClient.invalidateQueries({ queryKey: ["schedule-summary"] }),
-      queryClient.invalidateQueries({ queryKey: ["reports"] }),
-      queryClient.invalidateQueries({ queryKey: ["leads"] }),
-    ]);
-    setIsRefreshing(false);
-  };
+  const admissionsChartData = useMemo(() => {
+    const trend = admissionsReport?.monthlyTrend ?? [];
+    return trend.slice(-6).map((row) => ({
+      month: row.month,
+      admissions: row.admissions,
+    }));
+  }, [admissionsReport?.monthlyTrend]);
 
   const feeDonutData = useMemo(() => {
     const collected = totalCollected;
-    const pending = totalPending;
-    const total = collected + pending;
+    const outstanding = financialReport?.outstandingStudents ?? [];
+    const overdue = outstanding
+      .filter((s) => (s.overdueDays ?? 0) > 0)
+      .reduce((sum, s) => sum + (s.pending ?? 0), 0);
+    const pendingOnly = Math.max(0, totalPending - overdue);
+    const total = collected + pendingOnly + overdue;
     if (total === 0) {
       return [
         { name: "Collected", value: 0, percentage: 0, color: "#10B981" },
@@ -278,47 +177,157 @@ export const CenterDashboard: React.FC = () => {
         { name: "Overdue", value: 0, percentage: 0, color: "#F59E0B" },
       ];
     }
-    const overdue = Math.round(pending * 0.45);
-    const pendingOnly = pending - overdue;
     return [
-      { name: "Collected", value: collected, percentage: Math.round((collected / total) * 100), color: "#10B981" },
-      { name: "Pending", value: pendingOnly, percentage: Math.round((pendingOnly / total) * 100), color: "#2563EB" },
-      { name: "Overdue", value: overdue, percentage: Math.round((overdue / total) * 100), color: "#F59E0B" },
+      {
+        name: "Collected",
+        value: collected,
+        percentage: Math.round((collected / total) * 100),
+        color: "#10B981",
+      },
+      {
+        name: "Pending",
+        value: pendingOnly,
+        percentage: Math.round((pendingOnly / total) * 100),
+        color: "#2563EB",
+      },
+      {
+        name: "Overdue",
+        value: overdue,
+        percentage: Math.round((overdue / total) * 100),
+        color: "#F59E0B",
+      },
     ];
-  }, [totalCollected, totalPending]);
+  }, [totalCollected, totalPending, financialReport?.outstandingStudents]);
+
+  const counsellorRows = useMemo(() => {
+    const raw = Array.isArray(counsellorPerfRes?.data?.counsellors)
+      ? counsellorPerfRes.data.counsellors
+      : Array.isArray(counsellorPerfRes?.data)
+        ? counsellorPerfRes.data
+        : [];
+    return raw.slice(0, 5).map(
+      (
+        c: {
+          counsellorId?: string;
+          id?: string;
+          name?: string;
+          totalLeads?: number;
+          converted?: number;
+          conversionRate?: string | number;
+        },
+        idx: number
+      ) => {
+        const name = c.name || "Counsellor";
+        const leads = c.totalLeads ?? 0;
+        const admissions = c.converted ?? 0;
+        const rate =
+          typeof c.conversionRate === "number"
+            ? `${c.conversionRate.toFixed(1)}%`
+            : c.conversionRate ||
+              (leads > 0 ? `${((admissions / leads) * 100).toFixed(1)}%` : "0%");
+        return {
+          id: c.counsellorId || c.id || `c-${idx}`,
+          name,
+          initials: getInitials(name),
+          avatarBg: AVATAR_COLORS[idx % AVATAR_COLORS.length],
+          leads,
+          admissions,
+          conversion: rate,
+        };
+      }
+    );
+  }, [counsellorPerfRes]);
+
+  const recentAdmissions = useMemo(() => {
+    const rows = admissionsReport?.recentAdmissions ?? [];
+    return rows.slice(0, 5).map((adm, idx) => ({
+      id: adm.id,
+      studentName: adm.studentName || "Student",
+      initials: getInitials(adm.studentName || "ST"),
+      avatarBg: AVATAR_COLORS[idx % AVATAR_COLORS.length],
+      course: adm.courseName || adm.courses?.[0]?.name || "—",
+      time: formatRelativeAdmissionTime(adm.admissionDate || adm.createdAt),
+      status: adm.status || "ACTIVE",
+    }));
+  }, [admissionsReport?.recentAdmissions]);
+
+  const pendingFeeCount = pendingFeesRes?.meta?.total ?? 0;
+
+  const followUpCount = (() => {
+    const fromDashboard =
+      (followUpSummary?.overdue ?? 0) +
+      (followUpSummary?.today ?? 0) +
+      (followUpSummary?.upcoming ?? 0);
+    if (fromDashboard > 0) return fromDashboard;
+    return leadSummary?.overdueFollowUps || leadSummary?.followUp || 0;
+  })();
+
+  const documentsToVerify =
+    admissionsReport?.needsAttention?.missingDocuments?.length ?? 0;
+  const admissionsInProgress =
+    admissionsReport?.needsAttention?.provisional?.length ??
+    admissionsReport?.summary?.provisionalAdmissions ??
+    0;
+
+  const pendingTasks = useMemo(
+    () =>
+      [
+        {
+          id: "task-1",
+          label: "Follow up for leads",
+          count: followUpCount,
+          icon: Users,
+          iconColor: "text-rose-600",
+          iconBg: "bg-rose-50",
+          url: "/center/leads/follow-ups",
+          itemKey: "leads.followups",
+        },
+        {
+          id: "task-2",
+          label: "Pending fee reminders",
+          count: pendingFeeCount,
+          icon: CreditCard,
+          iconColor: "text-amber-600",
+          iconBg: "bg-amber-50",
+          url: "/center/fees/students?tab=pending",
+          itemKey: "fees.students",
+        },
+        {
+          id: "task-3",
+          label: "Documents to verify",
+          count: documentsToVerify,
+          icon: FileText,
+          iconColor: "text-purple-600",
+          iconBg: "bg-purple-50",
+          url: "/center/admissions/applications",
+          itemKey: "admissions.applications",
+        },
+        {
+          id: "task-4",
+          label: "Admissions in progress",
+          count: admissionsInProgress,
+          icon: UserCheck,
+          iconColor: "text-emerald-600",
+          iconBg: "bg-emerald-50",
+          url: "/center/admissions",
+          itemKey: "admissions.all",
+        },
+      ] as const,
+    [followUpCount, pendingFeeCount, documentsToVerify, admissionsInProgress]
+  );
+
+  const isWidgetLoading =
+    isCounsellorLoading ||
+    isFollowUpLoading ||
+    isAdmissionsReportLoading ||
+    isPendingFeesLoading ||
+    isFinancialLoading;
 
   return (
     <PageContainer density="compact" className="animate-in fade-in duration-300">
       <PageHeader
         title="Dashboard Overview"
         description={`${branchName} — key insights and performance for your branch.`}
-        actions={
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 h-9 text-xs font-semibold text-foreground shadow-2xs">
-              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer text-xs font-semibold text-foreground"
-              >
-                <option value="Today">Today</option>
-                <option value="This Week">This Week</option>
-                <option value="This Month">This Month</option>
-                <option value="Last Month">Last Month</option>
-                <option value="This Quarter">This Quarter</option>
-              </select>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleRefresh}
-              className="h-9 w-9 bg-card border-border rounded-xl hover:bg-muted shadow-2xs cursor-pointer"
-              title="Refresh Dashboard"
-            >
-              <RefreshCw className={`h-4 w-4 text-foreground ${isRefreshing ? "animate-spin text-primary" : ""}`} />
-            </Button>
-          </div>
-        }
       />
 
       <div className="bg-card border border-border rounded-xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -412,41 +421,36 @@ export const CenterDashboard: React.FC = () => {
                   Admissions Trend
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  Comparison against previous month
+                  Last 6 months for {branchName}
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-[10px] font-bold">
-                  <span className="flex items-center gap-1 text-[#1D4ED8]">
-                    <span className="h-2 w-2 rounded-full bg-[#1D4ED8]" /> This Month
-                  </span>
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <span className="h-2 w-2 rounded-full bg-slate-300" /> Last Month
-                  </span>
-                </div>
-
-                <select
-                  value={periodFilter}
-                  onChange={(e) => setPeriodFilter(e.target.value)}
-                  className="h-7 px-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none cursor-pointer"
-                >
-                  <option value="Daily">Daily</option>
-                  <option value="Weekly">Weekly</option>
-                </select>
+              <div className="flex items-center gap-2 text-[10px] font-bold">
+                <span className="flex items-center gap-1 text-[#1D4ED8]">
+                  <span className="h-2 w-2 rounded-full bg-[#1D4ED8]" /> Admissions
+                </span>
               </div>
             </div>
 
             {/* Chart Area */}
             <div className="h-64 w-full mt-4">
+              {isAdmissionsReportLoading ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  Loading admissions…
+                </div>
+              ) : admissionsChartData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                  No admissions trend data yet.
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={ADMISSIONS_CHART_DATA}
+                  data={admissionsChartData}
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
                   <XAxis
-                    dataKey="day"
+                    dataKey="month"
                     tickLine={false}
                     axisLine={{ stroke: "#E2E8F0" }}
                     tick={{ fontSize: 10, fill: "#94A3B8", fontWeight: 600 }}
@@ -454,6 +458,7 @@ export const CenterDashboard: React.FC = () => {
                   <YAxis
                     tickLine={false}
                     axisLine={false}
+                    allowDecimals={false}
                     tick={{ fontSize: 10, fill: "#94A3B8", fontWeight: 600 }}
                   />
                   <Tooltip
@@ -469,24 +474,16 @@ export const CenterDashboard: React.FC = () => {
                   />
                   <Line
                     type="monotone"
-                    dataKey="thisMonth"
-                    name="This Month"
+                    dataKey="admissions"
+                    name="Admissions"
                     stroke="#1D4ED8"
                     strokeWidth={2.5}
                     dot={{ fill: "#1D4ED8", r: 4 }}
                     activeDot={{ r: 6 }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="lastMonth"
-                    name="Last Month"
-                    stroke="#94A3B8"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={{ fill: "#94A3B8", r: 3 }}
-                  />
                 </LineChart>
               </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
@@ -500,7 +497,7 @@ export const CenterDashboard: React.FC = () => {
                 Fee Collection Summary
               </h3>
               <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                Total collection for Malleshwaram
+                Total collection for {branchName}
               </p>
             </div>
 
@@ -581,17 +578,24 @@ export const CenterDashboard: React.FC = () => {
                   Counsellor Performance
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  Malleshwaram team only
+                  {branchName} team
                 </p>
               </div>
               <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                This Month
+                Live
               </span>
             </div>
 
             {/* Counsellor List */}
             <div className="divide-y divide-slate-100 mt-2">
-              {BRANCH_COUNSELLORS.map((c, idx) => (
+              {isCounsellorLoading ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>
+              ) : counsellorRows.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">
+                  No counsellor performance data yet.
+                </p>
+              ) : (
+                counsellorRows.map((c, idx) => (
                 <div key={c.id} className="py-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-xs font-bold text-slate-400 w-3">{idx + 1}</span>
@@ -617,7 +621,8 @@ export const CenterDashboard: React.FC = () => {
                     </span>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
 
@@ -732,7 +737,14 @@ export const CenterDashboard: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100 mt-2">
-              {RECENT_ADMISSIONS.map((adm) => (
+              {isAdmissionsReportLoading ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>
+              ) : recentAdmissions.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">
+                  No recent admissions.
+                </p>
+              ) : (
+                recentAdmissions.map((adm) => (
                 <div key={adm.id} className="py-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
@@ -755,17 +767,18 @@ export const CenterDashboard: React.FC = () => {
                       {adm.time}
                     </span>
                     <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase">
-                      ✓ {adm.status}
+                      {adm.status}
                     </span>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>
         )}
 
-        {PENDING_TASKS.some((task) => canReadItem(task.itemKey)) && (
+        {pendingTasks.some((task) => canReadItem(task.itemKey)) && (
         <div className="lg:col-span-6 xl:col-span-3.5 bg-card border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -781,7 +794,7 @@ export const CenterDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3 mt-4">
-              {PENDING_TASKS.filter((task) => canReadItem(task.itemKey)).map((task) => {
+              {pendingTasks.filter((task) => canReadItem(task.itemKey)).map((task) => {
                 const Icon = task.icon;
                 return (
                   <div
@@ -801,7 +814,7 @@ export const CenterDashboard: React.FC = () => {
                     </div>
 
                     <span className="h-6 px-2 rounded-full bg-rose-100 text-rose-700 text-xs font-black flex items-center justify-center">
-                      {task.count}
+                      {isWidgetLoading ? "—" : task.count}
                     </span>
                   </div>
                 );

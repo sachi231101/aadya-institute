@@ -88,6 +88,12 @@ import { LeadScoreBadge } from "./components/LeadScoreBadge";
 import { LeadWorkspaceShell } from "./components/LeadWorkspaceShell";
 import { LeadDataSurface, LeadListState } from "./components/LeadDataSurface";
 import { getApiErrorMessage } from "@/utils/api-error";
+import {
+  FOLLOW_UP_12H_TIME_OPTIONS,
+  DEFAULT_FOLLOW_UP_12H_TIME,
+  combineDateAnd12HourTime,
+  toDateInputValue,
+} from "@/utils/date";
 
 type ViewMode = "list" | "kanban";
 type RowAction = "assign" | "stage" | "note" | "followUp" | null;
@@ -119,6 +125,10 @@ export const AllLeadsList: React.FC = () => {
   const queryClient = useQueryClient();
   const { user, token } = useAuthStore();
   const isAdmin = user?.roles?.includes("ADMIN");
+  const canAssignLeads =
+    Boolean(user?.roles?.includes("ADMIN")) ||
+    Boolean(user?.roles?.includes("SUPER_ADMIN")) ||
+    Boolean(user?.roles?.includes("CENTER_MANAGER"));
 
   const counsellorFromUrl = searchParams.get("assignedCounsellorId") || "";
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,14 +224,26 @@ export const AllLeadsList: React.FC = () => {
     return base;
   }, [stageOptions]);
 
-  // Default ACTIVE pipeline: hide terminal columns on kanban; keep in stage dropdown / deep-link.
+  // Default view: open pipeline + Lost last (lost leads are kept, not deleted).
   const kanbanColumns = useMemo(() => {
-    const hideTerminal = stageFilter === "ALL" && !advancedApplied.status;
-    if (!hideTerminal) return stagePipeline;
-    return stagePipeline.filter(
+    if (statusFilter === "LOST" || stageFilter === "LOST") {
+      return stagePipeline.filter((s) => s.key === "LOST");
+    }
+    if (statusFilter === "CONVERTED" || stageFilter === "CONVERTED") {
+      return stagePipeline.filter((s) => s.key === "CONVERTED");
+    }
+    if (statusFilter === "ALL" || stageFilter !== "ALL") {
+      return stageFilter === "ALL"
+        ? stagePipeline
+        : stagePipeline.filter((s) => s.key === stageFilter);
+    }
+    // ACTIVE (default): pipeline stages + Lost at the end; hide Converted
+    const open = stagePipeline.filter(
       (s) => s.key !== "CONVERTED" && s.key !== "LOST"
     );
-  }, [stagePipeline, stageFilter, advancedApplied.status]);
+    const lost = stagePipeline.filter((s) => s.key === "LOST");
+    return [...open, ...lost];
+  }, [stagePipeline, stageFilter, statusFilter]);
 
   // Deep-link: /leads?stage=CONVERTED after admission conversion
   useEffect(() => {
@@ -257,18 +279,22 @@ export const AllLeadsList: React.FC = () => {
       params.followUpTo = new Date().toISOString();
     }
 
-    // Default Lead Management = open pipeline only (ACTIVE).
-    // Use Status filter for Converted / Lost when needed.
-    if (advancedApplied.status && advancedApplied.status !== "ARCHIVED") {
+    // Default Lead Management = open pipeline + lost (lost sorts last; not deleted).
+    // Use Status filter for Converted-only / Lost-only / All when needed.
+    if (advancedApplied.status) {
       params.status = advancedApplied.status;
-    } else if (statusFilter && statusFilter !== "ALL" && statusFilter !== "ARCHIVED") {
+    } else if (statusFilter === "ALL") {
+      // no status filter
+    } else if (statusFilter === "ACTIVE") {
+      params.statuses = "ACTIVE,LOST";
+    } else if (statusFilter && statusFilter !== "ALL") {
       params.status = statusFilter;
     } else if (stageFilter === "CONVERTED") {
       params.status = "CONVERTED";
     } else if (stageFilter === "LOST") {
       params.status = "LOST";
-    } else if (statusFilter !== "ALL") {
-      params.status = "ACTIVE";
+    } else {
+      params.statuses = "ACTIVE,LOST";
     }
 
     return params;
@@ -393,6 +419,7 @@ export const AllLeadsList: React.FC = () => {
     setActionLead(lead);
     setRowAction(action);
     if (action === "assign") {
+      if (!canAssignLeads) return;
       setAssignCounsellorId(lead.assignedCounsellorId || "");
       setAssignConfirmReassign(false);
       setAssignError(null);
@@ -730,9 +757,9 @@ export const AllLeadsList: React.FC = () => {
               className="h-9 w-[140px] shrink-0 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground"
               aria-label="Filter by status"
             >
-              <option value="ACTIVE">Active</option>
+              <option value="ACTIVE">Active & Lost</option>
               <option value="CONVERTED">Converted</option>
-              <option value="LOST">Lost</option>
+              <option value="LOST">Lost only</option>
               <option value="ALL">All statuses</option>
             </select>
 
@@ -782,15 +809,17 @@ export const AllLeadsList: React.FC = () => {
                 {selectedIds.length} selected
               </span>
               <PermissionGate itemKey="leads.all" mode="write">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1"
-                  onClick={() => setBulkAssignOpen(true)}
-                >
-                  <UserCheck className="h-3.5 w-3.5" />
-                  Bulk Assign
-                </Button>
+                {canAssignLeads && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1"
+                    onClick={() => setBulkAssignOpen(true)}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Bulk Assign
+                  </Button>
+                )}
                 {selectedIds.length === 2 && (
                   <Button
                     size="sm"
@@ -865,7 +894,11 @@ export const AllLeadsList: React.FC = () => {
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {lead.phoneNumber}
                             </p>
-                            <p className="text-[11px] text-muted-foreground mt-1">
+                            <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                              {lead.source
+                                ? lead.source.replace(/_/g, " ")
+                                : "No source"}
+                              {" · "}
                               {lead.assignedCounsellor?.name || "Unassigned"}
                             </p>
                           </button>
@@ -912,6 +945,7 @@ export const AllLeadsList: React.FC = () => {
                         />
                       </TableHead>
                       <TableHead className="min-w-[140px]">Lead</TableHead>
+                      <TableHead className="min-w-[100px]">Source</TableHead>
                       <TableHead className="w-[92px]">Stage</TableHead>
                       <TableHead className="w-[72px]">Score</TableHead>
                       <TableHead className="min-w-[120px]">Course</TableHead>
@@ -923,7 +957,7 @@ export const AllLeadsList: React.FC = () => {
                   <TableBody>
                     {leads.length === 0 ? (
                       <TableRow className="hover:bg-transparent border-0">
-                        <TableCell colSpan={8} className="p-0 border-0">
+                        <TableCell colSpan={9} className="p-0 border-0">
                           <LeadListState
                             kind="empty"
                             message="No leads found."
@@ -961,6 +995,11 @@ export const AllLeadsList: React.FC = () => {
                                 {lead.phoneNumber}
                               </p>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-[13px] text-foreground/90 whitespace-nowrap">
+                            {lead.source
+                              ? lead.source.replace(/_/g, " ")
+                              : "—"}
                           </TableCell>
                           <TableCell className="w-[92px]">
                             <LeadStageBadge
@@ -1021,11 +1060,13 @@ export const AllLeadsList: React.FC = () => {
                                 </DropdownMenuItem>
                                 <PermissionGate itemKey="leads.all" mode="write">
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => openRowAction(lead, "assign")}
-                                  >
-                                    <UserCheck className="h-4 w-4" /> Assign
-                                  </DropdownMenuItem>
+                                  {canAssignLeads && (
+                                    <DropdownMenuItem
+                                      onClick={() => openRowAction(lead, "assign")}
+                                    >
+                                      <UserCheck className="h-4 w-4" /> Assign
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     onClick={() => openRowAction(lead, "stage")}
                                   >
@@ -1086,18 +1127,8 @@ export const AllLeadsList: React.FC = () => {
         values={advancedDraft}
         onChange={setAdvancedDraft}
         onApply={() => {
-          const nextStatus =
-            advancedDraft.status && advancedDraft.status !== "ARCHIVED"
-              ? advancedDraft.status
-              : "ACTIVE";
-          setAdvancedApplied({
-            ...advancedDraft,
-            status:
-              advancedDraft.status === "ARCHIVED"
-                ? undefined
-                : advancedDraft.status,
-          });
-          setStatusFilter(nextStatus);
+          setAdvancedApplied(advancedDraft);
+          setStatusFilter(advancedDraft.status || "ACTIVE");
           setActiveKpi(null);
           setPage(1);
         }}
@@ -1326,7 +1357,7 @@ export const AllLeadsList: React.FC = () => {
                   },
                   {
                     onSuccess: () => {
-                      showToast("Lead marked as Lost");
+                      showToast("Lead marked as Lost (kept in list at the end)");
                       closeRowAction();
                     },
                     onError: (err: unknown) => {
@@ -1469,10 +1500,13 @@ export const AllLeadsList: React.FC = () => {
               e.preventDefault();
               if (!actionLead) return;
               const form = new FormData(e.currentTarget);
-              const scheduledRaw = String(form.get("scheduledAt") || "");
+              const scheduledDate = String(form.get("scheduledDate") || "");
+              const scheduledTime = String(form.get("scheduledTime") || "");
+              const scheduledAt = combineDateAnd12HourTime(scheduledDate, scheduledTime);
               const notes = String(form.get("notes") || "").trim();
-              if (!scheduledRaw || !notes) {
-                if (!notes) showToast("Follow-up remark is required");
+              if (!scheduledAt || !notes) {
+                if (!scheduledAt) showToast("Select a valid date and time");
+                else if (!notes) showToast("Follow-up remark is required");
                 return;
               }
               createFollowUpMutation.mutate(
@@ -1480,7 +1514,7 @@ export const AllLeadsList: React.FC = () => {
                   id: actionLead.id,
                   data: {
                     type: String(form.get("type") || "CALL"),
-                    scheduledAt: new Date(scheduledRaw).toISOString(),
+                    scheduledAt,
                     notes,
                     priority: String(form.get("priority") || "MEDIUM"),
                     counsellorId:
@@ -1511,7 +1545,26 @@ export const AllLeadsList: React.FC = () => {
             </div>
             <div>
               <Label>Scheduled at</Label>
-              <Input name="scheduledAt" type="datetime-local" className="mt-1" required />
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <Input
+                  name="scheduledDate"
+                  type="date"
+                  defaultValue={toDateInputValue()}
+                  required
+                />
+                <select
+                  name="scheduledTime"
+                  defaultValue={DEFAULT_FOLLOW_UP_12H_TIME}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  required
+                >
+                  {FOLLOW_UP_12H_TIME_OPTIONS.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <Label>Priority</Label>

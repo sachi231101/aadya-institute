@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, MoreVertical, Edit3, Trash2, Loader2 } from "lucide-react";
+import { Plus, Search, MoreVertical, Edit3, Trash2, Loader2, Eye, EyeOff } from "lucide-react";
 import {
   useAdminUsers,
   useCreateUser,
@@ -19,6 +19,9 @@ import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
+import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
+import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
 import {
   buildPermissionsFromAccess,
   permissionsToAccessState,
@@ -169,11 +172,14 @@ export const AllCounsellors: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [branchId, setBranchId] = useState("");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { policy } = usePasswordRequirements();
 
   const [createItemAccess, setCreateItemAccess] = useState<Record<string, ItemAccessState>>({});
 
@@ -248,6 +254,19 @@ export const AllCounsellors: React.FC = () => {
     e.preventDefault();
     if (!name || !email || !phone) return;
     setCreateError(null);
+    setPasswordError(null);
+
+    const passwordToUse = password.trim();
+    if (!passwordToUse) {
+      setPasswordError("Password is required.");
+      return;
+    }
+    const policyError = validatePasswordAgainstPolicy(passwordToUse, policy);
+    if (policyError) {
+      setPasswordError(policyError);
+      return;
+    }
+
     setIsSubmitting(true);
 
     const effectiveBranchId = isCenterManager ? (userBranchId || branchId) : branchId;
@@ -277,7 +296,7 @@ export const AllCounsellors: React.FC = () => {
       await createUserMutation.mutateAsync({
         name,
         email,
-        password: password || "Password@123",
+        password: passwordToUse,
         phone,
         roles: ["COUNSELLOR"],
         branchId: effectiveBranchId,
@@ -287,11 +306,17 @@ export const AllCounsellors: React.FC = () => {
       setShowCreateModal(false);
       resetCreateForm();
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { message?: string; errors?: { message?: string }[] } } };
+      const apiErr = err as { response?: { data?: { message?: string; errors?: { field?: string; message?: string }[] } } };
       const backendErr = apiErr.response?.data;
       let errMsg = backendErr?.message || "Failed to create counsellor.";
       if (backendErr?.errors?.length) {
         errMsg = backendErr.errors.map((e) => e.message).filter(Boolean).join(". ");
+        const pwdErr = backendErr.errors.find(
+          (e) => e.field === "password" || e.message?.toLowerCase().includes("password")
+        );
+        if (pwdErr?.message) setPasswordError(pwdErr.message);
+      } else if (errMsg.toLowerCase().includes("password")) {
+        setPasswordError(errMsg);
       }
       setCreateError(errMsg);
     } finally {
@@ -303,6 +328,8 @@ export const AllCounsellors: React.FC = () => {
     setName("");
     setEmail("");
     setPassword("");
+    setShowPassword(false);
+    setPasswordError(null);
     setPhone("");
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
     setStatus("ACTIVE");
@@ -683,16 +710,41 @@ export const AllCounsellors: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-foreground block mb-1.5">
-                    Password
+                    Password *
                   </label>
-                  <Input
-                    type="password"
-                    placeholder="Password@123"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      autoComplete="new-password"
+                      className="pr-9"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError(null);
+                      }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {passwordError && (
+                    <p className="text-xs text-destructive mt-1.5">{passwordError}</p>
+                  )}
                 </div>
               </div>
+
+              <PasswordRequirementsHint />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

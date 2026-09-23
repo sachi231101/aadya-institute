@@ -11,7 +11,6 @@ import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
-import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
 import { UserNav } from "@/components/layout/UserNav";
 import { PortalRouteGuard } from "@/components/permissions/PortalRouteGuard";
 
@@ -45,8 +44,6 @@ export const CounselorLayout: React.FC = () => {
                 <UserCheck size={13} className="text-emerald-300" />
                 <span className="text-[11px] font-semibold text-white">Counsellor Desk</span>
               </div>
-              <div className="h-3.5 w-[1px] bg-white/20 hidden md:block" />
-              <NavbarAskAi />
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">

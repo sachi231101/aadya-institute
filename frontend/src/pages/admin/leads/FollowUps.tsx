@@ -15,6 +15,13 @@ import {
   useLeads,
 } from "@/hooks/useLeads";
 import { getPortalBasePath } from "@/utils/portal-path";
+import {
+  FOLLOW_UP_12H_TIME_OPTIONS,
+  DEFAULT_FOLLOW_UP_12H_TIME,
+  combineDateAnd12HourTime,
+  toDateInputValue,
+  to12HourTimeValue,
+} from "@/utils/date";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,13 +136,15 @@ export const FollowUps: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [outcome, setOutcome] = useState("");
   const [completeNotes, setCompleteNotes] = useState("");
-  const [rescheduleAt, setRescheduleAt] = useState("");
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState(DEFAULT_FOLLOW_UP_12H_TIME);
 
   const [createLeadIds, setCreateLeadIds] = useState<Set<string>>(new Set());
   const [createLeadSearch, setCreateLeadSearch] = useState("");
   const [createType, setCreateType] = useState("CALL");
   const [createPriority, setCreatePriority] = useState("MEDIUM");
-  const [createScheduledAt, setCreateScheduledAt] = useState("");
+  const [createScheduledDate, setCreateScheduledDate] = useState(() => toDateInputValue());
+  const [createScheduledTime, setCreateScheduledTime] = useState(DEFAULT_FOLLOW_UP_12H_TIME);
   const [createNotes, setCreateNotes] = useState("");
   const [createBulkPending, setCreateBulkPending] = useState(false);
 
@@ -151,7 +160,8 @@ export const FollowUps: React.FC = () => {
     setCreateLeadSearch("");
     setCreateType("CALL");
     setCreatePriority("MEDIUM");
-    setCreateScheduledAt("");
+    setCreateScheduledDate(toDateInputValue());
+    setCreateScheduledTime(DEFAULT_FOLLOW_UP_12H_TIME);
     setCreateNotes("");
     setCreateBulkPending(false);
   };
@@ -224,49 +234,42 @@ export const FollowUps: React.FC = () => {
   const tabCounts: Record<TabKey, number> = {
     today: summary.today ?? 0,
     overdue: summary.overdue ?? 0,
-    upcoming: summary.totalPending ?? 0,
+    upcoming: summary.upcoming ?? 0,
     completed: summary.completed ?? 0,
     my: summary.my ?? lists.my?.length ?? 0,
     team: summary.team ?? lists.team?.length ?? 0,
   };
 
-  const primaryTabs: { key: "today" | "overdue" | "completed" | "upcoming"; label: string; icon: React.ReactNode }[] = [
+  const primaryTabs: {
+    key: "today" | "overdue" | "upcoming" | "completed";
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
     { key: "today", label: "Due", icon: <Clock className="w-3.5 h-3.5" /> },
     { key: "overdue", label: "Overdue", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+    { key: "upcoming", label: "Upcoming", icon: <CalendarDays className="w-3.5 h-3.5" /> },
     { key: "completed", label: "Completed", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-    { key: "upcoming", label: "All", icon: <CalendarDays className="w-3.5 h-3.5" /> },
   ];
 
   const scopeValue: "all" | "my" | "team" =
     activeTab === "my" ? "my" : activeTab === "team" ? "team" : "all";
 
-  const visibleTabKey: "today" | "overdue" | "completed" | "upcoming" =
+  const visibleTabKey: "today" | "overdue" | "upcoming" | "completed" =
     activeTab === "my" || activeTab === "team"
       ? "upcoming"
       : activeTab === "today" ||
           activeTab === "overdue" ||
-          activeTab === "completed" ||
-          activeTab === "upcoming"
+          activeTab === "upcoming" ||
+          activeTab === "completed"
         ? activeTab
         : "today";
 
   const activeList = useMemo((): LeadFollowUp[] => {
     if (activeTab === "upcoming") {
-      if (Array.isArray(lists.all)) {
-        return lists.all as LeadFollowUp[];
-      }
-      // Fallback for older API responses without lists.all
-      const seen = new Set<string>();
-      const items: LeadFollowUp[] = [];
-      for (const list of [lists.overdue, lists.today, lists.upcoming]) {
-        for (const item of list || []) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            items.push(item);
-          }
-        }
-      }
-      return items;
+      return (lists.upcoming || []) as LeadFollowUp[];
+    }
+    if (activeTab === "completed") {
+      return (lists.completed || []) as LeadFollowUp[];
     }
     return (lists[activeTab] || []) as LeadFollowUp[];
   }, [lists, activeTab]);
@@ -306,10 +309,8 @@ export const FollowUps: React.FC = () => {
       case "reschedule": {
         setActionFollowUp(item);
         const dt = new Date(item.scheduledAt);
-        const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
-        setRescheduleAt(local);
+        setRescheduleDate(toDateInputValue(dt));
+        setRescheduleTime(to12HourTimeValue(dt));
         setRescheduleOpen(true);
         break;
       }
@@ -368,7 +369,9 @@ export const FollowUps: React.FC = () => {
   };
 
   const submitReschedule = () => {
-    if (!actionFollowUp || !rescheduleAt) return;
+    if (!actionFollowUp) return;
+    const scheduledAt = combineDateAnd12HourTime(rescheduleDate, rescheduleTime);
+    if (!scheduledAt) return;
     const leadId = actionFollowUp.lead?.id || actionFollowUp.leadId;
     updateFollowUp.mutate(
       {
@@ -376,7 +379,7 @@ export const FollowUps: React.FC = () => {
         followUpId: actionFollowUp.id,
         data: {
           status: "PENDING",
-          scheduledAt: new Date(rescheduleAt).toISOString(),
+          scheduledAt,
         },
       },
       {
@@ -398,11 +401,12 @@ export const FollowUps: React.FC = () => {
     e.preventDefault();
     const ids = Array.from(createLeadIds);
     const remark = createNotes.trim();
-    if (ids.length === 0 || !createScheduledAt || !remark) return;
+    const scheduledAt = combineDateAnd12HourTime(createScheduledDate, createScheduledTime);
+    if (ids.length === 0 || !scheduledAt || !remark) return;
 
     const payload = {
       type: createType,
-      scheduledAt: new Date(createScheduledAt).toISOString(),
+      scheduledAt,
       notes: remark,
       priority: createPriority,
     };
@@ -711,15 +715,34 @@ export const FollowUps: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div>
-              <Label htmlFor="fu-reschedule">New date & time</Label>
-              <Input
-                id="fu-reschedule"
-                type="datetime-local"
-                className="mt-1"
-                value={rescheduleAt}
-                onChange={(e) => setRescheduleAt(e.target.value)}
-                required
-              />
+              <Label>New date & time</Label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <Input
+                  id="fu-reschedule-date"
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  required
+                />
+                <select
+                  id="fu-reschedule-time"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value)}
+                  required
+                >
+                  {!FOLLOW_UP_12H_TIME_OPTIONS.includes(
+                    rescheduleTime as (typeof FOLLOW_UP_12H_TIME_OPTIONS)[number]
+                  ) && (
+                    <option value={rescheduleTime}>{rescheduleTime}</option>
+                  )}
+                  {FOLLOW_UP_12H_TIME_OPTIONS.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -729,7 +752,7 @@ export const FollowUps: React.FC = () => {
             <Button
               type="button"
               className="bg-primary text-white"
-              disabled={!rescheduleAt || updateFollowUp.isPending}
+              disabled={!rescheduleDate || !rescheduleTime || updateFollowUp.isPending}
               onClick={submitReschedule}
             >
               {updateFollowUp.isPending ? "Saving..." : "Reschedule"}
@@ -832,15 +855,29 @@ export const FollowUps: React.FC = () => {
               </select>
             </div>
             <div>
-              <Label htmlFor="fu-create-at">Scheduled date & time</Label>
-              <Input
-                id="fu-create-at"
-                type="datetime-local"
-                className="mt-1"
-                value={createScheduledAt}
-                onChange={(e) => setCreateScheduledAt(e.target.value)}
-                required
-              />
+              <Label>Scheduled date & time</Label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <Input
+                  id="fu-create-date"
+                  type="date"
+                  value={createScheduledDate}
+                  onChange={(e) => setCreateScheduledDate(e.target.value)}
+                  required
+                />
+                <select
+                  id="fu-create-time"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={createScheduledTime}
+                  onChange={(e) => setCreateScheduledTime(e.target.value)}
+                  required
+                >
+                  {FOLLOW_UP_12H_TIME_OPTIONS.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <Label htmlFor="fu-create-notes">Notes *</Label>
@@ -868,7 +905,8 @@ export const FollowUps: React.FC = () => {
                 className="bg-primary text-white"
                 disabled={
                   createLeadIds.size === 0 ||
-                  !createScheduledAt ||
+                  !createScheduledDate ||
+                  !createScheduledTime ||
                   !createNotes.trim() ||
                   createBulkPending
                 }

@@ -78,12 +78,20 @@ export const LeadService = {
       const matchedCourse = await prisma.course.findFirst({
         where: {
           instituteId,
+          status: "ACTIVE",
           name: { contains: dto.interestedIn, mode: "insensitive" },
-          courseBranches: { some: { branchId } },
         },
+        select: { id: true },
       });
       if (matchedCourse) {
-        courseId = matchedCourse.id;
+        const linked = await prisma.courseBranch.findFirst({
+          where: { courseId: matchedCourse.id, branchId },
+          select: { id: true },
+        });
+        // Only attach course when it is available for this branch
+        if (linked) {
+          courseId = matchedCourse.id;
+        }
       }
     }
 
@@ -91,7 +99,7 @@ export const LeadService = {
       await assertCourseAvailableForBranch(instituteId, courseId, branchId);
     }
 
-    // 4. Leads start unassigned — AI call runs before counsellor allocation
+    // 4. Resolve source (master or free-text fallback)
     let sourceCode = dto.source || "WALK_IN";
     let sourceMasterId: string | undefined;
 
@@ -106,6 +114,24 @@ export const LeadService = {
       sourceCode = resolved.code || resolved.label;
     }
 
+    const creatorId = currentUser.userId || currentUser.id;
+    const isCounsellorOnly =
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER");
+
+    // Counsellors self-assign on create. Admin / Center Manager leave unassigned
+    // (or may pass assignedCounsellorId) so they can allocate later.
+    let assignedCounsellorId: string | undefined;
+    let initialStage = "NEW";
+    if (isCounsellorOnly) {
+      assignedCounsellorId = creatorId;
+      initialStage = "ASSIGNED";
+    } else if (dto.assignedCounsellorId) {
+      assignedCounsellorId = dto.assignedCounsellorId;
+      initialStage = "ASSIGNED";
+    }
+
     const lead = await LeadRepository.createLead({
       instituteId,
       branchId,
@@ -116,11 +142,12 @@ export const LeadService = {
       courseId,
       source: sourceCode,
       sourceMasterId,
-      stage: "NEW",
+      stage: initialStage,
       priority: dto.priority ?? "MEDIUM",
       notes: dto.notes,
       tags: dto.tags,
-      createdById: currentUser.userId || currentUser.id,
+      createdById: creatorId,
+      assignedCounsellorId,
     });
 
     const { startInitialAiCall } = await import("./services/lead-ai-call.service");
@@ -149,6 +176,7 @@ export const LeadService = {
       stage,
       stages: stagesRaw,
       status,
+      statuses: statusesRaw,
       source,
       stageMasterId,
       sourceMasterId,
@@ -172,6 +200,13 @@ export const LeadService = {
           .filter(Boolean)
       : undefined;
 
+    const statuses = statusesRaw
+      ? (statusesRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean) as ("ACTIVE" | "CONVERTED" | "LOST" | "ARCHIVED")[])
+      : undefined;
+
     const scope = getBranchScopeFilter(currentUser, query.branchId);
     const skip = (page - 1) * limit;
 
@@ -192,7 +227,8 @@ export const LeadService = {
       stage,
       stages,
       stageMasterId,
-      status,
+      status: statuses?.length ? undefined : status,
+      statuses,
       source,
       sourceMasterId,
       search,

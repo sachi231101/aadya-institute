@@ -40,12 +40,20 @@ export const assertCourseAvailableForBranch = async (
       id: courseId,
       instituteId,
       ...(options?.requireActive ? { status: "ACTIVE" } : {}),
-      courseBranches: { some: { branchId } },
     },
     select: { id: true },
   });
 
   if (!course) {
+    throw new AppError("Selected course was not found for this institute", 400);
+  }
+
+  const linked = await client.courseBranch.findFirst({
+    where: { courseId, branchId },
+    select: { id: true },
+  });
+
+  if (!linked) {
     throw new AppError(
       "Selected course is not available for this branch",
       400

@@ -22,6 +22,8 @@ export interface LeadFindManyParams {
   stages?: string[];
   stageMasterId?: string;
   status?: LeadStatus;
+  /** Multi-status filter (takes precedence over single `status` when non-empty) */
+  statuses?: LeadStatus[];
   source?: string;
   sourceMasterId?: string;
   search?: string;
@@ -277,6 +279,7 @@ export const LeadRepository = {
       stage,
       stages,
       status,
+      statuses,
       source,
       search,
       priority,
@@ -344,13 +347,20 @@ export const LeadRepository = {
           ? { stage }
           : {};
 
+    const statusFilter =
+      statuses && statuses.length > 0
+        ? { status: { in: statuses } }
+        : status
+          ? { status }
+          : {};
+
     const where: Prisma.LeadWhereInput = {
       instituteId,
       ...leadBranchWhere(branchId, branchIds),
       ...(courseId ? { courseId } : {}),
       ...stageFilter,
       ...(params.stageMasterId ? { stageMasterId: params.stageMasterId } : {}),
-      ...(status ? { status } : {}),
+      ...statusFilter,
       ...(source ? { source } : {}),
       ...(params.sourceMasterId ? { sourceMasterId: params.sourceMasterId } : {}),
       ...(priority ? { priority } : {}),
@@ -394,7 +404,8 @@ export const LeadRepository = {
       prisma.lead.findMany({
         where,
         include: leadInclude,
-        orderBy: { createdAt: "desc" },
+        // LOST / CONVERTED after ACTIVE (enum alpha: ACTIVE < CONVERTED < LOST)
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         skip,
         take,
       }),

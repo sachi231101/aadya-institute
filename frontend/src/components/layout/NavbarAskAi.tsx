@@ -12,17 +12,21 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
     typeof r === "string" ? r.toUpperCase() : ""
   );
 
+  // Counsellors do not get Ask AI (button + Ctrl+K).
+  const isCounsellorOnly =
+    userRoles.includes("COUNSELLOR") &&
+    !userRoles.includes("ADMIN") &&
+    !userRoles.includes("SUPER_ADMIN") &&
+    !userRoles.includes("CENTER_MANAGER");
+
   const getAiPath = () => {
     if (location.pathname.startsWith("/center") || userRoles.includes("CENTER_MANAGER")) {
       return "/center/home";
     }
-    if (location.pathname.startsWith("/counselor") || userRoles.includes("COUNSELLOR")) {
-      return "/counselor/home";
-    }
     if (location.pathname.startsWith("/faculty") || userRoles.includes("FACULTY")) {
       return "/faculty/home";
     }
-    // Students do not have Ask AI — fall through to admin only for staff roles
+    // Students / counsellors do not have Ask AI — staff fall through to admin
     return "/admin/home";
   };
 
@@ -35,6 +39,7 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
 
   // Keyboard shortcut Ctrl+K / Cmd+K opens AI Home
   useEffect(() => {
+    if (isCounsellorOnly) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -43,13 +48,15 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [aiPath, navigate]);
+  }, [aiPath, navigate, isCounsellorOnly]);
 
   const [isMac, setIsMac] = React.useState(false);
 
   React.useEffect(() => {
     setIsMac(typeof navigator !== "undefined" && (/Mac|iPod|iPhone|iPad/.test(navigator.platform) || /Mac/.test(navigator.userAgent)));
   }, []);
+
+  if (isCounsellorOnly) return null;
 
   return (
     <button
