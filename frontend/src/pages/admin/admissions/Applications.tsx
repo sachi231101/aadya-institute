@@ -241,7 +241,7 @@ export const Applications: React.FC = () => {
     }
   ) => {
     try {
-      await updateApplicationMutation.mutateAsync({
+      const updated = await updateApplicationMutation.mutateAsync({
         id: appId,
         payload: {
           feeStatus: "PAID",
@@ -250,7 +250,12 @@ export const Applications: React.FC = () => {
           paymentRef: payload.paymentRef,
         },
       });
-      showToast("Marked as fee paid.");
+      const receiptNo = updated.data?.payment?.receiptNo;
+      showToast(
+        receiptNo
+          ? `Application fee marked paid · receipt ${receiptNo}`
+          : "Application fee marked paid."
+      );
     } catch {
       showToast("Failed to update fee status.");
       throw new Error("Failed to update fee status.");
@@ -394,6 +399,7 @@ export const Applications: React.FC = () => {
           isUpdating={updateApplicationMutation.isPending}
           isAddingNote={addNoteMutation.isPending}
           leadBasePath={`${rolePrefix}/leads`}
+          portalBasePath={rolePrefix}
           onCopy={(label, value) => {
             void navigator.clipboard.writeText(value);
             showToast(`Copied ${label} to clipboard!`);

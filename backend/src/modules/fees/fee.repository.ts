@@ -520,12 +520,16 @@ export const FeeRepository = {
       branchIds,
     } = params;
 
+    // "ALL" means all *due* statuses (overdue / due soon / partial) — never fully paid.
+    const wantsPaidOnly = status === "PAID";
     const statusFilter =
-      status && status !== "ALL"
-        ? status === "UNPAID"
-          ? { status: { in: ["OVERDUE", "DUE_SOON", "PARTIAL"] as OverdueStatus[] } }
-          : { status: status as OverdueStatus }
-        : {};
+      !status || status === "ALL" || status === "UNPAID"
+        ? {
+            status: {
+              in: ["OVERDUE", "DUE_SOON", "PARTIAL"] as OverdueStatus[],
+            },
+          }
+        : { status: status as OverdueStatus };
 
     const today = startOfDay();
     let dueDateFilter: Prisma.DateTimeFilter | undefined;
@@ -542,13 +546,7 @@ export const FeeRepository = {
         ...(studentId ? { studentId } : {}),
         ...(feeHeadMasterId ? { feeHeadMasterId } : {}),
         ...statusFilter,
-        ...(dueDateFilter ||
-        status === "UNPAID" ||
-        status === "OVERDUE" ||
-        status === "DUE_SOON" ||
-        status === "PARTIAL"
-          ? { dueAmount: { gt: 0 } }
-          : {}),
+        ...(wantsPaidOnly ? {} : { dueAmount: { gt: 0 } }),
         ...(dueDateFilter ? { dueDate: dueDateFilter } : {}),
         ...(search
           ? {
@@ -1184,7 +1182,7 @@ export const FeeRepository = {
       prisma.pendingFee.groupBy({
         by: ["studentId"],
         where: { instituteId, studentId: { in: studentIds } },
-        _sum: { dueAmount: true, amountPaid: true },
+        _sum: { dueAmount: true, amountPaid: true, totalFee: true },
       }),
       prisma.payment.groupBy({
         by: ["studentId"],
@@ -1218,6 +1216,7 @@ export const FeeRepository = {
         {
           due: toMoneyNumber(r._sum.dueAmount),
           paidFromCharges: toMoneyNumber(r._sum.amountPaid),
+          totalFee: toMoneyNumber(r._sum.totalFee),
         },
       ])
     );
@@ -1251,7 +1250,11 @@ export const FeeRepository = {
       const due = pendingMap.get(s.id)?.due || 0;
       const paid = paidMap.get(s.id) || 0;
       const paidFromCharges = pendingMap.get(s.id)?.paidFromCharges || 0;
-      const totalFee = roundMoney(due + paidFromCharges);
+      const storedTotal = pendingMap.get(s.id)?.totalFee || 0;
+      // Prefer sum(totalFee); fall back to paid+due when totalFee was never populated.
+      const totalFee = roundMoney(
+        storedTotal > 0.009 ? storedTotal : due + paidFromCharges
+      );
       const overdueCount = overdueMap.get(s.id) || 0;
       let feeStatus: "Paid" | "Overdue" | "Partial" | "Pending" | "None" = "None";
       if (totalFee <= 0 && paid <= 0) feeStatus = "None";

@@ -19,7 +19,7 @@ import {
   findActiveNumberingSeriesByTarget,
 } from "./master.repository";
 import type { Status } from "@prisma/client";
-import { isAllowedMasterEntityType } from "./master.entity-types";
+import { isAllowedMasterEntityType, isInstituteWideMasterType } from "./master.entity-types";
 import type { NumberingSeriesData } from "./master.types";
 import { assertActiveMaster } from "./master.validator";
 
@@ -166,7 +166,9 @@ export const listMastersService = async (
 ) => {
   const { page = 1, limit = 50, search, status } = query;
   const instituteId = currentUser.instituteId;
-  const branchId = getBranchFilter(currentUser, query.branchId);
+  const branchId = isInstituteWideMasterType(entityType)
+    ? undefined
+    : getBranchFilter(currentUser, query.branchId);
   const skip = (page - 1) * limit;
 
   const { records, total } = await findMasterRecords({
@@ -211,10 +213,20 @@ export const createMasterService = async (
     ? (currentUser.branchId || input.branchId || undefined)
     : input.branchId;
 
+  // Fee/payment masters apply across all branches — never pin to one branch.
+  const effectiveBranchId = isInstituteWideMasterType(input.entityType)
+    ? undefined
+    : branchId;
+
   let payload: CreateMasterRecordInput = {
     ...input,
-    branchId,
-    data: await normalizeEntityData(instituteId, branchId, input.entityType, input.data),
+    branchId: effectiveBranchId,
+    data: await normalizeEntityData(
+      instituteId,
+      effectiveBranchId,
+      input.entityType,
+      input.data
+    ),
   };
 
   // Code is only used for numbering series (document target). Ignore for all other masters.
@@ -478,7 +490,9 @@ export const listActiveMastersByTypeService = async (
   requestedBranchId?: string
 ) => {
   const instituteId = currentUser.instituteId;
-  const branchId = getBranchFilter(currentUser, requestedBranchId);
+  const branchId = isInstituteWideMasterType(entityType)
+    ? undefined
+    : getBranchFilter(currentUser, requestedBranchId);
   const { cacheGet, cacheSet } = await import("../../config/cache");
   const cacheKey = `masters:active:${instituteId}:${entityType}:${branchId || "all"}`;
   const cached = await cacheGet<unknown>(cacheKey);

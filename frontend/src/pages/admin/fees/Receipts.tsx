@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 import { PageContainer, PageHeader } from "@/components/layout";
+import type { Payment } from "@/types/fee.types";
 
 async function triggerPdfDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -28,6 +29,23 @@ async function triggerPdfDownload(blob: Blob, filename: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function receiptTypeLabel(receipt: Payment): string {
+  if (receipt.feeHead?.trim()) return receipt.feeHead.trim();
+
+  const fromAllocations = (receipt.allocations || [])
+    .map((a) => a.pendingFee?.feeHead?.trim())
+    .filter((name): name is string => Boolean(name));
+  if (fromAllocations.length > 0) {
+    return [...new Set(fromAllocations)].join(", ");
+  }
+
+  const notes = receipt.notes?.trim() || "";
+  if (/^Application fee\b/i.test(notes)) return "Application Fee";
+  if (/down payment|initial/i.test(notes)) return "Course Fee";
+
+  return "—";
 }
 
 export const Receipts: React.FC = () => {
@@ -93,6 +111,7 @@ export const Receipts: React.FC = () => {
               <TableRow>
                 <TableHead>Receipt No</TableHead>
                 <TableHead>Student</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead>Date</TableHead>
@@ -104,14 +123,14 @@ export const Receipts: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-red-600">
+                  <TableCell colSpan={9} className="text-center py-8 text-red-600">
                     <AlertCircle className="w-5 h-5 inline mr-2" />
                     Failed to load.
                     <Button variant="link" onClick={() => refetch()}>
@@ -121,23 +140,13 @@ export const Receipts: React.FC = () => {
                 </TableRow>
               ) : !Array.isArray(receipts) || receipts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No receipts found.
                   </TableCell>
                 </TableRow>
               ) : (
-                receipts.map(
-                  (r: {
-                    id: string;
-                    receiptNo: string;
-                    studentName: string;
-                    amount: number;
-                    method: string;
-                    date: string;
-                    status: string;
-                    receiptPdfUrl?: string | null;
-                  }) => (
+                (receipts as Payment[]).map((r) => (
                     <TableRow
                       key={r.id}
                       className="cursor-pointer hover:bg-muted/40"
@@ -145,6 +154,11 @@ export const Receipts: React.FC = () => {
                     >
                       <TableCell className="font-mono font-medium">{r.receiptNo}</TableCell>
                       <TableCell>{r.studentName}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {receiptTypeLabel(r)}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="font-bold">{formatMoney(r.amount ?? 0)}</TableCell>
                       <TableCell>{r.method}</TableCell>
                       <TableCell>{formatOrgDate(r.date)}</TableCell>

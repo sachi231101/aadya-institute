@@ -11,7 +11,6 @@ import {
   Phone,
   PhoneCall,
   Play,
-  Plus,
   RefreshCw,
   Search,
   Upload,
@@ -63,7 +62,6 @@ import { ROUTES } from "@/constants/routes";
 import type { CallLog, Lead } from "@/services/leads.api";
 import { AiCallingResultCard } from "@/pages/admin/leads/components/AiCallingResultCard";
 import { CallDetailDrawer } from "@/pages/admin/leads/components/CallDetailDrawer";
-import { LeadCreateForm } from "@/pages/admin/leads/components/LeadCreateForm";
 import { LeadWorkspaceShell } from "@/pages/admin/leads/components/LeadWorkspaceShell";
 import {
   LeadDataSurface,
@@ -215,8 +213,6 @@ export const AiCallingQualification: React.FC = () => {
   const [toastTone, setToastTone] = useState<"default" | "error">("default");
   const [detailCall, setDetailCall] = useState<CallLog | null>(null);
   const [showDetailDrawer, setShowDetailDrawer] = useState(false);
-
-  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
 
   const [showImportModal, setShowImportModal] = useState(false);
   const [importJobs, setImportJobs] = useState<ImportFileJob[]>([]);
@@ -663,15 +659,6 @@ export const AiCallingQualification: React.FC = () => {
               Start AI Call
               {selectedLeadIds.size > 0 ? ` (${selectedLeadIds.size})` : ""}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowAddLeadModal(true)}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              Add Lead
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">
@@ -1003,31 +990,6 @@ export const AiCallingQualification: React.FC = () => {
         open={showDetailDrawer}
         onOpenChange={setShowDetailDrawer}
       />
-
-      {/* Add lead — same form as Leads → Add New Lead */}
-      <Dialog
-        open={showAddLeadModal}
-        onOpenChange={setShowAddLeadModal}
-      >
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Lead</DialogTitle>
-          </DialogHeader>
-          <LeadCreateForm
-            submitLabel="Create Lead"
-            onCancel={() => setShowAddLeadModal(false)}
-            footerHint="AI call queues automatically on create when AI calling is enabled. Counsellor is assigned after the post-call score meets the institute threshold."
-            onSuccess={({ name }) => {
-              showToast(
-                `Lead ${name} created — AI call queued (counsellor assigns after score ≥ threshold)`
-              );
-              setShowAddLeadModal(false);
-              queryClient.invalidateQueries({ queryKey: ["leads"] });
-              queryClient.invalidateQueries({ queryKey: ["leads", "call-history"] });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Import Excel/CSV */}
       <Dialog open={showImportModal} onOpenChange={setShowImportModal}>

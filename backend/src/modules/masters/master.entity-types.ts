@@ -51,3 +51,12 @@ export const getMasterEntityTypeDef = (
   entityType: string
 ): MasterEntityTypeDef | undefined =>
   MASTER_ENTITY_TYPES.find((t) => t.id === entityType.toLowerCase());
+
+/**
+ * Accounting / fee masters are institute-wide (Cash, UPI, fee heads, etc.).
+ * Branch-scoping them hides options when the form uses another branch.
+ */
+export const isInstituteWideMasterType = (entityType: string): boolean => {
+  const def = getMasterEntityTypeDef(entityType);
+  return def?.category === "ACCOUNTING_FEES";
+};

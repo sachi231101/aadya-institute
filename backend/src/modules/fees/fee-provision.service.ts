@@ -25,7 +25,12 @@ export async function resolveTuitionFeeHead(
   instituteId: string
 ): Promise<{ id: string; name: string; code: string | null }> {
   const byCode = await tx.masterRecord.findFirst({
-    where: { instituteId, entityType: "feeheads", code: "TUITION", status: "ACTIVE" },
+    where: {
+      instituteId,
+      entityType: "feeheads",
+      status: "ACTIVE",
+      OR: [{ code: "TUITION" }, { code: "COURSE" }, { code: "COURSE_FEE" }],
+    },
     orderBy: { createdAt: "asc" },
   });
   if (byCode) return { id: byCode.id, name: byCode.name, code: byCode.code };
@@ -34,19 +39,24 @@ export async function resolveTuitionFeeHead(
     where: {
       instituteId,
       entityType: "feeheads",
-      name: { contains: "tuition", mode: "insensitive" },
       status: "ACTIVE",
+      AND: [
+        {
+          OR: [
+            { name: { contains: "tuition", mode: "insensitive" } },
+            { name: { contains: "course fee", mode: "insensitive" } },
+            { name: { equals: "course fees", mode: "insensitive" } },
+          ],
+        },
+        { NOT: { code: "APPLICATION_FEE" } },
+        { NOT: { name: { contains: "application", mode: "insensitive" } } },
+      ],
     },
     orderBy: { createdAt: "asc" },
   });
   if (byName) return { id: byName.id, name: byName.name, code: byName.code };
 
-  const any = await tx.masterRecord.findFirst({
-    where: { instituteId, entityType: "feeheads", status: "ACTIVE" },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
-  if (any) return { id: any.id, name: any.name, code: any.code };
-
+  // Never fall back to an unrelated head (e.g. Application Fee) — create Tuition.
   const created = await tx.masterRecord.create({
     data: {
       instituteId,

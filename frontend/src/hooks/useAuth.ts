@@ -92,8 +92,10 @@ export const useCurrentUserSync = () => {
       return freshUser;
     },
     enabled: !!token,
-    refetchInterval: 2000, // Auto-sync every 2 seconds for immediate live updates
-    refetchOnWindowFocus: true, // Sync immediately when returning to the tab
-    staleTime: 0,
+    // Permission changes sync via focus / BroadcastChannel / aadya_user_sync events.
+    // Keep a slow safety poll — 2s was flooding the API.
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
   });
 };

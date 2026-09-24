@@ -1,6 +1,9 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { findMasterRecordById } from "./master.repository";
-import { isAllowedMasterEntityType } from "./master.entity-types";
+import {
+  isAllowedMasterEntityType,
+  isInstituteWideMasterType,
+} from "./master.entity-types";
 
 export interface ResolvedMasterRecord {
   id: string;
@@ -51,6 +54,7 @@ export const assertActiveMaster = async (
 
   if (
     enforceBranch &&
+    !isInstituteWideMasterType(normalizedType) &&
     branchId &&
     record.branchId &&
     record.branchId !== branchId
