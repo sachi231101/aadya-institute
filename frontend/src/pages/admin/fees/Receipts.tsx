@@ -4,7 +4,7 @@ import { Receipt, Search, Loader2, AlertCircle, Download, Eye, FileText } from "
 import { useFeeReceipts, useDownloadReceiptPdf } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
-import { aggregateByStudentAndFeeType } from "@/utils/fee-display.util";
+import { paymentTypeLabel } from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,12 @@ import {
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 import { PageContainer, PageHeader } from "@/components/layout";
 import type { Payment } from "@/types/fee.types";
+
+function receiptInstallmentNo(r: Payment): number | null {
+  const fromAlloc = r.allocations?.find((a) => a.pendingFee?.installmentNo)?.pendingFee
+    ?.installmentNo;
+  return typeof fromAlloc === "number" && fromAlloc > 0 ? fromAlloc : null;
+}
 
 async function triggerPdfDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -49,11 +55,10 @@ export const Receipts: React.FC = () => {
     page,
     limit: 50,
   });
-  const rawReceipts = (data?.data?.data || data?.data || []) as Payment[];
-  const receipts = useMemo(
-    () => (Array.isArray(rawReceipts) ? aggregateByStudentAndFeeType(rawReceipts) : []),
-    [rawReceipts]
-  );
+  const receipts = useMemo(() => {
+    const raw = data?.data?.data || data?.data || [];
+    return Array.isArray(raw) ? (raw as Payment[]) : [];
+  }, [data]);
   const meta = data?.data || { totalPages: 1, page: 1 };
 
   const handleDownload = async (id: string, receiptNo: string) => {
@@ -137,22 +142,17 @@ export const Receipts: React.FC = () => {
               ) : (
                 receipts.map((r) => (
                     <TableRow
-                      key={`${r.studentId || r.studentName}-${r.typeLabel}`}
+                      key={r.id}
                       className="cursor-pointer hover:bg-muted/40"
                       onClick={() => navigate(`${basePath}/fees/receipts/${r.id}`)}
                     >
                       <TableCell className="font-mono font-medium">
-                        <div>{r.receiptNo}</div>
-                        {r.sourceIds.length > 1 ? (
-                          <div className="text-[11px] text-text-muted mt-0.5">
-                            +{r.sourceIds.length - 1} more
-                          </div>
-                        ) : null}
+                        {r.receiptNo}
                       </TableCell>
                       <TableCell>{r.studentName}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-normal">
-                          {r.typeLabel}
+                          {paymentTypeLabel(r.feeHead, r.notes, receiptInstallmentNo(r))}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-bold">{formatMoney(r.amount ?? 0)}</TableCell>

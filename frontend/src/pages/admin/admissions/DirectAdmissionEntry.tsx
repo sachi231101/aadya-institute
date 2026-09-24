@@ -73,6 +73,7 @@ import {
 } from "@/utils/batch.utils";
 import { studentsApi } from "@/services/students.api";
 import { admissionsApi } from "@/services/admissions.api";
+import { feesApi } from "@/services/fees.api";
 import { branchesApi } from "@/services/branches.api";
 import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
@@ -1261,6 +1262,11 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please enter a valid 10-digit mobile number.");
       return false;
     }
+    const guardianDigits = guardianPhone.replace(/\D/g, "");
+    if (guardianPhone.trim() && guardianDigits.length !== 10) {
+      notifyError("Emergency / Guardian Mobile must be a 10-digit mobile number.");
+      return false;
+    }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       notifyError("Please enter a valid email address.");
       return false;
@@ -1511,9 +1517,11 @@ export const DirectAdmissionEntry: React.FC = () => {
             paymentModeOptions.find((o) => o.value === paymentModeMasterId)
           ),
           sendCredentials: isPrimary && status === "CONFIRMED",
-          // Each course gets its own fee lines tagged with that course name
+          // Fee lines + installment schedule are created per course, but the
+          // "amount paid today" receipt is recorded once after all courses
+          // (avoids course-split receipts for a single admission payment).
           totalFee: courseTotal > 0 ? courseTotal : undefined,
-          amountPaid: courseTotal > 0 ? coursePaid : undefined,
+          amountPaid: 0,
           installments:
             courseTotal > 0 &&
             paymentMode === "INSTALLMENT" &&
@@ -1525,7 +1533,15 @@ export const DirectAdmissionEntry: React.FC = () => {
                   admissionDate,
                   courseRemainingSchedule
                 )
-              : undefined,
+              : courseTotal > 0 && coursePaid > 0 && courseBalance === 0
+                ? [
+                    {
+                      installmentNo: 1,
+                      dueDate: admissionDate,
+                      amount: courseTotal,
+                    },
+                  ]
+                : undefined,
         };
 
         const result = await admissionsApi.createAdmission(payload);
@@ -1566,6 +1582,27 @@ export const DirectAdmissionEntry: React.FC = () => {
               // non-fatal
             }
           }
+        } else if (!createdStudentId) {
+          createdStudentId =
+            (result.data as { student?: { id?: string }; studentId?: string })?.student?.id ||
+            (result.data as { studentId?: string })?.studentId ||
+            createdStudentId;
+        }
+      }
+
+      // One receipt for the full admission payment (not one per course).
+      if (status === "CONFIRMED" && paidTotal > 0 && createdStudentId && paymentModeMasterId) {
+        try {
+          await feesApi.createPayment({
+            studentId: createdStudentId,
+            amount: paidTotal,
+            paymentModeMasterId,
+            date: admissionDate || undefined,
+            notes: "Initial / down payment",
+            transactionRef: undefined,
+          });
+        } catch {
+          // Fee lines exist; collection can be completed from Student Fees if this fails.
         }
       }
 
@@ -1964,11 +2001,19 @@ export const DirectAdmissionEntry: React.FC = () => {
                   
 
                   <div>
-                    <label className="text-xs font-semibold text-foreground block mb-1">Emergency / Guardian Mobile</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      Emergency / Guardian Mobile
+                    </label>
                     <Input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={10}
                       value={guardianPhone}
-                      onChange={(e) => setGuardianPhone(e.target.value)}
-                      placeholder="Emergency contact number"
+                      onChange={(e) =>
+                        setGuardianPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      }
+                      placeholder="10-digit mobile number"
                       className="bg-background border-border text-foreground"
                     />
                   </div>

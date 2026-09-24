@@ -207,6 +207,7 @@ export interface StudentInvoice {
   admissionNo: string;
   courseName: string;
   feeHead?: string | null;
+  installmentNo?: number;
   totalAmount: number;
   amountPaid: number;
   balance: number;

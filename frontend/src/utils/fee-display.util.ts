@@ -15,6 +15,25 @@ export function normalizeFeeHeadLabel(
   return head || "Fee";
 }
 
+/** Label for a single payment/receipt row (no summing). */
+export function paymentTypeLabel(
+  feeHead?: string | null,
+  notes?: string | null,
+  installmentNo?: number | null
+): string {
+  const notesText = notes || "";
+  if (/application\s*fee/i.test(notesText) || /application\s*fee/i.test(feeHead || "")) {
+    return "Application Fee";
+  }
+  // Admission "amount paid today" is not an installment due
+  if (/down payment|initial\s*\/|initial payment/i.test(notesText)) {
+    return "Initial payment";
+  }
+  const head = normalizeFeeHeadLabel(feeHead, notes);
+  const inst = installmentNo && installmentNo > 0 ? installmentNo : null;
+  return inst ? `${head} · Inst ${inst}` : head;
+}
+
 export type MoneyLike = {
   id: string;
   studentId?: string | null;
@@ -34,84 +53,60 @@ export type MoneyLike = {
   [key: string]: unknown;
 };
 
-/** Payments / receipts: one row per student + fee type (Tuition Fee, Application Fee, …). */
-export function aggregateByStudentAndFeeType<T extends MoneyLike>(
+type InvoiceLike = MoneyLike & {
+  invoiceNo?: string;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  pendingFee?: {
+    id?: string;
+    feeHead?: string | null;
+    installmentNo?: number;
+  } | null;
+};
+
+function invoiceInstallmentNo(row: InvoiceLike): number {
+  const fromPending = row.pendingFee?.installmentNo;
+  if (typeof fromPending === "number" && fromPending > 0) return fromPending;
+  if (typeof row.installmentNo === "number" && row.installmentNo > 0) return row.installmentNo;
+  return 1;
+}
+
+function invoiceFeeHead(row: InvoiceLike): string | null | undefined {
+  return row.feeHead ?? row.pendingFee?.feeHead ?? null;
+}
+
+/**
+ * Invoices: one row per student + installment + fee head
+ * (same grain as Pending dues). Never shows "+N more".
+ */
+export function aggregateInvoicesByStudentAndInstallment<T extends InvoiceLike>(
   rows: T[]
 ): Array<
   T & {
     typeLabel: string;
+    installmentNo: number;
     sourceIds: string[];
-    amount: number;
   }
 > {
   const map = new Map<
     string,
-    T & { typeLabel: string; sourceIds: string[]; amount: number }
+    T & { typeLabel: string; installmentNo: number; sourceIds: string[] }
   >();
 
   for (const row of rows) {
-    const typeLabel = normalizeFeeHeadLabel(row.feeHead, row.notes as string | null);
-    const key = `${row.studentId || row.studentName}::${typeLabel}`;
-    const amt = Number(row.amount ?? 0);
+    const head = normalizeFeeHeadLabel(invoiceFeeHead(row), row.notes as string | null);
+    const inst = invoiceInstallmentNo(row);
+    const typeLabel = /application/i.test(head) ? head : `${head} · Inst ${inst}`;
+    const key = `${row.studentId || row.studentName}::${head}::${inst}`;
     const existing = map.get(key);
     if (!existing) {
       map.set(key, {
         ...row,
+        feeHead: head,
         typeLabel,
+        installmentNo: inst,
         sourceIds: [row.id],
-        amount: amt,
-      });
-      continue;
-    }
-    existing.amount = Number(existing.amount) + amt;
-    existing.sourceIds.push(row.id);
-    const rowDate = row.date || row.dueDate;
-    const existingDate = existing.date || existing.dueDate;
-    if (rowDate && existingDate && new Date(rowDate) > new Date(existingDate)) {
-      existing.id = row.id;
-      existing.date = row.date;
-      existing.status = row.status;
-      Object.assign(existing, {
-        receiptNo: (row as { receiptNo?: string }).receiptNo ?? (existing as { receiptNo?: string }).receiptNo,
-        method: (row as { method?: string }).method ?? (existing as { method?: string }).method,
-        receiptPdfUrl:
-          (row as { receiptPdfUrl?: string | null }).receiptPdfUrl ??
-          (existing as { receiptPdfUrl?: string | null }).receiptPdfUrl,
-      });
-    }
-  }
-
-  return [...map.values()].sort((a, b) => {
-    const da = a.date || a.dueDate || "";
-    const db = b.date || b.dueDate || "";
-    return new Date(db).getTime() - new Date(da).getTime();
-  });
-}
-
-/** Invoices: one row per student + fee head (no course column). */
-export function aggregateInvoicesByStudentAndFeeHead<
-  T extends MoneyLike & {
-    invoiceNo?: string;
-    totalAmount: number;
-    amountPaid: number;
-    balance: number;
-  },
->(rows: T[]): Array<T & { typeLabel: string; sourceIds: string[]; invoiceNos: string[] }> {
-  const map = new Map<
-    string,
-    T & { typeLabel: string; sourceIds: string[]; invoiceNos: string[] }
-  >();
-
-  for (const row of rows) {
-    const typeLabel = normalizeFeeHeadLabel(row.feeHead, null);
-    const key = `${row.studentId || row.studentName}::${typeLabel}`;
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, {
-        ...row,
-        typeLabel,
-        sourceIds: [row.id],
-        invoiceNos: row.invoiceNo ? [row.invoiceNo] : [],
         totalAmount: Number(row.totalAmount),
         amountPaid: Number(row.amountPaid),
         balance: Number(row.balance),
@@ -122,16 +117,25 @@ export function aggregateInvoicesByStudentAndFeeHead<
     existing.amountPaid = Number(existing.amountPaid) + Number(row.amountPaid);
     existing.balance = Number(existing.balance) + Number(row.balance);
     existing.sourceIds.push(row.id);
-    if (row.invoiceNo) existing.invoiceNos.push(row.invoiceNo);
+    // Keep earliest due date and worst status; prefer latest invoice no as primary id
     if (row.dueDate && existing.dueDate && new Date(row.dueDate) < new Date(existing.dueDate)) {
       existing.dueDate = row.dueDate;
     }
     if (row.status === "OVERDUE") existing.status = "OVERDUE";
+    const rowDate = row.date || row.dueDate || (row as { invoiceDate?: string }).invoiceDate;
+    const existingDate =
+      existing.date || existing.dueDate || (existing as { invoiceDate?: string }).invoiceDate;
+    if (rowDate && existingDate && new Date(rowDate) >= new Date(existingDate)) {
+      existing.id = row.id;
+      if (row.invoiceNo) existing.invoiceNo = row.invoiceNo;
+    }
   }
 
-  return [...map.values()].sort((a, b) =>
-    a.studentName.localeCompare(b.studentName) ||
-    a.typeLabel.localeCompare(b.typeLabel)
+  return [...map.values()].sort(
+    (a, b) =>
+      a.studentName.localeCompare(b.studentName) ||
+      a.typeLabel.localeCompare(b.typeLabel) ||
+      a.installmentNo - b.installmentNo
   );
 }
 
@@ -152,6 +156,7 @@ export function aggregateChargesByFeeHeadAndInstallment<
     );
     const inst = row.installmentNo || 1;
     const key = `${typeLabel}::${inst}`;
+    const rowDue = Number(row.dueAmount);
     const existing = map.get(key);
     if (!existing) {
       map.set(key, {
@@ -160,13 +165,22 @@ export function aggregateChargesByFeeHeadAndInstallment<
         typeLabel,
         sourceIds: [row.id],
         amountPaid: Number(row.amountPaid),
-        dueAmount: Number(row.dueAmount),
+        dueAmount: rowDue,
       });
       continue;
     }
+    const existingHadOpenDue = Number(existing.dueAmount) > 0.009;
     existing.amountPaid = Number(existing.amountPaid) + Number(row.amountPaid);
-    existing.dueAmount = Number(existing.dueAmount) + Number(row.dueAmount);
+    existing.dueAmount = Number(existing.dueAmount) + rowDue;
     existing.sourceIds.push(row.id);
+    // Collect must target a line that still has due (not a paid course slice).
+    if (!existingHadOpenDue && rowDue > 0.009) {
+      existing.id = row.id;
+      existing.status = row.status;
+      existing.invoiceNo = (row as { invoiceNo?: string | null }).invoiceNo ?? existing.invoiceNo;
+      existing.feeHeadMasterId =
+        (row as { feeHeadMasterId?: string }).feeHeadMasterId ?? existing.feeHeadMasterId;
+    }
     if (row.dueDate && existing.dueDate && new Date(row.dueDate) < new Date(existing.dueDate)) {
       existing.dueDate = row.dueDate;
     }

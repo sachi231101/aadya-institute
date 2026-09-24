@@ -21,10 +21,10 @@ import {
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import {
-  aggregateByStudentAndFeeType,
   aggregateChargesByFeeHeadAndInstallment,
-  aggregateInvoicesByStudentAndFeeHead,
+  aggregateInvoicesByStudentAndInstallment,
   normalizeFeeHeadLabel,
+  paymentTypeLabel,
 } from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +66,12 @@ export const StudentFeeProfile: React.FC = () => {
   const [chargeDueDate, setChargeDueDate] = useState("");
   const [chargeCourseKey, setChargeCourseKey] = useState("");
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
-  const [collectOutstanding, setCollectOutstanding] = useState(false);
+  const [collectStudent, setCollectStudent] = useState<{
+    id: string;
+    name: string;
+    admissionNo?: string | null;
+    outstanding: number;
+  } | null>(null);
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
   const { toast, showToast, clearToast } = useFeeToast();
 
@@ -78,18 +83,18 @@ export const StudentFeeProfile: React.FC = () => {
     [statement?.pendingFees]
   );
   const payments = useMemo(
-    () => aggregateByStudentAndFeeType((statement?.payments || []) as Payment[]),
+    () => (statement?.payments || []) as Payment[],
     [statement?.payments]
   );
   const invoices = useMemo(
     () =>
-      aggregateInvoicesByStudentAndFeeHead((statement?.invoices || []) as StudentInvoice[]),
+      aggregateInvoicesByStudentAndInstallment((statement?.invoices || []) as StudentInvoice[]),
     [statement?.invoices]
   );
   const receipts = useMemo(() => {
     const raw = (statement?.receipts ||
       (statement?.payments || []).filter((p) => p.status === "SUCCESS")) as Payment[];
-    return aggregateByStudentAndFeeType(raw);
+    return raw;
   }, [statement?.receipts, statement?.payments]);
   const openPending = useMemo(
     () => pendingFees.filter((f) => Number(f.dueAmount || 0) > 0),
@@ -129,6 +134,22 @@ export const StudentFeeProfile: React.FC = () => {
         "Failed to create charge";
       showToast(message, "error");
     }
+  };
+
+  const handleCollectPending = (f: PendingFee & { sourceIds?: string[] }) => {
+    const sources = f.sourceIds?.length ? f.sourceIds : [f.id];
+    if (sources.length > 1 && studentId && statement?.student) {
+      setCollectItem(null);
+      setCollectStudent({
+        id: studentId,
+        name: statement.student.name,
+        admissionNo: statement.student.admissionNo || statement.student.studentCode,
+        outstanding: Number(f.dueAmount),
+      });
+      return;
+    }
+    setCollectStudent(null);
+    setCollectItem({ ...f, dueAmount: Number(f.dueAmount) });
   };
 
   const handleSendReminder = async (item: PendingFee) => {
@@ -222,7 +243,18 @@ export const StudentFeeProfile: React.FC = () => {
             </Button>
             {outstanding > 0 && (
               <PermissionGate itemKey="fees.students" mode="write">
-                <Button className="gap-2" onClick={() => setCollectOutstanding(true)}>
+                <Button
+                  className="gap-2"
+                  onClick={() =>
+                    setCollectStudent({
+                      id: statement.student.id,
+                      name: statement.student.name,
+                      admissionNo:
+                        statement.student.admissionNo || statement.student.studentCode,
+                      outstanding,
+                    })
+                  }
+                >
                   <CreditCard className="h-4 w-4" /> Collect outstanding
                 </Button>
               </PermissionGate>
@@ -452,16 +484,13 @@ export const StudentFeeProfile: React.FC = () => {
                     </TableRow>
                   ) : (
                     invoices.map((inv) => (
-                      <TableRow key={`${inv.typeLabel}-${inv.id}`}>
+                      <TableRow key={`${inv.typeLabel}-${inv.installmentNo}-${inv.id}`}>
                         <TableCell>
                           <Link
                             to={`${basePath}/fees/invoices/${inv.id}`}
                             className="font-mono text-sm text-primary hover:underline"
                           >
                             {inv.invoiceNo}
-                            {inv.sourceIds.length > 1
-                              ? ` (+${inv.sourceIds.length - 1})`
-                              : ""}
                           </Link>
                         </TableCell>
                         <TableCell>{inv.typeLabel}</TableCell>
@@ -506,16 +535,18 @@ export const StudentFeeProfile: React.FC = () => {
                     </TableRow>
                   ) : (
                     payments.map((p) => (
-                      <TableRow key={`${p.typeLabel}-${p.id}`}>
+                      <TableRow key={p.id}>
                         <TableCell className="font-mono text-sm">
                           {p.receiptNo}
-                          {p.sourceIds.length > 1
-                            ? ` (+${p.sourceIds.length - 1})`
-                            : ""}
                         </TableCell>
                         <TableCell className="font-bold">{formatMoney(p.amount)}</TableCell>
                         <TableCell className="text-xs text-slate-600 max-w-[220px]">
-                          {p.typeLabel}
+                          {paymentTypeLabel(
+                            p.feeHead,
+                            p.notes,
+                            p.allocations?.find((a) => a.pendingFee?.installmentNo)?.pendingFee
+                              ?.installmentNo
+                          )}
                         </TableCell>
                         <TableCell>{p.method}</TableCell>
                         <TableCell>{formatOrgDate(p.date)}</TableCell>
@@ -573,7 +604,7 @@ export const StudentFeeProfile: React.FC = () => {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <PermissionGate itemKey="fees.students" mode="write">
-                              <Button size="sm" onClick={() => setCollectItem(f)}>
+                              <Button size="sm" onClick={() => handleCollectPending(f)}>
                                 Collect
                               </Button>
                             </PermissionGate>
@@ -630,14 +661,18 @@ export const StudentFeeProfile: React.FC = () => {
                     </TableRow>
                   ) : (
                     receipts.map((r) => (
-                      <TableRow key={`${r.typeLabel}-${r.id}`}>
+                      <TableRow key={r.id}>
                         <TableCell className="font-mono text-sm">
                           {r.receiptNo}
-                          {r.sourceIds.length > 1
-                            ? ` (+${r.sourceIds.length - 1})`
-                            : ""}
                         </TableCell>
-                        <TableCell>{r.typeLabel}</TableCell>
+                        <TableCell>
+                          {paymentTypeLabel(
+                            r.feeHead,
+                            r.notes,
+                            r.allocations?.find((a) => a.pendingFee?.installmentNo)?.pendingFee
+                              ?.installmentNo
+                          )}
+                        </TableCell>
                         <TableCell className="font-bold">{formatMoney(r.amount)}</TableCell>
                         <TableCell>{formatOrgDate(r.date)}</TableCell>
                         <TableCell>
@@ -750,16 +785,11 @@ export const StudentFeeProfile: React.FC = () => {
         />
       )}
 
-      {collectOutstanding && statement && (
+      {collectStudent && (
         <CollectFeeModal
           mode="student"
-          student={{
-            id: statement.student.id,
-            name: statement.student.name,
-            admissionNo: statement.student.studentCode,
-            outstanding,
-          }}
-          onClose={() => setCollectOutstanding(false)}
+          student={collectStudent}
+          onClose={() => setCollectStudent(null)}
           onSuccess={(msg) => {
             showToast(msg, "success");
             void refetch();

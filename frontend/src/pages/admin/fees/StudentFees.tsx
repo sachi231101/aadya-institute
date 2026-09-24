@@ -28,13 +28,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { FeeStudentRow } from "@/types/fee.types";
-import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { CourseChips } from "@/components/common/CourseChips";
 import { coursesFromStudent } from "@/utils/admission-package.utils";
 import { PendingFees } from "./PendingFees";
-import { CollectFeeModal } from "./CollectFeeModal";
-import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 const statusVariant = (status: FeeStudentRow["status"]) => {
   if (status === "Overdue") return "destructive" as const;
@@ -49,7 +46,6 @@ export const StudentFees: React.FC = () => {
   const basePath = getPortalBasePath(location.pathname);
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
-  const { toast, showToast, clearToast } = useFeeToast();
 
   const tab = searchParams.get("tab") === "pending" ? "pending" : "students";
   const dueWithinDaysParam = searchParams.get("dueWithinDays");
@@ -60,7 +56,6 @@ export const StudentFees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
-  const [collectStudent, setCollectStudent] = useState<FeeStudentRow | null>(null);
 
   const { data: statsData } = useFeeStats();
   const stats = statsData?.data;
@@ -267,23 +262,11 @@ export const StudentFees: React.FC = () => {
                           <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-2">
-                            {row.balance > 0 && (
-                              <PermissionGate itemKey="fees.students" mode="write">
-                                <Button
-                                  size="sm"
-                                  onClick={() => setCollectStudent(row)}
-                                >
-                                  Collect
-                                </Button>
-                              </PermissionGate>
-                            )}
-                            <Button variant="outline" size="sm" asChild>
-                              <Link to={`${basePath}/fees/students/${row.id}`}>
-                                Profile
-                              </Link>
-                            </Button>
-                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`${basePath}/fees/students/${row.id}`}>
+                              Profile
+                            </Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -324,25 +307,6 @@ export const StudentFees: React.FC = () => {
           <PendingFees embedded initialDueWithinDays={dueWithinDays} />
         </TabsContent>
       </Tabs>
-
-      {collectStudent && (
-        <CollectFeeModal
-          mode="student"
-          student={{
-            id: collectStudent.id,
-            name: collectStudent.name,
-            admissionNo: collectStudent.admissionNo,
-            outstanding: collectStudent.balance,
-          }}
-          onClose={() => setCollectStudent(null)}
-          onSuccess={(msg) => {
-            showToast(msg, "success");
-            void refetch();
-          }}
-        />
-      )}
-
-      <FeeToastBanner toast={toast} onClose={clearToast} />
     </PageContainer>
   );
 };

@@ -579,6 +579,119 @@ async function redistributeLumpedRemainingInstallments(
 }
 
 /**
+ * Multi-course admission used to create one "Initial / down payment" receipt
+ * per course. Merge same-student batches created within a short window into
+ * a single receipt (dues stay paid; only payment rows are consolidated).
+ */
+async function mergeSplitInitialDownPayments(instituteId: string): Promise<number> {
+  const payments = await prisma.payment.findMany({
+    where: {
+      instituteId,
+      status: "SUCCESS",
+      notes: { contains: "Initial / down payment", mode: "insensitive" },
+      studentId: { not: null },
+    },
+    include: { allocations: true },
+    orderBy: [{ studentId: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    take: 2000,
+  });
+
+  type Pay = (typeof payments)[number];
+  const byStudent = new Map<string, Pay[]>();
+  for (const p of payments) {
+    if (!p.studentId) continue;
+    const list = byStudent.get(p.studentId) || [];
+    list.push(p);
+    byStudent.set(p.studentId, list);
+  }
+
+  const WINDOW_MS = 5 * 60 * 1000;
+  let merged = 0;
+
+  for (const [, list] of byStudent) {
+    if (list.length < 2) continue;
+
+    // Cluster by createdAt proximity
+    const clusters: Pay[][] = [];
+    let current: Pay[] = [list[0]];
+    for (let i = 1; i < list.length; i += 1) {
+      const prev = current[current.length - 1];
+      const gap = list[i].createdAt.getTime() - prev.createdAt.getTime();
+      if (gap <= WINDOW_MS) {
+        current.push(list[i]);
+      } else {
+        clusters.push(current);
+        current = [list[i]];
+      }
+    }
+    clusters.push(current);
+
+    for (const cluster of clusters) {
+      if (cluster.length < 2) continue;
+      const [primary, ...extras] = cluster;
+      const extraIds = extras.map((e) => e.id);
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          let total = toMoneyNumber(primary.amount);
+          for (const extra of extras) {
+            total = roundMoney(total + toMoneyNumber(extra.amount));
+            for (const alloc of extra.allocations) {
+              const exists = await tx.paymentAllocation.findFirst({
+                where: {
+                  paymentId: primary.id,
+                  pendingFeeId: alloc.pendingFeeId,
+                },
+              });
+              if (exists) {
+                await tx.paymentAllocation.update({
+                  where: { id: exists.id },
+                  data: {
+                    amount: roundMoney(toMoneyNumber(exists.amount) + toMoneyNumber(alloc.amount)),
+                  },
+                });
+                await tx.paymentAllocation.delete({ where: { id: alloc.id } });
+              } else {
+                await tx.paymentAllocation.update({
+                  where: { id: alloc.id },
+                  data: { paymentId: primary.id },
+                });
+              }
+            }
+            await tx.payment.delete({ where: { id: extra.id } });
+          }
+          await tx.payment.update({
+            where: { id: primary.id },
+            data: {
+              amount: total,
+              notes: "Initial / down payment",
+              pendingFeeId: null,
+            },
+          });
+        });
+        merged += extras.length;
+        logger.info("Merged split initial down-payment receipts", {
+          instituteId,
+          studentId: primary.studentId,
+          keptReceipt: primary.receiptNo,
+          removed: extras.map((e) => e.receiptNo),
+          totalAmount: toMoneyNumber(primary.amount),
+        });
+      } catch (err) {
+        logger.warn("Failed to merge split down-payment receipts", {
+          instituteId,
+          studentId: primary.studentId,
+          paymentIds: [primary.id, ...extraIds],
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  return merged;
+}
+
+/**
  * Legacy admissions sometimes created SUCCESS receipts without PaymentAllocation
  * rows, so PendingFee dues never decreased. Allocate those receipts FIFO onto
  * the student's open charge lines (once per process per institute).
@@ -622,6 +735,14 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     }
   );
 
+  const mergedDownPayments = await mergeSplitInitialDownPayments(instituteId).catch((err) => {
+    logger.warn("Failed merge split down-payment repair", {
+      instituteId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  });
+
   const orphans = await prisma.payment.findMany({
     where: {
       instituteId,
@@ -637,13 +758,19 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     inflatedFixed === 0 &&
     misattributedFixed === 0 &&
     wipedFixed === 0 &&
-    redistributedFixed === 0
+    redistributedFixed === 0 &&
+    mergedDownPayments === 0
   ) {
     repairedInstitutes.add(instituteId);
     return 0;
   }
 
-  let repaired = inflatedFixed + misattributedFixed + wipedFixed + redistributedFixed;
+  let repaired =
+    inflatedFixed +
+    misattributedFixed +
+    wipedFixed +
+    redistributedFixed +
+    mergedDownPayments;
 
   for (const payment of orphans) {
     if (!payment.studentId) continue;

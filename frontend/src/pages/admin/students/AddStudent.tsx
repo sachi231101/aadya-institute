@@ -88,8 +88,16 @@ const buildStudentSchema = (
   // Guardian / Emergency
   guardianName: z.string().optional().or(z.literal("")),
   guardianRelationMasterId: z.string().optional().or(z.literal("")),
-  guardianPhone: z.string().optional().or(z.literal("")),
-  emergencyContact: z.string().optional().or(z.literal("")),
+  guardianPhone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
+  emergencyContact: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
 
   // Parent Details (ZenoxERP-aligned)
   fatherName: z.string().optional().or(z.literal("")),
@@ -858,7 +866,19 @@ export const AddStudent: React.FC = () => {
                         Guardian Phone (SMS/WhatsApp)
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 9845012345" {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          placeholder="10-digit mobile number"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                          }
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -875,7 +895,19 @@ export const AddStudent: React.FC = () => {
                         Emergency Contact No.
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 080-23456789" {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          placeholder="10-digit mobile number"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                          }
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
