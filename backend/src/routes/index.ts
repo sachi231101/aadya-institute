@@ -19,6 +19,7 @@ import batchRoutes from "../modules/batches/batch.routes";
 import moduleRoutes from "../modules/modules/module.routes";
 import admissionsRoutes from "../modules/admissions/admissions.routes";
 import classSessionRoutes from "../modules/class-sessions/class-session.routes";
+import facultyScheduleBlockRoutes from "../modules/faculty-schedule-blocks/faculty-schedule-block.routes";
 import assignmentRoutes from "../modules/assignments/assignment.routes";
 import recordingRoutes from "../modules/recordings/recording.routes";
 import whatsappRoutes from "../modules/whatsapp/whatsapp.routes";
@@ -94,6 +95,7 @@ router.use("/leave-requests", leaveRequestRoutes);
 
 // Class Sessions & Schedule
 router.use("/class-sessions", classSessionRoutes);
+router.use("/faculty-schedule-blocks", facultyScheduleBlockRoutes);
 
 // Assignments
 router.use("/assignments", assignmentRoutes);

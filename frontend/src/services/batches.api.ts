@@ -89,6 +89,18 @@ export interface BatchData {
       user?: { id: string; name: string; email?: string; phone?: string };
     };
   }>;
+  sessionSync?: SessionSyncResult;
+}
+
+export interface SessionSyncResult {
+  created: number;
+  updated: number;
+  cancelled: number;
+  skipped: number;
+  skippedHolidays?: number;
+  skippedConflicts?: number;
+  message?: string;
+  error?: string;
 }
 
 export interface ScheduleLinePayload {
@@ -169,7 +181,10 @@ export const batchesApi = {
   },
 
   update: async (id: string, data: Partial<CreateBatchPayload> & { status?: BatchData["status"] }) => {
-    const response = await api.patch<{ success: boolean }>(`/batches/${id}`, data);
+    const response = await api.patch<{
+      success: boolean;
+      data?: { count?: number; sessionSync?: SessionSyncResult };
+    }>(`/batches/${id}`, data);
     return response.data;
   },
 
@@ -245,7 +260,11 @@ export const batchesApi = {
   },
 
   generateSessions: async (batchId: string, data?: { startDate?: string; endDate?: string }) => {
-    const response = await api.post(`/batches/${batchId}/generate-sessions`, data ?? {});
+    const response = await api.post<{
+      success: boolean;
+      message?: string;
+      data: SessionSyncResult;
+    }>(`/batches/${batchId}/generate-sessions`, data ?? {});
     return response.data;
   },
 

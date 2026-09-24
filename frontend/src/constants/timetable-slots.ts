@@ -157,6 +157,7 @@ const renumberPeriods = (slots: TimetablePeriodSlot[]): TimetablePeriodSlot[] =>
  * - Drop overnight / junk master slots outside teaching hours
  * - Prefer standard period slots for a readable timetable
  * - Always keep slots that host this week's assigned classes
+ * - Always keep master Break / Lunch columns (even if duration < 45 min)
  */
 export const selectFacultyTimetableColumns = (
   masterSlots: TimetablePeriodSlot[],
@@ -179,13 +180,17 @@ export const selectFacultyTimetableColumns = (
     return usedStarts.has(slot.start.trim().toLowerCase());
   };
 
+  const isBreakOrLunchSlot = (slot: TimetablePeriodSlot) =>
+    Boolean(slot.isBreak || slot.isLunch);
+
   const inHours = masterSlots.filter(isWithinTeachingHours);
   const pool = inHours.length > 0 ? inHours : masterSlots;
 
   const standard = pool.filter(isStandardPeriodSlot);
   const used = pool.filter(isUsedSlot);
+  const breakLunch = pool.filter(isBreakOrLunchSlot);
   const merged = new Map<string, TimetablePeriodSlot>();
-  for (const slot of [...standard, ...used]) {
+  for (const slot of [...standard, ...used, ...breakLunch]) {
     const key = slot.timeslotMasterId || `${slot.start}|${slot.end}`;
     if (!merged.has(key)) merged.set(key, slot);
   }

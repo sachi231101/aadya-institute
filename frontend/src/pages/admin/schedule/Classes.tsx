@@ -6,24 +6,17 @@ import {
   Search,
   Clock,
   CheckCircle2,
-  MapPin,
   Building2,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Users,
   AlertTriangle,
   Link as LinkIcon,
-  Laptop,
-  Code2,
-  Megaphone,
-  Table as TableIcon,
-  BarChart3,
-  Globe,
+  BookOpen,
   Check,
   Video,
+  Loader2,
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -196,7 +189,6 @@ export const Classes: React.FC = () => {
   const baseClassesRoute = isCenterPortal ? "/center/schedule/classes" : "/admin/schedule/classes";
 
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
-  const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -225,7 +217,7 @@ export const Classes: React.FC = () => {
       page: currentPage,
       limit: rowsPerPage,
     };
-    if (!isViewAllBranches && selectedBranchId && selectedBranchId !== "ALL") {
+    if (selectedBranchId && selectedBranchId !== "ALL") {
       params.branchId = selectedBranchId;
     }
     if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -248,7 +240,6 @@ export const Classes: React.FC = () => {
     }
     return params;
   }, [
-    isViewAllBranches,
     selectedBranchId,
     currentPage,
     rowsPerPage,
@@ -367,18 +358,15 @@ export const Classes: React.FC = () => {
   const formStartTime = formTimes.start;
   const formEndTime = formTimes.end;
 
-  const currentBranchInfo = useMemo(() => {
-    const found = branchesList.find((b) => b.id === selectedBranchId);
-    if (found) return { id: found.id, name: found.name, code: found.code, location: found.address || found.name };
-    const first = branchesList[0];
-    if (first) return { id: first.id, name: first.name, code: first.code, location: first.address || first.name };
-    return { id: "ALL", name: "All Branches", code: "ALL", location: "Bengaluru" };
+  const branchLabel = useMemo(() => {
+    if (selectedBranchId === "ALL") return "All branches";
+    return branchesList.find((b) => b.id === selectedBranchId)?.name ?? "All branches";
   }, [branchesList, selectedBranchId]);
 
   // Dynamic Statistics
   const stats = useMemo(() => {
     const scopeClasses =
-      isViewAllBranches || selectedBranchId === "ALL"
+      selectedBranchId === "ALL"
         ? classesList
         : classesList.filter((c) => c.branchId === selectedBranchId);
 
@@ -391,14 +379,22 @@ export const Classes: React.FC = () => {
       today: activeClasses.filter((c) => c.date === today).length,
       unassigned: activeClasses.filter((c) => !c.isFacultyAssigned).length,
     };
-  }, [classesList, selectedBranchId, isViewAllBranches]);
+  }, [classesList, selectedBranchId]);
 
   const paginatedClasses = classesList;
   const totalPages = sessionsResponse?.meta?.totalPages ?? 1;
   const totalCount = sessionsResponse?.meta?.total ?? classesList.length;
 
+  const hasActiveFilters =
+    selectedBranchId !== "ALL" ||
+    searchQuery.trim().length > 0 ||
+    selectedBatch !== "ALL" ||
+    selectedStatus !== "ALL" ||
+    selectedDate !== "";
+
   // Handlers
   const handleResetFilters = () => {
+    setSelectedBranchId("ALL");
     setSearchQuery("");
     setSelectedBatch("ALL");
     setSelectedStatus("ALL");
@@ -461,11 +457,11 @@ export const Classes: React.FC = () => {
       if (editingSessionId) {
         const response = await updateSession.mutateAsync({ id: editingSessionId, payload });
         savedSession = response.data;
-        showNotice("✓ Successfully updated class session.");
+        showNotice("Class session updated.");
       } else {
         const response = await createSession.mutateAsync(payload);
         savedSession = response.data;
-        showNotice(`✓ Successfully scheduled new class: ${payload.title} (${batch!.code}).`);
+        showNotice(`Scheduled: ${payload.title} (${batch!.code}).`);
       }
       setIsScheduleModalOpen(false);
       setEditingSessionId(null);
@@ -473,9 +469,9 @@ export const Classes: React.FC = () => {
       if (formMode === "ONLINE" && !savedSession.meetingUrl) {
         try {
           await classSessionsApi.createGoogleMeet(savedSession.id);
-          showNotice("✓ Class scheduled and Google Meet created.");
+          showNotice("Class scheduled and Google Meet created.");
         } catch {
-          showNotice("✓ Class scheduled, but Google Meet creation failed.", "error", 4500);
+          showNotice("Class scheduled, but Google Meet creation failed.", "error", 4500);
         }
       }
     } catch (err: unknown) {
@@ -525,315 +521,195 @@ export const Classes: React.FC = () => {
   };
 
   // Helper Icon Renderer
-  const renderTopicIcon = (iconType: string) => {
-    switch (iconType) {
-      case "java":
-        return (
-          <div className="w-8 h-8 rounded-xl bg-purple-100/90 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <Laptop className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-      case "python":
-        return (
-          <div className="w-8 h-8 rounded-xl bg-blue-100/90 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <Code2 className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-      case "marketing":
-        return (
-          <div className="w-8 h-8 rounded-xl bg-pink-100/90 dark:bg-pink-950/40 text-pink-700 dark:text-pink-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <Megaphone className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-      case "excel":
-        return (
-          <div className="w-8 h-8 rounded-xl bg-emerald-100/90 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <TableIcon className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-      case "powerbi":
-        return (
-          <div className="w-8 h-8 rounded-xl bg-amber-100/90 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <BarChart3 className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-      default:
-        return (
-          <div className="w-8 h-8 rounded-xl bg-cyan-100/90 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <Globe className="w-4 h-4 stroke-[2.2]" />
-          </div>
-        );
-    }
-  };
+  const renderTopicIcon = () => (
+    <div className="w-8 h-8 rounded-lg bg-muted/60 border border-border text-muted-foreground flex items-center justify-center shrink-0">
+      <BookOpen className="w-3.5 h-3.5" />
+    </div>
+  );
+
+  const metricItems = [
+    { label: "Total classes", value: sessionsLoading ? "—" : stats.total },
+    { label: "Faculty assigned", value: sessionsLoading ? "—" : stats.facultyAssigned },
+    { label: "Today", value: sessionsLoading ? "—" : stats.today },
+    { label: "Unassigned", value: sessionsLoading ? "—" : stats.unassigned },
+  ];
 
   return (
-    <PageContainer className="font-sans animate-in fade-in duration-200">
+    <PageContainer density="compact" className="animate-in fade-in duration-200">
       <PageHeader
-        title="Classes Management"
-        description="View and manage all scheduled classes and faculty assignments. Click on any class to view details."
+        title="Classes"
+        description={branchLabel}
         actions={
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
+              size="sm"
               onClick={() => {
                 resetScheduleForm();
                 setIsScheduleModalOpen(true);
               }}
-              className="bg-primary hover:bg-primary text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
+              className="h-9 gap-1.5 font-semibold shadow-sm"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Schedule Class</span>
+              <Plus className="h-3.5 w-3.5" />
+              Schedule Class
             </Button>
           </PermissionGate>
         }
       />
 
-      {/* Notification Toast */}
       {notificationMsg && (
         <div
-          className={`p-3.5 rounded-xl flex items-center gap-2 text-xs font-bold shadow-2xs border ${
+          className={`p-3 rounded-lg flex items-center gap-2 text-xs font-medium border ${
             notificationTone === "error"
-              ? "bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300"
-              : "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
+              ? "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-300"
+              : "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300"
           }`}
         >
           {notificationTone === "error" ? (
-            <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+            <AlertTriangle className="h-4 w-4 shrink-0" />
           ) : (
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
           )}
           <span>{notificationMsg}</span>
         </div>
       )}
 
-      {/* ─── 2. BRANCH SELECTION BAR ────────────────────────────────────── */}
-      <div className="space-y-1.5">
-        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
-          Select Branch
-        </label>
-        <Card className="border border-border shadow-xs bg-card rounded-xl p-3.5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3 flex-1">
-              {/* Branch Selector Dropdown */}
-              <div className="relative min-w-[280px] sm:min-w-[320px]">
-                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 pointer-events-none" />
-                <select
-                  value={selectedBranchId}
-                  onChange={(e) => {
-                    setSelectedBranchId(e.target.value);
-                    setIsViewAllBranches(e.target.value === "ALL");
-                    setCurrentPage(1);
-                  }}
-                  className="w-full h-11 pl-10 pr-9 text-xs font-bold text-foreground bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/30 outline-none transition-all appearance-none cursor-pointer"
-                >
-                  <option value="ALL">🌐 All Branches</option>
-                  {branchesList.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      📍 {b.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
-                  ▼
-                </div>
-              </div>
-
-              {/* Branch Code Card */}
-              <div className="h-11 px-4 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Branch Code</span>
-                <span className="text-xs font-bold text-foreground">{currentBranchInfo.code}</span>
-              </div>
-
-              {/* Branch Location Card */}
-              <div className="h-11 px-4 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Branch Location</span>
-                <span className="text-xs font-bold text-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-blue-500 shrink-0" />
-                  {currentBranchInfo.location}
-                </span>
-              </div>
-            </div>
-
-            {/* View All Branches Toggle */}
-            <Button
-              variant={isViewAllBranches ? "default" : "outline"}
-              onClick={() => {
-                setIsViewAllBranches(!isViewAllBranches);
-                setCurrentPage(1);
-              }}
-              className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${isViewAllBranches
-                  ? "bg-primary hover:bg-primary text-white shadow-xs"
-                  : "border-border bg-card text-foreground hover:bg-muted"
-                }`}
-            >
-              <Building2 className="h-4 w-4" />
-              <span>{isViewAllBranches ? "Showing All Branches" : "View All Branches"}</span>
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      <MetricGrid>
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 shrink-0">
-            <Calendar className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-foreground">
-                {sessionsLoading ? "—" : stats.total}
-              </span>
-              <span className="text-xs font-semibold text-muted-foreground">Scheduled</span>
-            </div>
-            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Total Classes</span>
-          </div>
-        </Card>
-
-        {/* Card 2: Faculty Assigned */}
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
-            <Users className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-foreground">
-                {sessionsLoading ? "—" : stats.facultyAssigned}
-              </span>
-              <span className="text-xs font-semibold text-muted-foreground">Faculty</span>
-            </div>
-            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Faculty Assigned</span>
-          </div>
-        </Card>
-
-        {/* Card 3: Today's Classes */}
-        <Card size="compact" className="border border-border shadow-xs bg-card rounded-xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-500 shrink-0">
-            <Clock className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-foreground">
-                {sessionsLoading ? "—" : stats.today}
-              </span>
-              <span className="text-xs font-semibold text-muted-foreground">Scheduled Today</span>
-            </div>
-            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Today's Classes</span>
-          </div>
-        </Card>
-
-        {/* Card 4: Unassigned Classes */}
-        <Card size="compact" className="border border-amber-500/30 shadow-xs bg-amber-500/10 dark:bg-amber-950/20 rounded-xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
-            <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-amber-600 dark:text-amber-300">
-                {sessionsLoading ? "—" : stats.unassigned}
-              </span>
-              <span className="text-xs font-semibold text-amber-600/80 dark:text-amber-400">Need Faculty</span>
-            </div>
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mt-0.5">Unassigned Classes</span>
-          </div>
-        </Card>
+      <MetricGrid columns="grid-cols-2 sm:grid-cols-4" density="compact">
+        {metricItems.map((kpi) => (
+          <Card
+            key={kpi.label}
+            size="compact"
+            className="border border-border bg-card shadow-none rounded-lg"
+          >
+            <CardContent size="compact">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
+              </p>
+              <h3 className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
       </MetricGrid>
 
-      <FilterToolbar className="flex flex-wrap items-center gap-2.5">
-          {/* Search Field */}
-          <div className="relative flex-1 min-w-[220px] max-w-[360px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search class, course, faculty or room..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-10 pl-9 bg-background border-border text-foreground text-xs font-medium rounded-xl"
-            />
-          </div>
-
-          {/* Batch Filter */}
-          <select
-            value={selectedBatch}
+      <FilterToolbar className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search class, course, faculty, or room…"
+            value={searchQuery}
             onChange={(e) => {
-              setSelectedBatch(e.target.value);
+              setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer min-w-[130px]"
-          >
-            <option value="ALL">All Batches</option>
-            {uniqueBatches.map((batchCode) => (
-              <option key={batchCode} value={batchCode}>
-                {batchCode}
-              </option>
-            ))}
-          </select>
+            className="h-9 pl-8 text-sm border-border"
+          />
+        </div>
 
-          {/* Status Filter */}
-          <select
-            value={selectedStatus}
+        <select
+          value={selectedBranchId}
+          onChange={(e) => {
+            setSelectedBranchId(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="h-9 min-w-[140px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+        >
+          <option value="ALL">All branches</option>
+          {branchesList.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedBatch}
+          onChange={(e) => {
+            setSelectedBatch(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="h-9 min-w-[130px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+        >
+          <option value="ALL">All batches</option>
+          {uniqueBatches.map((batchCode) => (
+            <option key={batchCode} value={batchCode}>
+              {batchCode}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedStatus}
+          onChange={(e) => {
+            setSelectedStatus(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="h-9 min-w-[130px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+        >
+          <option value="ALL">All statuses</option>
+          <option value="LIVE">Live</option>
+          <option value="SCHEDULED">Scheduled</option>
+          <option value="UNASSIGNED">Unassigned</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+
+        <div className="inline-flex items-center h-9 gap-1.5 px-2.5 rounded-lg border border-border bg-background text-sm">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <input
+            type="date"
+            value={selectedDate}
             onChange={(e) => {
-              setSelectedStatus(e.target.value);
+              setSelectedDate(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer min-w-[130px]"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="LIVE">● Live</option>
-            <option value="SCHEDULED">● Scheduled</option>
-            <option value="UNASSIGNED">● Unassigned</option>
-            <option value="COMPLETED">● Completed</option>
-            <option value="CANCELLED">● Cancelled</option>
-          </select>
+            className="bg-transparent text-sm text-foreground outline-none cursor-pointer"
+          />
+        </div>
 
-          {/* Date Filter */}
-          <div className="flex items-center gap-1.5 bg-background border border-border rounded-xl px-3 h-10 text-xs">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer"
-            />
-          </div>
-
-          {/* Reset Filters Button */}
+        {hasActiveFilters && (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleResetFilters}
-            className="h-10 text-xs font-bold text-foreground border-border hover:bg-muted rounded-xl gap-1.5 cursor-pointer ml-auto"
+            className="h-9 px-2.5 text-muted-foreground hover:text-foreground"
           >
-            <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Reset Filters</span>
+            Clear
           </Button>
+        )}
       </FilterToolbar>
 
       <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[1000px] border-collapse text-left">
             <thead>
-              <tr className="bg-muted/60 dark:bg-slate-900/90 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
-                <th className="py-3.5 px-4 pl-5">CLASS TOPIC & COURSE</th>
-                <th className="py-3.5 px-3">BATCH CODE</th>
-                <th className="py-3.5 px-4">ASSIGNED FACULTY</th>
-                <th className="py-3.5 px-4">DATE & TIME SLOT</th>
-                <th className="py-3.5 px-3 text-center">MODE</th>
-                <th className="py-3.5 px-4">LOCATION / LINK</th>
-                <th className="py-3.5 px-3 text-center">STATUS</th>
+              <tr className="bg-muted/40 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="py-3 px-4 pl-5">Class topic & course</th>
+                <th className="py-3 px-3">Batch</th>
+                <th className="py-3 px-4">Faculty</th>
+                <th className="py-3 px-4">Date & time</th>
+                <th className="py-3 px-3 text-center">Mode</th>
+                <th className="py-3 px-4">Location / link</th>
+                <th className="py-3 px-3 text-center">Status</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-border text-xs bg-card">
-              {paginatedClasses.length > 0 ? (
+              {sessionsLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="inline-flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading classes…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedClasses.length > 0 ? (
                 paginatedClasses.map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => navigate(`${baseClassesRoute}/${item.id}`)}
-                    className="hover:bg-muted/60 dark:hover:bg-slate-900/90 transition-colors cursor-pointer group"
+                    className="hover:bg-muted/50 transition-colors cursor-pointer group"
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -842,81 +718,78 @@ export const Classes: React.FC = () => {
                       }
                     }}
                   >
-                    {/* Column 1: Class Topic & Course */}
-                    <td className="py-3 px-4 pl-5 align-middle">
-                      <div className="flex items-center gap-3 select-none py-1">
-                        {renderTopicIcon(item.iconType)}
+                    <td className="py-2.5 px-4 pl-5 align-middle">
+                      <div className="flex items-center gap-3 select-none">
+                        {renderTopicIcon()}
                         <div className="min-w-0">
-                          <h4 className="font-bold text-foreground text-xs group-hover:text-[#1769AA] dark:group-hover:text-blue-400 group-hover:underline transition-colors flex items-center gap-1.5 truncate">
+                          <h4 className="font-semibold text-foreground text-xs group-hover:text-primary group-hover:underline transition-colors truncate">
                             {item.topicName}
                           </h4>
-                          <p className="text-[11px] text-muted-foreground font-medium truncate">
+                          <p className="text-[11px] text-muted-foreground truncate">
                             {item.moduleName}
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    {/* Column 2: Batch Code */}
-                    <td className="py-3 px-3 align-middle">
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-muted text-foreground border border-border inline-block tracking-wide">
+                    <td className="py-2.5 px-3 align-middle">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-muted text-foreground border border-border inline-block">
                         {item.batchCode}
                       </span>
                     </td>
 
-                    {/* Column 3: Assigned Faculty */}
-                    <td className="py-3 px-4 align-middle">
+                    <td className="py-2.5 px-4 align-middle">
                       {item.isFacultyAssigned && item.facultyName ? (
                         <div className="flex items-center gap-2.5">
-                          <Avatar className="h-8 w-8 rounded-full border border-border shadow-2xs shrink-0">
+                          <Avatar className="h-7 w-7 rounded-full border border-border shrink-0">
                             <AvatarImage src={item.facultyAvatar} alt={item.facultyName} />
-                            <AvatarFallback className="bg-[#1769AA] text-white font-bold text-xs">
+                            <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-[10px]">
                               {item.facultyName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <span className="font-bold text-foreground text-xs block truncate">
+                            <span className="font-medium text-foreground text-xs block truncate">
                               {item.facultyName}
                             </span>
-                            <span className="text-[10px] text-muted-foreground font-medium block truncate">
-                              {item.facultySpecialization || "Faculty Instructor"}
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              {item.facultySpecialization || "Faculty"}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 inline-flex items-center gap-1.5 text-[11px] font-bold">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                          <span>Faculty Not Assigned</span>
-                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-[11px] font-medium">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          Unassigned
+                        </span>
                       )}
                     </td>
 
-                    {/* Column 4: Date & Time Slot */}
-                    <td className="py-3 px-4 align-middle">
-                      <div>
-                        <div className="flex items-center gap-1.5 font-bold text-foreground text-[11px]">
-                          <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span>{item.dateLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium mt-0.5">
-                          <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span>{item.startTime} – {item.endTime}</span>
-                        </div>
+                    <td className="py-2.5 px-4 align-middle">
+                      <div className="flex items-center gap-1.5 font-medium text-foreground text-[11px]">
+                        <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span>{item.dateLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>
+                          {item.startTime} – {item.endTime}
+                        </span>
                       </div>
                     </td>
 
-                    {/* Column 5: Mode */}
-                    <td className="py-3 px-3 text-center align-middle">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${item.mode === "ONLINE"
-                          ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
-                          : "bg-muted text-muted-foreground border-border"
-                        }`}>
+                    <td className="py-2.5 px-3 text-center align-middle">
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                          item.mode === "ONLINE"
+                            ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
                         {item.mode === "ONLINE" ? "Online" : "Offline"}
                       </span>
                     </td>
 
-                    {/* Column 6: Location / Link */}
-                    <td className="py-3 px-4 align-middle">
+                    <td className="py-2.5 px-4 align-middle">
                       {item.isOnlineLink ? (
                         <a
                           href={item.locationOrLink !== "Online" ? item.locationOrLink : "#"}
@@ -926,43 +799,42 @@ export const Classes: React.FC = () => {
                             e.stopPropagation();
                             if (item.locationOrLink === "Online") e.preventDefault();
                           }}
-                          className="flex items-center gap-1 text-blue-500 hover:text-blue-400 font-bold text-xs hover:underline"
+                          className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
                         >
-                          <LinkIcon className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                          <span className="truncate">Meeting Link</span>
+                          <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">Meeting link</span>
                         </a>
                       ) : (
-                        <div className="flex items-center gap-1 text-foreground font-semibold text-xs">
+                        <div className="flex items-center gap-1 text-foreground font-medium text-xs">
                           <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span className="truncate">{item.locationOrLink}</span>
                         </div>
                       )}
                     </td>
 
-                    {/* Column 7: Status */}
-                    <td className="py-3 px-3 text-center align-middle">
+                    <td className="py-2.5 px-3 text-center align-middle">
                       {item.status === "LIVE" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 shadow-2xs">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
                         </span>
                       )}
                       {item.status === "SCHEDULED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/25 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scheduled
                         </span>
                       )}
                       {item.status === "UNASSIGNED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Unassigned
                         </span>
                       )}
                       {item.status === "COMPLETED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted text-muted-foreground border border-border inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> Completed
                         </span>
                       )}
                       {item.status === "CANCELLED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Cancelled
                         </span>
                       )}
@@ -971,23 +843,23 @@ export const Classes: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="w-16 h-16 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mx-auto">
-                        <Calendar className="w-8 h-8 stroke-[1.8]" />
-                      </div>
-                      <h3 className="text-base font-semibold text-foreground">
-                        No classes scheduled for this branch
-                      </h3>
-                      <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                        There are currently no classes scheduled matching the selected filters. Click below to schedule a new class session.
+                  <td colSpan={7} className="py-14 text-center">
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <Calendar className="w-8 h-8 mx-auto text-muted-foreground/60" />
+                      <h3 className="text-sm font-semibold text-foreground">No classes found</h3>
+                      <p className="text-xs text-muted-foreground">
+                        No sessions match the current filters.
                       </p>
                       <PermissionGate itemKey="schedule.classes" mode="write">
                         <Button
-                          onClick={() => setIsScheduleModalOpen(true)}
-                          className="bg-primary hover:bg-primary text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
+                          size="sm"
+                          onClick={() => {
+                            resetScheduleForm();
+                            setIsScheduleModalOpen(true);
+                          }}
+                          className="mt-2 h-9 gap-1.5"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Schedule Class
+                          <Plus className="h-3.5 w-3.5" /> Schedule Class
                         </Button>
                       </PermissionGate>
                     </div>
@@ -998,21 +870,24 @@ export const Classes: React.FC = () => {
           </table>
         </div>
 
-        {/* ─── 6. PAGINATION FOOTER ──────────────────────────────────────── */}
-        <div className="p-4 bg-muted/40 dark:bg-slate-900/80 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <span className="text-muted-foreground font-medium">
-            Showing <strong className="text-foreground">{totalCount > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, totalCount)}</strong> of <strong className="text-foreground">{totalCount}</strong> classes
+        <div className="px-4 py-3 bg-muted/30 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">
+            Showing{" "}
+            <span className="font-semibold text-foreground">
+              {totalCount > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–
+              {Math.min(currentPage * rowsPerPage, totalCount)}
+            </span>{" "}
+            of <span className="font-semibold text-foreground">{totalCount}</span>
           </span>
 
           <div className="flex items-center gap-3">
-            {/* Numbered Pagination */}
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
+                className="h-8 w-8 rounded-lg border-border"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -1020,11 +895,13 @@ export const Classes: React.FC = () => {
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((pg) => (
                 <button
                   key={pg}
+                  type="button"
                   onClick={() => setCurrentPage(pg)}
-                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pg
-                      ? "bg-primary text-primary-foreground shadow-xs"
+                  className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    currentPage === pg
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-card text-foreground border border-border hover:bg-muted"
-                    }`}
+                  }`}
                 >
                   {pg}
                 </button>
@@ -1032,13 +909,15 @@ export const Classes: React.FC = () => {
 
               {totalPages > 5 && (
                 <>
-                  <span className="text-muted-foreground px-1">...</span>
+                  <span className="text-muted-foreground px-1">…</span>
                   <button
+                    type="button"
                     onClick={() => setCurrentPage(totalPages)}
-                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === totalPages
-                        ? "bg-primary text-primary-foreground shadow-xs"
+                    className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      currentPage === totalPages
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-card text-foreground border border-border hover:bg-muted"
-                      }`}
+                    }`}
                   >
                     {totalPages}
                   </button>
@@ -1048,15 +927,14 @@ export const Classes: React.FC = () => {
               <Button
                 variant="outline"
                 size="icon"
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
+                className="h-8 w-8 rounded-lg border-border"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
 
-            {/* Rows Per Page */}
             <div className="flex items-center gap-1.5 pl-2 border-l border-border">
               <select
                 value={rowsPerPage}
@@ -1064,7 +942,7 @@ export const Classes: React.FC = () => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="h-8 px-2 bg-background border border-border rounded-lg text-xs font-bold text-foreground outline-none cursor-pointer"
+                className="h-8 px-2 bg-background border border-border rounded-lg text-xs text-foreground outline-none cursor-pointer"
               >
                 <option value={10}>10 / page</option>
                 <option value={20}>20 / page</option>
@@ -1088,6 +966,32 @@ export const Classes: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-3.5 my-3 text-xs">
+            <div>
+              <Label className="text-[11px] font-bold text-foreground">Branch Center</Label>
+              <select
+                value={formBranch}
+                onChange={(e) => {
+                  const branchId = e.target.value;
+                  setFormBranch(branchId);
+                  if (formBatch) {
+                    const matched = batches.find((b) => b.code === formBatch || b.id === formBatch);
+                    if (matched && matched.branchId && matched.branchId !== branchId) {
+                      setFormBatch("");
+                      setFormCourseId("");
+                      setFormBatchCourseId("");
+                    }
+                  }
+                }}
+                className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
+              >
+                {branchesList.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-[11px] font-bold text-foreground">Batch Code *</Label>
@@ -1171,8 +1075,8 @@ export const Classes: React.FC = () => {
                   setFormErrors((prev) => ({ ...prev, module: "" }));
                 }}
                 placeholder="e.g. Arrays & Collections"
-                className={`h-9 mt-1 text-xs rounded-xl bg-background text-foreground ${
-                  formErrors.module ? "border-rose-400" : "border-border"
+                className={`h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground ${
+                  formErrors.module ? "border-rose-400" : ""
                 }`}
               />
               {formErrors.module && (
@@ -1180,56 +1084,28 @@ export const Classes: React.FC = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[11px] font-bold text-foreground">Branch Center</Label>
-                <select
-                  value={formBranch}
-                  onChange={(e) => {
-                    const branchId = e.target.value;
-                    setFormBranch(branchId);
-                    if (formBatch) {
-                      const matched = batches.find((b) => b.code === formBatch || b.id === formBatch);
-                      if (matched && matched.branchId && matched.branchId !== branchId) {
-                        setFormBatch("");
-                        setFormCourseId("");
-                        setFormBatchCourseId("");
-                      }
-                    }
-                  }}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
-                >
-                  {branchesList.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label className="text-[11px] font-bold text-foreground">Assign Faculty *</Label>
-                <select
-                  value={formFacultyId}
-                  onChange={(e) => {
-                    setFormFacultyId(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, faculty: "" }));
-                  }}
-                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-bold text-primary outline-none ${
-                    formErrors.faculty ? "border-rose-400" : "border-border"
-                  }`}
-                >
-                  <option value="">Select faculty</option>
-                  {facultyForForm.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
-                    </option>
-                  ))}
-                </select>
-                {formErrors.faculty && (
-                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.faculty}</p>
-                )}
-              </div>
+            <div>
+              <Label className="text-[11px] font-bold text-foreground">Assign Faculty *</Label>
+              <select
+                value={formFacultyId}
+                onChange={(e) => {
+                  setFormFacultyId(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, faculty: "" }));
+                }}
+                className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-medium outline-none ${
+                  formErrors.faculty ? "border-rose-400" : "border-border"
+                }`}
+              >
+                <option value="">Select faculty</option>
+                {facultyForForm.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
+                  </option>
+                ))}
+              </select>
+              {formErrors.faculty && (
+                <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.faculty}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -1242,8 +1118,8 @@ export const Classes: React.FC = () => {
                     setFormDate(e.target.value);
                     setFormErrors((prev) => ({ ...prev, date: "" }));
                   }}
-                  className={`h-9 mt-1 text-xs rounded-xl bg-background text-foreground ${
-                    formErrors.date ? "border-rose-400" : "border-border"
+                  className={`h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground ${
+                    formErrors.date ? "border-rose-400" : ""
                   }`}
                 />
                 {formErrors.date && (
@@ -1303,7 +1179,7 @@ export const Classes: React.FC = () => {
                   {formMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
                 </Label>
                 {formMode === "ONLINE" ? (
-                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-2 font-bold">
+                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-2 font-medium">
                     <Video className="h-4 w-4" />
                     Google Meet (auto-created)
                   </div>

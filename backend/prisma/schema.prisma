@@ -131,6 +131,11 @@ enum ClassSessionStatus {
   CANCELLED
 }
 
+enum FacultyScheduleBlockType {
+  BREAK
+  LUNCH
+}
+
 enum GoogleConnectionStatus {
   CONNECTED
   REAUTH_REQUIRED
@@ -239,6 +244,7 @@ model Institute {
   announcements            Announcement[]
   leaveRequests            LeaveRequest[]
   documentTemplates        DocumentTemplate[]
+  facultyScheduleBlocks    FacultyScheduleBlock[]
 }
 
 enum DocumentTemplateType {
@@ -315,6 +321,7 @@ model Branch {
   leaveRequests         LeaveRequest[]
   announcements         Announcement[]
   courseBranches        CourseBranch[]
+  facultyScheduleBlocks FacultyScheduleBlock[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -530,6 +537,7 @@ model Faculty {
   batchCourses           BatchCourse[]
   batchSchedules         BatchSchedule[]
   classSessions          ClassSession[]
+  facultyScheduleBlocks  FacultyScheduleBlock[]
   facultyAttendance      FacultyAttendance[]
   facultyDailyAttendance FacultyDailyAttendance[]
   assignments            Assignment[]
@@ -924,6 +932,34 @@ model ClassSession {
   @@index([batchId])
   @@index([batchCourseId])
   @@index([facultyId])
+  @@index([scheduledDate])
+}
+
+/// Per-faculty Break/Lunch override for a date/period on Manage Faculty Schedule.
+/// Does not change Master Setup Time Slot column defaults (Teaching/Break/Lunch).
+model FacultyScheduleBlock {
+  id               String                   @id @default(cuid())
+  instituteId      String
+  branchId         String
+  facultyId        String
+  scheduledDate    DateTime
+  startTime        String
+  endTime          String
+  timeslotMasterId String?
+  blockType        FacultyScheduleBlockType
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  institute      Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch         Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  faculty        Faculty       @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  timeslotMaster MasterRecord? @relation("FacultyScheduleBlockTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
+
+  @@unique([facultyId, scheduledDate, startTime])
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([instituteId, branchId])
+  @@index([facultyId, scheduledDate])
   @@index([scheduledDate])
 }
 
@@ -1966,26 +2002,27 @@ model MasterRecord {
   studentsAsArea             Student[]          @relation("StudentAreaMaster")
   facultyAsDesignation       Faculty[]          @relation("FacultyDesignationMaster")
   facultyAsQualification     Faculty[]          @relation("FacultyQualificationMaster")
-  classSessionsAsClassroom   ClassSession[]     @relation("ClassSessionClassroomMaster")
-  classSessionsAsTimeslot    ClassSession[]     @relation("ClassSessionTimeslotMaster")
-  batchesAsClassroom         Batch[]            @relation("BatchClassroomMaster")
-  batchesAsTimeslot          Batch[]            @relation("BatchTimeslotMaster")
-  batchCoursesAsClassroom    BatchCourse[]      @relation("BatchCourseClassroomMaster")
-  batchCoursesAsTimeslot     BatchCourse[]      @relation("BatchCourseTimeslotMaster")
-  batchSchedulesAsClassroom  BatchSchedule[]    @relation("BatchScheduleClassroomMaster")
-  batchSchedulesAsTimeslot   BatchSchedule[]    @relation("BatchScheduleTimeslotMaster")
-  paymentsAsMode             Payment[]          @relation("PaymentModeMaster")
-  applicationsAsPaymentMode  Application[]      @relation("ApplicationPaymentModeMaster")
-  paymentsAsBankAccount      Payment[]          @relation("PaymentBankAccountMaster")
-  paymentsAsFeeHead          Payment[]          @relation("PaymentFeeHeadMaster")
-  pendingFeesAsFeeHead       PendingFee[]       @relation("PendingFeeHeadMaster")
-  otherInvoiceItemsAsFeeHead OtherInvoiceItem[] @relation("OtherInvoiceItemFeeHead")
-  admissionsAsStatus         Admission[]        @relation("AdmissionStatusMaster")
-  admissionsAsConcession     Admission[]        @relation("AdmissionConcessionMaster")
-  assignmentsAsType          Assignment[]       @relation("AssignmentTypeMaster")
-  assignmentsAsAcademicYear  Assignment[]       @relation("AssignmentAcademicYearMaster")
-  examsAsTerm                Exam[]             @relation("ExamTermMaster")
-  userSettingsAsDesignation  UserSettings[]     @relation("UserSettingsDesignationMaster")
+  classSessionsAsClassroom       ClassSession[]          @relation("ClassSessionClassroomMaster")
+  classSessionsAsTimeslot        ClassSession[]          @relation("ClassSessionTimeslotMaster")
+  facultyScheduleBlocksAsTimeslot FacultyScheduleBlock[] @relation("FacultyScheduleBlockTimeslotMaster")
+  batchesAsClassroom             Batch[]                 @relation("BatchClassroomMaster")
+  batchesAsTimeslot              Batch[]                 @relation("BatchTimeslotMaster")
+  batchCoursesAsClassroom        BatchCourse[]           @relation("BatchCourseClassroomMaster")
+  batchCoursesAsTimeslot         BatchCourse[]           @relation("BatchCourseTimeslotMaster")
+  batchSchedulesAsClassroom      BatchSchedule[]         @relation("BatchScheduleClassroomMaster")
+  batchSchedulesAsTimeslot       BatchSchedule[]         @relation("BatchScheduleTimeslotMaster")
+  paymentsAsMode                 Payment[]               @relation("PaymentModeMaster")
+  applicationsAsPaymentMode      Application[]           @relation("ApplicationPaymentModeMaster")
+  paymentsAsBankAccount          Payment[]               @relation("PaymentBankAccountMaster")
+  paymentsAsFeeHead              Payment[]               @relation("PaymentFeeHeadMaster")
+  pendingFeesAsFeeHead           PendingFee[]            @relation("PendingFeeHeadMaster")
+  otherInvoiceItemsAsFeeHead     OtherInvoiceItem[]      @relation("OtherInvoiceItemFeeHead")
+  admissionsAsStatus             Admission[]             @relation("AdmissionStatusMaster")
+  admissionsAsConcession         Admission[]             @relation("AdmissionConcessionMaster")
+  assignmentsAsType              Assignment[]            @relation("AssignmentTypeMaster")
+  assignmentsAsAcademicYear      Assignment[]            @relation("AssignmentAcademicYearMaster")
+  examsAsTerm                    Exam[]                  @relation("ExamTermMaster")
+  userSettingsAsDesignation      UserSettings[]          @relation("UserSettingsDesignationMaster")
 
   @@unique([instituteId, entityType, name, branchId])
   @@index([instituteId, entityType])

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBatches } from "../../../hooks/useBatches";
-import type { BatchData, ScheduleLinePayload } from "../../../services/batches.api";
+import type { BatchData, ScheduleLinePayload, SessionSyncResult } from "../../../services/batches.api";
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
@@ -317,6 +317,10 @@ export const Batches: React.FC = () => {
       setFormError("Start date is required.");
       return;
     }
+    if (!expectedEndDate) {
+      setFormError("Expected end date is required when schedule lines are set.");
+      return;
+    }
 
     const createBranchId = formBranchId || branchIdForQuery || undefined;
     if (!editingBatch && !createBranchId) {
@@ -363,12 +367,57 @@ export const Batches: React.FC = () => {
         ...(editingBatch ? {} : { branchId: createBranchId }),
       };
 
+      const formatSyncToast = (sync?: SessionSyncResult | null) => {
+        if (!sync) return null;
+        if (sync.error) return sync.message || sync.error;
+        const endLabel = expectedEndDate
+          ? new Date(`${expectedEndDate}T12:00:00`).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })
+          : null;
+        const parts = [
+          sync.created ? `${sync.created} created` : null,
+          sync.updated ? `${sync.updated} updated` : null,
+          sync.cancelled ? `${sync.cancelled} cancelled` : null,
+          sync.skippedHolidays ? `${sync.skippedHolidays} holiday skips` : null,
+          sync.skippedConflicts ? `${sync.skippedConflicts} conflict skips` : null,
+        ].filter(Boolean);
+        if (parts.length === 0 && sync.message) return sync.message;
+        if (parts.length === 0) return null;
+        return endLabel
+          ? `Timetable filled: ${parts.join(", ")} through ${endLabel}.`
+          : `Timetable filled: ${parts.join(", ")}.`;
+      };
+
       if (editingBatch) {
-        await updateBatch(editingBatch.id, payload);
-        setSuccessMsg(`Batch "${code} - ${name}" updated successfully.`);
+        const updated = await updateBatch(editingBatch.id, payload);
+        const syncMsg = formatSyncToast(updated?.sessionSync);
+        if (updated?.sessionSync?.error) {
+          setSuccessMsg(
+            `Batch "${code} - ${name}" updated. Timetable sync failed: ${updated.sessionSync.error}`
+          );
+        } else {
+          setSuccessMsg(
+            syncMsg
+              ? `Batch "${code} - ${name}" updated. ${syncMsg}`
+              : `Batch "${code} - ${name}" updated successfully.`
+          );
+        }
       } else {
-        await createBatch(payload);
-        setSuccessMsg(`Batch "${code} - ${name}" created successfully.`);
+        const created = await createBatch(payload);
+        const syncMsg = formatSyncToast(created?.sessionSync);
+        if (created?.sessionSync?.error) {
+          setSuccessMsg(
+            `Batch "${code} - ${name}" created. Timetable sync failed: ${created.sessionSync.error}`
+          );
+        } else {
+          setSuccessMsg(
+            syncMsg
+              ? `Batch "${code} - ${name}" created. ${syncMsg}`
+              : `Batch "${code} - ${name}" created successfully.`
+          );
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
@@ -379,7 +428,7 @@ export const Batches: React.FC = () => {
       resetFormFields();
       setShowModal(false);
       setEditingBatch(null);
-      setTimeout(() => setSuccessMsg(null), 3500);
+      setTimeout(() => setSuccessMsg(null), 5000);
     } catch (err: any) {
       setFormError(err.response?.data?.message || err.message || "Failed to save batch");
     } finally {
@@ -827,13 +876,14 @@ export const Batches: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Expected End Date
+                      Expected End Date <span className="text-rose-500">*</span>
                     </label>
                     <Input
                       type="date"
                       value={expectedEndDate}
                       min={startDate || undefined}
                       onChange={(e) => setExpectedEndDate(e.target.value)}
+                      required
                       className="h-10 rounded-xl text-xs"
                     />
                   </div>
