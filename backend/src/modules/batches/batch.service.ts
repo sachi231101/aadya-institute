@@ -164,10 +164,37 @@ const validateBatchCourses = async (
   }
 };
 
+const sessionSyncFailure = (err: unknown) => {
+  const message =
+    err instanceof AppError
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : "Class session sync failed";
+  return {
+    created: 0,
+    updated: 0,
+    cancelled: 0,
+    skipped: 0,
+    skippedHolidays: 0,
+    skippedConflicts: 0,
+    sessions: [] as unknown[],
+    error: message,
+    message: `Batch saved but timetable sync failed: ${message}`,
+  };
+};
+
 export const createBatch = async (user: AuthUser, data: CreateBatchDto) => {
   const branchId = await resolveAuthorizedBranchId(user, data.branchId);
   const courseItems = repository.normalizeBatchCourses(data);
   await validateBatchCourses(user.instituteId, courseItems, branchId);
+
+  if (data.scheduleLines && data.scheduleLines.length > 0 && !data.expectedEndDate) {
+    throw new AppError(
+      "Expected end date is required when schedule lines are provided",
+      400
+    );
+  }
 
   const payload: CreateBatchDto = {
     ...data,
@@ -191,8 +218,9 @@ export const createBatch = async (user: AuthUser, data: CreateBatchDto) => {
     } catch (err) {
       logger.warn(
         { err, batchId: batch.id },
-        "Batch created but class session sync skipped"
+        "Batch created but class session sync failed"
       );
+      return { ...batch, sessionSync: sessionSyncFailure(err) };
     }
   }
 
@@ -240,6 +268,18 @@ export const updateBatch = async (id: string, user: AuthUser, data: UpdateBatchD
     );
   }
 
+  if (
+    safeData.scheduleLines &&
+    safeData.scheduleLines.length > 0 &&
+    !safeData.expectedEndDate &&
+    !existingBatch.expectedEndDate
+  ) {
+    throw new AppError(
+      "Expected end date is required when schedule lines are provided",
+      400
+    );
+  }
+
   const result = await repository.updateBatch(id, user.instituteId, safeData);
   if (result.count === 0) {
     throw new AppError("Batch not found", 404);
@@ -251,7 +291,8 @@ export const updateBatch = async (id: string, user: AuthUser, data: UpdateBatchD
       const sync = await generateClassSessionsFromSchedule(id, user, {});
       return { ...result, sessionSync: sync };
     } catch (err) {
-      logger.warn({ err, batchId: id }, "Batch updated but class session sync skipped");
+      logger.warn({ err, batchId: id }, "Batch updated but class session sync failed");
+      return { ...result, sessionSync: sessionSyncFailure(err) };
     }
   }
 
@@ -423,26 +464,23 @@ export const generateClassSessionsFromSchedule = async (
     return true;
   });
 
-  const todayKey = formatDateKey(new Date());
-  const defaultEndFromStart = formatDateKey(
-    new Date(utcNoonFromDateKey(formatDateKey(options.startDate || batch.startDate)).getTime() + 90 * 24 * 60 * 60 * 1000)
-  );
   const rangeStartKey = formatDateKey(options.startDate || batch.startDate);
-  const rangeEndKey = formatDateKey(
-    options.endDate ||
-      batch.expectedEndDate ||
-      // Cover at least ~3 months from today so current-week admin/faculty timetables stay filled
-      (defaultEndFromStart > todayKey ? defaultEndFromStart : formatDateKey(new Date(utcNoonFromDateKey(todayKey).getTime() + 90 * 24 * 60 * 60 * 1000)))
-  );
+  const endSource = options.endDate || batch.expectedEndDate;
   const rangeStart = utcNoonFromDateKey(rangeStartKey);
-  const rangeEnd = utcNoonFromDateKey(rangeEndKey);
 
   // No active Att? lines → cancel upcoming sessions in range so admin/faculty timetables clear.
   if (allSchedules.length === 0) {
+    const cancelEndKey = formatDateKey(
+      endSource ||
+        formatDateKey(
+          new Date(utcNoonFromDateKey(rangeStartKey).getTime() + 90 * 24 * 60 * 60 * 1000)
+        )
+    );
+    const cancelEnd = utcNoonFromDateKey(cancelEndKey);
     const cancelledResult = await prisma.classSession.updateMany({
       where: {
         batchId,
-        scheduledDate: { gte: rangeStart, lte: rangeEnd },
+        scheduledDate: { gte: rangeStart, lte: cancelEnd },
         status: "ACTIVE",
         sessionStatus: "UPCOMING",
       },
@@ -453,11 +491,105 @@ export const generateClassSessionsFromSchedule = async (
       updated: 0,
       cancelled: cancelledResult.count,
       skipped: 0,
+      skippedHolidays: 0,
+      skippedConflicts: 0,
       sessions: [],
       message:
         "No active attendance schedule lines. Upcoming class sessions in range were cancelled.",
     };
   }
+
+  if (!endSource) {
+    throw new AppError(
+      "Expected end date is required to generate class sessions. Set the batch expected end date or pass endDate.",
+      400
+    );
+  }
+  const rangeEndKey = formatDateKey(endSource);
+  const rangeEnd = utcNoonFromDateKey(rangeEndKey);
+
+  const holidayRecords = await prisma.masterRecord.findMany({
+    where: {
+      instituteId: user.instituteId,
+      entityType: "holiday",
+      status: "ACTIVE",
+      OR: [{ branchId: null }, { branchId: batch.branchId }],
+    },
+    select: { data: true },
+  });
+  const holidayKeys = new Set(
+    holidayRecords
+      .map((row) => {
+        const data = row.data as Record<string, unknown> | null;
+        const raw = typeof data?.date === "string" ? data.date.trim() : "";
+        const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+        return match?.[1] ?? "";
+      })
+      .filter(Boolean)
+  );
+
+  const scheduleFacultyIds = [
+    ...new Set(
+      allSchedules
+        .map((slot) => {
+          const lineFaculty =
+            (slot as { facultyId?: string | null }).facultyId ||
+            batch.batchCourses?.find((bc) => bc.id === slot.batchCourseId)?.facultyId ||
+            coordinatorFacultyId;
+          return lineFaculty || null;
+        })
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  const [otherFacultySessions, facultyBlocks] = await Promise.all([
+    scheduleFacultyIds.length === 0
+      ? Promise.resolve([])
+      : prisma.classSession.findMany({
+          where: {
+            facultyId: { in: scheduleFacultyIds },
+            batchId: { not: batchId },
+            status: "ACTIVE",
+            sessionStatus: { not: "CANCELLED" },
+            scheduledDate: { gte: rangeStart, lte: rangeEnd },
+            batch: { instituteId: user.instituteId },
+          },
+          select: {
+            facultyId: true,
+            scheduledDate: true,
+            startTime: true,
+            endTime: true,
+          },
+        }),
+    scheduleFacultyIds.length === 0
+      ? Promise.resolve([])
+      : prisma.facultyScheduleBlock.findMany({
+          where: {
+            instituteId: user.instituteId,
+            facultyId: { in: scheduleFacultyIds },
+            scheduledDate: { gte: rangeStart, lte: rangeEnd },
+          },
+          select: {
+            facultyId: true,
+            scheduledDate: true,
+            startTime: true,
+            endTime: true,
+          },
+        }),
+  ]);
+
+  const facultyBusyKeys = new Set(
+    [
+      ...otherFacultySessions.map(
+        (s) =>
+          `${s.facultyId}|${formatDateKey(s.scheduledDate)}|${s.startTime}|${s.endTime}`
+      ),
+      ...facultyBlocks.map(
+        (b) =>
+          `${b.facultyId}|${formatDateKey(b.scheduledDate)}|${b.startTime}|${b.endTime}`
+      ),
+    ]
+  );
 
   const existingSessions = await prisma.classSession.findMany({
     where: {
@@ -524,6 +656,8 @@ export const generateClassSessionsFromSchedule = async (
     batchCourseId: string | null;
   }> = [];
   const matchedSessionIds = new Set<string>();
+  let skippedHolidays = 0;
+  let skippedConflicts = 0;
 
   const dateKeys = eachDateKeyInRange(rangeStartKey, rangeEndKey);
   for (const dateKey of dateKeys) {
@@ -538,6 +672,11 @@ export const generateClassSessionsFromSchedule = async (
       }
       return true;
     });
+
+    if (holidayKeys.has(dateKey)) {
+      skippedHolidays += matchingSlots.length;
+      continue;
+    }
 
     for (const slot of matchingSlots) {
       const lineFaculty =
@@ -588,6 +727,12 @@ export const generateClassSessionsFromSchedule = async (
         continue;
       }
 
+      const busyKey = `${lineFaculty}|${dateKey}|${slot.startTime}|${slot.endTime}`;
+      if (facultyBusyKeys.has(busyKey)) {
+        skippedConflicts += 1;
+        continue;
+      }
+
       const courseName =
         (slot as { batchCourse?: { course?: { name?: string } } }).batchCourse?.course?.name ||
         bc?.course?.name ||
@@ -623,6 +768,8 @@ export const generateClassSessionsFromSchedule = async (
         sessionStatus: "UPCOMING",
         batchCourse: courseId ? { courseId } : null,
       });
+      // Prevent double-booking the same faculty within this generation pass
+      facultyBusyKeys.add(busyKey);
     }
   }
 
@@ -688,6 +835,7 @@ export const generateClassSessionsFromSchedule = async (
   }
 
   // Cancel UPCOMING sessions that no longer match an active schedule line (day/time/faculty changed).
+  // Holiday dates are intentionally unmatched so those UPCOMING orphans are cancelled.
   const orphanIds = existingSessions
     .filter(
       (s) =>
@@ -715,12 +863,25 @@ export const generateClassSessionsFromSchedule = async (
     orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
   });
 
+  const skipped = skippedHolidays + skippedConflicts;
+  const endLabel = rangeEndKey;
+  const parts = [
+    `${toCreate.length} created`,
+    `${toUpdate.length} updated`,
+    cancelled ? `${cancelled} cancelled` : null,
+    skippedHolidays ? `${skippedHolidays} skipped (holidays)` : null,
+    skippedConflicts ? `${skippedConflicts} skipped (conflicts)` : null,
+  ].filter(Boolean);
+
   return {
     created: toCreate.length,
     updated: toUpdate.length,
     cancelled,
-    skipped: Math.max(0, existingSessions.length - toUpdate.length - cancelled),
+    skipped,
+    skippedHolidays,
+    skippedConflicts,
     sessions: createdSessions,
+    message: `Timetable filled through ${endLabel}: ${parts.join(", ")}.`,
   };
 };
 

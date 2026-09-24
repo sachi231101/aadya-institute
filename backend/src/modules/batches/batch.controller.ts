@@ -97,10 +97,15 @@ export const update = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    await service.updateBatch(req.params.id as string, toAuthUser(req), req.body);
+    const result = await service.updateBatch(
+      req.params.id as string,
+      toAuthUser(req),
+      req.body
+    );
     res.json({
       success: true,
       message: "Batch updated successfully",
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -355,7 +360,13 @@ export const generateSessions = async (
       toAuthUser(req),
       req.body
     );
-    sendSuccess(res, result, 200, `Generated ${result.created} class session(s)${result.updated ? `, updated ${result.updated}` : ""}`);
+    sendSuccess(
+      res,
+      result,
+      200,
+      result.message ||
+        `Generated ${result.created} class session(s)${result.updated ? `, updated ${result.updated}` : ""}`
+    );
   } catch (error) {
     next(error);
   }

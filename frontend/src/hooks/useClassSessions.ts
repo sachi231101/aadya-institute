@@ -22,10 +22,14 @@ const invalidateSessionRelatedQueries = (queryClient: ReturnType<typeof useQuery
   queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
 };
 
-export const useClassSessions = (params?: Record<string, any>) => {
+export const useClassSessions = (
+  params?: Record<string, any>,
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: [SESSIONS_KEY, params],
     queryFn: () => classSessionsApi.getAll(params),
+    enabled: options?.enabled !== false,
   });
 };
 

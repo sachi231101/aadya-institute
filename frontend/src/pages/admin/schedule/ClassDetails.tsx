@@ -15,25 +15,13 @@ import {
   Trash2,
   AlertTriangle,
   CheckCircle2,
-  Laptop,
-  Code2,
-  Megaphone,
-  Table as TableIcon,
-  BarChart3,
-  Globe,
-  BookOpen,
-  Layers,
-  Sparkles,
   Check,
-  GraduationCap,
-  ShieldCheck,
   Mail,
   Phone,
   Search,
-  User,
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +39,7 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   useClassSession,
+  useClassSessions,
   useUpdateClassSession,
   useDeleteClassSession,
 } from "@/hooks/useClassSessions";
@@ -64,6 +53,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import {
   findPeriodByTimes,
+  findSlotByMasterId,
   periodToTimes,
   toDateKey,
 } from "@/constants/timetable-slots";
@@ -130,17 +120,122 @@ export const ClassDetails: React.FC = () => {
   const [editMode, setEditMode] = useState<ClassMode>("OFFLINE");
   const [editClassroomMasterId, setEditClassroomMasterId] = useState("");
 
-  const { bookableSlots, isEmpty: slotsEmpty } = useTimetableSlotColumns(
+  // Use full slot columns (incl. Break/Lunch) so edit works for classes booked on those periods.
+  const { slots: timetableSlots, isEmpty: slotsEmpty } = useTimetableSlotColumns(
     editBranch || session?.branchId || undefined
   );
 
   // Change Faculty State
   const [targetFacultyId, setTargetFacultyId] = useState("");
 
+  const editFacultyForConflict =
+    editFacultyId && editFacultyId !== "none" ? editFacultyId : undefined;
+
+  const { data: facultyDaySessionsRes } = useClassSessions(
+    {
+      facultyId: editFacultyForConflict,
+      startDate: editDate,
+      endDate: editDate,
+      limit: 100,
+    },
+    {
+      enabled: isEditModalOpen && !!editFacultyForConflict && !!editDate,
+    }
+  );
+  const facultyDaySessions = facultyDaySessionsRes?.data ?? [];
+
+  const editFacultyOptions = useMemo(() => {
+    const branchFilter = editBranch || session?.branchId;
+    const filtered = branchFilter
+      ? facultyMembers.filter((f: any) => f.branchId === branchFilter)
+      : facultyMembers;
+    if (
+      editFacultyForConflict &&
+      !filtered.some((f: any) => f.id === editFacultyForConflict)
+    ) {
+      const current = facultyMembers.find((f: any) => f.id === editFacultyForConflict);
+      if (current) return [current, ...filtered];
+    }
+    return filtered;
+  }, [facultyMembers, editBranch, session?.branchId, editFacultyForConflict]);
+
+  const courseOptions = useMemo(() => {
+    const names = courses.map((c: any) => c.name as string);
+    if (editCourse && !names.includes(editCourse)) {
+      return [...courses, { id: `__session-course__`, name: editCourse }];
+    }
+    return courses;
+  }, [courses, editCourse]);
+
+  const batchOptions = useMemo(() => {
+    const codes = batches.map((b: any) => b.code as string);
+    if (editBatch && !codes.includes(editBatch)) {
+      const sessionBatch = session?.batch;
+      return [
+        ...batches,
+        {
+          id: sessionBatch?.id || session?.batchId || `__session-batch__`,
+          code: editBatch,
+          name: sessionBatch?.name || editBatch,
+          branchId: session?.branchId,
+        },
+      ];
+    }
+    return batches;
+  }, [batches, editBatch, session?.batch, session?.batchId, session?.branchId]);
+
+  const editSlotConflict = useMemo(() => {
+    if (!session || !editFacultyForConflict || !editDate || slotsEmpty) return null;
+    const formTimes = periodToTimes(editPeriod, timetableSlots);
+    return (
+      facultyDaySessions.find((s) => {
+        if (s.id === session.id) return false;
+        if (s.sessionStatus === "CANCELLED" || s.status === "CANCELLED") return false;
+        if (
+          formTimes.timeslotMasterId &&
+          s.timeslotMasterId &&
+          s.timeslotMasterId === formTimes.timeslotMasterId
+        ) {
+          return true;
+        }
+        return (
+          (s.startTime || "").trim().toLowerCase() === formTimes.start.trim().toLowerCase() &&
+          (s.endTime || "").trim().toLowerCase() === formTimes.end.trim().toLowerCase()
+        );
+      }) ?? null
+    );
+  }, [
+    session,
+    editFacultyForConflict,
+    editDate,
+    editPeriod,
+    timetableSlots,
+    facultyDaySessions,
+    slotsEmpty,
+  ]);
+
+  const takenPeriodSet = useMemo(() => {
+    if (!session || !editFacultyForConflict || !editDate) return new Set<number>();
+    const taken = new Set<number>();
+    for (const s of facultyDaySessions) {
+      if (s.id === session.id) continue;
+      if (s.sessionStatus === "CANCELLED" || s.status === "CANCELLED") continue;
+      const byMaster = findSlotByMasterId(s.timeslotMasterId, timetableSlots);
+      const period =
+        byMaster?.period ??
+        findPeriodByTimes(s.startTime || "", s.endTime || "", timetableSlots);
+      if (period != null) taken.add(period);
+    }
+    return taken;
+  }, [session, editFacultyForConflict, editDate, facultyDaySessions, timetableSlots]);
+
   // Automatically fetch batch students directly
   const { data: studentsResponse, isLoading: loadingStudents } = useQuery({
     queryKey: ["batch-students", session?.batchId],
-    queryFn: () => (session?.batchId ? batchesApi.getStudents(session.batchId) : Promise.resolve({ success: true, data: [] })),
+    queryFn: () =>
+      session?.batchId
+        ? batchesApi.getStudents(session.batchId)
+        : Promise.resolve({ success: true, data: [] }),
     enabled: !!session?.batchId,
   });
   const batchStudents = studentsResponse?.data ?? [];
@@ -192,7 +287,8 @@ export const ClassDetails: React.FC = () => {
   };
 
   const isFacultyAssigned = !!session?.facultyId && !!session?.faculty?.user?.name;
-  const facultyName = session?.faculty?.user?.name || session?.faculty?.employeeCode || "Unassigned";
+  const facultyName =
+    session?.faculty?.user?.name || session?.faculty?.employeeCode || "Unassigned";
 
   // Map session status
   const currentStatus: ClassStatus = useMemo(() => {
@@ -210,103 +306,87 @@ export const ClassDetails: React.FC = () => {
     }
   }, [session, isFacultyAssigned]);
 
-  // Topic Icon
-  const renderTopicIcon = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes("java")) {
-      return (
-        <div className="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
-          <Laptop className="w-6 h-6 stroke-[2.2]" />
-        </div>
-      );
-    }
-    if (lower.includes("python")) {
-      return (
-        <div className="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-          <Code2 className="w-6 h-6 stroke-[2.2]" />
-        </div>
-      );
-    }
-    if (lower.includes("marketing")) {
-      return (
-        <div className="w-12 h-12 rounded-xl bg-pink-500/15 border border-pink-500/30 text-pink-400 flex items-center justify-center shrink-0">
-          <Megaphone className="w-6 h-6 stroke-[2.2]" />
-        </div>
-      );
-    }
-    if (lower.includes("excel")) {
-      return (
-        <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
-          <TableIcon className="w-6 h-6 stroke-[2.2]" />
-        </div>
-      );
-    }
-    if (lower.includes("power")) {
-      return (
-        <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-          <BarChart3 className="w-6 h-6 stroke-[2.2]" />
-        </div>
-      );
-    }
-    return (
-      <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
-        <Globe className="w-6 h-6 stroke-[2.2]" />
-      </div>
-    );
-  };
+  const isSessionLocked =
+    currentStatus === "CANCELLED" || currentStatus === "COMPLETED";
+  const lockedActionTitle =
+    currentStatus === "CANCELLED"
+      ? "This class is cancelled"
+      : currentStatus === "COMPLETED"
+        ? "This class is completed"
+        : undefined;
 
-  // Status Badge Component
   const renderStatusBadge = (status: ClassStatus) => {
     switch (status) {
       case "LIVE":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-2 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            LIVE CLASS NOW
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 inline-flex items-center gap-1 align-middle">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
           </span>
         );
       case "SCHEDULED":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30 inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-500" />
-            SCHEDULED
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/25 inline-flex items-center gap-1 align-middle">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scheduled
           </span>
         );
       case "UNASSIGNED":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            FACULTY UNASSIGNED
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 inline-flex items-center gap-1 align-middle">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Unassigned
           </span>
         );
       case "COMPLETED":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-muted text-muted-foreground border border-border inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-muted-foreground" />
-            COMPLETED
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted text-muted-foreground border border-border inline-flex items-center gap-1 align-middle">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> Completed
           </span>
         );
       case "CANCELLED":
         return (
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-rose-500" />
-            CANCELLED
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25 inline-flex items-center gap-1 align-middle">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Cancelled
           </span>
         );
     }
   };
 
+  const enrolledCount =
+    batchStudents.length > 0
+      ? batchStudents.length
+      : (session?.enrolledStudentsCount ?? 0);
+
+  const headerDescription = [
+    session?.batch?.code,
+    courseDisplayName,
+    moduleName,
+    branchObj?.name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   // Open Edit Modal
   const handleOpenEdit = () => {
     if (!session) return;
-    setEditTopic(session.title || "");
+    // Class Topic / Module input binds to editModule; prefer the displayed
+    // session title, then batch module name (editTopic is only a save fallback).
+    const topicPrefill =
+      (session.title || "").trim() ||
+      session.batchModule?.courseModule?.name ||
+      "";
+    setEditTopic(topicPrefill);
     setEditCourse(session.batch?.course?.name || courseDisplayName);
-    setEditModule(session.batchModule?.courseModule?.name || "");
+    setEditModule(topicPrefill);
     setEditBatch(session.batch?.code || "");
     setEditBranch(session.branchId || "");
     setEditFacultyId(session.facultyId || "none");
     setEditDate(session.scheduledDate ? toDateKey(session.scheduledDate) : "");
-    setEditPeriod(findPeriodByTimes(session.startTime, session.endTime, bookableSlots) ?? bookableSlots[0]?.period ?? 1);
+    const masterSlot = findSlotByMasterId(session.timeslotMasterId, timetableSlots);
+    setEditPeriod(
+      masterSlot?.period ??
+        findPeriodByTimes(session.startTime || "", session.endTime || "", timetableSlots) ??
+        timetableSlots[0]?.period ??
+        1
+    );
     setEditMode((session.mode || "OFFLINE") as ClassMode);
     setEditClassroomMasterId(session.classroomMasterId || "");
     setIsEditModalOpen(true);
@@ -319,9 +399,13 @@ export const ClassDetails: React.FC = () => {
       editFacultyId && editFacultyId !== "none"
         ? facultyMembers.find((f: any) => f.id === editFacultyId)
         : null;
-    const batch = batches.find((b: any) => b.code === editBatch || b.id === editBatch);
+    const batch =
+      batches.find((b: any) => b.code === editBatch || b.id === editBatch) ??
+      (session.batchId
+        ? { id: session.batchId, branchId: session.branchId, code: session.batch?.code }
+        : null);
 
-    if (!batch) {
+    if (!batch?.id) {
       showNotification("Please select a valid batch.", "error");
       return;
     }
@@ -331,16 +415,23 @@ export const ClassDetails: React.FC = () => {
       return;
     }
 
-    const formTimes = periodToTimes(editPeriod, bookableSlots);
+    const matchedSlot = timetableSlots.find((s) => s.period === editPeriod);
+    const formTimes = matchedSlot
+      ? periodToTimes(editPeriod, timetableSlots)
+      : {
+          start: session.startTime || "09:00 AM",
+          end: session.endTime || "10:00 AM",
+          timeslotMasterId: session.timeslotMasterId ?? undefined,
+        };
     const payload = {
-      title: editModule || editTopic || editCourse,
+      title: editModule || editTopic || editCourse || session.title,
       batchId: batch.id,
       facultyId: fac.id,
       branchId: editBranch || batch.branchId || session.branchId,
       scheduledDate: editDate,
       startTime: formTimes.start,
       endTime: formTimes.end,
-      timeslotMasterId: formTimes.timeslotMasterId,
+      timeslotMasterId: formTimes.timeslotMasterId ?? undefined,
       classroomMasterId: editMode !== "ONLINE" ? editClassroomMasterId || undefined : undefined,
       mode: editMode,
     };
@@ -449,554 +540,411 @@ export const ClassDetails: React.FC = () => {
     }
   };
 
-  // Loading State
   if (isLoading) {
     return (
-      <PageContainer className="animate-pulse">
-        <div className="h-6 w-48 bg-muted rounded-lg" />
-        <div className="h-28 bg-card border border-border rounded-xl p-6" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div className="h-56 bg-card border border-border rounded-xl" />
-          <div className="h-56 bg-card border border-border rounded-xl" />
-          <div className="h-56 bg-card border border-border rounded-xl" />
+      <PageContainer density="compact" className="animate-pulse">
+        <div className="h-4 w-36 bg-muted rounded-lg" />
+        <div className="h-10 w-72 bg-muted rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="h-44 bg-card border border-border rounded-xl" />
+          <div className="h-44 bg-card border border-border rounded-xl" />
+          <div className="h-44 bg-card border border-border rounded-xl" />
         </div>
       </PageContainer>
     );
   }
 
-  // Not Found State
   if (error || !session) {
     return (
       <PageContainer maxWidth="narrow" className="text-center py-20 space-y-4">
-        <div className="w-16 h-16 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto">
-          <AlertTriangle className="w-8 h-8" />
+        <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-500 mx-auto">
+          <AlertTriangle className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-foreground">Class Session Not Found</h2>
-        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+        <h2 className="text-lg font-semibold text-foreground">Class session not found</h2>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
           The requested class session could not be located or may have been removed.
         </p>
-        <Button
-          onClick={() => navigate(backPath)}
-          className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs rounded-xl gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Classes & Sessions
+        <Button onClick={() => navigate(backPath)} className="gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Classes
         </Button>
       </PageContainer>
     );
   }
 
+  const modeLabel =
+    session.mode === "ONLINE" ? "Online" : session.mode === "HYBRID" ? "Hybrid" : "Offline";
+
   return (
-    <PageContainer className="text-foreground font-sans animate-in fade-in duration-200">
-      {/* ─── 1. TOP NAVIGATION & BREADCRUMB ─────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        <Link
-          to={backPath}
-          className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors group px-3 py-1.5 rounded-xl hover:bg-muted/60 border border-transparent hover:border-border"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          <span>Back to Classes & Sessions</span>
-        </Link>
+    <PageContainer density="compact" className="animate-in fade-in duration-200">
+      <Link
+        to={backPath}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to Classes
+      </Link>
 
-        {/* Quick Batch Pill */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Batch:
-          </span>
-          <span className="px-3 py-1 rounded-xl text-xs font-bold bg-muted/80 text-foreground border border-border">
-            {session.batch?.code || "BATCH"}
-          </span>
-        </div>
-      </div>
-
-      {/* Notification Toast */}
       {notificationMsg && (
         <div
-          className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-bold shadow-sm animate-in fade-in duration-150 ${
+          className={`p-3 rounded-lg flex items-center gap-2 text-xs font-medium border ${
             notificationMsg.type === "success"
-              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-              : "bg-rose-500/15 border-rose-500/30 text-rose-400"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300"
+              : "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-300"
           }`}
         >
           {notificationMsg.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
           ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+            <AlertTriangle className="h-4 w-4 shrink-0" />
           )}
           <span>{notificationMsg.text}</span>
         </div>
       )}
 
-      {/* ─── 2. PAGE HEADER HERO CARD ────────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 relative overflow-hidden">
+      <PageHeader
+        title={
+          <span className="flex flex-wrap items-center gap-2.5">
+            {topicName}
+            {renderStatusBadge(currentStatus)}
+          </span>
+        }
+        description={headerDescription}
+      />
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="flex items-start gap-4 sm:gap-5">
-            {renderTopicIcon(topicName)}
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-                  {topicName}
-                </h1>
-                {renderStatusBadge(currentStatus)}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-                <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  {courseDisplayName}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-                  {moduleName}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                  {branchObj?.name || "Center Branch"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Info Summary Tags */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="px-4 py-2 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                Mode
-              </span>
-              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                {session.mode === "ONLINE" ? (
-                  <Video className="w-3.5 h-3.5 text-blue-400" />
-                ) : (
-                  <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                )}
-                {session.mode || "Offline"}
-              </span>
-            </div>
-
-            <div className="px-4 py-2 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                Enrolled Students
-              </span>
-              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-purple-400" />
-                {batchStudents.length > 0 ? batchStudents.length : (session.enrolledStudentsCount ?? 0)} Students
-              </span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* ─── 3. MAIN INFORMATION GRID ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Card 1: Schedule & Timing */}
-        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-500" />
-              Schedule & Timing
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Schedule
             </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              {session.sessionType || "THEORY"}
-            </span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                Scheduled Date
-              </span>
-              <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                {formatDateLabel(dateStr)}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
+            <dl className="space-y-3 text-sm">
               <div>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                  Start Time
-                </span>
-                <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                  {session.startTime || "09:00 AM"}
-                </p>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Date</dt>
+                <dd className="font-medium text-foreground flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  {formatDateLabel(dateStr)}
+                </dd>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                  End Time
-                </span>
-                <p className="font-semibold text-foreground text-xs flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-rose-400" />
-                  {session.endTime || "10:00 AM"}
-                </p>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Time</dt>
+                <dd className="font-medium text-foreground flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  {session.startTime || "—"} – {session.endTime || "—"}
+                </dd>
               </div>
-            </div>
-
-            <div className="pt-2 border-t border-border">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                Location / Virtual Room
-              </span>
-              {session.mode === "ONLINE" ? (
-                session.meetingUrl ? (
-                  <a
-                    href={session.meetingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1.5 hover:underline break-all"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    <span>{session.meetingUrl}</span>
-                  </a>
-                ) : (
-                  <div className="space-y-2">
-                    <span className="text-muted-foreground font-semibold block">Google Meet pending</span>
-                    {canEditClasses && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleCreateGoogleMeet}
-                        disabled={isActionLoading}
-                        className="h-8 rounded-xl bg-primary text-white text-xs font-bold"
-                      >
-                        {isActionLoading ? "Creating…" : "Create Google Meet"}
-                      </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Type</dt>
+                  <dd className="font-medium text-foreground">
+                    {session.sessionType || "Theory"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Mode</dt>
+                  <dd className="font-medium text-foreground flex items-center gap-1.5">
+                    {session.mode === "ONLINE" ? (
+                      <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     )}
-                  </div>
-                )
-              ) : (
-                <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span>{session.roomNo || "Room / Classroom assigned"}</span>
+                    {modeLabel}
+                  </dd>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+              <div>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">
+                  {session.mode === "ONLINE" ? "Meeting" : "Room"}
+                </dt>
+                <dd className="font-medium text-foreground">
+                  {session.mode === "ONLINE" ? (
+                    session.meetingUrl ? (
+                      <a
+                        href={session.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1.5 break-all"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        Open meeting link
+                      </a>
+                    ) : (
+                      <div className="space-y-2">
+                        <span className="text-muted-foreground">Google Meet pending</span>
+                        {canEditClasses && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleCreateGoogleMeet}
+                            disabled={isActionLoading}
+                            className="h-8"
+                          >
+                            {isActionLoading ? "Creating…" : "Create Google Meet"}
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      {session.roomNo || "Not assigned"}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
         </Card>
 
-        {/* Card 2: Batch & Curriculum Info */}
-        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-purple-500" />
-              Batch & Curriculum
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Batch & curriculum
             </h3>
-            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-muted text-foreground border border-border">
-              {session.batch?.code || "BATCH"}
-            </span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                Batch Name
-              </span>
-              <p className="font-semibold text-foreground text-sm">
-                {session.batch?.name || "Batch Name"}
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-border">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                Course Program
-              </span>
-              <p className="font-bold text-foreground text-xs">
-                {session.batch?.course?.name || courseDisplayName}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{moduleName}</p>
-            </div>
-
-            <div className="pt-2 border-t border-border">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-0.5">
-                Assigned Center Branch
-              </span>
-              <p className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                {branchObj?.name || "Branch Center"}
-              </p>
-            </div>
-          </div>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Batch</dt>
+                <dd className="font-medium text-foreground">
+                  <span className="font-mono text-xs">{session.batch?.code || "—"}</span>
+                  {session.batch?.name ? (
+                    <span className="text-muted-foreground"> · {session.batch.name}</span>
+                  ) : null}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Course</dt>
+                <dd className="font-medium text-foreground">
+                  {session.batch?.course?.name || courseDisplayName}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Module</dt>
+                <dd className="font-medium text-foreground">{moduleName}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-medium text-muted-foreground mb-0.5">Branch</dt>
+                <dd className="font-medium text-foreground flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  {branchObj?.name || "—"}
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
         </Card>
 
-        {/* Card 3: Assigned Faculty */}
-        <Card className="border border-border shadow-xs bg-card rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              Assigned Faculty
+        <Card className="border border-border shadow-xs bg-card rounded-xl">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Faculty
             </h3>
-            {isFacultyAssigned && (
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                Assigned
-              </span>
+            {isFacultyAssigned ? (
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10 rounded-full border border-border shrink-0">
+                    <AvatarImage src="" />
+                    <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
+                      {facultyName.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{facultyName}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {session.faculty?.employeeCode || "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-2 border-t border-border">
+                  {session.faculty?.user?.email && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{session.faculty.user.email}</span>
+                    </div>
+                  )}
+                  {session.faculty?.user?.phone && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                      <Phone className="w-3.5 h-3.5 shrink-0" />
+                      <span>{session.faculty.user.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p>No faculty assigned to this session.</p>
+                </div>
+                {canEditClasses && (
+                  <Button size="sm" onClick={handleOpenChangeFaculty} className="h-8 gap-1.5">
+                    <UserPlus className="w-3.5 h-3.5" /> Assign faculty
+                  </Button>
+                )}
+              </div>
             )}
-          </div>
-
-          {isFacultyAssigned ? (
-            <div className="space-y-3.5 text-xs">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 rounded-xl border border-border shadow-xs shrink-0">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="bg-[#1769AA] text-white font-bold text-sm">
-                    {facultyName.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-foreground text-sm truncate">{facultyName}</h4>
-                  <p className="text-[11px] text-muted-foreground font-medium">
-                    Code: {session.faculty?.employeeCode || "FAC"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {session.faculty?.user?.email && (
-                  <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
-                    <Mail className="w-3.5 h-3.5 shrink-0 text-blue-400" />
-                    <span className="truncate">{session.faculty.user.email}</span>
-                  </div>
-                )}
-                {session.faculty?.user?.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
-                    <Phone className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                    <span>{session.faculty.user.phone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>No Faculty Assigned</span>
-              </div>
-              <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                This class session does not currently have an instructor assigned.
-              </p>
-              {canEditClasses && (
-                <Button
-                  size="sm"
-                  onClick={handleOpenChangeFaculty}
-                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl h-8 w-full mt-1 cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5 mr-1" /> Assign Faculty Now
-                </Button>
-              )}
-            </div>
-          )}
+          </CardContent>
         </Card>
       </div>
 
-      {/* ─── 4. ENROLLED STUDENTS DIRECT DISPLAY ────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-400" />
-                Enrolled Students
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-                {batchStudents.length} {batchStudents.length === 1 ? "Student" : "Students"}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">
-              List of all students registered in Batch {session.batch?.code || ""}.
-            </p>
-          </div>
-
-          {/* Search Input for Students */}
-          {batchStudents.length > 0 && (
-            <div className="relative min-w-[240px] max-w-[320px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <PageSection
+        title={`Enrolled students (${enrolledCount})`}
+        description={
+          session.batch?.code
+            ? `Students in batch ${session.batch.code}`
+            : "Students registered for this batch"
+        }
+        actions={
+          batchStudents.length > 0 ? (
+            <div className="relative min-w-[200px] max-w-[280px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Search students..."
+                placeholder="Search students…"
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
-                className="h-9 pl-9 bg-background border-border text-foreground text-xs font-medium rounded-xl"
+                className="h-9 pl-8 text-sm border-border"
               />
             </div>
-          )}
-        </div>
-
-        {/* Student List / Table */}
-        {loadingStudents ? (
-          <div className="py-12 text-center text-muted-foreground text-xs font-medium flex flex-col items-center justify-center gap-2">
-            <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span>Loading enrolled students...</span>
-          </div>
-        ) : batchStudents.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground space-y-2">
-            <div className="w-12 h-12 rounded-xl bg-muted/60 border border-border flex items-center justify-center mx-auto text-muted-foreground">
-              <Users className="w-6 h-6" />
+          ) : undefined
+        }
+      >
+        <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+          {loadingStudents ? (
+            <div className="py-12 text-center text-muted-foreground text-sm flex flex-col items-center justify-center gap-2">
+              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span>Loading students…</span>
             </div>
-            <p className="font-bold text-foreground text-sm">No Enrolled Students</p>
-            <p className="text-xs max-w-sm mx-auto">
-              There are currently no students assigned or enrolled in batch {session.batch?.code || ""}.
-            </p>
-          </div>
-        ) : filteredStudents.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground text-xs font-medium">
-            No students match your search &ldquo;{studentSearch}&rdquo;.
-          </div>
-        ) : (
-          <div className="overflow-x-auto w-full">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="bg-muted/40 dark:bg-slate-900/60 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  <th className="py-3 px-4 pl-5">STUDENT NAME</th>
-                  <th className="py-3 px-4">STUDENT ID</th>
-                  <th className="py-3 px-4">CONTACT EMAIL</th>
-                  <th className="py-3 px-4">PHONE NUMBER</th>
-                  <th className="py-3 px-4 text-center">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-card">
-                {filteredStudents.map((item: any) => {
-                  const sName =
-                    item.student?.user?.name ||
-                    item.student?.studentCode ||
-                    "Student";
-                  const sCode = item.student?.studentCode || "—";
-                  const sEmail = item.student?.user?.email || "—";
-                  const sPhone = item.student?.user?.phone || "—";
+          ) : batchStudents.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground space-y-2 px-4">
+              <Users className="w-8 h-8 mx-auto text-muted-foreground/60" />
+              <p className="font-medium text-foreground text-sm">No enrolled students</p>
+              <p className="text-xs max-w-sm mx-auto">
+                No students are currently enrolled in this batch.
+              </p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              No students match &ldquo;{studentSearch}&rdquo;.
+            </div>
+          ) : (
+            <div className="overflow-x-auto w-full">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-border text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <th className="py-2.5 px-4 pl-5">Student</th>
+                    <th className="py-2.5 px-4">ID</th>
+                    <th className="py-2.5 px-4">Email</th>
+                    <th className="py-2.5 px-4">Phone</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredStudents.map((item: any) => {
+                    const sName =
+                      item.student?.user?.name || item.student?.studentCode || "Student";
+                    const sCode = item.student?.studentCode || "—";
+                    const sEmail = item.student?.user?.email || "—";
+                    const sPhone = item.student?.user?.phone || "—";
 
-                  return (
-                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                      {/* Name & Avatar */}
-                      <td className="py-3 px-4 pl-5 align-middle">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 rounded-full border border-border shadow-2xs shrink-0">
-                            <AvatarFallback className="bg-purple-600/90 text-white font-bold text-[11px]">
-                              {sName.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <span className="font-bold text-foreground block truncate">
-                              {sName}
-                            </span>
-                            {item.student?.qualification && (
-                              <span className="text-[10px] text-muted-foreground block truncate">
-                                {item.student.qualification}
-                              </span>
-                            )}
+                    return (
+                      <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 px-4 pl-5 align-middle">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-7 w-7 rounded-full border border-border shrink-0">
+                              <AvatarFallback className="bg-muted text-foreground font-medium text-[10px]">
+                                {sName.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-foreground truncate">{sName}</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                        <td className="py-2.5 px-4 align-middle">
+                          <span className="font-mono text-xs text-foreground">{sCode}</span>
+                        </td>
+                        <td className="py-2.5 px-4 align-middle text-muted-foreground text-xs">
+                          {sEmail}
+                        </td>
+                        <td className="py-2.5 px-4 align-middle text-muted-foreground text-xs">
+                          {sPhone}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </PageSection>
 
-                      {/* Code */}
-                      <td className="py-3 px-4 align-middle font-bold text-foreground">
-                        <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-muted/80 text-foreground border border-border inline-block">
-                          {sCode}
-                        </span>
-                      </td>
-
-                      {/* Email */}
-                      <td className="py-3 px-4 align-middle text-muted-foreground font-medium">
-                        {sEmail !== "—" ? (
-                          <div className="flex items-center gap-1.5 truncate">
-                            <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                            <span className="truncate">{sEmail}</span>
-                          </div>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </td>
-
-                      {/* Phone */}
-                      <td className="py-3 px-4 align-middle text-muted-foreground font-medium">
-                        {sPhone !== "—" ? (
-                          <div className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span>{sPhone}</span>
-                          </div>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4 text-center align-middle">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Enrolled
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {/* ─── 5. ACTIONS SECTION ─────────────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-xl p-6 sm:p-7 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
-          <div>
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-400" />
-              Class Management Actions
-            </h2>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Perform administrative operations, update schedules, or assign faculty.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2">
-          {/* Action 1: Edit Class */}
+      <PageSection
+        title="Actions"
+        description={
+          isSessionLocked
+            ? currentStatus === "CANCELLED"
+              ? "This class is cancelled. Edit, change faculty, and cancel are unavailable — you can still delete it."
+              : "This class is completed. Edit, change faculty, and cancel are unavailable — you can still delete it."
+            : "Update schedule, faculty, or remove this session"
+        }
+      >
+        <div className="flex flex-wrap gap-2">
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={handleOpenEdit}
-              disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-blue-500/50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              disabled={isSessionLocked || isActionLoading}
+              title={lockedActionTitle}
+              className="h-9 gap-1.5"
             >
-              <Edit3 className="w-4 h-4 text-blue-400" />
-              <span>Edit Class</span>
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit class
             </Button>
           </PermissionGate>
 
-          {/* Action 2: Change Faculty */}
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={handleOpenChangeFaculty}
-              disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-muted/60 hover:bg-muted text-foreground border border-border hover:border-emerald-500/50 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              disabled={isSessionLocked || isActionLoading}
+              title={lockedActionTitle}
+              className="h-9 gap-1.5"
             >
-              <UserPlus className="w-4 h-4 text-emerald-400" />
-              <span>{isFacultyAssigned ? "Change Faculty" : "Assign Faculty"}</span>
+              <UserPlus className="w-3.5 h-3.5" />
+              {isFacultyAssigned ? "Change faculty" : "Assign faculty"}
             </Button>
           </PermissionGate>
 
-          {/* Action 3: Cancel Class */}
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setIsCancelConfirmOpen(true)}
-              disabled={currentStatus === "CANCELLED" || currentStatus === "COMPLETED"}
-              className="h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              disabled={isSessionLocked || isActionLoading}
+              title={lockedActionTitle}
+              className="h-9 gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-950/40"
             >
-              <XCircle className="w-4 h-4 text-rose-500" />
-              <span>Cancel Class</span>
+              <XCircle className="w-3.5 h-3.5" />
+              Cancel class
             </Button>
           </PermissionGate>
 
-          {/* Action 4: Delete Class */}
           <PermissionGate itemKey="schedule.classes" mode="write">
             <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className="h-12 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+              disabled={isActionLoading}
+              className="h-9 gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-950/40"
             >
-              <Trash2 className="w-4 h-4 text-rose-400" />
-              <span>Delete Class</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete class
             </Button>
           </PermissionGate>
         </div>
-      </Card>
+      </PageSection>
 
-      {/* ─── MODAL 1: EDIT CLASS MODAL ─────────────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
@@ -1021,7 +969,7 @@ export const ClassDetails: React.FC = () => {
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="">Select course</option>
-                  {courses.map((course: any) => (
+                  {courseOptions.map((course: any) => (
                     <option key={course.id} value={course.name}>
                       {course.name}
                     </option>
@@ -1036,13 +984,13 @@ export const ClassDetails: React.FC = () => {
                   onChange={(e) => {
                     const code = e.target.value;
                     setEditBatch(code);
-                    const matched = batches.find((b: any) => b.code === code || b.id === code);
+                    const matched = batchOptions.find((b: any) => b.code === code || b.id === code);
                     if (matched?.branchId) setEditBranch(matched.branchId);
                   }}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="">Select batch</option>
-                  {batches.map((batch: any) => (
+                  {batchOptions.map((batch: any) => (
                     <option key={batch.id} value={batch.code}>
                       {batch.code} — {batch.name}
                     </option>
@@ -1082,10 +1030,10 @@ export const ClassDetails: React.FC = () => {
                 <select
                   value={editFacultyId}
                   onChange={(e) => setEditFacultyId(e.target.value)}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-blue-400 outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
-                  <option value="none">⚠ Leave Unassigned for now</option>
-                  {facultyMembers.map((f: any) => (
+                  <option value="none">Leave unassigned</option>
+                  {editFacultyOptions.map((f: any) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
                     </option>
@@ -1116,13 +1064,25 @@ export const ClassDetails: React.FC = () => {
                   {slotsEmpty ? (
                     <option value={editPeriod}>Configure Time Slots in Master Setup</option>
                   ) : (
-                    bookableSlots.map((slot) => (
+                    timetableSlots.map((slot) => (
                       <option key={slot.timeslotMasterId || slot.period} value={slot.period}>
                         {slot.label}
+                        {slot.isBreak ? " · Break" : slot.isLunch ? " · Lunch" : ""}
+                        {takenPeriodSet.has(slot.period) ? " · Taken" : ""}
                       </option>
                     ))
                   )}
                 </select>
+                {editSlotConflict && (
+                  <p className="mt-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      This time slot is already assigned (
+                      {editSlotConflict.title || "Class"} at {editSlotConflict.startTime}–
+                      {editSlotConflict.endTime}). Choose another slot or faculty.
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1145,7 +1105,7 @@ export const ClassDetails: React.FC = () => {
                   {editMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
                 </Label>
                 {editMode === "ONLINE" ? (
-                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center gap-2 font-bold">
+                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-2 font-medium">
                     <Video className="h-4 w-4" />
                     Google Meet {session.meetingUrl ? "(connected)" : "(auto-created on save)"}
                   </div>
@@ -1171,7 +1131,7 @@ export const ClassDetails: React.FC = () => {
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={isActionLoading}
+              disabled={isActionLoading || !!editSlotConflict}
               className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
             >
               <Check className="h-3.5 w-3.5" /> Save Changes
@@ -1180,7 +1140,6 @@ export const ClassDetails: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL 2: CHANGE FACULTY MODAL ─────────────────────────────── */}
       <Dialog open={isChangeFacultyModalOpen} onOpenChange={setIsChangeFacultyModalOpen}>
         <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
@@ -1195,42 +1154,49 @@ export const ClassDetails: React.FC = () => {
           <div className="space-y-3 my-3 text-xs">
             <Label className="text-[11px] font-bold text-foreground">Available Faculty Members</Label>
             <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-              {facultyMembers.map((fac: any) => {
-                const isSelected = targetFacultyId === fac.id;
-                const name = fac.user?.name || fac.employeeCode || "Faculty Member";
-                const specialization = fac.specialization || "Technical Instructor";
-                return (
-                  <div
-                    key={fac.id}
-                    onClick={() => setTargetFacultyId(fac.id)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/20"
-                        : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 border border-border">
-                        <AvatarFallback className="bg-[#1769AA] text-white font-bold text-xs">
-                          {name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <span className="font-bold text-foreground text-xs block">{name}</span>
-                        <span className="text-[10px] text-muted-foreground font-medium">
-                          {specialization}
-                        </span>
+              {facultyMembers.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center">
+                  No faculty members available to assign.
+                </p>
+              ) : (
+                facultyMembers.map((fac: any) => {
+                  const isSelected = targetFacultyId === fac.id;
+                  const name = fac.user?.name || fac.employeeCode || "Faculty Member";
+                  const specialization = fac.specialization || "Technical Instructor";
+                  return (
+                    <button
+                      type="button"
+                      key={fac.id}
+                      onClick={() => setTargetFacultyId(fac.id)}
+                      className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/20"
+                          : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9 border border-border">
+                          <AvatarFallback className="bg-[#1769AA] text-white font-bold text-xs">
+                            {name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <span className="font-bold text-foreground text-xs block">{name}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {specialization}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    {isSelected && (
-                      <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Check className="h-3.5 w-3.5 stroke-[3]" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {isSelected && (
+                        <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Check className="h-3.5 w-3.5 stroke-[3]" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -1253,7 +1219,6 @@ export const ClassDetails: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL 3: CANCEL CLASS CONFIRMATION ─────────────────────────── */}
       <Dialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
         <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-2">
@@ -1264,8 +1229,10 @@ export const ClassDetails: React.FC = () => {
               Cancel Class Session?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
-              Are you sure you want to cancel <strong className="text-foreground">{topicName}</strong> scheduled for{" "}
-              <strong className="text-foreground">{formatDateLabel(dateStr)}</strong>? This will mark the session as cancelled.
+              Are you sure you want to cancel{" "}
+              <strong className="text-foreground">{topicName}</strong> scheduled for{" "}
+              <strong className="text-foreground">{formatDateLabel(dateStr)}</strong>? This will
+              mark the session as cancelled.
             </DialogDescription>
           </DialogHeader>
 
@@ -1288,7 +1255,6 @@ export const ClassDetails: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL 4: DELETE CLASS CONFIRMATION ─────────────────────────── */}
       <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-md bg-card text-foreground rounded-xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-2">
@@ -1299,7 +1265,9 @@ export const ClassDetails: React.FC = () => {
               Permanently Delete Class?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium leading-relaxed">
-              This action cannot be undone. This will permanently remove <strong className="text-foreground">{topicName}</strong> from the timetable and schedule.
+              This action cannot be undone. This will permanently remove{" "}
+              <strong className="text-foreground">{topicName}</strong> from the timetable and
+              schedule.
             </DialogDescription>
           </DialogHeader>
 

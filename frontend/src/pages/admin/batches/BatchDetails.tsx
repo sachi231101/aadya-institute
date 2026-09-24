@@ -1,17 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Loader2,
   AlertCircle,
+  RefreshCw,
+  CalendarDays,
 } from "lucide-react";
-import { batchesApi } from "@/services/batches.api";
+import { batchesApi, type SessionSyncResult } from "@/services/batches.api";
 import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { BatchEnrolledStudents } from "./BatchEnrolledStudents";
 import { BatchSubjectsFacultyTable } from "@/components/batches/BatchSubjectFacultyDisplay";
 import {
@@ -90,12 +93,29 @@ const statusLabel = (status?: string) => {
   }
 };
 
+const formatSyncSummary = (sync: SessionSyncResult) => {
+  if (sync.error) return sync.message || sync.error;
+  if (sync.message) return sync.message;
+  const parts = [
+    `${sync.created} created`,
+    `${sync.updated} updated`,
+    sync.cancelled ? `${sync.cancelled} cancelled` : null,
+    sync.skippedHolidays ? `${sync.skippedHolidays} holiday skips` : null,
+    sync.skippedConflicts ? `${sync.skippedConflicts} conflict skips` : null,
+  ].filter(Boolean);
+  return `Timetable sync: ${parts.join(", ")}.`;
+};
+
 export const BatchDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const basePath = getPortalBasePath(location.pathname);
   const [tab, setTab] = useState<Tab>("overview");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["batches", id],
@@ -133,6 +153,31 @@ export const BatchDetails: React.FC = () => {
   }, [upcomingSessionsRes?.data]);
 
   const summaryTitle = batch?.name ?? "";
+  const timetablePath = `${basePath}/schedule/timetable`;
+
+  const handleSyncTimetable = async () => {
+    if (!id) return;
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncMessage(null);
+      const res = await batchesApi.generateSessions(id);
+      setSyncMessage(formatSyncSummary(res.data));
+      await refetch();
+      await refetchUpcoming();
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to sync timetable";
+      setSyncError(message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const attributeRows = useMemo(() => {
     if (!batch) return [];
@@ -185,6 +230,39 @@ export const BatchDetails: React.FC = () => {
     { key: "upcoming", label: "Upcoming Classes" },
   ];
 
+  const syncActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <PermissionGate itemKey="batches.all" mode="write">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="text-xs gap-1.5"
+          disabled={syncing || !batch.expectedEndDate}
+          title={
+            !batch.expectedEndDate
+              ? "Set an expected end date on the batch before syncing"
+              : "Generate weekly class sessions through the end date"
+          }
+          onClick={() => void handleSyncTimetable()}
+        >
+          {syncing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          Sync timetable
+        </Button>
+      </PermissionGate>
+      <Button asChild size="sm" variant="ghost" className="text-xs gap-1.5">
+        <Link to={timetablePath}>
+          <CalendarDays className="h-3.5 w-3.5" />
+          Timetable exceptions
+        </Link>
+      </Button>
+    </div>
+  );
+
   return (
     <PageContainer className="animate-in fade-in duration-300">
       <PageHeader
@@ -207,6 +285,18 @@ export const BatchDetails: React.FC = () => {
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm font-medium text-foreground">
         <span className="break-words">{summaryTitle}</span>
       </div>
+
+      {(syncMessage || syncError) && (
+        <div
+          className={`rounded-lg border px-3 py-2.5 text-xs font-medium ${
+            syncError
+              ? "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {syncError || syncMessage}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">
@@ -271,10 +361,16 @@ export const BatchDetails: React.FC = () => {
 
           {/* Right Time Table Details */}
           <Card className="lg:col-span-8 xl:col-span-8 border-border shadow-xs rounded-xl overflow-hidden">
-            <div className="bg-muted/50 border-b border-border px-4 py-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
-                Time Table Details
-              </h3>
+            <div className="bg-muted/50 border-b border-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
+                  Time Table Details
+                </h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Weekly pattern fills classes through the end date. Use Timetable for odd-day exceptions.
+                </p>
+              </div>
+              {syncActions}
             </div>
             <CardContent className="p-0 overflow-x-auto">
               {batch.schedules && batch.schedules.length > 0 ? (
@@ -346,15 +442,18 @@ export const BatchDetails: React.FC = () => {
 
       {tab === "upcoming" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-foreground">
               Upcoming Classes ({upcomingSessions.length})
             </h3>
-            <Button asChild variant="outline" size="sm" className="text-xs">
-              <Link to={`${ROUTES.ADMIN.SCHEDULE.CLASSES}?batchId=${batch.id}`}>
-                Open Classes
-              </Link>
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {syncActions}
+              <Button asChild variant="outline" size="sm" className="text-xs">
+                <Link to={`${ROUTES.ADMIN.SCHEDULE.CLASSES}?batchId=${batch.id}`}>
+                  Open Classes
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {upcomingLoading ? (
@@ -377,7 +476,7 @@ export const BatchDetails: React.FC = () => {
                 <p className="text-sm font-semibold text-foreground">No upcoming classes</p>
                 <p className="text-xs text-muted-foreground max-w-md mx-auto">
                   There are no upcoming class sessions for this batch from today onward.
-                  Sessions are created automatically when the batch timetable is saved.
+                  Use Sync timetable to fill weekly classes through the end date, or adjust odd days on Timetable.
                 </p>
               </CardContent>
             </Card>

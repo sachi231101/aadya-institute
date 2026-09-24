@@ -50,8 +50,9 @@ export const useBatches = (filters?: {
   };
 
   const updateBatch = async (id: string, payload: Partial<CreateBatchPayload> & { status?: string }) => {
-    await batchesApi.update(id, payload);
+    const response = await batchesApi.update(id, payload);
     await fetchBatches();
+    return response.data;
   };
 
   const deleteBatch = async (id: string) => {

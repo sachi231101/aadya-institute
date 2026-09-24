@@ -172,6 +172,9 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
           <p className="text-[10px] text-muted-foreground">
             One line per day / course / slot. Use Weekly to add Mon–Fri clones.
           </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Classes repeat weekly from start to end date. Adjust odd days on Timetable.
+          </p>
         </div>
       </div>
 

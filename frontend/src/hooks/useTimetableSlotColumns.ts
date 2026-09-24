@@ -17,7 +17,8 @@ export const useTimetableSlotColumns = (branchId?: string) => {
     [options]
   );
 
-  // Teaching periods only — Break/Lunch columns are structural, not bookable.
+  // Teaching periods only — used by Classes / ClassDetails (Break/Lunch stay structural there).
+  // Timetable modal/move selects use `slots` so Break/Lunch can be booked as overrides.
   const bookableSlots = useMemo(
     () => slots.filter((s) => !s.isBreak && !s.isLunch),
     [slots]

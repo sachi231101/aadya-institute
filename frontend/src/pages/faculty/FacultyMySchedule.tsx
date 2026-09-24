@@ -16,9 +16,11 @@ import {
   Video,
   ArrowRight,
   UserCheck,
+  Coffee,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageContainer, PageHeader, PageSection } from "@/components/layout";
+import { FilterToolbar, PageContainer, PageHeader, PageSection } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth.store";
@@ -26,6 +28,7 @@ import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { useFacultyScheduleBlocks } from "@/hooks/useFacultyScheduleBlocks";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import {
@@ -44,6 +47,10 @@ import { StartClassModal, type ClassSessionModalData } from "@/components/facult
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
 import { classSessionsApi, type BackendClassSession } from "@/services/class-sessions.api";
+import type {
+  BackendFacultyScheduleBlock,
+  FacultyScheduleBlockType,
+} from "@/services/faculty-schedule-blocks.api";
 
 export interface FormattedTimetableClass {
   id: string;
@@ -140,6 +147,21 @@ export const FacultyMySchedule: React.FC = () => {
     user?.branchId ||
     (dashboard as { profile?: { branchId?: string } } | undefined)?.profile?.branchId ||
     undefined;
+
+  const blockQueryParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      from: weekRange.from,
+      to: weekRange.to,
+      limit: 200,
+    };
+    if (facultyId) params.facultyId = facultyId;
+    if (branchId) params.branchId = branchId;
+    return params;
+  }, [facultyId, branchId, weekRange.from, weekRange.to]);
+
+  const { data: blocksRes } = useFacultyScheduleBlocks(blockQueryParams);
+  const scheduleBlocks = blocksRes?.data ?? [];
+
   const { options: holidayOptions } = useMasterDropdown("holiday", branchId);
   const {
     slots: masterTimeSlots,
@@ -326,6 +348,44 @@ export const FacultyMySchedule: React.FC = () => {
     });
   }, [assignedClasses, timeSlotColumns]);
 
+  /** O(1) lookup: scheduledDate + timeslotMasterId, with startTime fallback. */
+  const blocksByDateSlot = useMemo(() => {
+    const byMasterId = new Map<string, BackendFacultyScheduleBlock>();
+    const byStartTime = new Map<string, BackendFacultyScheduleBlock>();
+    scheduleBlocks.forEach((block) => {
+      const dateKey = toDateKey(block.scheduledDate);
+      if (block.timeslotMasterId) {
+        byMasterId.set(`${dateKey}|${block.timeslotMasterId}`, block);
+      }
+      byStartTime.set(`${dateKey}|${block.startTime.trim().toLowerCase()}`, block);
+    });
+    return { byMasterId, byStartTime };
+  }, [scheduleBlocks]);
+
+  const findBlockForSlot = (
+    dateKey: string,
+    slot: TimetablePeriodSlot
+  ): BackendFacultyScheduleBlock | undefined => {
+    if (slot.timeslotMasterId) {
+      const byId = blocksByDateSlot.byMasterId.get(`${dateKey}|${slot.timeslotMasterId}`);
+      if (byId) return byId;
+    }
+    return blocksByDateSlot.byStartTime.get(
+      `${dateKey}|${slot.start.trim().toLowerCase()}`
+    );
+  };
+
+  const resolveBreakLunchLabel = (
+    blockType?: FacultyScheduleBlockType | null,
+    slot?: TimetablePeriodSlot
+  ): "BREAK" | "LUNCH" | null => {
+    if (blockType === "LUNCH") return "LUNCH";
+    if (blockType === "BREAK") return "BREAK";
+    if (slot?.isLunch) return "LUNCH";
+    if (slot?.isBreak) return "BREAK";
+    return null;
+  };
+
   const filteredClasses = classesForGrid;
 
   const todayClasses = useMemo(() => {
@@ -466,140 +526,141 @@ export const FacultyMySchedule: React.FC = () => {
   const weekRangeLabel = useMemo(() => weekRange.label, [weekRange.label]);
 
   return (
-    <PageContainer>
+    <PageContainer density="compact">
       <PageHeader
         title="My Class Timetable"
-        description="Live and upcoming classes assigned to you."
-        actions={
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Week Selector */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-xs">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePrevWeek}
-              className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100"
-              title="Previous Week"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-600" />
-            </Button>
-            <div className="flex items-center gap-2 px-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-              <CalendarIcon className="w-3.5 h-3.5 text-primary" />
-              <span>{weekRangeLabel}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNextWeek}
-              className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100"
-              title="Next Week"
-            >
-              <ChevronRight className="w-4 h-4 text-slate-600" />
-            </Button>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCurrentWeek}
-            className="h-9 px-3.5 text-xs font-bold rounded-xl border-primary/30 text-primary hover:bg-blue-50 bg-white dark:bg-slate-900 shadow-xs"
-          >
-            Today
-          </Button>
-
-          {/* Timetable Grid / Class List Toggle */}
-          <div className="bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-bold shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setViewMode("TIMETABLE")}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "TIMETABLE"
-                ? "bg-primary text-white shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                }`}
-            >
-              Timetable Grid
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("LIST")}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "LIST"
-                ? "bg-primary text-white shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                }`}
-            >
-              Class List
-            </button>
-          </div>
-        </div>
-        }
+        description="Your assigned classes this week."
       />
 
+      <FilterToolbar className="flex flex-wrap items-center gap-2 !py-0">
+        <div className="inline-flex items-center h-9 rounded-lg border border-border bg-background shrink-0">
+          <button
+            type="button"
+            onClick={handlePrevWeek}
+            className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-l-lg transition-colors"
+            title="Previous Week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="px-2.5 text-xs font-semibold text-foreground whitespace-nowrap tabular-nums min-w-[9.5rem] text-center flex items-center justify-center gap-1.5">
+            <CalendarIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+            {weekRangeLabel}
+          </span>
+          <button
+            type="button"
+            onClick={handleNextWeek}
+            className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-r-lg transition-colors"
+            title="Next Week"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCurrentWeek}
+          className="h-9 px-3 text-xs font-semibold border-border"
+        >
+          Today
+        </Button>
+
+        <div className="inline-flex items-center h-9 rounded-lg border border-border bg-muted/40 p-0.5 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setViewMode("TIMETABLE")}
+            className={`h-8 px-3 rounded-md transition-colors cursor-pointer ${
+              viewMode === "TIMETABLE"
+                ? "bg-background text-foreground shadow-xs border border-border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Grid
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("LIST")}
+            className={`h-8 px-3 rounded-md transition-colors cursor-pointer ${
+              viewMode === "LIST"
+                ? "bg-background text-foreground shadow-xs border border-border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            List
+          </button>
+        </div>
+      </FilterToolbar>
 
       {/* --- Main Timetable Grid / List Display --- */}
       {viewMode === "TIMETABLE" ? (
-        <PageSection title="Timetable">
-        <div className="space-y-6">
+        <PageSection density="compact">
+        <div className="space-y-4">
           {slotsLoading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-sm text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <div className="flex items-center justify-center py-12 gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
               Loading time slots from Master Setup…
             </div>
           ) : slotsEmpty ? (
-            <Card className="rounded-xl border-dashed">
-              <CardContent className="py-14 text-center space-y-2">
-                <Clock className="mx-auto h-8 w-8 text-slate-300" />
-                <p className="text-sm font-bold text-slate-800">No time slots configured</p>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Ask an admin to add Time Slots in Master Setup (for example 9:00 AM – 10:00 AM). This timetable uses those slots as its base structure.
+            <Card className="rounded-xl border-dashed border-border shadow-xs">
+              <CardContent className="py-10 text-center space-y-1.5">
+                <Clock className="mx-auto h-7 w-7 text-muted-foreground/50" />
+                <p className="text-sm font-semibold text-foreground">No time slots configured</p>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  Ask an admin to add Time Slots in Master Setup. This timetable uses those slots as its columns.
                 </p>
               </CardContent>
             </Card>
           ) : (
           <>
           {sessionsLoading && (
-            <div className="flex items-center justify-center gap-2 py-4 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
               Loading your assigned classes for this week…
             </div>
           )}
           {/* --- Master Time Slot Timetable Matrix (Desktop/Tablet) --- */}
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-            <table className="w-full border-collapse text-left min-w-[900px]">
+          <Card className="hidden md:block border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+            <div className="overflow-x-auto w-full">
+            <table className="w-full border-collapse text-left min-w-[900px] table-fixed">
               <thead>
-                <tr className="bg-slate-50/90 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  <th className="p-3.5 border-r border-slate-200 dark:border-slate-800 w-32 text-center shrink-0">
-                    DAY / DATE
+                <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
+                  <th className="py-2 px-3 w-[100px] border-r border-border text-center shrink-0">
+                    Day
                   </th>
                   {timeSlotColumns.map((slot) => (
                     <th
                       key={slot.timeslotMasterId || slot.period}
-                      className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center min-w-[110px]"
+                      className="py-2 px-1 border-r border-border last:border-r-0 text-center min-w-[96px]"
                     >
-                      <span className="block font-semibold text-[11px] text-slate-800 dark:text-slate-100 leading-tight">
+                      <div className="text-[10px] font-bold text-foreground tracking-tight leading-tight">
                         {slot.timeTitle}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-bold block mt-0.5">
-                        {slot.subTitle || "—"}
-                      </span>
+                      </div>
+                      <div className="text-[8px] text-muted-foreground font-semibold tracking-wider uppercase mt-0.5">
+                        {slot.isBreak
+                          ? "Break"
+                          : slot.isLunch
+                            ? "Lunch"
+                            : slot.subTitle || "—"}
+                      </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+              <tbody className="divide-y divide-border text-xs">
                 {weekDays.map((day) => {
                   // Holiday / weekly off: full-width banner
                   if (day.isHoliday) {
                     return (
                       <tr
                         key={day.iso}
-                        className="transition-colors h-[40px] bg-rose-50/30 dark:bg-rose-950/10"
+                        className="bg-rose-50/40 dark:bg-rose-950/15"
                       >
                         <td
                           colSpan={timeSlotColumns.length + 1}
-                          className="p-2.5 text-center align-middle"
+                          className="p-1.5 text-center align-middle"
                         >
-                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-semibold shadow-2xs">
-                            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                          <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                             <span>
                               {day.holidayTitle || "Holiday"} – {day.formattedDate}
                             </span>
@@ -617,23 +678,25 @@ export const FacultyMySchedule: React.FC = () => {
                   return (
                     <tr
                       key={day.iso}
-                      className={`transition-colors min-h-[54px] ${day.isToday
-                        ? "bg-blue-50/20 dark:bg-blue-950/10"
-                        : "hover:bg-slate-50/30 dark:hover:bg-slate-800/20"
-                        }`}
+                      className={
+                        day.isToday
+                          ? "bg-blue-500/[0.03] dark:bg-blue-950/10"
+                          : "hover:bg-muted/20"
+                      }
                     >
                       {/* Left Day/Date Cell */}
                       <td
-                        className={`p-2 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${day.isToday
-                          ? "bg-blue-50/60 text-primary dark:bg-blue-950/40"
-                          : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
-                          }`}
+                        className={`py-1.5 px-2 border-r border-border text-center align-middle ${
+                          day.isToday
+                            ? "bg-blue-500/10 text-primary"
+                            : "bg-muted/30 text-foreground"
+                        }`}
                       >
-                        <div className="flex flex-col items-center justify-center">
-                          <span className="text-xs uppercase tracking-wider font-semibold">
+                        <div className="flex flex-col items-center justify-center leading-tight">
+                          <span className="text-[11px] uppercase tracking-wider font-semibold">
                             {day.dayShort}
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                          <span className="text-[9px] font-medium text-muted-foreground mt-0.5">
                             {day.formattedDate}
                           </span>
                         </div>
@@ -652,6 +715,7 @@ export const FacultyMySchedule: React.FC = () => {
                           return (c.startPeriod ?? periodFromStartTime(c.startTime, timeSlotColumns)) === slot.period;
                         });
 
+                        // 1. Class session wins
                         if (matchingClass) {
                           const span = matchingClass.spanHours || 1;
                           if (span > 1) {
@@ -666,48 +730,50 @@ export const FacultyMySchedule: React.FC = () => {
                             <td
                               key={slot.timeslotMasterId || slot.period}
                               colSpan={span}
-                              className="p-1 border-r border-slate-200 dark:border-slate-800 align-middle"
+                              className="p-1 border-r border-border last:border-r-0 align-middle"
                             >
                               <div
                                 onClick={() => handleOpenClassDetails(matchingClass)}
-                                className={`p-1.5 rounded-lg border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[50px] flex flex-col justify-between ${isLive
-                                  ? "bg-emerald-50/90 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 ring-2 ring-emerald-500/40 shadow-xs"
-                                  : isExam
-                                    ? "bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 hover:border-rose-400"
-                                    : isSelected
-                                      ? "bg-blue-50 border-primary ring-2 ring-primary/30 shadow-xs"
-                                      : "bg-blue-50/50 border-blue-100 hover:border-primary/60 dark:bg-slate-800/60 dark:border-slate-700"
-                                  }`}
+                                className={`px-1.5 py-1 rounded-md border text-left cursor-pointer transition-all select-none relative min-h-[44px] flex flex-col justify-center gap-0.5 ${
+                                  isLive
+                                    ? "bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/30"
+                                    : isExam
+                                      ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/50"
+                                      : isSelected
+                                        ? "bg-blue-500/20 border-blue-500/50 ring-1 ring-primary/25"
+                                        : "bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15 hover:border-blue-500/50"
+                                }`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex items-center justify-between gap-1 min-w-0">
+                                  <div className="flex items-center gap-1 min-w-0">
                                     <span
-                                      className={`w-2 h-2 rounded-full shrink-0 ${isLive
-                                        ? "bg-emerald-500 animate-ping"
-                                        : isExam
-                                          ? "bg-rose-500"
-                                          : "bg-blue-600"
-                                        }`}
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        isLive
+                                          ? "bg-emerald-500 animate-ping"
+                                          : isExam
+                                            ? "bg-rose-500"
+                                            : "bg-blue-600"
+                                      }`}
                                     />
-                                    <p className="font-semibold text-[11px] text-slate-900 dark:text-white truncate">
+                                    <p className="font-semibold text-[9px] text-blue-900 dark:text-blue-200 truncate leading-tight">
                                       {matchingClass.courseName}
                                     </p>
                                   </div>
-                                  <span className="text-[10px] text-slate-400 shrink-0">
+                                  <span className="shrink-0">
                                     {matchingClass.mode === "ONLINE" ? (
-                                      <Video className="w-3 h-3 text-blue-600" />
+                                      <Video className="w-2.5 h-2.5 text-blue-600" />
                                     ) : (
-                                      <MapPin className="w-3 h-3 text-slate-500" />
+                                      <MapPin className="w-2.5 h-2.5 text-muted-foreground" />
                                     )}
                                   </span>
                                 </div>
 
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                                  <span className="font-mono text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-slate-700/80 px-1 py-0.2 rounded border border-slate-200/60">
+                                <div className="flex items-center justify-between gap-1 text-[8px] font-medium text-foreground/90 leading-tight">
+                                  <span className="font-mono truncate">
                                     {matchingClass.batchCode}
                                   </span>
-                                  <span className="text-[9px] font-medium text-slate-500">
-                                    {matchingClass.startTime.replace(" ", "")} – {matchingClass.endTime.replace(" ", "")}
+                                  <span className="text-muted-foreground shrink-0 tabular-nums">
+                                    {matchingClass.startTime.replace(" ", "")}–{matchingClass.endTime.replace(" ", "")}
                                   </span>
                                 </div>
                               </div>
@@ -715,14 +781,52 @@ export const FacultyMySchedule: React.FC = () => {
                           );
                         }
 
+                        // 2. FacultyScheduleBlock, then 3. master isBreak / isLunch
+                        const scheduleBlock = findBlockForSlot(day.iso, slot);
+                        const breakLunchKind = resolveBreakLunchLabel(
+                          scheduleBlock?.blockType,
+                          slot
+                        );
+
+                        if (breakLunchKind === "BREAK") {
+                          return (
+                            <td
+                              key={slot.timeslotMasterId || slot.period}
+                              className="p-1 border-r border-border last:border-r-0 align-middle"
+                            >
+                              <div className="min-h-[44px] w-full rounded-md border border-amber-500/30 bg-amber-500/10 flex flex-col items-center justify-center text-amber-600 dark:text-amber-300 select-none">
+                                <span className="text-[8px] font-semibold uppercase">Break</span>
+                                <Coffee className="h-2.5 w-2.5 mt-0.5 text-amber-500 dark:text-amber-400" />
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        if (breakLunchKind === "LUNCH") {
+                          return (
+                            <td
+                              key={slot.timeslotMasterId || slot.period}
+                              className="p-1 border-r border-border last:border-r-0 align-middle"
+                            >
+                              <div className="min-h-[44px] w-full rounded-md border border-orange-500/30 bg-orange-500/10 flex flex-col items-center justify-center text-orange-600 dark:text-orange-300 select-none">
+                                <span className="text-[8px] font-semibold uppercase">Lunch</span>
+                                <UtensilsCrossed className="h-2.5 w-2.5 mt-0.5 text-orange-500 dark:text-orange-400" />
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        // 4. Empty teaching slot
                         return (
                           <td
                             key={slot.timeslotMasterId || slot.period}
-                            className="p-1 border-r border-slate-200 dark:border-slate-800 align-middle text-center"
+                            className="p-1 border-r border-border last:border-r-0 align-middle text-center"
                           >
-                            <span className="text-slate-300 dark:text-slate-700 text-xs font-bold select-none">
-                              —
-                            </span>
+                            <div className="min-h-[44px] flex items-center justify-center">
+                              <span className="text-muted-foreground/40 text-[10px] font-medium select-none">
+                                —
+                              </span>
+                            </div>
                           </td>
                         );
                       })}
@@ -731,23 +835,25 @@ export const FacultyMySchedule: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </Card>
 
           {/* --- Mobile Daily Cards View (Small Screens) --- */}
-          <div className="md:hidden space-y-3">
-            <div className="flex items-center justify-between p-1.5 bg-white dark:bg-slate-900 border border-slate-200 rounded-xl overflow-x-auto gap-1">
+          <div className="md:hidden space-y-2.5">
+            <div className="flex items-center justify-between p-1 bg-card border border-border rounded-lg overflow-x-auto gap-0.5">
               {weekDays.map((day, idx) => (
                 <button
                   key={day.iso}
                   type="button"
                   onClick={() => setMobileDayIndex(idx)}
-                  className={`flex-1 min-w-[42px] py-2 px-1 text-center rounded-xl transition-all cursor-pointer ${mobileDayIndex === idx
-                    ? "bg-primary text-white font-bold shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                    }`}
+                  className={`flex-1 min-w-[40px] py-1.5 px-1 text-center rounded-md transition-colors cursor-pointer ${
+                    mobileDayIndex === idx
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  <span className="block text-[10px] uppercase font-mono">{day.dayShort}</span>
-                  <span className="block text-xs font-semibold">{day.date.getDate()}</span>
+                  <span className="block text-[9px] uppercase font-mono leading-tight">{day.dayShort}</span>
+                  <span className="block text-[11px] font-semibold leading-tight">{day.date.getDate()}</span>
                 </button>
               ))}
             </div>
@@ -756,52 +862,152 @@ export const FacultyMySchedule: React.FC = () => {
               const activeDay = weekDays[mobileDayIndex] || weekDays[0];
               const dayClasses = filteredClasses.filter((c) => c.date === activeDay.iso);
 
+              type MobileDayItem =
+                | { kind: "CLASS"; sortKey: number; cls: FormattedTimetableClass }
+                | {
+                    kind: "BREAK" | "LUNCH";
+                    sortKey: number;
+                    label: string;
+                    timeLabel: string;
+                    key: string;
+                  };
+
+              const occupiedPeriods = new Set<number>();
+              const mobileItems: MobileDayItem[] = [];
+
+              dayClasses.forEach((cls) => {
+                const period =
+                  cls.startPeriod ??
+                  periodFromStartTime(cls.startTime, timeSlotColumns) ??
+                  0;
+                const span = cls.spanHours || 1;
+                for (let p = period; p < period + span; p++) occupiedPeriods.add(p);
+                const sortKey =
+                  cls.startHour * 60 + cls.startMin;
+                mobileItems.push({ kind: "CLASS", sortKey, cls });
+              });
+
+              if (!activeDay.isHoliday) {
+                timeSlotColumns.forEach((slot) => {
+                  if (occupiedPeriods.has(slot.period)) return;
+                  const scheduleBlock = findBlockForSlot(activeDay.iso, slot);
+                  const breakLunchKind = resolveBreakLunchLabel(
+                    scheduleBlock?.blockType,
+                    slot
+                  );
+                  if (!breakLunchKind) return;
+                  const startMins =
+                    (slot.hour24 ?? 0) * 60 + (slot.minute ?? 0);
+                  mobileItems.push({
+                    kind: breakLunchKind,
+                    sortKey: startMins,
+                    label: breakLunchKind === "LUNCH" ? "Lunch" : "Break",
+                    timeLabel: slot.label,
+                    key: `block-${slot.timeslotMasterId || slot.period}`,
+                  });
+                });
+              }
+
+              mobileItems.sort((a, b) => a.sortKey - b.sortKey);
+
               return (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-foreground px-0.5">
                     <span>
                       {activeDay.dayName}, {activeDay.formattedDate}
                     </span>
-                    {activeDay.isToday && <Badge className="bg-primary text-white text-[10px]">TODAY</Badge>}
+                    {activeDay.isToday && (
+                      <Badge className="bg-primary text-primary-foreground text-[9px] px-1.5 py-0 h-5">
+                        Today
+                      </Badge>
+                    )}
                   </div>
 
                   {activeDay.isHoliday ? (
-                    <div className="py-4 px-4 text-center text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                    <div className="py-3 px-3 text-center text-[10px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-500/10 rounded-md border border-rose-500/20 flex items-center justify-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                       <span>
                         {activeDay.holidayTitle || "Holiday"} – {activeDay.formattedDate}
                       </span>
                     </div>
-                  ) : dayClasses.length > 0 ? (
-                    dayClasses.map((cls) => (
-                      <Card
-                        key={cls.id}
-                        onClick={() => handleOpenClassDetails(cls)}
-                        className={`rounded-xl border cursor-pointer hover:shadow-md transition-all ${selectedClassId === cls.id ? "ring-2 ring-primary border-primary" : ""
+                  ) : mobileItems.length > 0 ? (
+                    mobileItems.map((item) => {
+                      if (item.kind === "CLASS") {
+                        const cls = item.cls;
+                        return (
+                          <Card
+                            key={cls.id}
+                            onClick={() => handleOpenClassDetails(cls)}
+                            className={`rounded-lg border border-border shadow-xs cursor-pointer hover:border-primary/40 transition-colors ${
+                              selectedClassId === cls.id ? "ring-1 ring-primary border-primary" : ""
+                            }`}
+                          >
+                            <CardContent className="p-3 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold font-mono text-primary">
+                                  {cls.timeRange}
+                                </span>
+                                <Badge
+                                  className={
+                                    cls.status === "LIVE"
+                                      ? "bg-emerald-600 text-white animate-pulse text-[9px] px-1.5 h-5"
+                                      : "bg-blue-500/10 text-blue-700 border-blue-500/20 text-[9px] px-1.5 h-5"
+                                  }
+                                >
+                                  {cls.status === "LIVE" ? "LIVE" : "Upcoming"}
+                                </Badge>
+                              </div>
+                              <h4 className="font-semibold text-sm text-foreground leading-tight">
+                                {cls.courseName}
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground">
+                                Batch {cls.batchCode} · {cls.roomNo} ({cls.mode}) · {cls.studentCount} students
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+
+                      const isLunch = item.kind === "LUNCH";
+                      return (
+                        <Card
+                          key={item.key}
+                          className={`rounded-lg border shadow-xs select-none ${
+                            isLunch
+                              ? "border-orange-500/30 bg-orange-500/10"
+                              : "border-amber-500/30 bg-amber-500/10"
                           }`}
-                      >
-                        <CardContent className="p-4 space-y-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold font-mono text-primary">{cls.timeRange}</span>
-                            <Badge
-                              className={
-                                cls.status === "LIVE"
-                                  ? "bg-emerald-600 text-white animate-pulse"
-                                  : "bg-blue-50 text-blue-700 border-blue-200"
-                              }
-                            >
-                              {cls.status === "LIVE" ? "? LIVE NOW" : "Upcoming"}
-                            </Badge>
-                          </div>
-                          <h4 className="font-semibold text-sm text-slate-900">{cls.courseName}</h4>
-                          <p className="text-xs text-slate-500">
-                            Batch {cls.batchCode} • {cls.roomNo} ({cls.mode}) • {cls.studentCount} Students
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))
+                        >
+                          <CardContent className="p-3 flex items-center justify-between gap-3">
+                            <div>
+                              <span
+                                className={`text-[11px] font-semibold font-mono ${
+                                  isLunch ? "text-orange-700" : "text-amber-700"
+                                }`}
+                              >
+                                {item.timeLabel}
+                              </span>
+                              <h4
+                                className={`font-semibold text-xs mt-0.5 uppercase ${
+                                  isLunch
+                                    ? "text-orange-600 dark:text-orange-300"
+                                    : "text-amber-600 dark:text-amber-300"
+                                }`}
+                              >
+                                {item.label}
+                              </h4>
+                            </div>
+                            {isLunch ? (
+                              <UtensilsCrossed className="h-4 w-4 text-orange-500 dark:text-orange-400 shrink-0" />
+                            ) : (
+                              <Coffee className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   ) : (
-                    <div className="py-8 text-center text-xs text-slate-400 bg-white rounded-xl border border-dashed">
+                    <div className="py-6 text-center text-xs text-muted-foreground bg-card rounded-lg border border-dashed border-border">
                       No classes scheduled for {activeDay.dayName}.
                     </div>
                   )}
@@ -811,28 +1017,34 @@ export const FacultyMySchedule: React.FC = () => {
           </div>
 
           {/* --- Bottom Two-Column Dashboard (Today's Classes + Class Details) --- */}
-          <div ref={todayClassesSectionRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 scroll-mt-6">
+          <div ref={todayClassesSectionRef} className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1 scroll-mt-6">
             {/* Left Column: Today's Classes List */}
-            <div className="lg:col-span-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  Today's Classes ({weekDays.find((d) => d.isToday)?.dayShort || weekDays[0]?.dayShort}, {weekDays.find((d) => d.isToday)?.formattedDate || weekDays[0]?.formattedDate})
+            <div className="lg:col-span-6 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground truncate">
+                  Today&apos;s classes
+                  <span className="text-muted-foreground font-medium ml-1.5">
+                    ({weekDays.find((d) => d.isToday)?.dayShort || weekDays[0]?.dayShort},{" "}
+                    {weekDays.find((d) => d.isToday)?.formattedDate || weekDays[0]?.formattedDate})
+                  </span>
                 </h3>
                 <button
                   type="button"
                   onClick={() => setViewMode("LIST")}
-                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer shrink-0"
                 >
-                  View Full Day <ArrowRight className="w-3.5 h-3.5" />
+                  Full list <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[480px] overflow-y-auto pr-0.5">
                 {todayClasses.length === 0 ? (
-                  <div className="text-center py-12 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-white/50 dark:bg-slate-900/50">
-                    <CalendarDays className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No classes scheduled for today</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Check the timetable grid or switch dates to view other sessions.</p>
+                  <div className="text-center py-8 px-3 border border-dashed border-border rounded-lg bg-muted/20">
+                    <CalendarDays className="w-6 h-6 text-muted-foreground/60 mx-auto mb-1.5" />
+                    <p className="text-xs font-semibold text-foreground">No classes today</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Check the grid or switch weeks for other sessions.
+                    </p>
                   </div>
                 ) : (
                   todayClasses.map((cls) => {
@@ -843,42 +1055,44 @@ export const FacultyMySchedule: React.FC = () => {
                       <Card
                         key={cls.id}
                         onClick={() => setSelectedClassId(cls.id)}
-                        className={`rounded-xl border transition-all cursor-pointer ${isSelected
-                            ? "border-primary ring-2 ring-primary/20 bg-blue-50/30 dark:bg-slate-800"
-                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
-                          }`}
+                        className={`rounded-lg border shadow-xs transition-colors cursor-pointer ${
+                          isSelected
+                            ? "border-primary ring-1 ring-primary/20 bg-blue-500/5"
+                            : "border-border bg-card hover:border-primary/30"
+                        }`}
                       >
-                        <CardContent className="p-4 flex items-center justify-between gap-3">
-                          <div className="space-y-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        <CardContent className="p-3 flex items-center justify-between gap-2.5">
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] font-semibold text-foreground tabular-nums">
                                 {cls.startTime} – {cls.endTime}
                               </span>
                               <Badge
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isLive
+                                className={`text-[9px] font-semibold px-1.5 py-0 h-5 rounded-md ${
+                                  isLive
                                     ? "bg-emerald-600 text-white animate-pulse"
-                                    : "bg-blue-50 text-blue-600 border border-blue-200"
-                                  }`}
+                                    : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                                }`}
                               >
-                                {isLive ? "LIVE NOW" : "Upcoming"}
+                                {isLive ? "LIVE" : "Upcoming"}
                               </Badge>
                             </div>
-                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white">
+                            <h4 className="font-semibold text-sm text-foreground leading-tight truncate">
                               {cls.courseName}
                             </h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                            <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
                               <span>Batch {cls.batchCode}</span>
-                              <span>|</span>
+                              <span>·</span>
                               <span>{cls.mode === "ONLINE" ? "Online" : "Offline"}</span>
                               {cls.roomNo && cls.roomNo !== "Online" && (
                                 <>
-                                  <span>|</span>
+                                  <span>·</span>
                                   <span>{cls.roomNo}</span>
                                 </>
                               )}
-                              <span>|</span>
-                              <span className="flex items-center gap-1">
-                                <Users className="w-3 h-3 text-slate-400" /> {cls.studentCount} Students
+                              <span>·</span>
+                              <span className="inline-flex items-center gap-0.5">
+                                <Users className="w-3 h-3 text-muted-foreground" /> {cls.studentCount}
                               </span>
                             </p>
                           </div>
@@ -891,9 +1105,9 @@ export const FacultyMySchedule: React.FC = () => {
                               e.stopPropagation();
                               handleNavigateToSession(cls);
                             }}
-                            className="rounded-xl text-xs font-semibold h-8 px-3.5 shrink-0 cursor-pointer text-primary border-blue-200 hover:bg-primary hover:text-white hover:border-primary bg-white transition-all shadow-2xs"
+                            className="rounded-lg text-[11px] font-semibold h-8 px-2.5 shrink-0 cursor-pointer border-border"
                           >
-                            View Class
+                            View
                           </Button>
                         </CardContent>
                       </Card>
@@ -906,24 +1120,25 @@ export const FacultyMySchedule: React.FC = () => {
             {/* Right Column: Class Details Card */}
             <div className="lg:col-span-6">
               {currentSelectedClass ? (
-                <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex flex-col justify-between">
+                <Card className="rounded-lg border border-border bg-card shadow-xs overflow-hidden h-full flex flex-col justify-between">
                   <div>
                     {/* Card Header */}
-                    <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <h3 className="text-base font-semibold text-foreground truncate">
                           {currentSelectedClass.courseName}
                         </h3>
                         <Badge
-                          className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${currentSelectedClass.status === "LIVE"
+                          className={`text-[9px] font-semibold px-1.5 py-0 h-5 rounded-md ${
+                            currentSelectedClass.status === "LIVE"
                               ? "bg-emerald-600 text-white animate-pulse"
-                              : "bg-blue-50 text-blue-600 border border-blue-200"
-                            }`}
+                              : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                          }`}
                         >
-                          {currentSelectedClass.status === "LIVE" ? "LIVE NOW" : "UPCOMING"}
+                          {currentSelectedClass.status === "LIVE" ? "LIVE" : "Upcoming"}
                         </Badge>
                         {currentSelectedClass.status === "LIVE" && (
-                          <span className="text-xs font-mono font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                          <span className="text-[11px] font-mono font-semibold text-emerald-600 flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
                             <Clock className="w-3 h-3 text-emerald-600" />
                             {formatLiveTimer(liveSeconds)}
                           </span>
@@ -933,59 +1148,59 @@ export const FacultyMySchedule: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleNavigateToSession(currentSelectedClass)}
-                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer shrink-0"
                       >
-                        Go to Class <ArrowRight className="w-3.5 h-3.5" />
+                        Go to class <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
 
                     {/* 8-Point Metadata Grid */}
-                    <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
+                    <div className="p-4 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
                       {/* Row 1 */}
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <BookOpen className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-blue-500/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                          <BookOpen className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Batch</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Batch</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.batchCode}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <UserCheck className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <UserCheck className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Faculty</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Faculty</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {user?.name || "Faculty01"}
                           </span>
                         </div>
                       </div>
 
                       {/* Row 2 */}
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <FileText className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <FileText className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Subject / Module</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Subject / Module</span>
+                          <span className="font-semibold text-foreground text-[12px] truncate block">
                             {currentSelectedClass.subjectName}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <CalendarIcon className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <CalendarIcon className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Date</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Date</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.date
                               ? new Date(currentSelectedClass.date).toLocaleDateString("en-IN", {
                                 day: "numeric",
@@ -998,54 +1213,55 @@ export const FacultyMySchedule: React.FC = () => {
                       </div>
 
                       {/* Row 3 */}
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <Clock className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Clock className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Scheduled Time</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Scheduled Time</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.timeRange}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <Users className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Users className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Enrolled Students</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Enrolled Students</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.studentCount}
                           </span>
                         </div>
                       </div>
 
                       {/* Row 4 */}
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <MapPin className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-muted text-muted-foreground flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Mode</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Mode</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.mode === "ONLINE" ? "Online" : "Offline"}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Attendance Status</span>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Attendance Status</span>
                           <span
-                            className={`font-semibold ${currentSelectedClass.attendanceStatus === "Updated"
-                                ? "text-emerald-600 font-bold"
+                            className={`font-semibold text-[12px] ${
+                              currentSelectedClass.attendanceStatus === "Updated"
+                                ? "text-emerald-600"
                                 : "text-amber-600"
-                              }`}
+                            }`}
                           >
                             {currentSelectedClass.attendanceStatus || "Pending"}
                           </span>
@@ -1053,35 +1269,35 @@ export const FacultyMySchedule: React.FC = () => {
                       </div>
 
                       {/* Row 5 */}
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <MapPin className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-muted text-muted-foreground flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Room</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Room</span>
+                          <span className="font-semibold text-foreground text-[12px]">
                             {currentSelectedClass.roomNo || "Room No 1"}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <Video className="w-3.5 h-3.5" />
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-md bg-blue-500/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                          <Video className="w-3 h-3" />
                         </div>
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block">Class Link</span>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium text-muted-foreground block">Class Link</span>
                           {currentSelectedClass.meetingUrl ? (
                             <a
                               href={currentSelectedClass.meetingUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-bold text-primary hover:underline truncate block max-w-[150px]"
+                              className="font-semibold text-primary hover:underline truncate block max-w-[150px] text-[12px]"
                             >
                               Google Meet link
                             </a>
                           ) : (
-                            <span className="font-semibold text-slate-400">-</span>
+                            <span className="font-semibold text-muted-foreground text-[12px]">-</span>
                           )}
                         </div>
                       </div>
@@ -1089,14 +1305,14 @@ export const FacultyMySchedule: React.FC = () => {
                   </div>
 
                   {/* Primary Dual Actions Bar */}
-                  <div className="p-4 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                  <div className="p-3 bg-muted/40 border-t border-border flex items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
-                      className="flex-1 h-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-semibold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 h-9 rounded-lg border-border bg-background text-foreground font-semibold text-xs shadow-xs hover:bg-muted/60 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <UserCheck className="w-4 h-4 text-primary" />{" "}
+                      <UserCheck className="w-3.5 h-3.5 text-primary" />{" "}
                       {currentSelectedClass.attendanceStatus === "Updated"
                         ? "View Attendance"
                         : "Update Attendance"}
@@ -1105,9 +1321,9 @@ export const FacultyMySchedule: React.FC = () => {
                     <Button
                       type="button"
                       onClick={() => handleGoLive(currentSelectedClass)}
-                      className="flex-1 h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Video className="w-4 h-4" />{" "}
+                      <Video className="w-3.5 h-3.5" />{" "}
                       {currentSelectedClass.status === "LIVE"
                         ? "Open Google Meet"
                         : "Host Class"}
@@ -1115,14 +1331,14 @@ export const FacultyMySchedule: React.FC = () => {
                   </div>
                 </Card>
               ) : (
-                <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex items-center justify-center p-8 text-center min-h-[360px]">
-                  <div className="max-w-xs space-y-2">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-slate-800 text-primary flex items-center justify-center mx-auto mb-3">
-                      <BookOpen className="w-6 h-6" />
+                <Card className="rounded-lg border border-border bg-card shadow-xs overflow-hidden h-full flex items-center justify-center p-6 text-center min-h-[280px]">
+                  <div className="max-w-xs space-y-1.5">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-primary flex items-center justify-center mx-auto mb-2">
+                      <BookOpen className="w-5 h-5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Class Selected</h3>
-                    <p className="text-xs text-slate-400">
-                      Select a scheduled class from the list or timetable above to view session details, host class, or update attendance.
+                    <h3 className="text-sm font-semibold text-foreground">No class selected</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Select a class from the list or timetable to view details, host class, or update attendance.
                     </p>
                   </div>
                 </Card>
@@ -1135,61 +1351,63 @@ export const FacultyMySchedule: React.FC = () => {
         </PageSection>
       ) : (
         /* --- Class List View --- */
-        <PageSection title="Class list">
-        <div className="space-y-3">
+        <PageSection density="compact">
+        <div className="space-y-2">
           {filteredClasses.length > 0 ? (
             filteredClasses.map((cls) => (
               <Card
                 key={cls.id}
-                className="border-border/80 rounded-xl hover:shadow-md transition-shadow overflow-hidden bg-card"
+                className="border-border rounded-lg shadow-xs hover:border-primary/30 transition-colors overflow-hidden bg-card"
               >
-                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                <CardContent className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {cls.status === "LIVE" ? (
-                        <Badge className="bg-emerald-600 text-white font-semibold text-xs px-2.5 py-0.5 animate-pulse">
-                          LIVE NOW
+                        <Badge className="bg-emerald-600 text-white font-semibold text-[9px] px-1.5 py-0 h-5 animate-pulse">
+                          LIVE
                         </Badge>
                       ) : cls.status === "COMPLETED" ? (
-                        <Badge className="bg-slate-500 text-white font-semibold text-xs px-2 py-0.5">
-                          COMPLETED
+                        <Badge className="bg-slate-500 text-white font-semibold text-[9px] px-1.5 py-0 h-5">
+                          Completed
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
-                          className="text-xs px-2.5 py-0.5 text-primary bg-blue-50 font-semibold"
+                          className="text-[9px] px-1.5 py-0 h-5 text-primary bg-blue-500/10 border-blue-500/20 font-semibold"
                         >
-                          UPCOMING
+                          Upcoming
                         </Badge>
                       )}
-                      <Badge variant="outline" className="font-mono text-xs font-bold">
+                      <Badge variant="outline" className="font-mono text-[10px] font-semibold h-5 px-1.5">
                         {cls.batchCode}
                       </Badge>
-                      <span className="text-xs text-slate-400">•</span>
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-primary" />
                         {cls.date} ({cls.timeRange})
                       </span>
                     </div>
 
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                    <h3 className="text-sm font-semibold text-foreground leading-tight">
                       {cls.courseName}
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Module: <span className="font-bold text-slate-700 dark:text-slate-300">{cls.subjectName}</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Module: <span className="font-semibold text-foreground/80">{cls.subjectName}</span>
                     </p>
 
-                    <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5 flex-wrap">
                       <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        <MapPin className="w-3 h-3" />
                         {cls.roomNo} ({cls.mode})
                       </span>
                       <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        {cls.studentCount} Students
+                        <Users className="w-3 h-3" />
+                        {cls.studentCount} students
                       </span>
-                      <span className="text-slate-600">
-                        Attendance: <strong className="text-slate-900">{cls.attendanceStatus || "Pending"}</strong>
+                      <span>
+                        Attendance:{" "}
+                        <strong className="text-foreground font-semibold">
+                          {cls.attendanceStatus || "Pending"}
+                        </strong>
                       </span>
                     </div>
                   </div>
@@ -1199,14 +1417,14 @@ export const FacultyMySchedule: React.FC = () => {
                     <Button
                       variant="outline"
                       onClick={() => handleNavigateToSession(cls, "attendance")}
-                      className="rounded-xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-50"
+                      className="rounded-lg h-9 text-xs font-semibold border-border"
                     >
                       <UserCheck className="w-3.5 h-3.5 mr-1 text-primary" />{" "}
                       {cls.attendanceStatus === "Updated" ? "View Attendance" : "Attendance"}
                     </Button>
                     <Button
                       onClick={() => handleGoLive(cls)}
-                      className="rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold h-9 text-xs px-4"
+                      className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 text-xs px-3"
                     >
                       <Video className="w-3.5 h-3.5 mr-1.5" />{" "}
                       {cls.status === "LIVE" ? "Open Google Meet" : "Host Class"}
@@ -1216,7 +1434,7 @@ export const FacultyMySchedule: React.FC = () => {
               </Card>
             ))
           ) : (
-            <div className="py-16 text-center text-xs text-muted-foreground bg-card rounded-xl border border-dashed">
+            <div className="py-12 text-center text-xs text-muted-foreground bg-card rounded-lg border border-dashed border-border">
               No classes matching your filter criteria.
             </div>
           )}

@@ -1,12 +1,24 @@
 ﻿import React, { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X, RefreshCw, Ban, HardDrive, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  Video,
+  Play,
+  Search,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  X,
+  RefreshCw,
+  Ban,
+  HardDrive,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRecordings, useDeleteRecording, useExpireRecording, useRecordingAccess, useSyncRecording } from "@/hooks/useRecordings";
 import { useBatches } from "@/hooks/useBatches";
@@ -28,6 +40,22 @@ const formatRecordingDuration = (minutes?: number | null) => {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
+
+const statusBadgeClass = (status: string) => {
+  switch (status) {
+    case "AVAILABLE":
+      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25";
+    case "FAILED":
+      return "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25";
+    case "PROCESSING":
+      return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25";
+    case "EXPIRED":
+    case "DELETED":
+      return "bg-muted text-muted-foreground border-border";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
 };
 
 export const Recordings: React.FC = () => {
@@ -70,6 +98,9 @@ export const Recordings: React.FC = () => {
   const recordings: Recording[] = recordingsResponse?.data || [];
   const meta = recordingsResponse?.meta || { total: 0, page: 1, limit: 20, totalPages: 1 };
 
+  const getStatus = (rec: Recording) =>
+    (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status;
+
   const filteredRecordings = useMemo(() => {
     if (!search.trim()) return recordings;
     const q = search.toLowerCase();
@@ -84,6 +115,15 @@ export const Recordings: React.FC = () => {
       );
     });
   }, [recordings, search]);
+
+  const availableCount = recordings.filter((r) => getStatus(r) === "AVAILABLE").length;
+  const expiringSoonCount = recordings.filter((r) => getDaysRemaining(r.expiresAt) <= 7).length;
+
+  const metricItems = [
+    { label: "Total", value: isLoading ? "—" : meta.total },
+    { label: "Available", value: isLoading ? "—" : availableCount },
+    { label: "Expiring ≤7 days", value: isLoading ? "—" : expiringSoonCount },
+  ];
 
   const handlePlay = async (rec: Recording) => {
     setPlayTarget(rec);
@@ -145,209 +185,206 @@ export const Recordings: React.FC = () => {
     }
   };
 
-  const getStatus = (rec: Recording) =>
-    (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status;
+  const selectClassName =
+    "h-9 min-w-[130px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary";
 
   return (
-    <PageContainer className="animate-in fade-in duration-500">
+    <PageContainer density="compact" className="animate-in fade-in duration-200">
       <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Video className="h-6 w-6 text-primary" />
-            Class Recordings
-          </span>
-        }
-        description="Manage Google Drive class recordings — default 7-day retention"
+        title="Class Recordings"
+        description="Google Drive recordings · 7-day retention"
         actions={
-          <Button asChild variant="outline" size="sm" className="text-xs">
-            <Link to={classesPath}>Open Classes & Sessions</Link>
+          <Button asChild variant="outline" size="sm" className="h-9 text-muted-foreground">
+            <Link to={classesPath}>Classes & Sessions</Link>
           </Button>
         }
       />
 
-      <MetricGrid columns="grid-cols-1 sm:grid-cols-3">
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Video className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-text-primary">{meta.total}</p>
-              <p className="text-xs text-text-secondary font-medium">Total Recordings</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center">
-              <Play className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-text-primary">
-                {recordings.filter((r) => getStatus(r) === "AVAILABLE").length}
+      <MetricGrid columns="grid-cols-1 sm:grid-cols-3" density="compact">
+        {metricItems.map((kpi) => (
+          <Card
+            key={kpi.label}
+            size="compact"
+            className="border border-border bg-card shadow-none rounded-lg"
+          >
+            <CardContent size="compact">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
               </p>
-              <p className="text-xs text-text-secondary font-medium">Available</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-red-50 flex items-center justify-center">
-              <Clock className="h-6 w-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-text-primary">
-                {recordings.filter((r) => getDaysRemaining(r.expiresAt) <= 7).length}
-              </p>
-              <p className="text-xs text-text-secondary font-medium">Expiring Soon (≤7 days)</p>
-            </div>
-          </CardContent>
-        </Card>
+              <h3 className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
       </MetricGrid>
 
-      <FilterToolbar className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-secondary" />
-            <Input
-              placeholder="Search by session title or batch..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-9"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 px-3 border border-border rounded-md bg-background text-sm"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="PROCESSING">Processing</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="DELETED">Deleted</option>
-            <option value="FAILED">Failed</option>
-          </select>
-          <select
-            value={batchFilter}
-            onChange={(e) => {
-              setBatchFilter(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 px-3 border border-border rounded-md bg-background text-sm max-w-[16rem]"
-          >
-            <option value="ALL">All Batches</option>
-            {batches.map((b: { id: string; name: string; code: string }) => (
-              <option key={b.id} value={b.id}>
-                {b.code} — {b.name}
-              </option>
-            ))}
-          </select>
+      <FilterToolbar className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search session, batch, or faculty…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pl-8 text-sm border-border"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className={selectClassName}
+        >
+          <option value="ALL">All statuses</option>
+          <option value="AVAILABLE">Available</option>
+          <option value="PROCESSING">Processing</option>
+          <option value="EXPIRED">Expired</option>
+          <option value="DELETED">Deleted</option>
+          <option value="FAILED">Failed</option>
+        </select>
+        <select
+          value={batchFilter}
+          onChange={(e) => {
+            setBatchFilter(e.target.value);
+            setPage(1);
+          }}
+          className={`${selectClassName} max-w-[16rem]`}
+        >
+          <option value="ALL">All batches</option>
+          {batches.map((b: { id: string; name: string; code: string }) => (
+            <option key={b.id} value={b.id}>
+              {b.code} — {b.name}
+            </option>
+          ))}
+        </select>
       </FilterToolbar>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50/50">
-                <TableHead className="font-semibold">Class</TableHead>
-                <TableHead className="font-semibold">Batch</TableHead>
-                <TableHead className="font-semibold">Faculty</TableHead>
-                <TableHead className="font-semibold">Duration</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Created</TableHead>
-                <TableHead className="font-semibold">Expiration</TableHead>
-                <TableHead className="font-semibold">Drive ref</TableHead>
-                <TableHead className="font-semibold w-[150px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[1000px] border-collapse text-left">
+            <thead>
+              <tr className="bg-muted/40 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="py-3 px-4 pl-5">Class</th>
+                <th className="py-3 px-3">Batch</th>
+                <th className="py-3 px-4">Faculty</th>
+                <th className="py-3 px-3">Duration</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3">Created</th>
+                <th className="py-3 px-3">Expiration</th>
+                <th className="py-3 px-3">Drive</th>
+                <th className="py-3 px-3 pr-5 text-right w-[140px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border text-xs bg-card">
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-text-secondary">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    Loading recordings...
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={9} className="py-16 text-center">
+                    <div className="inline-flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading recordings…</span>
+                    </div>
+                  </td>
+                </tr>
               ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12">
-                    <AlertCircle className="h-10 w-10 text-rose-400 mx-auto mb-2" />
-                    <p className="font-semibold">Unable to load recordings</p>
-                    <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
-                      Retry
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={9} className="py-14 text-center">
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground/60" />
+                      <h3 className="text-sm font-semibold text-foreground">Unable to load recordings</h3>
+                      <p className="text-xs text-muted-foreground">Check your connection and try again.</p>
+                      <Button variant="outline" size="sm" className="mt-2 h-9" onClick={() => refetch()}>
+                        Retry
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               ) : filteredRecordings.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12">
-                    <Video className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                    <p className="text-text-secondary font-medium">No recordings found</p>
-                    <p className="text-xs text-text-secondary mt-1">
-                      Recordings will appear here after class sessions are recorded
-                    </p>
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={9} className="py-14 text-center">
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <Video className="w-8 h-8 mx-auto text-muted-foreground/60" />
+                      <h3 className="text-sm font-semibold text-foreground">No recordings found</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Recordings appear after class sessions are recorded.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 filteredRecordings.map((rec) => {
                   const daysRemaining = getDaysRemaining(rec.expiresAt);
                   const status = getStatus(rec);
                   return (
-                    <TableRow key={rec.id}>
-                      <TableCell className="font-medium text-sm">
-                        {rec.classSession?.title || "Class Session"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {rec.classSession?.batch?.name || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">
+                    <tr key={rec.id} className="hover:bg-muted/50 transition-colors">
+                      <td className="py-2.5 px-4 pl-5 align-middle">
+                        <span className="font-semibold text-foreground text-xs truncate block max-w-[14rem]">
+                          {rec.classSession?.title || "Class Session"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 align-middle">
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-muted text-foreground border border-border inline-block">
+                          {rec.classSession?.batch?.name || "—"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 align-middle text-xs text-foreground font-medium">
                         {rec.classSession?.faculty?.user?.name || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">
+                      </td>
+                      <td className="py-2.5 px-3 align-middle text-xs tabular-nums text-muted-foreground">
                         {formatRecordingDuration(rec.duration)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`text-xs border ${
-                            status === "AVAILABLE"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : status === "FAILED"
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : "bg-slate-50 text-slate-600 border-slate-200"
-                          }`}
+                      </td>
+                      <td className="py-2.5 px-3 align-middle">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-medium border inline-block ${statusBadgeClass(status)}`}
                         >
                           {status}
-                        </Badge>
+                        </span>
                         {rec.lastSyncError && (
-                          <p className="text-[10px] text-rose-600 mt-1 max-w-40 truncate" title={rec.lastSyncError}>
+                          <p
+                            className="text-[10px] text-rose-600 dark:text-rose-400 mt-1 max-w-40 truncate"
+                            title={rec.lastSyncError}
+                          >
                             {rec.lastSyncError}
                           </p>
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(rec.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {status === "DELETED" ? "Deleted" : daysRemaining > 0 ? `${daysRemaining} days` : "Expired"}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1 text-xs" title={rec.googleDriveFileId || undefined}>
-                          <HardDrive className="h-3.5 w-3.5" />
+                      </td>
+                      <td className="py-2.5 px-3 align-middle text-xs text-muted-foreground tabular-nums">
+                        {new Date(rec.createdAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-2.5 px-3 align-middle text-xs text-muted-foreground">
+                        {status === "DELETED"
+                          ? "Deleted"
+                          : daysRemaining > 0
+                            ? `${daysRemaining} days`
+                            : "Expired"}
+                      </td>
+                      <td className="py-2.5 px-3 align-middle">
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                          title={rec.googleDriveFileId || undefined}
+                        >
+                          <HardDrive className="h-3 w-3 shrink-0" />
                           {status === "DELETED" ? "Deleted" : rec.googleDriveFileId ? "Present" : "Missing"}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
+                      </td>
+                      <td className="py-2.5 px-3 pr-5 align-middle">
+                        <div className="flex items-center justify-end gap-0.5">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-primary"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                             title="Play recording"
                             onClick={() => handlePlay(rec)}
-                            disabled={status !== "AVAILABLE" || daysRemaining <= 0 || (accessMutation.isPending && playTarget?.id === rec.id)}
+                            disabled={
+                              status !== "AVAILABLE" ||
+                              daysRemaining <= 0 ||
+                              (accessMutation.isPending && playTarget?.id === rec.id)
+                            }
                           >
                             {accessMutation.isPending && playTarget?.id === rec.id ? (
                               <Loader2 size={14} className="animate-spin" />
@@ -359,7 +396,7 @@ export const Recordings: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 text-amber-600"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                               title="Retry Drive sync"
                               onClick={() => handleSync(rec)}
                               disabled={syncMutation.isPending || status === "DELETED"}
@@ -371,10 +408,12 @@ export const Recordings: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 text-orange-600"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                               title="Expire and delete Drive file"
                               onClick={() => handleExpire(rec)}
-                              disabled={expireMutation.isPending || status === "DELETED" || status === "EXPIRED"}
+                              disabled={
+                                expireMutation.isPending || status === "DELETED" || status === "EXPIRED"
+                              }
                             >
                               <Ban size={14} />
                             </Button>
@@ -383,7 +422,7 @@ export const Recordings: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 text-red-500"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600"
                               title="Delete recording"
                               onClick={() => handleDelete(rec)}
                               disabled={deleteMutation.isPending}
@@ -392,24 +431,25 @@ export const Recordings: React.FC = () => {
                             </Button>
                           </PermissionGate>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   );
                 })
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
+            </tbody>
+          </table>
+        </div>
 
         {meta.totalPages > 1 && (
-          <div className="p-4 border-t border-border flex items-center justify-between">
-            <p className="text-xs text-text-secondary">
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
               Page {meta.page} of {meta.totalPages} ({meta.total} total)
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 w-8 p-0"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -418,6 +458,7 @@ export const Recordings: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 w-8 p-0"
                 disabled={page >= meta.totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
@@ -432,7 +473,7 @@ export const Recordings: React.FC = () => {
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
           <DialogHeader className="p-4 border-b">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-sm font-bold">
+              <DialogTitle className="text-sm font-semibold">
                 {playTarget?.classSession?.title || "Class Recording"}
               </DialogTitle>
               <button type="button" onClick={handleClosePlayer} className="p-1 rounded hover:bg-muted">
