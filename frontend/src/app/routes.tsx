@@ -214,6 +214,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="performance" element={<CounsellorPerformance />} />
           <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
+          <Route path=":id" element={<ViewAdmin />} />
           <Route path="assign-students" element={<Navigate to="/center/students/student-allocation" replace />} />
           <Route path="assign-faculty" element={<Navigate to="/center/batches" replace />} />
         </Route>
@@ -404,8 +405,8 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
-          <Route path="add" element={<Navigate to="/counselor/faculty/all" replace />} />
-          <Route path=":id/edit" element={<Navigate to="/counselor/faculty/all" replace />} />
+          <Route path="add" element={<AddFaculty />} />
+          <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<CourseAssignment />} />
           <Route path="attendance" element={<FacultyAttendance />} />

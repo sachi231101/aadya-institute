@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Check,
-  Copy,
   CreditCard,
   ExternalLink,
   GraduationCap,
@@ -66,7 +65,6 @@ interface ApplicationDetailsSheetProps {
   leadBasePath?: string;
   /** Portal root e.g. /admin — used for receipt deep links */
   portalBasePath?: string;
-  onCopy: (label: string, value: string) => void;
   onMarkPaid: (appId: string, payload: MarkPaidPayload) => Promise<void>;
   onReject: (appId: string, reason: string) => Promise<void>;
   onUpdateDetails: (appId: string, payload: EditApplicationPayload) => Promise<void>;
@@ -120,7 +118,6 @@ export function ApplicationDetailsSheet({
   isAddingNote,
   leadBasePath = "/admin/leads",
   portalBasePath = "/admin",
-  onCopy,
   onMarkPaid,
   onReject,
   onUpdateDetails,
@@ -299,26 +296,6 @@ export function ApplicationDetailsSheet({
                         <MessageCircle className="h-3.5 w-3.5" />
                         WhatsApp
                       </a>
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs gap-1"
-                    onClick={() => onCopy("Application no", application.applicationNo)}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    App no
-                  </Button>
-                  {application.phone && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs gap-1"
-                      onClick={() => onCopy("Phone", application.phone)}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      Phone
                     </Button>
                   )}
                 </div>

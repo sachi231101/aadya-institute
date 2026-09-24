@@ -61,7 +61,11 @@ export const EditExam: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { canEditItem, isAdmin, roleScope } = usePermissions();
-  const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor/exams"
+    : location.pathname.startsWith("/center")
+      ? "/center/exams"
+      : "/admin/exams";
   const canWrite = isAdmin || !roleScope || canEditItem("exams.all");
 
   useEffect(() => {

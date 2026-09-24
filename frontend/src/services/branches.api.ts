@@ -83,6 +83,7 @@ export interface BranchStatsResponse {
   totalFaculty: number;
   totalBatches: number;
   totalAdmissions: number;
+  totalCounsellors?: number;
 }
 
 export const branchesApi = {

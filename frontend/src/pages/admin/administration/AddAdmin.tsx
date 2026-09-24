@@ -78,16 +78,14 @@ const buildAddAdminSchema = (
       email: z.string().email("Invalid email address."),
       phone: z
         .string()
-        .optional()
-        .or(z.literal(""))
+        .min(1, "Phone number is required")
         .refine(
           (val) => {
-            if (!val || val.trim() === "") return true;
             const digits = val.replace(/\D/g, "");
-            return digits.length >= 7 && digits.length <= 15;
+            return digits.length === 10;
           },
           {
-            message: "Phone must be a valid phone number (7-15 digits)",
+            message: "Phone must be exactly 10 digits",
           }
         ),
       branchId: z.string().min(1, "Assigned branch is required"),
@@ -211,7 +209,7 @@ export const AddAdmin: React.FC = () => {
 
   const onSubmit = (data: AddAdminFormValues) => {
     form.clearErrors("root");
-    const sanitizedPhone = data.phone?.trim() ? data.phone.trim() : undefined;
+    const sanitizedPhone = data.phone.replace(/\D/g, "").slice(0, 10);
     const roleLabel = ROLE_SUCCESS_LABEL[data.role] || data.role;
 
     const handleError = (err: any) => {
@@ -435,9 +433,17 @@ export const AddAdmin: React.FC = () => {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Phone Number *</FormLabel>
                       <FormControl>
-                        <Input placeholder="9876543210" {...field} />
+                        <Input
+                          placeholder="9876543210"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

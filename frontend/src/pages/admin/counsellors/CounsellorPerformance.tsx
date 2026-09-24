@@ -40,9 +40,13 @@ export const CounsellorPerformance: React.FC = () => {
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
-  const openCounsellorLeads = (counsellorId?: string) => {
+  const openCounsellorProfile = (counsellorId?: string) => {
     if (!counsellorId) return;
-    navigate(`${basePath}/leads?assignedCounsellorId=${encodeURIComponent(counsellorId)}`);
+    if (basePath === "/admin") {
+      navigate(`/admin/counsellors/${counsellorId}`);
+      return;
+    }
+    navigate(`${basePath}/counselor/${counsellorId}`);
   };
 
   return (
@@ -90,8 +94,8 @@ export const CounsellorPerformance: React.FC = () => {
                     <TableRow
                       key={rowId}
                       className={counsellorId ? "cursor-pointer" : undefined}
-                      onClick={() => openCounsellorLeads(counsellorId)}
-                      title={counsellorId ? "View leads assigned to this counsellor" : undefined}
+                      onClick={() => openCounsellorProfile(counsellorId)}
+                      title={counsellorId ? "View counsellor profile" : undefined}
                     >
                       <TableCell className="font-medium text-primary">{c.name}</TableCell>
                       <TableCell>{c.totalLeads ?? 0}</TableCell>

@@ -27,7 +27,11 @@ export const ExamManualGrading: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith('/center') ? '/center/exams' : '/admin/exams';
+  const basePath = location.pathname.startsWith('/counselor')
+    ? '/counselor/exams'
+    : location.pathname.startsWith('/center')
+      ? '/center/exams'
+      : '/admin/exams';
 
   const { data, isLoading, error } = useStaffAttemptForGrading(attemptId || '');
   const gradePayload = data?.data;

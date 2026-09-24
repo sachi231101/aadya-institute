@@ -29,7 +29,11 @@ const getStatusBadgeClass = (status: string) => {
 export const AllFaculty: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+      ? "/center"
+      : "/admin";
   const [selectedFilterTab, setSelectedFilterTab] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
 

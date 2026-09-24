@@ -60,6 +60,7 @@ export interface BranchStatsResponse {
   totalFaculty: number;
   totalBatches: number;
   totalAdmissions: number;
+  totalCounsellors: number;
   todayClasses: number;
   upcomingClasses: number;
   liveClasses: number;

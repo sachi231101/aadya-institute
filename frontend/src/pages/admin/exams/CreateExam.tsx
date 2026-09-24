@@ -22,6 +22,7 @@ import { useCreateExam } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
 import { useBranches } from "@/hooks/useBranches";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuthStore } from "@/store/auth.store";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -66,16 +67,22 @@ export const CreateExam: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { canEditItem, isAdmin, roleScope } = usePermissions();
-  const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor/exams"
+    : location.pathname.startsWith("/center")
+      ? "/center/exams"
+      : "/admin/exams";
   const canWrite =
     isAdmin ||
     !roleScope ||
     canEditItem("exams.create") ||
     canEditItem("exams.all");
+  const { user } = useAuthStore();
   const createExamMutation = useCreateExam();
   const { courses } = useCourses();
   const { data: branchesResponse } = useBranches();
   const branches = branchesResponse?.data ?? [];
+  const userBranchId = user?.branchId || "";
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [examTermMasterId, setExamTermMasterId] = useState("");
@@ -94,7 +101,7 @@ export const CreateExam: React.FC = () => {
       instructions: "1. Please read all questions carefully before answering.\n2. Do not refresh or switch tabs during the assessment.\n3. Make sure to submit before the time runs out.",
       courseId: "",
       moduleId: "",
-      branchId: "",
+      branchId: userBranchId,
       durationMinutes: 60,
       passingMarks: 40,
       attemptsAllowed: 1,
@@ -108,6 +115,14 @@ export const CreateExam: React.FC = () => {
       maxWarnings: 3,
     },
   });
+
+  useEffect(() => {
+    if (!userBranchId) return;
+    if (branches.length > 0 && !branches.some((b) => b.id === userBranchId)) return;
+    if (form.getValues("branchId") !== userBranchId) {
+      form.setValue("branchId", userBranchId);
+    }
+  }, [userBranchId, branches, form]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId);
   const availableModules = selectedCourse?.modules || [];
@@ -264,19 +279,28 @@ export const CreateExam: React.FC = () => {
                   name="branchId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold">Branch (Optional)</FormLabel>
+                      <FormLabel className="text-xs font-semibold">
+                        Branch{userBranchId ? "" : " (Optional)"}
+                      </FormLabel>
                       <FormControl>
                         <select
                           {...field}
                           aria-label="Branch"
-                          className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 font-medium shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                          disabled={Boolean(userBranchId) && !isAdmin}
+                          className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 font-medium shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          <option value="">All Branches (Institute Wide)</option>
-                          {branches.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name} ({b.code})
-                            </option>
-                          ))}
+                          {isAdmin && (
+                            <option value="">All Branches (Institute Wide)</option>
+                          )}
+                          {branches
+                            .filter((b) =>
+                              !userBranchId || isAdmin ? true : b.id === userBranchId
+                            )
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} ({b.code})
+                              </option>
+                            ))}
                         </select>
                       </FormControl>
                       <FormMessage />

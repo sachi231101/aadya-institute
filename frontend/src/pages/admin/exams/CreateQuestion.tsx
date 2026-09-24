@@ -92,7 +92,11 @@ export const CreateQuestion: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { canEditItem, isAdmin, roleScope } = usePermissions();
-  const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor/exams"
+    : location.pathname.startsWith("/center")
+      ? "/center/exams"
+      : "/admin/exams";
   const questionBankPath = `${basePath}/question-bank`;
   const canWrite = isAdmin || !roleScope || canEditItem("exams.question_bank");
   const createBulkQuestionsMutation = useCreateBulkQuestions();
