@@ -19,7 +19,6 @@ import {
   UserCheck,
   GitMerge,
   Eye,
-  GitBranch,
 } from "lucide-react";
 import {
   useLeads,
@@ -1067,11 +1066,6 @@ export const AllLeadsList: React.FC = () => {
                                       <UserCheck className="h-4 w-4" /> Assign
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem
-                                    onClick={() => openRowAction(lead, "stage")}
-                                  >
-                                    <GitBranch className="h-4 w-4" /> Change Stage
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => openRowAction(lead, "followUp")}
                                   >

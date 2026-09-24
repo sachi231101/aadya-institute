@@ -64,6 +64,8 @@ interface ApplicationDetailsSheetProps {
   isUpdating: boolean;
   isAddingNote: boolean;
   leadBasePath?: string;
+  /** Portal root e.g. /admin — used for receipt deep links */
+  portalBasePath?: string;
   onCopy: (label: string, value: string) => void;
   onMarkPaid: (appId: string, payload: MarkPaidPayload) => Promise<void>;
   onReject: (appId: string, reason: string) => Promise<void>;
@@ -117,6 +119,7 @@ export function ApplicationDetailsSheet({
   isUpdating,
   isAddingNote,
   leadBasePath = "/admin/leads",
+  portalBasePath = "/admin",
   onCopy,
   onMarkPaid,
   onReject,
@@ -495,11 +498,11 @@ export function ApplicationDetailsSheet({
 
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard className="h-4 w-4 text-primary" /> Application fee
+                    <CreditCard className="h-4 w-4 text-primary" /> Application Fee
                   </h4>
                   <div className="p-4 rounded-xl border border-border bg-muted/20 text-xs space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-[11px] text-muted-foreground">Status</p>
                         <p
                           className={`font-bold mt-0.5 ${
@@ -507,21 +510,30 @@ export function ApplicationDetailsSheet({
                           }`}
                         >
                           {application.feeStatus === "PAID" ? "Paid" : "Pending"}
-                          {application.feeStatus === "PAID" &&
-                            application.applicationFee != null && (
-                              <span className="text-foreground font-semibold ml-1.5">
-                                · ₹{Number(application.applicationFee).toLocaleString("en-IN")}
-                              </span>
-                            )}
+                          {application.applicationFee != null && (
+                            <span className="text-foreground font-semibold ml-1.5">
+                              · ₹{Number(application.applicationFee).toLocaleString("en-IN")}
+                            </span>
+                          )}
                         </p>
                         {application.feeStatus === "PAID" && (
-                          <div className="mt-2 space-y-0.5 text-muted-foreground">
+                          <div className="mt-2 space-y-1.5 text-muted-foreground">
+                            <p className="text-foreground font-medium">Application Fee</p>
                             {application.receiptNo && (
-                              <p>
-                                Receipt:{" "}
-                                <span className="font-mono font-semibold text-foreground">
-                                  {application.receiptNo}
-                                </span>
+                              <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                <span>Receipt:</span>
+                                {application.paymentId ? (
+                                  <Link
+                                    to={`${portalBasePath}/fees/receipts/${application.paymentId}`}
+                                    className="font-mono font-semibold text-primary hover:underline"
+                                  >
+                                    {application.receiptNo}
+                                  </Link>
+                                ) : (
+                                  <span className="font-mono font-semibold text-foreground">
+                                    {application.receiptNo}
+                                  </span>
+                                )}
                               </p>
                             )}
                             {application.paymentModeName && (
@@ -530,6 +542,19 @@ export function ApplicationDetailsSheet({
                             {application.paymentRef && <p>Ref: {application.paymentRef}</p>}
                             {formatPaidAt(application.feePaidAt) && (
                               <p>Paid at: {formatPaidAt(application.feePaidAt)}</p>
+                            )}
+                            {application.paymentId && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5 mt-1"
+                                asChild
+                              >
+                                <Link to={`${portalBasePath}/fees/receipts/${application.paymentId}`}>
+                                  <ExternalLink className="h-3 w-3" />
+                                  View receipt
+                                </Link>
+                              </Button>
                             )}
                           </div>
                         )}

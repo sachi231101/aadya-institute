@@ -6,27 +6,32 @@ import {
   linkAllocationToInvoice,
   syncInvoicesForPendingFeeIds,
 } from "./fee-invoice.service";
+import { resolveTuitionFeeHead } from "./fee-provision.service";
+import {
+  isApplicationFeePayment,
+  materializeApplicationFeeCharge,
+} from "../admissions/application-fee-payment.service";
 
 const repairedInstitutes = new Set<string>();
 
 /**
  * Legacy provision stored the full fee-head total on every installment row's
- * `totalFee`, while `dueAmount` held each installment. Some admissions also
- * created installment amounts that summed above that head total. Cap each
- * student+fee-head group so sum(paid + due) equals the shared head total.
+ * `totalFee`. Modern provision stores each installment's own amount in totalFee.
+ * Only trim when legacy duplication is detected — never cap modern installment totals.
  */
 async function repairInflatedInstallmentGroups(instituteId: string): Promise<number> {
   const rows = await prisma.pendingFee.findMany({
     where: { instituteId },
+    include: { feeHeadMaster: { select: { code: true } } },
     orderBy: [{ studentId: "asc" }, { feeHeadMasterId: "asc" }, { installmentNo: "asc" }],
   });
 
   type Group = {
-    headTotal: number;
     rows: Array<{
       id: string;
       amountPaid: number;
       dueAmount: number;
+      totalFee: number;
       dueDate: Date;
       installmentNo: number;
     }>;
@@ -35,17 +40,20 @@ async function repairInflatedInstallmentGroups(instituteId: string): Promise<num
   const groups = new Map<string, Group>();
   for (const row of rows) {
     if (!row.studentId) continue;
+    // Application fee is a one-shot charge — never treat as multi-installment package.
+    if (
+      row.feeHeadMaster?.code === "APPLICATION_FEE" ||
+      /application\s*fee/i.test(row.feeHead || "")
+    ) {
+      continue;
+    }
     const key = `${row.studentId}::${row.feeHeadMasterId || row.feeHead || "none"}`;
-    const paid = toMoneyNumber(row.amountPaid);
-    const due = toMoneyNumber(row.dueAmount);
-    const headTotal = toMoneyNumber(row.totalFee);
-    const existing = groups.get(key) || { headTotal: 0, rows: [] };
-    // Shared duplicated totalFee across installments — take the max seen
-    existing.headTotal = Math.max(existing.headTotal, headTotal);
+    const existing = groups.get(key) || { rows: [] };
     existing.rows.push({
       id: row.id,
-      amountPaid: paid,
-      dueAmount: due,
+      amountPaid: toMoneyNumber(row.amountPaid),
+      dueAmount: toMoneyNumber(row.dueAmount),
+      totalFee: toMoneyNumber(row.totalFee),
       dueDate: row.dueDate,
       installmentNo: row.installmentNo,
     });
@@ -56,14 +64,29 @@ async function repairInflatedInstallmentGroups(instituteId: string): Promise<num
   const today = startOfDay();
 
   for (const [, group] of groups) {
-    if (group.rows.length < 2 || group.headTotal <= 0) continue;
+    if (group.rows.length < 2) continue;
+
     const obligation = roundMoney(
       group.rows.reduce((s, r) => s + r.amountPaid + Math.max(0, r.dueAmount), 0)
     );
-    let excess = roundMoney(obligation - group.headTotal);
+    const maxStored = Math.max(...group.rows.map((r) => r.totalFee), 0);
+    const sumStored = roundMoney(group.rows.reduce((s, r) => s + Math.max(0, r.totalFee), 0));
+    const allIdentical =
+      maxStored > 0 &&
+      group.rows.every((r) => Math.abs(r.totalFee - maxStored) <= 0.009);
+
+    // Legacy duplication: every installment stored the full head total (identical
+    // totalFee), so sum(totalFee) exceeds the real obligation. Modern rows store
+    // per-installment amounts where sum(totalFee) ≈ obligation.
+    const isLegacyDuplicated =
+      allIdentical && sumStored > obligation + 0.009 && sumStored > maxStored + 0.009;
+
+    if (!isLegacyDuplicated) continue;
+
+    const headTotal = maxStored;
+    let excess = roundMoney(obligation - headTotal);
     if (excess <= 0.009) continue;
 
-    // Trim remaining due from the earliest installment first (where overstatement usually sits)
     const ordered = [...group.rows].sort((a, b) => a.installmentNo - b.installmentNo);
     for (const row of ordered) {
       if (excess <= 0.009) break;
@@ -78,13 +101,253 @@ async function repairInflatedInstallmentGroups(instituteId: string): Promise<num
           dueAmount,
           status,
           overdueDays: 0,
-          // Keep totalFee as this installment's true charge after trim
           totalFee: roundMoney(row.amountPaid + dueAmount),
         },
       });
       excess = roundMoney(excess - cut);
       fixed += 1;
     }
+  }
+
+  return fixed;
+}
+
+/**
+ * When Tuition head was missing, course charges were wrongly stored under
+ * Application Fee. Retag down-payment / installment rows to the tuition head
+ * and restore zeroed remaining installments from the course fee.
+ */
+async function repairCourseFeesTaggedAsApplicationFee(instituteId: string): Promise<number> {
+  const appHead = await prisma.masterRecord.findFirst({
+    where: {
+      instituteId,
+      entityType: "feeheads",
+      OR: [
+        { code: "APPLICATION_FEE" },
+        { name: { equals: "Application Fee", mode: "insensitive" } },
+      ],
+      status: "ACTIVE",
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!appHead) return 0;
+
+  const tuition = await resolveTuitionFeeHead(prisma, instituteId);
+  if (tuition.id === appHead.id) return 0;
+
+  const badPayments = await prisma.payment.findMany({
+    where: {
+      instituteId,
+      status: "SUCCESS",
+      feeHeadMasterId: appHead.id,
+      OR: [
+        { notes: { contains: "down payment", mode: "insensitive" } },
+        { notes: { startsWith: "Initial" } },
+        { notes: { contains: "Initial /", mode: "insensitive" } },
+      ],
+    },
+    include: {
+      allocations: { select: { pendingFeeId: true } },
+    },
+  });
+
+  let fixed = 0;
+  const touchedAdmissionIds = new Set<string>();
+  const today = startOfDay();
+
+  for (const payment of badPayments) {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        feeHeadMasterId: tuition.id,
+        feeHead: tuition.name,
+      },
+    });
+    fixed += 1;
+
+    for (const alloc of payment.allocations) {
+      const pending = await prisma.pendingFee.findFirst({
+        where: { id: alloc.pendingFeeId, instituteId },
+        select: { id: true, admissionId: true, feeHeadMasterId: true },
+      });
+      if (!pending) continue;
+      if (pending.feeHeadMasterId === appHead.id) {
+        await prisma.pendingFee.update({
+          where: { id: pending.id },
+          data: {
+            feeHeadMasterId: tuition.id,
+            feeHead: tuition.name,
+          },
+        });
+        fixed += 1;
+      }
+      if (pending.admissionId) touchedAdmissionIds.add(pending.admissionId);
+    }
+
+    if (payment.admissionId) touchedAdmissionIds.add(payment.admissionId);
+  }
+
+  // Sibling installments still on Application Fee (e.g. zeroed inst #2)
+  const siblingRows = await prisma.pendingFee.findMany({
+    where: {
+      instituteId,
+      feeHeadMasterId: appHead.id,
+      installmentNo: { gt: 1 },
+      admissionId: { not: null },
+    },
+  });
+
+  for (const row of siblingRows) {
+    if (!row.admissionId) continue;
+    const hasTuitionSibling = await prisma.pendingFee.findFirst({
+      where: {
+        instituteId,
+        admissionId: row.admissionId,
+        feeHeadMasterId: tuition.id,
+        installmentNo: 1,
+      },
+      select: { id: true },
+    });
+    if (!hasTuitionSibling) continue;
+
+    await prisma.pendingFee.update({
+      where: { id: row.id },
+      data: {
+        feeHeadMasterId: tuition.id,
+        feeHead: tuition.name,
+      },
+    });
+    touchedAdmissionIds.add(row.admissionId);
+    fixed += 1;
+  }
+
+  // Restore remaining course due from course.fee when installments were wiped
+  for (const admissionId of touchedAdmissionIds) {
+    const admission = await prisma.admission.findFirst({
+      where: { id: admissionId, instituteId },
+      include: {
+        course: { select: { fee: true, name: true } },
+        student: {
+          include: { user: { select: { name: true, phone: true } } },
+        },
+      },
+    });
+    if (!admission?.course) continue;
+
+    const courseFee = toMoneyNumber(admission.course.fee);
+    if (courseFee <= 0) continue;
+
+    const tuitionRows = await prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        admissionId,
+        feeHeadMasterId: tuition.id,
+      },
+      orderBy: { installmentNo: "asc" },
+    });
+    if (tuitionRows.length === 0) continue;
+
+    const charged = roundMoney(
+      tuitionRows.reduce(
+        (s, r) => s + toMoneyNumber(r.amountPaid) + Math.max(0, toMoneyNumber(r.dueAmount)),
+        0
+      )
+    );
+    const gap = roundMoney(courseFee - charged);
+    if (gap <= 0.009) continue;
+
+    const zeroed = tuitionRows.find(
+      (r) =>
+        r.installmentNo > 1 &&
+        toMoneyNumber(r.totalFee) <= 0.009 &&
+        toMoneyNumber(r.dueAmount) <= 0.009 &&
+        toMoneyNumber(r.amountPaid) <= 0.009
+    );
+
+    if (zeroed) {
+      await prisma.pendingFee.update({
+        where: { id: zeroed.id },
+        data: {
+          totalFee: gap,
+          amountPaid: 0,
+          dueAmount: gap,
+          status: derivePendingStatus(gap, zeroed.dueDate, 0, today),
+          overdueDays: 0,
+          feeHeadMasterId: tuition.id,
+          feeHead: tuition.name,
+        },
+      });
+      await syncInvoicesForPendingFeeIds(prisma as never, [zeroed.id]);
+      fixed += 1;
+      logger.info("Restored zeroed course installment", {
+        instituteId,
+        admissionId,
+        pendingFeeId: zeroed.id,
+        amount: gap,
+      });
+      continue;
+    }
+
+    // No zeroed sibling — create the missing remaining installment
+    const maxInst = Math.max(...tuitionRows.map((r) => r.installmentNo), 1);
+    const template = tuitionRows[0];
+    const dueDate = new Date(template.dueDate);
+    dueDate.setDate(dueDate.getDate() + 30);
+
+    const created = await prisma.pendingFee.create({
+      data: {
+        instituteId,
+        branchId: template.branchId,
+        studentId: template.studentId,
+        admissionId,
+        studentName:
+          admission.student?.user?.name || template.studentName || "Student",
+        admissionNo: admission.admissionNo || template.admissionNo,
+        phone: admission.student?.user?.phone || template.phone || "",
+        courseName: admission.course.name || template.courseName,
+        totalFee: gap,
+        amountPaid: 0,
+        dueAmount: gap,
+        dueDate,
+        installmentNo: maxInst + 1,
+        status: derivePendingStatus(gap, dueDate, 0, today),
+        overdueDays: 0,
+        feeHeadMasterId: tuition.id,
+        feeHead: tuition.name,
+      },
+    });
+    await syncInvoicesForPendingFeeIds(prisma as never, [created.id]);
+    fixed += 1;
+    logger.info("Created missing course installment", {
+      instituteId,
+      admissionId,
+      pendingFeeId: created.id,
+      amount: gap,
+    });
+  }
+
+  // Sync invoices for retagged tuition rows
+  if (touchedAdmissionIds.size > 0) {
+    const tuitionIds = await prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        admissionId: { in: [...touchedAdmissionIds] },
+        feeHeadMasterId: tuition.id,
+      },
+      select: { id: true },
+    });
+    await syncInvoicesForPendingFeeIds(
+      prisma as never,
+      tuitionIds.map((r) => r.id)
+    ).catch(() => undefined);
+  }
+
+  if (fixed > 0) {
+    logger.info("Repaired course fees tagged as application fee", {
+      instituteId,
+      fixed,
+      admissions: touchedAdmissionIds.size,
+    });
   }
 
   return fixed;
@@ -106,6 +369,16 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     return 0;
   });
 
+  const misattributedFixed = await repairCourseFeesTaggedAsApplicationFee(instituteId).catch(
+    (err) => {
+      logger.warn("Failed course-as-application-fee repair", {
+        instituteId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    }
+  );
+
   const orphans = await prisma.payment.findMany({
     where: {
       instituteId,
@@ -116,12 +389,12 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     take: 500,
   });
 
-  if (orphans.length === 0 && inflatedFixed === 0) {
+  if (orphans.length === 0 && inflatedFixed === 0 && misattributedFixed === 0) {
     repairedInstitutes.add(instituteId);
     return 0;
   }
 
-  let repaired = inflatedFixed;
+  let repaired = inflatedFixed + misattributedFixed;
 
   for (const payment of orphans) {
     if (!payment.studentId) continue;
@@ -135,6 +408,46 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
           where: { paymentId: payment.id },
         });
         if (allocCount > 0) return 0;
+
+        const feeHeadMaster = payment.feeHeadMasterId
+          ? await tx.masterRecord.findFirst({
+              where: { id: payment.feeHeadMasterId },
+              select: { code: true },
+            })
+          : null;
+
+        const isAppFee = isApplicationFeePayment({
+          feeHeadMasterId: payment.feeHeadMasterId,
+          feeHead: payment.feeHead,
+          notes: payment.notes,
+          feeHeadCode: feeHeadMaster?.code ?? null,
+        });
+
+        // Application fee orphans need their own PAID charge line — do not
+        // FIFO onto tuition / other open dues.
+        if (isAppFee) {
+          let admissionId = payment.admissionId;
+          if (!admissionId) {
+            const admission = await tx.admission.findFirst({
+              where: {
+                instituteId,
+                studentId: payment.studentId!,
+                status: { not: "CANCELLED" },
+              },
+              orderBy: { createdAt: "desc" },
+              select: { id: true },
+            });
+            admissionId = admission?.id ?? null;
+          }
+          if (!admissionId) return 0;
+          const result = await materializeApplicationFeeCharge(tx, {
+            paymentId: payment.id,
+            instituteId,
+            studentId: payment.studentId!,
+            admissionId,
+          });
+          return result ? amount : 0;
+        }
 
         const openPending = await tx.pendingFee.findMany({
           where: {

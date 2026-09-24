@@ -8,6 +8,7 @@ import {
   createApplicationActivitySchema,
 } from "../modules/admissions/admissions.validation";
 import { AdmissionsService } from "../modules/admissions/admissions.service";
+import { materializeApplicationFeeCharge } from "../modules/admissions/application-fee-payment.service";
 import { prisma } from "../config/database";
 import type { AuthUser } from "../modules/auth/auth.types";
 
@@ -204,6 +205,16 @@ describe("Admissions Workflow Integration Tests", () => {
       },
     });
     courseId = course.id;
+
+    await Promise.all(
+      [branchAId, branchBId].map((branchId) =>
+        prisma.courseBranch.upsert({
+          where: { courseId_branchId: { courseId, branchId } },
+          update: {},
+          create: { courseId, branchId },
+        })
+      )
+    );
 
     const facultyUser = await prisma.user.create({
       data: {
@@ -601,5 +612,93 @@ describe("Admissions Workflow Integration Tests", () => {
 
     const voided = await prisma.payment.findUnique({ where: { id: payment!.id } });
     assert.strictEqual(voided!.status, "VOID");
+  });
+
+  test("PAID application fee becomes PAID PendingFee line on admission (idempotent)", async () => {
+    const phone = `5${Date.now().toString().slice(-9)}`;
+    const app = await AdmissionsService.createApplication(adminUser, {
+      applicantName: "App Fee Line Applicant",
+      phone,
+      courseId,
+      branchId: branchAId,
+      feeStatus: "PAID",
+      applicationFee: 500,
+      paymentModeMasterId,
+      paymentRef: `APP-FEE-${Date.now()}`,
+    });
+    assert.ok(app?.paymentId);
+
+    const admission = await AdmissionsService.createAdmission(
+      instituteId,
+      branchAId,
+      {
+        studentName: "App Fee Line Applicant",
+        phone,
+        courseId,
+        batchId,
+        applicationId: app!.id,
+        totalFee: 10000,
+        amountPaid: 0,
+        status: "CONFIRMED",
+        termsAcceptance,
+      },
+      { userId: adminUser.userId, currentUser: adminUser }
+    );
+
+    assert.ok(admission.studentId);
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: app!.paymentId! },
+      include: { allocations: true },
+    });
+    assert.ok(payment);
+    assert.strictEqual(payment!.studentId, admission.studentId);
+    assert.strictEqual(payment!.admissionId, admission.id);
+    assert.strictEqual(payment!.allocations.length, 1);
+    assert.strictEqual(Number(payment!.allocations[0].amount), 500);
+
+    const pendingFees = await prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        studentId: admission.studentId!,
+        feeHead: { contains: "Application", mode: "insensitive" },
+      },
+    });
+    assert.strictEqual(pendingFees.length, 1);
+    assert.strictEqual(pendingFees[0].status, "PAID");
+    assert.strictEqual(Number(pendingFees[0].amountPaid), 500);
+    assert.strictEqual(Number(pendingFees[0].dueAmount), 0);
+    assert.strictEqual(payment!.pendingFeeId, pendingFees[0].id);
+
+    const invoice = await prisma.studentInvoice.findUnique({
+      where: { pendingFeeId: pendingFees[0].id },
+    });
+    assert.ok(invoice);
+    assert.strictEqual(invoice!.status, "PAID");
+    assert.strictEqual(Number(invoice!.balance), 0);
+
+    // Idempotent re-attach must not duplicate charge lines
+    await prisma.$transaction(async (tx) => {
+      await materializeApplicationFeeCharge(tx, {
+        paymentId: app!.paymentId!,
+        instituteId,
+        studentId: admission.studentId!,
+        admissionId: admission.id,
+      });
+    });
+
+    const pendingAfter = await prisma.pendingFee.count({
+      where: {
+        instituteId,
+        studentId: admission.studentId!,
+        feeHead: { contains: "Application", mode: "insensitive" },
+      },
+    });
+    assert.strictEqual(pendingAfter, 1);
+
+    const allocAfter = await prisma.paymentAllocation.count({
+      where: { paymentId: app!.paymentId! },
+    });
+    assert.strictEqual(allocAfter, 1);
   });
 });

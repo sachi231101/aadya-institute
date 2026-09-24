@@ -811,6 +811,8 @@ export const FeeService = {
 
   async listFeeStudents(currentUser: AuthUser, query: QueryFeeStudentsDTO) {
     const scope = scopeParams(currentUser, query.branchId);
+    // Heal mis-tagged course fees / missing allocations before aggregating totals
+    await repairUnallocatedPayments(scope.instituteId).catch(() => undefined);
     return FeeRepository.findFeeStudents(scope.instituteId, {
       ...query,
       branchId: scope.branchId,

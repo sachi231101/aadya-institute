@@ -2,7 +2,13 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { SequenceService } from "../masters/sequence.service";
 import { FeeRepository } from "../fees/fee.repository";
-import { roundMoney } from "../fees/fee-money.util";
+import { roundMoney, toMoneyNumber } from "../fees/fee-money.util";
+import { startOfDay } from "../fees/fee-balance.util";
+import {
+  issueStudentInvoiceForPendingFee,
+  linkAllocationToInvoice,
+  syncInvoicesForPendingFeeIds,
+} from "../fees/fee-invoice.service";
 import { AppError } from "../../middlewares/error.middleware";
 
 export async function resolveApplicationFeeHead(
@@ -44,6 +50,18 @@ export async function resolveApplicationFeeHead(
   return { id: created.id, name: created.name, code: created.code };
 }
 
+export function isApplicationFeePayment(payment: {
+  feeHeadMasterId?: string | null;
+  feeHead?: string | null;
+  notes?: string | null;
+  feeHeadCode?: string | null;
+}): boolean {
+  if (payment.feeHeadCode === "APPLICATION_FEE") return true;
+  if (payment.feeHead && /application\s*fee/i.test(payment.feeHead)) return true;
+  if (payment.notes && /^Application fee\s*·/i.test(payment.notes.trim())) return true;
+  return false;
+}
+
 export type ApplicationFeePaymentInput = {
   instituteId: string;
   branchId: string | null;
@@ -60,7 +78,7 @@ export type ApplicationFeePaymentInput = {
 
 /**
  * Creates or updates a standalone SUCCESS Payment for an application fee
- * (no student / pending-fee allocation required).
+ * (no student / pending-fee allocation required until admission).
  */
 export async function recordApplicationFeePayment(
   input: ApplicationFeePaymentInput
@@ -197,6 +215,117 @@ export async function voidApplicationFeePayment(
   await FeeRepository.voidPayment(payment.id, instituteId);
 }
 
+/**
+ * Creates a PAID Application Fee PendingFee + allocation + invoice for a
+ * SUCCESS payment that has no allocations yet. Idempotent when allocations exist.
+ */
+export async function materializeApplicationFeeCharge(
+  tx: Prisma.TransactionClient,
+  params: {
+    paymentId: string;
+    instituteId: string;
+    studentId: string;
+    admissionId: string;
+  }
+): Promise<{ pendingFeeId: string } | null> {
+  const payment = await tx.payment.findFirst({
+    where: {
+      id: params.paymentId,
+      instituteId: params.instituteId,
+      status: "SUCCESS",
+    },
+    include: {
+      allocations: { take: 1 },
+    },
+  });
+  if (!payment) return null;
+
+  await tx.payment.update({
+    where: { id: payment.id },
+    data: {
+      studentId: params.studentId,
+      admissionId: params.admissionId,
+    },
+  });
+
+  if (payment.allocations.length > 0) {
+    return payment.pendingFeeId ? { pendingFeeId: payment.pendingFeeId } : null;
+  }
+
+  const amount = toMoneyNumber(payment.amount);
+  if (amount <= 0) return null;
+
+  const feeHead = await resolveApplicationFeeHead(tx, params.instituteId);
+  const admission = await tx.admission.findFirst({
+    where: { id: params.admissionId, instituteId: params.instituteId },
+    include: {
+      course: { select: { name: true } },
+      student: {
+        include: { user: { select: { name: true, phone: true } } },
+      },
+    },
+  });
+  if (!admission) return null;
+
+  const studentName =
+    admission.student?.user?.name || payment.studentName || "Student";
+  const phone = admission.student?.user?.phone || "";
+  const admissionNo = admission.admissionNo || payment.admissionNo;
+  const courseName =
+    admission.course?.name || payment.courseName || "Course";
+  const branchId = admission.branchId || payment.branchId;
+  const dueDate = startOfDay(payment.date || new Date());
+
+  const pending = await tx.pendingFee.create({
+    data: {
+      instituteId: params.instituteId,
+      branchId,
+      studentId: params.studentId,
+      admissionId: params.admissionId,
+      studentName,
+      admissionNo,
+      phone,
+      courseName,
+      totalFee: amount,
+      amountPaid: amount,
+      dueAmount: 0,
+      dueDate,
+      installmentNo: 1,
+      status: "PAID",
+      overdueDays: 0,
+      feeHeadMasterId: feeHead.id,
+      feeHead: feeHead.name,
+    },
+  });
+
+  await tx.paymentAllocation.create({
+    data: {
+      paymentId: payment.id,
+      pendingFeeId: pending.id,
+      amount,
+    },
+  });
+
+  await tx.payment.update({
+    where: { id: payment.id },
+    data: {
+      pendingFeeId: pending.id,
+      feeHeadMasterId: feeHead.id,
+      feeHead: feeHead.name,
+      studentName,
+      admissionNo,
+      courseName,
+      branchId,
+    },
+  });
+
+  await issueStudentInvoiceForPendingFee(tx, pending);
+  await linkAllocationToInvoice(tx, payment.id, pending.id);
+  await syncInvoicesForPendingFeeIds(tx, [pending.id]);
+
+  return { pendingFeeId: pending.id };
+}
+
 export async function attachApplicationFeePaymentToAdmission(
   tx: Prisma.TransactionClient,
   params: {
@@ -212,15 +341,10 @@ export async function attachApplicationFeePaymentToAdmission(
   });
   if (!app?.paymentId) return;
 
-  await tx.payment.updateMany({
-    where: {
-      id: app.paymentId,
-      instituteId: params.instituteId,
-      status: "SUCCESS",
-    },
-    data: {
-      studentId: params.studentId,
-      admissionId: params.admissionId,
-    },
+  await materializeApplicationFeeCharge(tx, {
+    paymentId: app.paymentId,
+    instituteId: params.instituteId,
+    studentId: params.studentId,
+    admissionId: params.admissionId,
   });
 }
