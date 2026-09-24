@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,6 +20,12 @@ import {
 } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
+import {
+  aggregateByStudentAndFeeType,
+  aggregateChargesByFeeHeadAndInstallment,
+  aggregateInvoicesByStudentAndFeeHead,
+  normalizeFeeHeadLabel,
+} from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -67,11 +73,28 @@ export const StudentFeeProfile: React.FC = () => {
   const { data, isLoading, isError, refetch } = useStudentFeeStatement(studentId);
   const statement = data?.data;
   const summary = statement?.summary;
-  const pendingFees = statement?.pendingFees || [];
-  const payments = statement?.payments || [];
-  const invoices = statement?.invoices || [];
-  const receipts = statement?.receipts || payments.filter((p) => p.status === "SUCCESS");
-  const openPending = pendingFees.filter((f) => (f.dueAmount || 0) > 0);
+  const pendingFees = useMemo(
+    () => aggregateChargesByFeeHeadAndInstallment(statement?.pendingFees || []),
+    [statement?.pendingFees]
+  );
+  const payments = useMemo(
+    () => aggregateByStudentAndFeeType((statement?.payments || []) as Payment[]),
+    [statement?.payments]
+  );
+  const invoices = useMemo(
+    () =>
+      aggregateInvoicesByStudentAndFeeHead((statement?.invoices || []) as StudentInvoice[]),
+    [statement?.invoices]
+  );
+  const receipts = useMemo(() => {
+    const raw = (statement?.receipts ||
+      (statement?.payments || []).filter((p) => p.status === "SUCCESS")) as Payment[];
+    return aggregateByStudentAndFeeType(raw);
+  }, [statement?.receipts, statement?.payments]);
+  const openPending = useMemo(
+    () => pendingFees.filter((f) => Number(f.dueAmount || 0) > 0),
+    [pendingFees]
+  );
   const outstanding = summary?.dueAmount ?? openPending.reduce((s, f) => s + (f.dueAmount || 0), 0);
   const enrolledCourses = coursesFromStudent({
     courses: statement?.student.courses,
@@ -285,7 +308,7 @@ export const StudentFeeProfile: React.FC = () => {
                   ) : (
                     (statement.byFeeHead || summary?.byFeeHead || []).map((h) => (
                       <TableRow key={h.feeHeadMasterId || h.feeHead}>
-                        <TableCell>{h.feeHead}</TableCell>
+                        <TableCell>{normalizeFeeHeadLabel(h.feeHead)}</TableCell>
                         <TableCell>{formatMoney(h.totalFee)}</TableCell>
                         <TableCell>{formatMoney(h.amountPaid)}</TableCell>
                         <TableCell className="font-bold">{formatMoney(h.dueAmount)}</TableCell>
@@ -365,7 +388,6 @@ export const StudentFeeProfile: React.FC = () => {
                   <TableRow>
                     <TableHead>#</TableHead>
                     <TableHead>Fee Head</TableHead>
-                    <TableHead>Course</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Due</TableHead>
@@ -376,17 +398,18 @@ export const StudentFeeProfile: React.FC = () => {
                 <TableBody>
                   {pendingFees.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-text-secondary">
+                      <TableCell colSpan={7} className="text-center py-6 text-text-secondary">
                         No charge records.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    pendingFees.map((f: PendingFee) => (
-                      <TableRow key={f.id}>
+                    pendingFees.map((f) => (
+                      <TableRow key={`${f.typeLabel}-${f.installmentNo}`}>
                         <TableCell>{f.installmentNo}</TableCell>
-                        <TableCell>{f.feeHead || f.feeHeadMaster?.name || "Fee"}</TableCell>
-                        <TableCell>{f.courseName}</TableCell>
-                        <TableCell>{formatMoney(f.amountPaid + f.dueAmount)}</TableCell>
+                        <TableCell>{f.typeLabel}</TableCell>
+                        <TableCell>
+                          {formatMoney(Number(f.amountPaid) + Number(f.dueAmount))}
+                        </TableCell>
                         <TableCell>{formatMoney(f.amountPaid)}</TableCell>
                         <TableCell className="font-bold">{formatMoney(f.dueAmount)}</TableCell>
                         <TableCell>{formatOrgDate(f.dueDate)}</TableCell>
@@ -428,17 +451,20 @@ export const StudentFeeProfile: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    invoices.map((inv: StudentInvoice) => (
-                      <TableRow key={inv.id}>
+                    invoices.map((inv) => (
+                      <TableRow key={`${inv.typeLabel}-${inv.id}`}>
                         <TableCell>
                           <Link
                             to={`${basePath}/fees/invoices/${inv.id}`}
                             className="font-mono text-sm text-primary hover:underline"
                           >
                             {inv.invoiceNo}
+                            {inv.sourceIds.length > 1
+                              ? ` (+${inv.sourceIds.length - 1})`
+                              : ""}
                           </Link>
                         </TableCell>
-                        <TableCell>{inv.feeHead || "—"}</TableCell>
+                        <TableCell>{inv.typeLabel}</TableCell>
                         <TableCell>{formatMoney(inv.totalAmount)}</TableCell>
                         <TableCell>{formatMoney(inv.amountPaid)}</TableCell>
                         <TableCell className="font-bold">{formatMoney(inv.balance)}</TableCell>
@@ -479,19 +505,17 @@ export const StudentFeeProfile: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    payments.map((p: Payment) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-sm">{p.receiptNo}</TableCell>
+                    payments.map((p) => (
+                      <TableRow key={`${p.typeLabel}-${p.id}`}>
+                        <TableCell className="font-mono text-sm">
+                          {p.receiptNo}
+                          {p.sourceIds.length > 1
+                            ? ` (+${p.sourceIds.length - 1})`
+                            : ""}
+                        </TableCell>
                         <TableCell className="font-bold">{formatMoney(p.amount)}</TableCell>
                         <TableCell className="text-xs text-slate-600 max-w-[220px]">
-                          {(p.allocations || []).length === 0
-                            ? "—"
-                            : p.allocations!.map((a) => (
-                                <div key={a.id || `${a.pendingFeeId}-${a.amount}`}>
-                                  {a.pendingFee?.feeHead || "Charge"} #{a.pendingFee?.installmentNo ?? "—"}{" "}
-                                  · {formatMoney(a.amount)}
-                                </div>
-                              ))}
+                          {p.typeLabel}
                         </TableCell>
                         <TableCell>{p.method}</TableCell>
                         <TableCell>{formatOrgDate(p.date)}</TableCell>
@@ -534,9 +558,9 @@ export const StudentFeeProfile: React.FC = () => {
                     </TableRow>
                   ) : (
                     openPending.map((f) => (
-                      <TableRow key={f.id}>
+                      <TableRow key={`${f.typeLabel}-${f.installmentNo}`}>
                         <TableCell className="font-mono text-xs">{f.invoiceNo || "—"}</TableCell>
-                        <TableCell>{f.feeHead || "Fee"}</TableCell>
+                        <TableCell>{f.typeLabel}</TableCell>
                         <TableCell>#{f.installmentNo || 1}</TableCell>
                         <TableCell className="font-bold">{formatMoney(f.dueAmount)}</TableCell>
                         <TableCell>{formatOrgDate(f.dueDate)}</TableCell>
@@ -589,6 +613,7 @@ export const StudentFeeProfile: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Receipt</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -598,15 +623,21 @@ export const StudentFeeProfile: React.FC = () => {
                 <TableBody>
                   {receipts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-text-secondary">
+                      <TableCell colSpan={6} className="text-center py-6 text-text-secondary">
                         <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                         No receipts.
                       </TableCell>
                     </TableRow>
                   ) : (
                     receipts.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-mono text-sm">{r.receiptNo}</TableCell>
+                      <TableRow key={`${r.typeLabel}-${r.id}`}>
+                        <TableCell className="font-mono text-sm">
+                          {r.receiptNo}
+                          {r.sourceIds.length > 1
+                            ? ` (+${r.sourceIds.length - 1})`
+                            : ""}
+                        </TableCell>
+                        <TableCell>{r.typeLabel}</TableCell>
                         <TableCell className="font-bold">{formatMoney(r.amount)}</TableCell>
                         <TableCell>{formatOrgDate(r.date)}</TableCell>
                         <TableCell>

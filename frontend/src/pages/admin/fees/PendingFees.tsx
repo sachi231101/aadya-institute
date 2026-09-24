@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { usePendingFees, useFeeStats, useSendFeeReminder } from "../../../hooks/useFees";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageContainer, PageHeader } from "@/components/layout";
@@ -62,14 +61,76 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
   const { data: statsData } = useFeeStats();
   const sendReminderMutation = useSendFeeReminder();
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
+  const [collectStudent, setCollectStudent] = useState<{
+    id: string;
+    name: string;
+    admissionNo?: string | null;
+    outstanding: number;
+    installmentNo: number;
+  } | null>(null);
   const { toast, showToast, clearToast } = useFeeToast();
 
-  const pendingFees = pendingData?.data?.data || [];
+  const openLines = pendingData?.data?.data;
+  /** One row per student + installment (no course-wise split). */
+  const pendingFees = React.useMemo(() => {
+    const lines = (openLines || []).filter(
+      (pf) => Number(pf.dueAmount) > 0 && pf.status !== "PAID"
+    );
+    type Row = PendingFee & { sourceIds: string[] };
+    const map = new Map<string, Row>();
+    for (const pf of lines) {
+      const inst = pf.installmentNo || 1;
+      const key = `${pf.studentId || pf.studentName}::${inst}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          ...pf,
+          dueAmount: Number(pf.dueAmount),
+          amountPaid: Number(pf.amountPaid),
+          sourceIds: [pf.id],
+        });
+        continue;
+      }
+      existing.dueAmount = Number(existing.dueAmount) + Number(pf.dueAmount);
+      existing.amountPaid = Number(existing.amountPaid) + Number(pf.amountPaid);
+      existing.sourceIds.push(pf.id);
+      if (new Date(pf.dueDate) < new Date(existing.dueDate)) {
+        existing.dueDate = pf.dueDate;
+      }
+      if (pf.status === "OVERDUE" || existing.overdueDays < pf.overdueDays) {
+        existing.status = pf.status === "OVERDUE" ? "OVERDUE" : existing.status;
+        existing.overdueDays = Math.max(existing.overdueDays, pf.overdueDays);
+      }
+    }
+    return [...map.values()].sort((a, b) => {
+      const byName = a.studentName.localeCompare(b.studentName);
+      if (byName !== 0) return byName;
+      return (a.installmentNo || 1) - (b.installmentNo || 1);
+    });
+  }, [openLines]);
+
   const stats = statsData?.data || {
     totalPendingDues: 0,
     overdueDues: 0,
     overdueCount: 0,
     avgOverdueDays: 0,
+  };
+
+  const handleCollect = (row: PendingFee & { sourceIds?: string[] }) => {
+    const sources = row.sourceIds?.length ? row.sourceIds : [row.id];
+    if (sources.length > 1 && row.studentId) {
+      setCollectItem(null);
+      setCollectStudent({
+        id: row.studentId,
+        name: row.studentName,
+        admissionNo: row.admissionNo,
+        outstanding: Number(row.dueAmount),
+        installmentNo: row.installmentNo || 1,
+      });
+      return;
+    }
+    setCollectStudent(null);
+    setCollectItem({ ...row, dueAmount: Number(row.dueAmount) });
   };
 
   const handleSendReminder = async (item: PendingFee) => {
@@ -97,88 +158,77 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
     }
   };
 
-  const getStatusBadge = (st: string, overdueDays: number) => {
-    switch (st) {
-      case "OVERDUE":
-        return <Badge variant="destructive" className="font-semibold animate-pulse">{overdueDays} Days Overdue</Badge>;
-      case "DUE_SOON":
-        return <Badge variant="warning">Due Soon</Badge>;
-      case "PARTIAL":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Partially Paid</Badge>;
-      case "PAID":
-        return <Badge variant="success">Fully Paid</Badge>;
-      default:
-        return <Badge variant="outline">{st}</Badge>;
-    }
-  };
-
-  return (
-    <PageContainer>
+  const body = (
+    <>
       {!embedded && (
-      <PageHeader
-        title="Pending Dues & Installments"
-        description="Monitor unpaid course fees, track overdue student accounts, collect pending installments, and send automated reminders."
-      />
+        <PageHeader
+          title="Pending Dues & Installments"
+          description="Monitor unpaid course fees, track overdue student accounts, collect pending installments, and send automated reminders."
+        />
       )}
 
       {!embedded && (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-red-50 text-red-600">
-              <TrendingDown className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-text-secondary">Total Outstanding Dues</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{stats.totalPendingDues.toLocaleString("en-IN")}</h3>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-border/50 bg-bg-secondary shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-red-50 text-red-600">
+                <TrendingDown className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-secondary">Total Outstanding Dues</p>
+                <h3 className="text-2xl font-bold text-text-primary">
+                  ₹{stats.totalPendingDues.toLocaleString("en-IN")}
+                </h3>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-text-secondary">Total Overdue Dues</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{stats.overdueDues.toLocaleString("en-IN")}</h3>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="border-border/50 bg-bg-secondary shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-secondary">Total Overdue Dues</p>
+                <h3 className="text-2xl font-bold text-text-primary">
+                  ₹{stats.overdueDues.toLocaleString("en-IN")}
+                </h3>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-orange-50 text-orange-600">
-              <UserX className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-text-secondary">Overdue Accounts</p>
-              <h3 className="text-2xl font-bold text-text-primary">{stats.overdueCount}</h3>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="border-border/50 bg-bg-secondary shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-orange-50 text-orange-600">
+                <UserX className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-secondary">Overdue Accounts</p>
+                <h3 className="text-2xl font-bold text-text-primary">{stats.overdueCount}</h3>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-primary">
-              <Clock className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-text-secondary">Avg Delay Period</p>
-              <h3 className="text-2xl font-bold text-text-primary">{stats.avgOverdueDays} Days</h3>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border-border/50 bg-bg-secondary shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-blue-50 text-primary">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-secondary">Avg Delay Period</p>
+                <h3 className="text-2xl font-bold text-text-primary">{stats.avgOverdueDays} Days</h3>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Main Table & Filters */}
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
-        <CardContent className="p-4 space-y-4">
+      <Card className="w-full border-border/50 shadow-sm bg-bg-primary">
+        <CardContent className="sm:p-6 p-4 space-y-4">
           <div className="flex flex-col md:flex-row justify-between gap-4">
             {/* Search Bar */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
                 placeholder="Search student name, admission no, phone, or course..."
@@ -189,7 +239,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <select
                 value={
                   dueWithinDays === 7 || statusFilter === "DUE_THIS_WEEK"
@@ -217,21 +267,16 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
             </div>
           </div>
 
-          {/* Pending Fees Table */}
-          <div className="rounded-md border border-border/50 overflow-hidden bg-white">
-            <Table>
+          {/* Simple list: Student · Installment · Due (no course split) */}
+          <div className="rounded-md border border-border/50 overflow-x-auto bg-white w-full">
+            <Table className="w-full">
               <TableHeader className="bg-bg-secondary/50">
                 <TableRow>
-                  <TableHead className="font-semibold text-text-primary">Student & Phone</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Admission No</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Invoice</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Fee Head</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Student</TableHead>
                   <TableHead className="font-semibold text-text-primary">Installment</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Course</TableHead>
-                  <TableHead className="font-semibold text-text-primary">This charge</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Paid / Due</TableHead>
+                  <TableHead className="font-semibold text-text-primary text-right">Total Paid</TableHead>
+                  <TableHead className="font-semibold text-text-primary text-right">Due Amount</TableHead>
                   <TableHead className="font-semibold text-text-primary">Due Date</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Status</TableHead>
                   <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -239,7 +284,7 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
               <TableBody>
                 {pendingLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-text-secondary">
+                    <TableCell colSpan={6} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                         Loading pending fee records...
@@ -248,41 +293,33 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                   </TableRow>
                 ) : pendingFees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-text-secondary">
-                      No pending fee dues match your criteria.
+                    <TableCell colSpan={6} className="text-center py-8 text-text-secondary">
+                      No pending installment dues match your criteria.
                     </TableCell>
                   </TableRow>
                 ) : (
                   pendingFees.map((pf) => (
-                    <TableRow key={pf.id} className="hover:bg-bg-secondary/30 transition-colors">
+                    <TableRow
+                      key={`${pf.studentId || pf.studentName}-${pf.installmentNo}`}
+                      className="hover:bg-bg-secondary/30 transition-colors"
+                    >
                       <TableCell>
                         <div className="font-medium text-text-primary">{pf.studentName}</div>
                         <div className="text-xs text-text-secondary font-mono">{pf.phone}</div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium text-slate-800">
-                        {pf.admissionNo}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-slate-700">
-                        {pf.invoiceNo || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium text-slate-700">
-                        {pf.feeHead || "Fee"}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium text-slate-700">
-                        #{pf.installmentNo || 1}
-                      </TableCell>
-                      <TableCell className="max-w-[180px] truncate text-slate-700 font-medium">
-                        {pf.courseName}
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-700">
-                        ₹{(Number(pf.amountPaid) + Number(pf.dueAmount)).toLocaleString("en-IN")}
-                      </TableCell>
                       <TableCell>
-                        <div className="text-emerald-700 font-medium text-xs">
-                          Paid: ₹{pf.amountPaid.toLocaleString("en-IN")}
+                        <div className="font-semibold text-text-primary text-base">
+                          {pf.installmentNo || 1}
                         </div>
-                        <div className="text-red-700 font-bold text-sm">
-                          Due: ₹{pf.dueAmount.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="text-emerald-700 font-semibold text-base">
+                          ₹{Number(pf.amountPaid).toLocaleString("en-IN")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="text-red-700 font-bold text-base">
+                          ₹{Number(pf.dueAmount).toLocaleString("en-IN")}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-medium text-slate-700">
@@ -292,14 +329,13 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
                           year: "numeric",
                         })}
                       </TableCell>
-                      <TableCell>{getStatusBadge(pf.status, pf.overdueDays)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <PermissionGate itemKey="fees.students" mode="write">
                             <Button
                               size="sm"
                               className="bg-primary hover:bg-[#F39A16] text-white text-xs h-8"
-                              onClick={() => setCollectItem(pf)}
+                              onClick={() => handleCollect(pf)}
                             >
                               <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
                             </Button>
@@ -342,7 +378,26 @@ export const PendingFees: React.FC<PendingFeesProps> = ({
           onSuccess={(msg) => showToast(msg, "success")}
         />
       )}
+      {collectStudent && (
+        <CollectFeeModal
+          mode="student"
+          student={{
+            id: collectStudent.id,
+            name: collectStudent.name,
+            admissionNo: collectStudent.admissionNo,
+            outstanding: collectStudent.outstanding,
+          }}
+          onClose={() => setCollectStudent(null)}
+          onSuccess={(msg) => showToast(msg, "success")}
+        />
+      )}
       <FeeToastBanner toast={toast} onClose={clearToast} />
-    </PageContainer>
+    </>
   );
+
+  if (embedded) {
+    return <div className="w-full min-w-0">{body}</div>;
+  }
+
+  return <PageContainer>{body}</PageContainer>;
 };

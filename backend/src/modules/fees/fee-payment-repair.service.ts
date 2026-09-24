@@ -354,6 +354,231 @@ async function repairCourseFeesTaggedAsApplicationFee(instituteId: string): Prom
 }
 
 /**
+ * After a bad inflated-installment trim, remaining tuition rows can be left at
+ * totalFee/due/paid = 0 while course.fee is still higher. Restore the gap onto
+ * zeroed installments (or create a new installment) per admission.
+ */
+async function repairWipedTuitionInstallments(instituteId: string): Promise<number> {
+  const tuition = await resolveTuitionFeeHead(prisma, instituteId);
+  const today = startOfDay();
+
+  const admissions = await prisma.admission.findMany({
+    where: {
+      instituteId,
+      status: { not: "CANCELLED" },
+    },
+    include: {
+      course: { select: { fee: true, name: true } },
+      student: {
+        include: { user: { select: { name: true, phone: true } } },
+      },
+    },
+  });
+
+  let fixed = 0;
+
+  for (const admission of admissions) {
+    if (!admission.course) continue;
+    const courseFee = toMoneyNumber(admission.course.fee);
+    if (courseFee <= 0) continue;
+
+    const tuitionRows = await prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        admissionId: admission.id,
+        feeHeadMasterId: tuition.id,
+      },
+      orderBy: { installmentNo: "asc" },
+    });
+    if (tuitionRows.length === 0) continue;
+
+    const charged = roundMoney(
+      tuitionRows.reduce(
+        (s, r) => s + toMoneyNumber(r.amountPaid) + Math.max(0, toMoneyNumber(r.dueAmount)),
+        0
+      )
+    );
+    let gap = roundMoney(courseFee - charged);
+    if (gap <= 0.009) continue;
+
+    const zeroed = tuitionRows.filter(
+      (r) =>
+        r.installmentNo > 1 &&
+        toMoneyNumber(r.totalFee) <= 0.009 &&
+        toMoneyNumber(r.dueAmount) <= 0.009 &&
+        toMoneyNumber(r.amountPaid) <= 0.009
+    );
+
+    const touchedIds: string[] = [];
+
+    if (zeroed.length > 0) {
+      // Restore remaining obligation across Installment 2, 3, … (not one course lump).
+      let allocated = 0;
+      for (let i = 0; i < zeroed.length; i++) {
+        const row = zeroed[i];
+        const part =
+          i === zeroed.length - 1
+            ? roundMoney(gap - allocated)
+            : Math.floor(gap / zeroed.length);
+        if (part <= 0) continue;
+        allocated = roundMoney(allocated + part);
+        await prisma.pendingFee.update({
+          where: { id: row.id },
+          data: {
+            totalFee: part,
+            amountPaid: 0,
+            dueAmount: part,
+            status: derivePendingStatus(part, row.dueDate, 0, today),
+            overdueDays: 0,
+            feeHeadMasterId: tuition.id,
+            feeHead: tuition.name,
+          },
+        });
+        touchedIds.push(row.id);
+        fixed += 1;
+      }
+      gap = roundMoney(gap - allocated);
+    }
+
+    if (gap > 0.009) {
+      const maxInst = Math.max(...tuitionRows.map((r) => r.installmentNo), 1);
+      const template = tuitionRows[0];
+      const dueDate = new Date(template.dueDate);
+      dueDate.setDate(dueDate.getDate() + 30 * Math.max(1, maxInst));
+
+      const created = await prisma.pendingFee.create({
+        data: {
+          instituteId,
+          branchId: template.branchId,
+          studentId: template.studentId,
+          admissionId: admission.id,
+          studentName:
+            admission.student?.user?.name || template.studentName || "Student",
+          admissionNo: admission.admissionNo || template.admissionNo,
+          phone: admission.student?.user?.phone || template.phone || "",
+          courseName: admission.course.name || template.courseName,
+          totalFee: gap,
+          amountPaid: 0,
+          dueAmount: gap,
+          dueDate,
+          installmentNo: maxInst + 1,
+          status: derivePendingStatus(gap, dueDate, 0, today),
+          overdueDays: 0,
+          feeHeadMasterId: tuition.id,
+          feeHead: tuition.name,
+        },
+      });
+      touchedIds.push(created.id);
+      fixed += 1;
+      logger.info("Created missing course installment after wipe", {
+        instituteId,
+        admissionId: admission.id,
+        pendingFeeId: created.id,
+        amount: gap,
+      });
+    }
+
+    if (touchedIds.length > 0) {
+      await syncInvoicesForPendingFeeIds(prisma as never, touchedIds).catch(() => undefined);
+      logger.info("Restored wiped tuition installments", {
+        instituteId,
+        admissionId: admission.id,
+        course: admission.course.name,
+        courseFee,
+        charged,
+        restoredRows: touchedIds.length,
+      });
+    }
+  }
+
+  return fixed;
+}
+
+/**
+ * Undo “dump remaining onto one installment” repairs: when Installment 1 is
+ * paid and later slots exist but only the next one holds all remaining due,
+ * re-spread that due evenly across Installment 2, 3, … as whole rupees.
+ */
+async function redistributeLumpedRemainingInstallments(
+  instituteId: string
+): Promise<number> {
+  const tuition = await resolveTuitionFeeHead(prisma, instituteId);
+  const today = startOfDay();
+
+  const admissions = await prisma.admission.findMany({
+    where: { instituteId, status: { not: "CANCELLED" } },
+    select: { id: true },
+  });
+
+  let fixed = 0;
+
+  for (const admission of admissions) {
+    const tuitionRows = await prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        admissionId: admission.id,
+        feeHeadMasterId: tuition.id,
+      },
+      orderBy: { installmentNo: "asc" },
+    });
+    if (tuitionRows.length < 3) continue;
+
+    const hasPaid = tuitionRows.some((r) => toMoneyNumber(r.amountPaid) > 0.009);
+    if (!hasPaid) continue;
+
+    const open = tuitionRows.filter((r) => toMoneyNumber(r.dueAmount) > 0.009);
+    if (open.length !== 1) continue;
+
+    const emptyTrail = tuitionRows.filter(
+      (r) =>
+        r.installmentNo > open[0].installmentNo &&
+        toMoneyNumber(r.amountPaid) <= 0.009 &&
+        toMoneyNumber(r.dueAmount) <= 0.009
+    );
+    if (emptyTrail.length === 0) continue;
+
+    const slots = [open[0], ...emptyTrail];
+    const totalDue = roundMoney(toMoneyNumber(open[0].dueAmount));
+    if (totalDue <= 0.009) continue;
+
+    let allocated = 0;
+    const touchedIds: string[] = [];
+    for (let i = 0; i < slots.length; i++) {
+      const row = slots[i];
+      const part =
+        i === slots.length - 1
+          ? roundMoney(totalDue - allocated)
+          : Math.floor(totalDue / slots.length);
+      allocated = roundMoney(allocated + part);
+      await prisma.pendingFee.update({
+        where: { id: row.id },
+        data: {
+          totalFee: part,
+          amountPaid: 0,
+          dueAmount: part,
+          status: derivePendingStatus(part, row.dueDate, 0, today),
+          overdueDays: 0,
+          feeHeadMasterId: tuition.id,
+          feeHead: tuition.name,
+        },
+      });
+      touchedIds.push(row.id);
+      fixed += 1;
+    }
+
+    await syncInvoicesForPendingFeeIds(prisma as never, touchedIds).catch(() => undefined);
+    logger.info("Redistributed lumped tuition back to installments", {
+      instituteId,
+      admissionId: admission.id,
+      totalDue,
+      slots: slots.map((s) => s.installmentNo),
+    });
+  }
+
+  return fixed;
+}
+
+/**
  * Legacy admissions sometimes created SUCCESS receipts without PaymentAllocation
  * rows, so PendingFee dues never decreased. Allocate those receipts FIFO onto
  * the student's open charge lines (once per process per institute).
@@ -379,6 +604,24 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     }
   );
 
+  const wipedFixed = await repairWipedTuitionInstallments(instituteId).catch((err) => {
+    logger.warn("Failed wiped-tuition installment repair", {
+      instituteId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  });
+
+  const redistributedFixed = await redistributeLumpedRemainingInstallments(instituteId).catch(
+    (err) => {
+      logger.warn("Failed installment redistribute repair", {
+        instituteId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    }
+  );
+
   const orphans = await prisma.payment.findMany({
     where: {
       instituteId,
@@ -389,12 +632,18 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     take: 500,
   });
 
-  if (orphans.length === 0 && inflatedFixed === 0 && misattributedFixed === 0) {
+  if (
+    orphans.length === 0 &&
+    inflatedFixed === 0 &&
+    misattributedFixed === 0 &&
+    wipedFixed === 0 &&
+    redistributedFixed === 0
+  ) {
     repairedInstitutes.add(instituteId);
     return 0;
   }
 
-  let repaired = inflatedFixed + misattributedFixed;
+  let repaired = inflatedFixed + misattributedFixed + wipedFixed + redistributedFixed;
 
   for (const payment of orphans) {
     if (!payment.studentId) continue;

@@ -44,8 +44,8 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
   const rows = data?.data?.data || [];
   const totalPages = data?.data?.totalPages ?? 1;
 
-  return (
-    <PageContainer>
+  const body = (
+    <>
       {!embedded && (
       <PageHeader
         title="Other Invoices"
@@ -62,7 +62,7 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
       />
       )}
       {embedded && (
-        <div className="flex justify-end">
+        <div className="flex justify-end mb-3">
           <PermissionGate itemKey="fees.invoices" mode="write">
             <Button asChild className="gap-2">
               <Link to={`${basePath}/fees/other-invoices/new`}>
@@ -73,10 +73,10 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
         </div>
       )}
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
+      <Card className="w-full border-border/50">
+        <CardContent className="sm:p-6 p-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
                 placeholder="Search invoice, student, reference..."
@@ -94,7 +94,7 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="h-10 px-3 border rounded-md text-sm min-w-[180px]"
+              className="h-10 px-3 border rounded-md text-sm min-w-[180px] shrink-0"
             >
               <option value="ALL">All statuses</option>
               <option value="DRAFT">Draft</option>
@@ -105,7 +105,8 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
             </select>
           </div>
 
-          <Table>
+          <div className="w-full overflow-x-auto">
+          <Table className="min-w-[900px] w-full">
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice No</TableHead>
@@ -168,6 +169,7 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
               )}
             </TableBody>
           </Table>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex justify-between items-center text-sm">
@@ -196,6 +198,16 @@ export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }
           )}
         </CardContent>
       </Card>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="w-full min-w-0">{body}</div>;
+  }
+
+  return (
+    <PageContainer maxWidth="full" className="min-w-0">
+      {body}
     </PageContainer>
   );
 };

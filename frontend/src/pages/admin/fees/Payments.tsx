@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
+import { aggregateByStudentAndFeeType } from "@/utils/fee-display.util";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader } from "@/components/layout";
@@ -124,7 +125,11 @@ export const Payments: React.FC = () => {
       .slice(0, 50);
   }, [students, studentSearch]);
 
-  const payments = paymentsData?.data?.data || [];
+  const paymentsRaw = paymentsData?.data?.data || [];
+  const payments = useMemo(
+    () => aggregateByStudentAndFeeType(paymentsRaw as Payment[]),
+    [paymentsRaw]
+  );
   const stats = statsData?.data || {
     totalCollected: 0,
     todayCollected: 0,
@@ -348,7 +353,7 @@ export const Payments: React.FC = () => {
                 <TableRow>
                   <TableHead className="font-semibold text-text-primary">Receipt No</TableHead>
                   <TableHead className="font-semibold text-text-primary">Student Details</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Course</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Type</TableHead>
                   <TableHead className="font-semibold text-text-primary">Amount Paid</TableHead>
                   <TableHead className="font-semibold text-text-primary">Payment Mode</TableHead>
                   <TableHead className="font-semibold text-text-primary">Date</TableHead>
@@ -374,20 +379,32 @@ export const Payments: React.FC = () => {
                   </TableRow>
                 ) : (
                   payments.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-bg-secondary/30 transition-colors">
-                      <TableCell className="font-medium text-slate-900 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        {p.receiptNo}
+                    <TableRow
+                      key={`${p.studentId || p.studentName}-${p.typeLabel}`}
+                      className="hover:bg-bg-secondary/30 transition-colors"
+                    >
+                      <TableCell className="font-medium text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <div>
+                            <div>{p.receiptNo}</div>
+                            {p.sourceIds.length > 1 ? (
+                              <div className="text-[11px] text-text-muted">
+                                +{p.sourceIds.length - 1} more
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-text-primary">{p.studentName}</div>
                         <div className="text-xs text-text-secondary font-mono">{p.admissionNo}</div>
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-slate-700 font-medium">
-                        {p.courseName}
+                      <TableCell className="text-slate-700 font-medium">
+                        {p.typeLabel}
                       </TableCell>
                       <TableCell className="font-bold text-slate-900">
-                        ₹{p.amount.toLocaleString("en-IN")}
+                        ₹{Number(p.amount).toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell>{getMethodBadge(p.method)}</TableCell>
                       <TableCell className="text-sm text-text-secondary">
