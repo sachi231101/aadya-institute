@@ -67,7 +67,11 @@ import { Label } from "@/components/ui/label";
 export const ExamManagement: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor/exams"
+    : location.pathname.startsWith("/center")
+      ? "/center/exams"
+      : "/admin/exams";
   const { canEditItem } = usePermissions();
   const canEditExams = canEditItem("exams.all");
   const [searchTerm, setSearchTerm] = useState("");

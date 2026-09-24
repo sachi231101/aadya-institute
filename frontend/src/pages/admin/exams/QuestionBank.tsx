@@ -50,7 +50,11 @@ const PAGE_SIZE = 20;
 export const QuestionBank: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor/exams"
+    : location.pathname.startsWith("/center")
+      ? "/center/exams"
+      : "/admin/exams";
   const { canEditItem } = usePermissions();
   const canEditQuestionBank = canEditItem("exams.question_bank");
   const [searchTerm, setSearchTerm] = useState("");

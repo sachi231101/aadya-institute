@@ -5,6 +5,7 @@ import { AdminDashboard } from "../pages/admin/Dashboard";
 import { AiHome } from "../pages/admin/ai/AiHome";
 import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 import { BranchRevenueDetails } from "../pages/admin/branch/BranchRevenueDetails";
+import { ViewBranch } from "../pages/admin/branch/ViewBranch";
 
 import { AllStudents } from "../pages/admin/students/AllStudents";
 import { AddStudent } from "../pages/admin/students/AddStudent";
@@ -138,6 +139,7 @@ export const adminChildRoutes = (
     <Route path="home" element={<AiHome />} />
     <Route path="dashboard" element={<AdminDashboard />} />
     <Route path="ask-me" element={<Navigate to="/admin/home" replace />} />
+    <Route path="branch/:id" element={<ViewBranch />} />
     <Route path="branch/:id/performance" element={<BranchPerformance />} />
     <Route path="branch/:id/revenue" element={<BranchRevenueDetails />} />
 
@@ -167,6 +169,7 @@ export const adminChildRoutes = (
       <Route path="lead-allocation" element={<LeadAllocation />} />
       <Route path="student-allocation" element={<Navigate to="/admin/students/student-allocation" replace />} />
       <Route path="performance" element={<CounsellorPerformance />} />
+      <Route path=":id" element={<ViewAdmin />} />
     </Route>
 
     {/* Student Management */}

@@ -27,7 +27,11 @@ export const AttemptProctoringDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const basePath = location.pathname.startsWith('/center') ? '/center/exams' : '/admin/exams';
+  const basePath = location.pathname.startsWith('/counselor')
+    ? '/counselor/exams'
+    : location.pathname.startsWith('/center')
+      ? '/center/exams'
+      : '/admin/exams';
 
   const { data, isLoading, error } = useStaffAttemptProctoring(attemptId || '');
   const attempt = data?.data;

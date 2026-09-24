@@ -400,10 +400,6 @@ export const Applications: React.FC = () => {
           isAddingNote={addNoteMutation.isPending}
           leadBasePath={`${rolePrefix}/leads`}
           portalBasePath={rolePrefix}
-          onCopy={(label, value) => {
-            void navigator.clipboard.writeText(value);
-            showToast(`Copied ${label} to clipboard!`);
-          }}
           onMarkPaid={handleMarkPaid}
           onReject={handleReject}
           onUpdateDetails={handleUpdateDetails}

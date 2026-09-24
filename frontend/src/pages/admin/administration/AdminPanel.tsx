@@ -88,21 +88,28 @@ const getStatusText = (status: string) => {
 const ManagerCard = ({
   manager,
   branch,
+  staffUsers,
   onAction,
-  onViewBranch,
 }: {
   manager: UserResponse;
   branch?: BranchResponse;
+  staffUsers: UserResponse[];
   onAction: (id: string, action: string) => void;
-  onViewBranch: (manager: UserResponse, branch: BranchResponse) => void;
 }) => {
   const { data: statsResponse } = useBranchStats(branch?.id);
   const stats = statsResponse?.data;
 
-  const studentCount = stats?.totalStudents || 0;
-  const facultyCount = stats?.totalFaculty || 0;
-  const batchCount = stats?.totalBatches || 0;
-  const counsellorCount = 0;
+  const branchId = branch?.id;
+  const studentCount = stats?.totalStudents ?? 0;
+  const batchCount = stats?.totalBatches ?? 0;
+  const facultyFromRoster = branchId
+    ? staffUsers.filter((u) => u.roles.includes("FACULTY") && u.branchId === branchId).length
+    : 0;
+  const facultyCount = Math.max(facultyFromRoster, stats?.totalFaculty ?? 0);
+  const counsellorFromRoster = branchId
+    ? staffUsers.filter((u) => u.roles.includes("COUNSELLOR") && u.branchId === branchId).length
+    : 0;
+  const counsellorCount = Math.max(counsellorFromRoster, stats?.totalCounsellors ?? 0);
 
   return (
     <Card className="border border-border bg-card shadow-xs hover:shadow-md hover:border-primary/40 transition-all rounded-xl overflow-hidden flex flex-col h-full group">
@@ -212,19 +219,6 @@ const ManagerCard = ({
               <span className="text-xs sm:text-sm font-bold text-foreground mt-0.5">{batchCount}</span>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            {branch ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-primary border-border hover:bg-primary/10 font-bold text-xs h-8.5 rounded-xl transition-colors cursor-pointer"
-                onClick={() => onViewBranch(manager, branch)}
-              >
-                <Eye className="h-3.5 w-3.5 mr-1.5" /> View Branch
-              </Button>
-            ) : null}
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -323,10 +317,6 @@ export const AdminPanel: React.FC = () => {
       setResetPasswordError(null);
       setNewBranchId(staffUsers.find((m) => m.id === id)?.branchId || "");
     }
-  };
-
-  const handleViewBranch = (_manager: UserResponse, branch: BranchResponse) => {
-    navigate(`/admin/branch/${branch.id}/performance`);
   };
 
   const closeModal = () => {
@@ -625,9 +615,12 @@ export const AdminPanel: React.FC = () => {
               <ManagerCard
                 key={manager.id}
                 manager={manager}
-                branch={allBranches.find((b) => b.id === manager.branchId)}
+                branch={
+                  allBranches.find((b) => b.id === manager.branchId) ||
+                  allBranches.find((b) => b.managerUserId === manager.id)
+                }
+                staffUsers={staffUsers}
                 onAction={handleAction}
-                onViewBranch={handleViewBranch}
               />
             ))}
           </div>

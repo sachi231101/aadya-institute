@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useUser, useUpdateUserStatus, useUpdateUser, useResetUserPassword } from "@/hooks/useUsers";
 import { usersApi } from "@/services/users.api";
@@ -77,6 +77,7 @@ const formatDate = (dateStr: string | undefined): string => {
 export const ViewAdmin: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   // Queries
@@ -147,7 +148,11 @@ export const ViewAdmin: React.FC = () => {
     setResetPasswordError(null);
   };
 
-  const USERS_PATH = "/admin/administration/users";
+  const USERS_PATH = location.pathname.startsWith("/center")
+    ? "/center/counselor/all"
+    : location.pathname.startsWith("/admin/counsellors")
+      ? "/admin/counsellors"
+      : "/admin/administration/users";
 
   if (isLoading) {
     return (
@@ -458,7 +463,7 @@ export const ViewAdmin: React.FC = () => {
                 {assignedBranch ? (
                   <Button
                     variant="outline"
-                    onClick={() => navigate(`/admin/branch/${assignedBranch.id}/performance`)}
+                    onClick={() => navigate(`/admin/branch/${assignedBranch.id}`)}
                     className="text-primary border-primary/30 hover:bg-blue-50 text-xs font-bold h-8"
                   >
                     View Branch <ExternalLink className="h-3.5 w-3.5 ml-1" />

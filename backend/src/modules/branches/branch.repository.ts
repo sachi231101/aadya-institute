@@ -182,12 +182,24 @@ export const getBranchStats = async (branchId: string, instituteId: string) => {
     batch: { instituteId },
   };
 
-  const [totalStudents, totalFaculty, totalBatches, totalAdmissions, todayClasses, upcomingClasses, liveClasses] =
+  const [totalStudents, totalFaculty, totalBatches, totalAdmissions, totalCounsellors, todayClasses, upcomingClasses, liveClasses] =
     await prisma.$transaction([
       prisma.student.count({ where: { branchId, instituteId } }),
-      prisma.faculty.count({ where: { branchId, instituteId } }),
-      prisma.batch.count({ where: { branchId, instituteId } }),
+      prisma.faculty.count({
+        where: { branchId, instituteId, status: { not: "INACTIVE" } },
+      }),
+      prisma.batch.count({
+        where: { branchId, instituteId, status: { not: "CANCELLED" } },
+      }),
       prisma.admission.count({ where: { branchId, instituteId } }),
+      prisma.user.count({
+        where: {
+          instituteId,
+          branchId,
+          status: { not: "BLOCKED" },
+          userRoles: { some: { role: { name: "COUNSELLOR" } } },
+        },
+      }),
       prisma.classSession.count({
         where: { ...sessionWhere, scheduledDate: { gte: todayStart, lte: todayEnd } },
       }),
@@ -208,6 +220,7 @@ export const getBranchStats = async (branchId: string, instituteId: string) => {
     totalFaculty,
     totalBatches,
     totalAdmissions,
+    totalCounsellors,
     todayClasses,
     upcomingClasses,
     liveClasses,

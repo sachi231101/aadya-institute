@@ -43,7 +43,11 @@ export const ExamAttempts: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const basePath = location.pathname.startsWith('/center') ? '/center/exams' : '/admin/exams';
+  const basePath = location.pathname.startsWith('/counselor')
+    ? '/counselor/exams'
+    : location.pathname.startsWith('/center')
+      ? '/center/exams'
+      : '/admin/exams';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');

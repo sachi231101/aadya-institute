@@ -60,7 +60,6 @@ import type { UnifiedLead, AiCallOutcome, LeadTranscriptMessage } from "@/store/
 import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { MasterSelect } from "@/components/common/MasterSelect";
 import { PageContainer, PageHeader, PageSection, MetricGrid, METRIC_GRID_COLUMNS } from "@/components/layout";
 import { getMasterLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
@@ -68,7 +67,6 @@ import {
   useLeadDashboard,
   useFollowUpDashboard,
   useCounsellorPerformance,
-  useCreateLead,
   useChangeLeadStage,
   useMarkLeadLost,
   useCreateFollowUp,
@@ -198,7 +196,6 @@ export const CounselorDashboard: React.FC = () => {
     statuses: "ACTIVE,LOST",
     branchId: user?.branchId || undefined,
   });
-  const createLeadMutation = useCreateLead();
   const changeStageMutation = useChangeLeadStage();
   const markLostMutation = useMarkLeadLost();
   const createFollowUpMutation = useCreateFollowUp();
@@ -460,7 +457,6 @@ export const CounselorDashboard: React.FC = () => {
   }, [combinedLeadsList, followUpDashboardData, leadDashboardData]);
 
   // CRUD Modals State
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showLogAttemptModal, setShowLogAttemptModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [activeLead, setActiveLead] = useState<UnifiedLead | null>(null);
@@ -482,15 +478,6 @@ export const CounselorDashboard: React.FC = () => {
   const [showLostModal, setShowLostModal] = useState(false);
   const [lostReason, setLostReason] = useState("Joined Competitor Institute");
   const [lostNotes, setLostNotes] = useState("");
-
-  // Form states for Add / Edit Lead
-  const [formName, setFormName] = useState("");
-  const [formPhone, setFormPhone] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formCourse, setFormCourse] = useState("Digital Marketing");
-  const [formSourceMasterId, setFormSourceMasterId] = useState("");
-  const [formTriggerAi, setFormTriggerAi] = useState(true);
-  const [formNotes, setFormNotes] = useState("");
 
   // Form states for Log Attempt
   const [attemptMode, setAttemptMode] = useState<"PHONE" | "WHATSAPP" | "DEMO" | "EMAIL">("PHONE");
@@ -731,7 +718,6 @@ export const CounselorDashboard: React.FC = () => {
 
 
   // Revenue overview metrics (Live from Financial Reports & PostgreSQL)
-  const pendingFeeAmount = financialReport?.summary?.totalPending ?? 0;
   const collectedThisMonthAmount = financialReport?.summary?.totalCollected ?? 0;
   const { prevMonthRevenueAmount, revenueGrowthPct } = useMemo(() => {
     const trend = financialReport?.monthlyTrend || [];
@@ -941,52 +927,6 @@ export const CounselorDashboard: React.FC = () => {
     }
   };
 
-  // Add New Lead handler
-  const handleCreateLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName || !formPhone) return;
-    if (!user?.branchId) {
-      setFollowUpSuccessMsg("Your account has no branch assigned — cannot create lead.");
-      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
-      return;
-    }
-
-    const sourceLabel = getMasterLabel(leadSourceOptions, formSourceMasterId) || "Website";
-
-    try {
-      const created = await createLeadMutation.mutateAsync({
-        name: formName.trim(),
-        phoneNumber: formPhone.trim(),
-        email: formEmail.trim() || undefined,
-        interestedIn: formCourse,
-        sourceMasterId: formSourceMasterId || undefined,
-        priority: "HIGH",
-        branchId: user.branchId,
-        notes: formNotes,
-        assignedCounsellorId: user.id,
-      });
-
-      if (formTriggerAi && created?.data?.id) {
-        triggerCallMutation.mutate(created.data.id);
-      }
-
-      setFollowUpSuccessMsg(
-        formTriggerAi
-          ? `✓ Lead ${formName} created from ${sourceLabel} & AI call queued`
-          : `✓ Lead ${formName} created from ${sourceLabel}`
-      );
-      setTimeout(() => setFollowUpSuccessMsg(null), 5000);
-      setShowAddModal(false);
-      setFormName("");
-      setFormPhone("");
-      setFormEmail("");
-      setFormNotes("");
-    } catch (err: any) {
-      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to create lead");
-      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
-    }
-  };
-
   // Log Attempt handler — safe stages only via changeStage; route terminal/follow-up flows
   const handleSaveAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1149,18 +1089,28 @@ export const CounselorDashboard: React.FC = () => {
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     }).length;
     const active = liveStudents.filter((s) => s.status === "ACTIVE").length;
-    const pendingFees = liveStudents.filter((s) => {
-      const feeSummary = (s as any).fees;
-      if (feeSummary) {
-        return (
-          (feeSummary.dueAmount ?? 0) > 0 ||
-          ["Pending", "Overdue", "Partial"].includes(feeSummary.status)
-        );
-      }
-      return false;
-    }).length;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const upcomingEnd = new Date(todayStart);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 5);
 
-    return { total, newThisMonth, active, pendingFees };
+    const feesDueSoon = liveStudents.filter((s) => {
+      const feeSummary = s.fees;
+      if (!feeSummary || !(feeSummary.dueAmount > 0)) return false;
+      if (feeSummary.status === "Overdue") return true;
+      if (!feeSummary.nextDueDate) return false;
+      const due = new Date(feeSummary.nextDueDate);
+      due.setHours(0, 0, 0, 0);
+      // Overdue, due today, or due within next 5 days
+      return due.getTime() <= upcomingEnd.getTime();
+    });
+    const pendingFees = feesDueSoon.length;
+    const pendingFeeAmount = feesDueSoon.reduce(
+      (sum, s) => sum + Number(s.fees?.dueAmount ?? 0),
+      0
+    );
+
+    return { total, newThisMonth, active, pendingFees, pendingFeeAmount };
   }, [liveStudents]);
 
   // My Performance Metrics (Live from Counsellor Performance & Targets)
@@ -1275,23 +1225,59 @@ export const CounselorDashboard: React.FC = () => {
   }, [followUpDashboardData?.lists]);
 
   const feesDuePreview = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const upcomingEnd = new Date(todayStart);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 5);
+
+    type FeeBadge = "Overdue" | "Due Today" | "Upcoming";
+    const badgePriority: Record<FeeBadge, number> = {
+      Overdue: 0,
+      "Due Today": 1,
+      Upcoming: 2,
+    };
+
     return liveStudents
-      .filter((s) => {
-        const feeSummary = (s as { fees?: { dueAmount?: number; status?: string } }).fees;
-        if (!feeSummary) return false;
-        return (
-          (feeSummary.dueAmount ?? 0) > 0 ||
-          ["Pending", "Overdue", "Partial"].includes(feeSummary.status || "")
-        );
+      .map((s) => {
+        const feeSummary = s.fees;
+        if (!feeSummary || !(feeSummary.dueAmount > 0)) return null;
+        if (!feeSummary.nextDueDate && feeSummary.status !== "Overdue") return null;
+
+        const due = feeSummary.nextDueDate ? new Date(feeSummary.nextDueDate) : null;
+        if (due) due.setHours(0, 0, 0, 0);
+
+        const isOverdue =
+          feeSummary.status === "Overdue" ||
+          (due != null && due.getTime() < todayStart.getTime());
+        const isDueToday = due != null && due.getTime() === todayStart.getTime();
+        const isUpcoming =
+          due != null &&
+          due.getTime() > todayStart.getTime() &&
+          due.getTime() <= upcomingEnd.getTime();
+
+        if (!isOverdue && !isDueToday && !isUpcoming) return null;
+
+        const badge: FeeBadge = isOverdue ? "Overdue" : isDueToday ? "Due Today" : "Upcoming";
+
+        return {
+          id: s.id,
+          name: s.user?.name || (s as { displayName?: string }).displayName || s.studentCode,
+          studentCode: s.studentCode,
+          phone: s.user?.phone ?? undefined,
+          dueAmount: feeSummary.dueAmount ?? 0,
+          dueDate: due,
+          badge,
+        };
       })
-      .slice(0, 6)
-      .map((s) => ({
-        id: s.id,
-        name: (s as { name?: string }).name,
-        studentName: (s as { studentName?: string }).studentName,
-        studentCode: (s as { studentCode?: string }).studentCode,
-        phone: (s as { phone?: string }).phone,
-      }));
+      .filter((item): item is NonNullable<typeof item> => item != null)
+      .sort((a, b) => {
+        const byBadge = badgePriority[a.badge] - badgePriority[b.badge];
+        if (byBadge !== 0) return byBadge;
+        const aTime = a.dueDate?.getTime() ?? 0;
+        const bTime = b.dueDate?.getTime() ?? 0;
+        return aTime - bTime;
+      })
+      .slice(0, 6);
   }, [liveStudents]);
 
   return (
@@ -1354,7 +1340,7 @@ export const CounselorDashboard: React.FC = () => {
             {canCreateLead && (
               <button
                 type="button"
-                onClick={() => setShowAddModal(true)}
+                onClick={() => navigate("/counselor/leads/add")}
                 className="group text-left rounded-xl border border-border bg-card p-4 shadow-xs hover:border-primary/50 hover:shadow-sm transition-all"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 mb-3">
@@ -1402,10 +1388,10 @@ export const CounselorDashboard: React.FC = () => {
                 <span className="text-xs font-semibold uppercase tracking-wide">Fees Due</span>
               </div>
               <p className="text-2xl font-semibold text-foreground mt-2 tabular-nums">
-                {formatINR(pendingFeeAmount)}
+                {formatINR(studentMetrics.pendingFeeAmount)}
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {studentMetrics.pendingFees} students
+                {studentMetrics.pendingFees} due in next 5 days
               </p>
             </button>
             <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
@@ -1486,7 +1472,7 @@ export const CounselorDashboard: React.FC = () => {
               <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between space-y-0">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Fees due</h2>
-                  <p className="text-xs text-muted-foreground">Students with pending balance</p>
+                  <p className="text-xs text-muted-foreground">Overdue, today, or next 5 days</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -1500,7 +1486,7 @@ export const CounselorDashboard: React.FC = () => {
               <CardContent className="p-0">
                 {feesDuePreview.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No pending fee students.
+                    No fees due in the next 5 days.
                   </p>
                 ) : (
                   <ul className="divide-y divide-border">
@@ -1513,13 +1499,33 @@ export const CounselorDashboard: React.FC = () => {
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">
-                              {student.name || student.studentName || "Student"}
+                              {student.name || "Student"}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {student.studentCode || student.phone || "—"}
+                              {student.dueAmount > 0
+                                ? ` · ₹${student.dueAmount.toLocaleString("en-IN")}`
+                                : ""}
+                              {student.dueDate
+                                ? ` · ${student.dueDate.toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}`
+                                : ""}
                             </p>
                           </div>
-                          <span className="text-xs font-semibold text-amber-600 shrink-0">Due</span>
+                          <Badge
+                            variant={
+                              student.badge === "Overdue"
+                                ? "destructive"
+                                : student.badge === "Due Today"
+                                  ? "warning"
+                                  : "secondary"
+                            }
+                            className="text-[10px] shrink-0"
+                          >
+                            {student.badge}
+                          </Badge>
                         </button>
                       </li>
                     ))}
@@ -1586,112 +1592,6 @@ export const CounselorDashboard: React.FC = () => {
           </div>
         </>
       )}
-
-      {/* ─── MODAL 1: ADD NEW LEAD ENQUIRY ─── */}
-      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-emerald-600" />
-              New Student Lead Enquiry
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateLead} className="space-y-3.5 pt-2 text-xs">
-            <div>
-              <Label className="text-slate-600 text-xs font-medium">Student / Candidate Name *</Label>
-              <Input
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="e.g. Aditi Roy"
-                className="mt-1"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-slate-600 text-xs font-medium">Contact Phone *</Label>
-                <Input
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="9876543210"
-                  className="mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label className="text-slate-600 text-xs font-medium">Email Address</Label>
-                <Input
-                  type="email"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="aditi@gmail.com"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-slate-600 text-xs font-medium">Interested Course</Label>
-                <select
-                  value={formCourse}
-                  onChange={(e) => setFormCourse(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-semibold text-slate-800"
-                >
-                  <option value="Digital Marketing">Digital Marketing</option>
-                  <option value="Graphic Design">Graphic Design</option>
-                  <option value="Web Development">Web Development</option>
-                  <option value="Data Science">Data Science</option>
-                  <option value="UI/UX Design">UI/UX Design</option>
-                  <option value="Python / AI">Python / AI</option>
-                  <option value="Java Full Stack">Java Full Stack</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-slate-600 text-xs font-medium">Omnichannel Lead Source *</Label>
-                <MasterSelect
-                  entityType="leadsource"
-                  value={formSourceMasterId}
-                  onChange={setFormSourceMasterId}
-                  placeholder="Select lead source"
-                  className="mt-1 rounded-lg"
-                />
-              </div>
-            </div>
-
-            {/* AI Automated Calling Option */}
-            <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-blue-50/70 rounded-xl border border-blue-100">
-              <input
-                type="checkbox"
-                checked={formTriggerAi}
-                onChange={(e) => setFormTriggerAi(e.target.checked)}
-                className="rounded border-slate-300 text-[#2563EB] accent-[#2563EB] h-4 w-4"
-              />
-              <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-[#2563EB]" />
-                Trigger automated AI voice qualification call immediately
-              </span>
-            </label>
-
-            <div>
-              <Label className="text-slate-600 text-xs font-medium">Initial Notes & Response</Label>
-              <textarea
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                placeholder="Candidate enquired about fees and batch timings..."
-                className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs min-h-[60px]"
-              />
-            </div>
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold">
-                Save & Add Lead
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* ─── SCHEDULE FOLLOW-UP POPUP / MODAL ─── */}
       <Dialog open={showFollowUpModal} onOpenChange={setShowFollowUpModal}>
