@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { FileText, Search, Loader2, AlertCircle } from "lucide-react";
 import { useFeeInvoices } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { aggregateInvoicesByStudentAndFeeHead } from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OtherInvoices } from "./OtherInvoices";
+import type { StudentInvoice } from "@/types/fee.types";
 
 export const Invoices: React.FC = () => {
   const navigate = useNavigate();
@@ -47,27 +49,31 @@ export const Invoices: React.FC = () => {
     limit: 20,
   });
 
-  const rows = data?.data?.data || [];
+  const rowsRaw = data?.data?.data || [];
+  const rows = useMemo(
+    () => aggregateInvoicesByStudentAndFeeHead(rowsRaw as StudentInvoice[]),
+    [rowsRaw]
+  );
   const totalPages = data?.data?.totalPages ?? 1;
 
   return (
-    <PageContainer>
+    <PageContainer maxWidth="full" className="min-w-0">
       <PageHeader
         title="Invoices"
         description="Course invoices and other bills (books, kits, misc.) in one place."
       />
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
         <TabsList>
           <TabsTrigger value="course">Course invoices</TabsTrigger>
           <TabsTrigger value="other">Other invoices</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="course" className="mt-4">
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
+        <TabsContent value="course" className="mt-4 w-full min-w-0">
+      <Card className="w-full border-border/50">
+        <CardContent className="sm:p-6 p-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
                 placeholder="Search invoice no, student, course..."
@@ -85,7 +91,7 @@ export const Invoices: React.FC = () => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="h-10 px-3 border rounded-md text-sm min-w-[180px]"
+              className="h-10 px-3 border rounded-md text-sm min-w-[180px] shrink-0"
             >
               <option value="ALL">All statuses</option>
               <option value="ISSUED">Issued</option>
@@ -96,12 +102,13 @@ export const Invoices: React.FC = () => {
             </select>
           </div>
 
-          <Table>
+          <div className="w-full overflow-x-auto">
+          <Table className="min-w-[900px] w-full">
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice No</TableHead>
                 <TableHead>Student</TableHead>
-                <TableHead>Course</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Paid</TableHead>
                 <TableHead>Balance</TableHead>
@@ -137,16 +144,23 @@ export const Invoices: React.FC = () => {
               ) : (
                 rows.map((inv) => (
                   <TableRow
-                    key={inv.id}
+                    key={`${inv.studentId || inv.studentName}-${inv.typeLabel}`}
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => navigate(`${basePath}/fees/invoices/${inv.id}`)}
                   >
-                    <TableCell className="font-mono font-medium">{inv.invoiceNo}</TableCell>
+                    <TableCell className="font-mono font-medium">
+                      <div>{inv.invoiceNo}</div>
+                      {inv.sourceIds.length > 1 ? (
+                        <div className="text-[11px] text-text-muted mt-0.5">
+                          +{inv.sourceIds.length - 1} more
+                        </div>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <div>{inv.studentName}</div>
                       <div className="text-xs text-text-secondary">{inv.admissionNo}</div>
                     </TableCell>
-                    <TableCell>{inv.courseName}</TableCell>
+                    <TableCell>{inv.typeLabel}</TableCell>
                     <TableCell>{formatMoney(inv.totalAmount)}</TableCell>
                     <TableCell>{formatMoney(inv.amountPaid)}</TableCell>
                     <TableCell className="font-bold">{formatMoney(inv.balance)}</TableCell>
@@ -161,6 +175,7 @@ export const Invoices: React.FC = () => {
               )}
             </TableBody>
           </Table>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex justify-between items-center text-sm">
@@ -191,7 +206,7 @@ export const Invoices: React.FC = () => {
       </Card>
         </TabsContent>
 
-        <TabsContent value="other" className="mt-4">
+        <TabsContent value="other" className="mt-4 w-full min-w-0">
           <OtherInvoices embedded />
         </TabsContent>
       </Tabs>

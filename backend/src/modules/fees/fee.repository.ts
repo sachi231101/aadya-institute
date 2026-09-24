@@ -571,7 +571,7 @@ export const FeeRepository = {
           feeHeadMaster: { select: { id: true, name: true, code: true } },
           studentInvoice: { select: { id: true, invoiceNo: true, status: true } },
         },
-        orderBy: [{ dueDate: "asc" }, { installmentNo: "asc" }],
+        orderBy: [{ studentName: "asc" }, { installmentNo: "asc" }, { dueDate: "asc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),

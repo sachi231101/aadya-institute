@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Receipt, Search, Loader2, AlertCircle, Download, Eye, FileText } from "lucide-react";
 import { useFeeReceipts, useDownloadReceiptPdf } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { aggregateByStudentAndFeeType } from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,23 +32,6 @@ async function triggerPdfDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function receiptTypeLabel(receipt: Payment): string {
-  if (receipt.feeHead?.trim()) return receipt.feeHead.trim();
-
-  const fromAllocations = (receipt.allocations || [])
-    .map((a) => a.pendingFee?.feeHead?.trim())
-    .filter((name): name is string => Boolean(name));
-  if (fromAllocations.length > 0) {
-    return [...new Set(fromAllocations)].join(", ");
-  }
-
-  const notes = receipt.notes?.trim() || "";
-  if (/^Application fee\b/i.test(notes)) return "Application Fee";
-  if (/down payment|initial/i.test(notes)) return "Course Fee";
-
-  return "—";
-}
-
 export const Receipts: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,9 +47,13 @@ export const Receipts: React.FC = () => {
   const { data, isLoading, isError, refetch } = useFeeReceipts({
     search: searchTerm || undefined,
     page,
-    limit: 20,
+    limit: 50,
   });
-  const receipts = data?.data?.data || data?.data || [];
+  const rawReceipts = (data?.data?.data || data?.data || []) as Payment[];
+  const receipts = useMemo(
+    () => (Array.isArray(rawReceipts) ? aggregateByStudentAndFeeType(rawReceipts) : []),
+    [rawReceipts]
+  );
   const meta = data?.data || { totalPages: 1, page: 1 };
 
   const handleDownload = async (id: string, receiptNo: string) => {
@@ -85,15 +73,15 @@ export const Receipts: React.FC = () => {
   };
 
   return (
-    <PageContainer>
+    <PageContainer maxWidth="full" className="min-w-0">
       <PageHeader
         title="Receipts"
         description="All fee collections — view, print, or download receipts."
       />
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
-          <div className="relative">
+      <Card className="w-full border-border/50">
+        <CardContent className="sm:p-6 p-4 space-y-4">
+          <div className="relative w-full min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
               placeholder="Search receipts..."
@@ -106,7 +94,8 @@ export const Receipts: React.FC = () => {
             />
           </div>
 
-          <Table>
+          <div className="w-full overflow-x-auto">
+          <Table className="min-w-[900px] w-full">
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt No</TableHead>
@@ -138,7 +127,7 @@ export const Receipts: React.FC = () => {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ) : !Array.isArray(receipts) || receipts.length === 0 ? (
+              ) : receipts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -146,17 +135,24 @@ export const Receipts: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                (receipts as Payment[]).map((r) => (
+                receipts.map((r) => (
                     <TableRow
-                      key={r.id}
+                      key={`${r.studentId || r.studentName}-${r.typeLabel}`}
                       className="cursor-pointer hover:bg-muted/40"
                       onClick={() => navigate(`${basePath}/fees/receipts/${r.id}`)}
                     >
-                      <TableCell className="font-mono font-medium">{r.receiptNo}</TableCell>
+                      <TableCell className="font-mono font-medium">
+                        <div>{r.receiptNo}</div>
+                        {r.sourceIds.length > 1 ? (
+                          <div className="text-[11px] text-text-muted mt-0.5">
+                            +{r.sourceIds.length - 1} more
+                          </div>
+                        ) : null}
+                      </TableCell>
                       <TableCell>{r.studentName}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-normal">
-                          {receiptTypeLabel(r)}
+                          {r.typeLabel}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-bold">{formatMoney(r.amount ?? 0)}</TableCell>
@@ -209,6 +205,7 @@ export const Receipts: React.FC = () => {
               )}
             </TableBody>
           </Table>
+          </div>
 
           {meta.totalPages > 1 && (
             <div className="flex justify-between text-sm">

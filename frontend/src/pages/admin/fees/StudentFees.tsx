@@ -90,7 +90,7 @@ export const StudentFees: React.FC = () => {
   };
 
   return (
-    <PageContainer>
+    <PageContainer maxWidth="full" className="min-w-0">
       <PageHeader
         title="Student Fees"
         description="Find a student, collect dues, and send reminders from one workspace."
@@ -320,7 +320,7 @@ export const StudentFees: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="pending" className="mt-4">
+        <TabsContent value="pending" className="mt-4 w-full min-w-0">
           <PendingFees embedded initialDueWithinDays={dueWithinDays} />
         </TabsContent>
       </Tabs>
