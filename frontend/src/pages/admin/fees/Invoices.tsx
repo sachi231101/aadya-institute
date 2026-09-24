@@ -4,7 +4,7 @@ import { FileText, Search, Loader2, AlertCircle } from "lucide-react";
 import { useFeeInvoices } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
-import { aggregateInvoicesByStudentAndFeeHead } from "@/utils/fee-display.util";
+import { aggregateInvoicesByStudentAndInstallment } from "@/utils/fee-display.util";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,7 @@ export const Invoices: React.FC = () => {
 
   const rowsRaw = data?.data?.data || [];
   const rows = useMemo(
-    () => aggregateInvoicesByStudentAndFeeHead(rowsRaw as StudentInvoice[]),
+    () => aggregateInvoicesByStudentAndInstallment(rowsRaw as StudentInvoice[]),
     [rowsRaw]
   );
   const totalPages = data?.data?.totalPages ?? 1;
@@ -144,17 +144,12 @@ export const Invoices: React.FC = () => {
               ) : (
                 rows.map((inv) => (
                   <TableRow
-                    key={`${inv.studentId || inv.studentName}-${inv.typeLabel}`}
+                    key={`${inv.studentId || inv.studentName}-${inv.typeLabel}-${inv.installmentNo}`}
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => navigate(`${basePath}/fees/invoices/${inv.id}`)}
                   >
                     <TableCell className="font-mono font-medium">
-                      <div>{inv.invoiceNo}</div>
-                      {inv.sourceIds.length > 1 ? (
-                        <div className="text-[11px] text-text-muted mt-0.5">
-                          +{inv.sourceIds.length - 1} more
-                        </div>
-                      ) : null}
+                      {inv.invoiceNo}
                     </TableCell>
                     <TableCell>
                       <div>{inv.studentName}</div>
