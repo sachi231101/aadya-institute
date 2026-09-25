@@ -65,3 +65,7 @@ export const resolveDisplayOrganizationInfo = (params: {
 
 export const DEFAULT_ORG_LOGO = "/aadya-logo.png";
 export const DEFAULT_ORG_NAME = "Aadya Institute";
+
+/** Uploaded organization logo, or the built-in Aadya mark when none is set. */
+export const resolveOrganizationLogo = (logoUrl?: string | null): string =>
+  logoUrl?.trim() || DEFAULT_ORG_LOGO;

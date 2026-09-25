@@ -1,5 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
-import { Loader2, AlertCircle, Save } from "lucide-react";
+﻿import React, { useMemo, useRef, useState } from "react";
+import { Loader2, AlertCircle, Save, Upload, Trash2, ImageIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,17 @@ import {
   useAdministrationOrganization,
   useOrganization,
   useUpdateOrganization,
+  useUploadOrganizationLogo,
   type OrganizationFormState,
 } from "@/hooks/useOrganizationContext";
 import { formatCurrency } from "@/utils/format";
 import { formatOrganizationDate } from "@/utils/date";
 import { PageContainer, PageHeader } from "@/components/layout";
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+const errorMessage = (err: unknown, fallback: string): string =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 
 export const Organization: React.FC = () => {
   const { updateOrganizationContext } = useOrganization();
@@ -27,6 +33,9 @@ export const Organization: React.FC = () => {
     [data]
   );
   const [draft, setDraft] = useState<OrganizationFormState | null>(null);
+  const uploadLogo = useUploadOrganizationLogo();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const form = draft ?? serverForm;
 
   const setField =
@@ -34,6 +43,26 @@ export const Organization: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setDraft((prev) => ({ ...(prev ?? serverForm), [key]: e.target.value }));
     };
+
+  const setLogoUrl = (logoUrl: string) =>
+    setDraft((prev) => ({ ...(prev ?? serverForm), logoUrl }));
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    uploadLogo.reset();
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError("Logo must be an image under 2 MB.");
+      return;
+    }
+    setLogoError(null);
+    try {
+      setLogoUrl(await uploadLogo.mutateAsync(file));
+    } catch (err) {
+      setLogoError(errorMessage(err, "Logo upload failed. Please try again."));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,14 +192,56 @@ export const Organization: React.FC = () => {
                 />
               </div>
             </div>
-            <div>
-              <Label>Logo URL</Label>
-              <Input
-                type="url"
-                placeholder="https://"
-                value={form.logoUrl}
-                onChange={setField("logoUrl")}
-              />
+            <div className="space-y-2">
+              <Label htmlFor="organization-logo">Logo</Label>
+              <div className="flex items-center gap-4">
+                <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted/30">
+                  {form.logoUrl ? (
+                    <img src={form.logoUrl} alt="Organization logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <input
+                    ref={logoInputRef}
+                    id="organization-logo"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    disabled={uploadLogo.isPending}
+                    onChange={handleLogoFile}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={uploadLogo.isPending}
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      {uploadLogo.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {form.logoUrl ? "Change logo" : "Upload logo"}
+                    </Button>
+                    {form.logoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={uploadLogo.isPending}
+                        onClick={() => setLogoUrl("")}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">PNG, JPG, WEBP or GIF, up to 2 MB.</p>
+                  {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+                </div>
+              </div>
             </div>
 
             <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">

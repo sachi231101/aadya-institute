@@ -67,4 +67,13 @@ export const organizationApi = {
     const res = await api.patch("/administration/organization", payload);
     return res.data.data;
   },
+
+  uploadLogo: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/administration/document-templates/logo", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.data.url as string;
+  },
 };
