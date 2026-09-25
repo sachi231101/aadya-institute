@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Video, Play, Clock, Lock, Calendar, X, Loader2, ExternalLink } from "lucide-react";
+import { Video, Play, Clock, Lock, Calendar, X, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,11 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 import type { Recording } from "@/services/recordings.api";
 import { useSearchParams } from "react-router-dom";
-import { isDirectVideoUrl, isGoogleDriveViewerUrl } from "@/utils/recording-playback";
+import {
+  describeRecordingPlaybackError,
+  isDirectVideoUrl,
+  resolveRecordingPlaybackSrc,
+} from "@/utils/recording-playback";
 import { PageContainer, PageHeader, PageSection } from "@/components/layout";
 
 const formatDuration = (minutes?: number) => {
@@ -80,8 +84,8 @@ export const StudentRecordings: React.FC = () => {
 
   const handleWatchRecording = async (rec: any) => {
     setActiveRecording(rec);
-    setPlaybackUrl(null);
     setPlayError(null);
+    setPlaybackUrl(null);
     setShowWatchModal(true);
 
     try {
@@ -92,10 +96,8 @@ export const StudentRecordings: React.FC = () => {
         return;
       }
       setPlaybackUrl(url);
-      if (isGoogleDriveViewerUrl(url) || !isDirectVideoUrl(url)) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
     } catch (err: unknown) {
+      setPlaybackUrl(null);
       setPlayError(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
           "Unable to load recording. It may have expired."
@@ -247,34 +249,32 @@ export const StudentRecordings: React.FC = () => {
                 </button>
               </div>
 
-              <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden p-6">
-                {accessMutation.isPending ? (
+              <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+                {!playbackUrl && accessMutation.isPending ? (
                   <Loader2 className="h-10 w-10 animate-spin text-white" />
                 ) : playError ? (
                   <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
                 ) : playbackUrl && isDirectVideoUrl(playbackUrl) ? (
                   <video
-                    src={playbackUrl}
+                    key={playbackUrl}
+                    src={resolveRecordingPlaybackSrc(playbackUrl)}
                     controls
                     autoPlay
-                    controlsList="nodownload"
+                    playsInline
+                    preload="metadata"
+                    controlsList="nodownload noremoteplayback"
+                    disablePictureInPicture
+                    onContextMenu={(e) => e.preventDefault()}
+                    onError={async () => {
+                      const src = resolveRecordingPlaybackSrc(playbackUrl);
+                      setPlayError(await describeRecordingPlaybackError(src));
+                    }}
                     className="w-full h-full object-contain"
                   />
                 ) : playbackUrl ? (
-                  <div className="text-center space-y-3 max-w-sm">
-                    <p className="text-sm text-slate-200">
-                      {isGoogleDriveViewerUrl(playbackUrl)
-                        ? "This recording opens in Google Drive (view-only)."
-                        : "Open the recording in a new tab to watch."}
-                    </p>
-                    <Button
-                      type="button"
-                      className="bg-primary hover:bg-primary text-white"
-                      onClick={() => window.open(playbackUrl, "_blank", "noopener,noreferrer")}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" /> Open recording
-                    </Button>
-                  </div>
+                  <p className="text-sm text-slate-300 px-4 text-center">
+                    This recording format cannot be played in-app. Contact your administrator.
+                  </p>
                 ) : null}
               </div>
 

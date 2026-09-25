@@ -6,6 +6,7 @@ import { coursesApi } from "@/services/courses.api";
 import { useStudentDashboard } from "./useStudentDashboard";
 import type { StudentDetail } from "@/types/student.types";
 import { getBatchCourseRows } from "@/utils/batch.utils";
+import { canStudentJoinSession, istTodayKey } from "@/utils/session-window";
 
 export interface StudentAssignedCourse {
   id: string;
@@ -68,6 +69,10 @@ export interface StudentAcademicAccess {
     batch?: { id?: string; code?: string; courseId?: string };
     status?: string;
     meetingUrl?: string | null;
+    scheduledDate?: string | null;
+    date?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
   }) => boolean;
   verifyAndJoinMeeting: (
     session: {
@@ -77,6 +82,10 @@ export interface StudentAcademicAccess {
       batch?: { id?: string; code?: string; courseId?: string };
       status?: string;
       meetingUrl?: string | null;
+      scheduledDate?: string | null;
+      date?: string | null;
+      startTime?: string | null;
+      endTime?: string | null;
     },
     onError?: (message: string) => void
   ) => boolean;
@@ -333,6 +342,10 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       };
       status?: string;
       meetingUrl?: string | null;
+      scheduledDate?: string | null;
+      date?: string | null;
+      startTime?: string | null;
+      endTime?: string | null;
     }): boolean => {
       if (!isAuthorizedForSession(session)) return false;
       const status = (session.status || "").toUpperCase();
@@ -341,9 +354,24 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
         status === "AVAILABLE" ||
         status === "IN_PROGRESS" ||
         status === "STARTED" ||
-        status === "LIVE_NOW";
+        status === "LIVE_NOW" ||
+        status === "ONGOING";
       const hasUrl = Boolean(session.meetingUrl && session.meetingUrl.trim().length > 0);
-      return isLiveOrAvailable && hasUrl;
+      if (!isLiveOrAvailable || !hasUrl) return false;
+
+      const dateKey = String(session.scheduledDate || session.date || "").slice(0, 10);
+      const startTime = session.startTime?.trim();
+      const endTime = session.endTime?.trim();
+      if (dateKey && startTime && endTime) {
+        return canStudentJoinSession({
+          dbStatus: status === "LIVE_NOW" ? "LIVE" : status,
+          dateKey,
+          startTime,
+          endTime,
+        });
+      }
+      // Without a schedule window, fall back to status+URL (API still redacts after end)
+      return true;
     };
 
     const verifyAndJoinMeeting = (
@@ -354,6 +382,10 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
         batch?: { id?: string; code?: string; courseId?: string };
         status?: string;
         meetingUrl?: string | null;
+        scheduledDate?: string | null;
+        date?: string | null;
+        startTime?: string | null;
+        endTime?: string | null;
       },
       onError?: (message: string) => void
     ): boolean => {
@@ -365,7 +397,29 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
         return false;
       }
 
-      // 2. Validate join URL
+      // 2. Window gate when schedule fields are present
+      const dateKey =
+        String(session.scheduledDate || session.date || "").slice(0, 10) || istTodayKey();
+      const startTime = session.startTime?.trim();
+      const endTime = session.endTime?.trim();
+      if (startTime && endTime) {
+        const status = (session.status || "LIVE").toUpperCase();
+        if (
+          !canStudentJoinSession({
+            dbStatus: status === "LIVE_NOW" ? "LIVE" : status,
+            dateKey,
+            startTime,
+            endTime,
+          })
+        ) {
+          const errorMsg = "This class's scheduled time window has ended.";
+          if (onError) onError(errorMsg);
+          else alert(errorMsg);
+          return false;
+        }
+      }
+
+      // 3. Validate join URL
       const url = session.meetingUrl?.trim();
       if (!url) {
         const errorMsg = "No valid meeting link found for this class.";
@@ -374,7 +428,7 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
         return false;
       }
 
-      // 3. Launch Google Meet
+      // 4. Launch Google Meet
       window.open(url, "_blank", "noopener,noreferrer");
       return true;
     };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -59,6 +59,10 @@ import {
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import type { ClassMode, ClassStatus } from "@/pages/admin/schedule/Classes";
+import {
+  getSessionHostPhase,
+  resolveDisplaySessionStatus,
+} from "@/utils/session-window";
 
 export const ClassDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -107,6 +111,13 @@ export const ClassDetails: React.FC = () => {
 
   // Student Search filter in details
   const [studentSearch, setStudentSearch] = useState("");
+
+  // Re-evaluate IST window so stuck LIVE flips to Completed without reload.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Edit Form State
   const [editTopic, setEditTopic] = useState("");
@@ -290,11 +301,28 @@ export const ClassDetails: React.FC = () => {
   const facultyName =
     session?.faculty?.user?.name || session?.faculty?.employeeCode || "Unassigned";
 
-  // Map session status
+  const hostPhase = useMemo(() => {
+    if (!session?.startTime || !session?.endTime) return "before" as const;
+    return getSessionHostPhase({
+      dateKey: dateStr,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      now: new Date(nowMs),
+    });
+  }, [session?.startTime, session?.endTime, dateStr, nowMs]);
+
+  // Display overlay: stuck DB LIVE after IST end → Completed (no DB rewrite).
   const currentStatus: ClassStatus = useMemo(() => {
     if (!session) return "SCHEDULED";
     if (!isFacultyAssigned) return "UNASSIGNED";
-    switch (session.sessionStatus) {
+    const display = resolveDisplaySessionStatus({
+      dbStatus: session.sessionStatus,
+      dateKey: dateStr,
+      startTime: session.startTime || "",
+      endTime: session.endTime || "",
+      now: new Date(nowMs),
+    });
+    switch (display) {
       case "LIVE":
         return "LIVE";
       case "COMPLETED":
@@ -304,14 +332,16 @@ export const ClassDetails: React.FC = () => {
       default:
         return "SCHEDULED";
     }
-  }, [session, isFacultyAssigned]);
+  }, [session, isFacultyAssigned, dateStr, nowMs]);
 
+  // Lock edit/cancel from DB only — display Completed after end must not block admin fixes.
+  const dbSessionStatus = String(session?.sessionStatus || "").toUpperCase();
   const isSessionLocked =
-    currentStatus === "CANCELLED" || currentStatus === "COMPLETED";
+    dbSessionStatus === "CANCELLED" || dbSessionStatus === "COMPLETED";
   const lockedActionTitle =
-    currentStatus === "CANCELLED"
+    dbSessionStatus === "CANCELLED"
       ? "This class is cancelled"
-      : currentStatus === "COMPLETED"
+      : dbSessionStatus === "COMPLETED"
         ? "This class is completed"
         : undefined;
 
@@ -658,15 +688,25 @@ export const ClassDetails: React.FC = () => {
                 <dd className="font-medium text-foreground">
                   {session.mode === "ONLINE" ? (
                     session.meetingUrl ? (
-                      <a
-                        href={session.meetingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline inline-flex items-center gap-1.5 break-all"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                        Open meeting link
-                      </a>
+                      hostPhase === "after" ? (
+                        <span
+                          className="text-muted-foreground inline-flex items-center gap-1.5"
+                          title="Scheduled window has ended"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                          Meeting ended
+                        </span>
+                      ) : (
+                        <a
+                          href={session.meetingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1.5 break-all"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                          Open meeting link
+                        </a>
+                      )
                     ) : (
                       <div className="space-y-2">
                         <span className="text-muted-foreground">Google Meet pending</span>
@@ -877,7 +917,7 @@ export const ClassDetails: React.FC = () => {
         title="Actions"
         description={
           isSessionLocked
-            ? currentStatus === "CANCELLED"
+            ? dbSessionStatus === "CANCELLED"
               ? "This class is cancelled. Edit, change faculty, and cancel are unavailable — you can still delete it."
               : "This class is completed. Edit, change faculty, and cancel are unavailable — you can still delete it."
             : "Update schedule, faculty, or remove this session"

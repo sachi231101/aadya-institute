@@ -15,9 +15,14 @@ import {
 } from "../google-workspace/google-workspace.service";
 import {
   deleteDriveFile,
-  setRestrictedViewerPermission,
+  streamDriveFile,
 } from "../../integrations/google/google.drive.client";
 import { googleRecordingQueue } from "../../queues/google-recording.queue";
+import {
+  buildRecordingStreamPath,
+  signRecordingStreamToken,
+  verifyRecordingStreamToken,
+} from "./recording-stream-token.util";
 
 /**
  * Send RECORDING_AVAILABLE WhatsApp notifications to all ACTIVE enrolled students
@@ -271,83 +276,41 @@ export const getRecordingAccess = async (currentUser: AuthUser, id: string) => {
     currentUser.roles.includes("STUDENT") &&
     !currentUser.roles.includes("ADMIN") &&
     !currentUser.roles.includes("FACULTY");
-  if (
-    isStudent &&
-    recording.storageProvider === "GOOGLE_DRIVE" &&
-    recording.googleDriveFileId
-  ) {
-    if (!currentUser.email) {
-      throw new AppError(
-        "A Google-compatible email address is required to view this recording.",
-        403,
-        "INSUFFICIENT_GOOGLE_PERMISSIONS"
-      );
-    }
-    const { authClient, connection } = await resolveGoogleAuthClient(
-      currentUser,
-      recording.classSession?.googleMeetSpace?.organizerUserId
-    );
-    const integration = await prisma.integration.findUnique({
-      where: {
-        instituteId_type: {
-          instituteId: currentUser.instituteId,
-          type: "GOOGLE_WORKSPACE",
-        },
+
+  setImmediate(() => {
+    void createAuditLog({
+      userId: currentUser.id || currentUser.userId!,
+      instituteId: currentUser.instituteId,
+      action: "CLASS_RECORDING_ACCESS",
+      entityType: "Recording",
+      entityId: recording.id,
+      newData: {
+        classSessionId: recording.classSession?.id,
+        recordingStatus: recording.recordingStatus,
       },
-      select: { configuration: true },
     });
-    const configuration =
-      integration?.configuration &&
-      typeof integration.configuration === "object" &&
-      !Array.isArray(integration.configuration)
-        ? (integration.configuration as Record<string, unknown>)
-        : {};
-    const workspaceDomain =
-      typeof configuration.workspaceDomain === "string"
-        ? configuration.workspaceDomain
-        : typeof configuration.domain === "string"
-          ? configuration.domain
-          : null;
-
-    try {
-      await setRestrictedViewerPermission(
-        authClient,
-        recording.googleDriveFileId,
-        workspaceDomain
-          ? { domain: workspaceDomain }
-          : { emailAddress: currentUser.email, expiresAt: recording.expiresAt }
-      );
-    } catch (error: unknown) {
-      if (
-        error instanceof AppError &&
-        (error.statusCode === 401 || error.statusCode === 403)
-      ) {
-        await prisma.googleWorkspaceConnection.updateMany({
-          where: { userId: connection.userId },
-          data: { status: "REAUTH_REQUIRED" },
-        });
-      }
-      throw error;
-    }
-  }
-
-  await createAuditLog({
-    userId: currentUser.id || currentUser.userId!,
-    instituteId: currentUser.instituteId,
-    action: "CLASS_RECORDING_ACCESS",
-    entityType: "Recording",
-    entityId: recording.id,
-    newData: {
-      classSessionId: recording.classSession?.id,
-      recordingStatus: recording.recordingStatus,
-    },
   });
+
+  // Students play via short-lived Node /stream proxy (HTML5 <video>).
+  // Admin/faculty keep the stored Drive URL.
+  let playbackUrl = recording.playbackUrl;
+  if (isStudent && recording.googleDriveFileId) {
+    const streamToken = signRecordingStreamToken({
+      userId: currentUser.id || currentUser.userId!,
+      recordingId: recording.id,
+      instituteId: currentUser.instituteId,
+      branchId: currentUser.branchId,
+      allowedBranchIds: currentUser.allowedBranchIds,
+      roles: currentUser.roles,
+    });
+    playbackUrl = buildRecordingStreamPath(recording.id, streamToken);
+  }
 
   return {
     recordingId: recording.id,
     classSessionId: recording.classSession?.id,
     title: recording.classSession?.title,
-    playbackUrl: recording.playbackUrl,
+    playbackUrl,
     googleDriveFileId: recording.googleDriveFileId,
     storageProvider: recording.storageProvider,
     recordingStatus: recording.recordingStatus,
@@ -356,6 +319,103 @@ export const getRecordingAccess = async (currentUser: AuthUser, id: string) => {
     endedAt: recording.endedAt,
     expiresAt: recording.expiresAt,
   };
+};
+
+const parseByteRange = (
+  rangeHeader?: string
+): { start?: number; end?: number } | null => {
+  if (!rangeHeader?.trim()) return null;
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+  if (!match) return null;
+  const startRaw = match[1];
+  const endRaw = match[2];
+  const start = startRaw === "" ? undefined : Number(startRaw);
+  const end = endRaw === "" ? undefined : Number(endRaw);
+  if (start != null && (!Number.isFinite(start) || start < 0)) return null;
+  if (end != null && (!Number.isFinite(end) || end < 0)) return null;
+  if (start != null && end != null && end < start) return null;
+  return { start, end };
+};
+
+/**
+ * Token-authenticated Drive media proxy for in-app HTML5 playback.
+ * Reuses enrollment / expiry / AVAILABLE checks via getRecordingById + status gates.
+ */
+export const streamRecording = async (
+  recordingId: string,
+  token: string | undefined,
+  rangeHeader?: string
+) => {
+  if (!token?.trim()) {
+    throw new AppError("Recording stream token is required", 401);
+  }
+
+  const payload = verifyRecordingStreamToken(token.trim());
+  if (payload.recordingId !== recordingId) {
+    throw new AppError("Recording stream token does not match this recording", 403);
+  }
+
+  const currentUser: AuthUser = {
+    id: payload.userId,
+    userId: payload.userId,
+    name: "User",
+    instituteId: payload.instituteId,
+    branchId: payload.branchId,
+    allowedBranchIds: payload.allowedBranchIds ?? [],
+    roles: payload.roles ?? [],
+    permissions: ["recording.read"],
+  };
+
+  const recording = await getRecordingById(currentUser, recordingId);
+  const now = new Date();
+
+  if (
+    recording.status !== "ACTIVE" ||
+    recording.recordingStatus === "DELETED"
+  ) {
+    throw new AppError(
+      "This recording has been deleted.",
+      410,
+      "RECORDING_EXPIRED"
+    );
+  }
+  if (
+    recording.recordingStatus === "EXPIRED" ||
+    recording.expiresAt.getTime() <= now.getTime()
+  ) {
+    if (recording.recordingStatus !== "EXPIRED") {
+      await prisma.recording.update({
+        where: { id: recording.id },
+        data: { recordingStatus: "EXPIRED" },
+      });
+    }
+    throw new AppError(
+      "This recording has expired.",
+      410,
+      "RECORDING_EXPIRED"
+    );
+  }
+  if (
+    recording.recordingStatus !== "AVAILABLE" ||
+    !recording.googleDriveFileId
+  ) {
+    throw new AppError(
+      "This recording is still being processed.",
+      409,
+      "RECORDING_NOT_READY"
+    );
+  }
+
+  const { authClient } = await resolveGoogleAuthClient(
+    currentUser,
+    recording.classSession?.googleMeetSpace?.organizerUserId
+  );
+
+  const range = parseByteRange(rangeHeader);
+  return streamDriveFile(authClient, recording.googleDriveFileId, {
+    start: range?.start,
+    end: range?.end,
+  });
 };
 
 export const createRecording = async (currentUser: AuthUser, dto: CreateRecordingDTO) => {

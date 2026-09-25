@@ -25,6 +25,10 @@ import {
   formatBatchSubjectNames,
   getSessionSubjectLabel,
 } from "../../utils/batch-course.util";
+import {
+  getSessionHostPhase,
+  istTodayKey,
+} from "../../utils/session-window.util";
 import type {
   CreateFacultyDto,
   UpdateFacultyDto,
@@ -50,11 +54,8 @@ const toCalendarDateKey = (value: Date | string): string => {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 };
 
-/** Local "today" as YYYY-MM-DD (institute staff timezone = server local). */
-const localTodayKey = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
+/** Institute "today" as YYYY-MM-DD in Asia/Kolkata. */
+const localTodayKey = (): string => istTodayKey();
 
 const addDaysToDateKey = (dateKey: string, days: number): string => {
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -80,11 +81,26 @@ const mapSessionCard = (s: Awaited<ReturnType<typeof repo.findFacultySessionsInR
   const isToday = sessionKey === todayKey;
 
   let derivedStatus = (s.sessionStatus || "UPCOMING").toUpperCase();
-  if (derivedStatus !== "LIVE" && derivedStatus !== "COMPLETED" && derivedStatus !== "CANCELLED") {
-    if (s.actualEndTime) derivedStatus = "COMPLETED";
-    else if (isToday) derivedStatus = "UPCOMING";
-    else if (sessionKey < todayKey) derivedStatus = "COMPLETED";
-    else derivedStatus = "UPCOMING";
+  if (derivedStatus === "CANCELLED") {
+    // keep cancelled
+  } else if (derivedStatus === "COMPLETED") {
+    // keep completed
+  } else {
+    const phase = getSessionHostPhase({
+      dateKey: sessionKey,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    });
+    if (phase === "after") {
+      derivedStatus = "COMPLETED";
+    } else if (derivedStatus === "LIVE" && phase === "during") {
+      derivedStatus = "LIVE";
+    } else if (derivedStatus !== "LIVE") {
+      if (s.actualEndTime) derivedStatus = "COMPLETED";
+      else if (isToday || sessionKey > todayKey) derivedStatus = "UPCOMING";
+      else if (sessionKey < todayKey) derivedStatus = "COMPLETED";
+      else derivedStatus = "UPCOMING";
+    }
   }
 
   return {
@@ -654,8 +670,9 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
   const todayKey = localTodayKey();
   const tomorrowKey = addDaysToDateKey(todayKey, 1);
   const upcomingEndKey = addDaysToDateKey(todayKey, 14);
-  // Monday–Sunday of the current local week (matches admin Timetable week)
-  const jsDay = new Date().getDay(); // 0 Sun … 6 Sat
+  // Monday–Sunday of the current IST week (matches admin Timetable week)
+  const [ty, tm, td] = todayKey.split("-").map(Number);
+  const jsDay = new Date(Date.UTC(ty, tm - 1, td, 12, 0, 0)).getUTCDay(); // 0 Sun … 6 Sat
   const daysSinceMonday = (jsDay + 6) % 7;
   const weekStartKey = addDaysToDateKey(todayKey, -daysSinceMonday);
   const weekEndKey = addDaysToDateKey(weekStartKey, 6);

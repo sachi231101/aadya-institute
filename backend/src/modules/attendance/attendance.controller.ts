@@ -119,7 +119,8 @@ export const getRoster = async (req: AuthenticatedRequest, res: Response, next: 
 
 export const mark = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.markAttendance(req.body, req.user?.userId);
+    const authUser = toAuthUser(req);
+    const data = await service.markAttendance(req.body, req.user?.userId, authUser);
     sendSuccess(res, data, 200, "Attendance marked successfully");
   } catch (err) { next(err); }
 };

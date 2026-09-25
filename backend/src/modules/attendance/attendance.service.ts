@@ -22,6 +22,10 @@ import {
   isPureFaculty,
   requireFacultyIdIfPureFaculty,
 } from "../../utils/auth-user.util";
+import {
+  assertCanMarkSessionAttendance,
+  toSessionDateKey,
+} from "../../utils/session-window.util";
 
 const parseLocalDateParts = (isoDate: string): { year: number; month: number; day: number } | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
@@ -384,6 +388,14 @@ export const submitBulkSessionAttendance = async (
 ) => {
   const session = await verifySessionAccess(currentUser, classSessionId);
 
+  if (isPureFaculty(currentUser.roles)) {
+    assertCanMarkSessionAttendance({
+      dateKey: toSessionDateKey(session.scheduledDate),
+      startTime: session.startTime,
+      endTime: session.endTime,
+    });
+  }
+
   // Validate Batch Enrollment: Every student in entries MUST be actively enrolled in session.batchId
   const activeEnrolledStudentIds = new Set(session.batch.enrollments.map((e) => e.studentId));
   const invalidStudentIds = entries.filter((e) => !activeEnrolledStudentIds.has(e.studentId)).map((e) => e.studentId);
@@ -429,6 +441,14 @@ export const updateAttendanceRecord = async (
 
   // Verify access to the session
   await verifySessionAccess(currentUser, existing.classSessionId);
+
+  if (isPureFaculty(currentUser.roles)) {
+    assertCanMarkSessionAttendance({
+      dateKey: toSessionDateKey(existing.classSession.scheduledDate),
+      startTime: existing.classSession.startTime,
+      endTime: existing.classSession.endTime,
+    });
+  }
 
   const updated = await repo.updateAttendanceRecord(attendanceId, {
     status: dto.status,
@@ -681,7 +701,20 @@ export const getRoster = async (_currentUser: AuthUser, _query: RosterQuery) => 
   );
 };
 
-export const markAttendance = async (dto: MarkAttendanceDto, markedBy?: string) => {
+export const markAttendance = async (
+  dto: MarkAttendanceDto,
+  markedBy?: string,
+  currentUser?: AuthUser
+) => {
+  if (currentUser && isPureFaculty(currentUser.roles) && dto.classSessionId) {
+    const session = await verifySessionAccess(currentUser, dto.classSessionId);
+    assertCanMarkSessionAttendance({
+      dateKey: toSessionDateKey(session.scheduledDate),
+      startTime: session.startTime,
+      endTime: session.endTime,
+    });
+  }
+
   const result = await repo.upsertStudentAttendance({
     classSessionId: dto.classSessionId,
     studentId: dto.studentId,

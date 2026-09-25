@@ -166,6 +166,7 @@ const installGoogleDiscoveryMock = (
         },
       }),
       list: async () => ({ data: { files: [] } }),
+      update: async () => ({ data: { id: driveFileId } }),
     },
   }));
 };
@@ -220,6 +221,83 @@ describe("Google recording retention and sync hardening", { concurrency: false }
       firstExpiresAt.getTime(),
       "re-sync must preserve the first expiry"
     );
+  });
+
+  test("AVAILABLE ingest calls restrictFileForViewers on Drive file", async (t) => {
+    let storedRecording: any = null;
+    const restrictUpdates: any[] = [];
+    const driveFileId = "drive-file-restrict-999";
+
+    t.mock.method(google as any, "meet", () => ({
+      conferenceRecords: {
+        list: async () => ({
+          data: {
+            conferenceRecords: [
+              {
+                name: "conferenceRecords/conf-1",
+                space: "spaces/test-space",
+                startTime: "2026-09-01T09:00:00.000Z",
+                endTime: "2026-09-01T10:00:00.000Z",
+              },
+            ],
+          },
+        }),
+        recordings: {
+          list: async () => ({
+            data: {
+              recordings: [
+                {
+                  name: "conferenceRecords/conf-1/recordings/rec-1",
+                  state: "FILE_GENERATED",
+                  startTime: "2026-09-01T09:00:00.000Z",
+                  endTime: "2026-09-01T10:00:00.000Z",
+                  driveDestination: { file: `files/${driveFileId}` },
+                },
+              ],
+            },
+          }),
+        },
+      },
+    }));
+    t.mock.method(google as any, "drive", () => ({
+      files: {
+        get: async () => ({
+          data: {
+            id: driveFileId,
+            name: "Class recording.mp4",
+            mimeType: "video/mp4",
+            webViewLink: `https://drive.google.com/file/d/${driveFileId}/view`,
+            createdTime: "2026-09-01T10:00:00.000Z",
+            videoMediaMetadata: { durationMillis: "3600000" },
+          },
+        }),
+        list: async () => ({ data: { files: [] } }),
+        update: async ({ fileId, requestBody }: any) => {
+          restrictUpdates.push({ fileId, requestBody });
+          return { data: { id: fileId } };
+        },
+      },
+    }));
+    installSyncDatabaseMocks(t, () => session(storedRecording));
+    replaceMethod(t, prisma.recording as any, "findFirst", async () => null);
+    replaceMethod(t, prisma.recording as any, "findUnique", async () => null);
+    replaceMethod(t, prisma.recording as any, "upsert", async ({ update, create }: any) => {
+      const data = storedRecording ? update : create;
+      storedRecording = {
+        id: "recording-1",
+        status: "ACTIVE",
+        ...storedRecording,
+        ...data,
+      };
+      return storedRecording;
+    });
+
+    await syncSessionRecordings(adminUser as any, "session-1");
+
+    assert.strictEqual(storedRecording.recordingStatus, "AVAILABLE");
+    assert.ok(restrictUpdates.length >= 1);
+    assert.strictEqual(restrictUpdates[0].fileId, driveFileId);
+    assert.strictEqual(restrictUpdates[0].requestBody.copyRequiresWriterPermission, true);
   });
 
   test("duplicate Drive file ID associated to another session is skipped", async (t) => {
@@ -383,6 +461,138 @@ describe("Google recording access controls", { concurrency: false }, () => {
     const recording = await getRecordingById(facultyUser as any, "recording-1");
     assert.strictEqual(recording.id, "recording-1");
     assert.strictEqual(recording.classSessionId, "session-1");
+  });
+
+  test("JWT without email still grants student stream access", async (t) => {
+    const jwtStudent = {
+      id: "student-user",
+      userId: "student-user",
+      instituteId: "institute-1",
+      branchId: "branch-1",
+      roles: ["STUDENT"],
+      permissions: ["recording.read"],
+    };
+
+    replaceMethod(t, prisma.recording as any, "findUnique", async () =>
+      recordingFixture({
+        classSession: {
+          id: "session-1",
+          facultyId: "faculty-1",
+          googleMeetSpace: {
+            organizerUserId: adminUser.id,
+          },
+          batch: {
+            id: "batch-1",
+            instituteId: "institute-1",
+            branchId: "branch-1",
+            enrollments: [{ studentId: "student-1" }],
+          },
+        },
+      })
+    );
+    replaceMethod(t, prisma.student as any, "findFirst", async () => ({
+      id: "student-1",
+    }));
+    replaceMethod(t, prisma.activityLog as any, "create", async ({ data }: any) => data);
+
+    const access = await getRecordingAccess(jwtStudent as any, "recording-1");
+
+    assert.strictEqual(access.recordingId, "recording-1");
+    assert.match(
+      access.playbackUrl || "",
+      /^\/api\/v1\/recordings\/recording-1\/stream\?token=.+/
+    );
+    assert.ok(!access.playbackUrl?.includes("/preview"));
+  });
+
+  test("student access returns app stream URL not Drive /preview", async (t) => {
+    replaceMethod(t, prisma.recording as any, "findUnique", async () =>
+      recordingFixture({
+        playbackUrl: "https://drive.google.com/file/d/private-file-12345/view",
+        googleDriveFileId: "private-file-12345",
+        classSession: {
+          id: "session-1",
+          facultyId: "faculty-1",
+          googleMeetSpace: {
+            organizerUserId: adminUser.id,
+          },
+          batch: {
+            id: "batch-1",
+            instituteId: "institute-1",
+            branchId: "branch-1",
+            enrollments: [{ studentId: "student-1" }],
+          },
+        },
+      })
+    );
+    replaceMethod(t, prisma.student as any, "findFirst", async () => ({
+      id: "student-1",
+    }));
+    replaceMethod(t, prisma.activityLog as any, "create", async ({ data }: any) => data);
+
+    const access = await getRecordingAccess(studentUser as any, "recording-1");
+
+    assert.match(
+      access.playbackUrl || "",
+      /^\/api\/v1\/recordings\/recording-1\/stream\?token=.+/
+    );
+    assert.ok(!access.playbackUrl?.includes("/preview"));
+  });
+
+  test("admin access keeps stored /view playback URL", async (t) => {
+    replaceMethod(t, prisma.recording as any, "findUnique", async () =>
+      recordingFixture({
+        playbackUrl: "https://drive.google.com/file/d/private-file-12345/view",
+        googleDriveFileId: "private-file-12345",
+      })
+    );
+    replaceMethod(t, prisma.activityLog as any, "create", async ({ data }: any) => data);
+
+    const access = await getRecordingAccess(adminUser as any, "recording-1");
+
+    assert.strictEqual(
+      access.playbackUrl,
+      "https://drive.google.com/file/d/private-file-12345/view"
+    );
+  });
+
+  test("student without email can still get stream URL", async (t) => {
+    const jwtStudent = {
+      id: "student-user",
+      userId: "student-user",
+      instituteId: "institute-1",
+      branchId: "branch-1",
+      roles: ["STUDENT"],
+      permissions: ["recording.read"],
+    };
+
+    replaceMethod(t, prisma.recording as any, "findUnique", async () =>
+      recordingFixture({
+        classSession: {
+          id: "session-1",
+          facultyId: "faculty-1",
+          googleMeetSpace: {
+            organizerUserId: adminUser.id,
+          },
+          batch: {
+            id: "batch-1",
+            instituteId: "institute-1",
+            branchId: "branch-1",
+            enrollments: [{ studentId: "student-1" }],
+          },
+        },
+      })
+    );
+    replaceMethod(t, prisma.student as any, "findFirst", async () => ({
+      id: "student-1",
+    }));
+    replaceMethod(t, prisma.activityLog as any, "create", async ({ data }: any) => data);
+
+    const access = await getRecordingAccess(jwtStudent as any, "recording-1");
+    assert.match(
+      access.playbackUrl || "",
+      /^\/api\/v1\/recordings\/recording-1\/stream\?token=.+/
+    );
   });
 });
 
@@ -846,6 +1056,7 @@ describe("Google recording sync queue", { concurrency: false }, () => {
             ],
           },
         }),
+        update: async () => ({ data: { id: driveFileId } }),
       },
     }));
 
@@ -1082,6 +1293,7 @@ describe("Google recording sync queue", { concurrency: false }, () => {
             ],
           },
         }),
+        update: async () => ({ data: { id: driveFileId } }),
       },
     }));
 
@@ -1176,6 +1388,7 @@ describe("Google recording sync queue", { concurrency: false }, () => {
             ],
           },
         }),
+        update: async () => ({ data: { id: driveFileId } }),
       },
     }));
 

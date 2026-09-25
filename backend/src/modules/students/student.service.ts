@@ -1979,6 +1979,10 @@ export const getMyDashboard = async (
       title: session.title,
       meetingUrl: session.meetingUrl,
       batchId: session.batchId,
+      scheduledDate: session.scheduledDate,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      sessionStatus: session.sessionStatus,
       courseId:
         session.batch?.courseId ??
         session.batch?.course?.id ??

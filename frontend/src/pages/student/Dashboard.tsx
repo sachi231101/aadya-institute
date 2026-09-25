@@ -17,10 +17,12 @@ import {
   Play,
   Megaphone,
   CheckCheck,
+  X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuthStore } from "../../store/auth.store";
 import { useSessionStore } from "../../store/session.store";
 import { useStudentDashboard } from "../../hooks/useStudentDashboard";
@@ -32,6 +34,16 @@ import { useRecordingAccess, useRecordings } from "@/hooks/useRecordings";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { StudentAskLeaveCard } from "@/components/leave/StudentAskLeaveCard";
 import { useAnnouncements, useMarkAnnouncementRead, useMarkAllAnnouncementsRead } from "@/hooks/useAnnouncements";
+import {
+  canStudentJoinSession,
+  istTodayKey,
+  splitTimeRange,
+} from "@/utils/session-window";
+import {
+  describeRecordingPlaybackError,
+  isDirectVideoUrl,
+  resolveRecordingPlaybackSrc,
+} from "@/utils/recording-playback";
 
 interface EnrolledCourseItem {
   id: string;
@@ -66,6 +78,9 @@ export const StudentDashboard: React.FC = () => {
   const announcements = announcementsRes?.data || [];
   const unreadCount = announcements.filter((item) => !item.isRead).length;
   const [recordingsNow] = React.useState(() => Date.now());
+  const [showWatchModal, setShowWatchModal] = useState(false);
+  const [watchPlaybackUrl, setWatchPlaybackUrl] = useState<string | null>(null);
+  const [watchError, setWatchError] = useState<string | null>(null);
 
   const dashboard = dashRes?.data;
   const studentName = academic.studentName || dashboard?.profile?.name || user?.name || "SACHIN GA";
@@ -264,21 +279,65 @@ export const StudentDashboard: React.FC = () => {
   // Dashboard sessions are already scoped to ACTIVE enrollments on the backend.
   // Do not re-filter them away when academic batch ids are still hydrating.
   const todaySessions = rawTodaySessions;
-  const activeLiveSessions = rawActiveLiveSessions;
+  // Hide stuck-LIVE sessions after the Asia/Kolkata scheduled end.
+  const activeLiveSessions = useMemo(
+    () =>
+      rawActiveLiveSessions.filter((s) => {
+        const dateKey = String(s.scheduledDate || istTodayKey()).slice(0, 10);
+        if (!s.startTime || !s.endTime) return true;
+        return canStudentJoinSession({
+          dbStatus: s.sessionStatus || "LIVE",
+          dateKey,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        });
+      }),
+    [rawActiveLiveSessions]
+  );
 
   // 4. Live Class (Filtered for Active Course)
   const currentLive = useMemo(() => {
     if (!activeCourse) return null;
     if (activeLiveClass?.status === "LIVE" && academic.isAuthorizedForCourse(activeLiveClass.courseName)) {
-      return {
-        sessionId: activeLiveClass.sessionId || activeLiveClass.id,
-        courseName: activeLiveClass.courseName || activeCourse.name,
-        facultyName: activeLiveClass.facultyName || activeCourse.facultyName || "Faculty01",
-        batchName: activeLiveClass.batchName || activeCourse.batchCode || "B001",
-        batchId: undefined as string | undefined,
-        time: activeLiveClass.time || "",
-        meetUrl: activeLiveClass.meetUrl,
-      };
+      const range = splitTimeRange(activeLiveClass.time || "");
+      const dateKey = String(activeLiveClass.date || istTodayKey()).slice(0, 10);
+      if (range) {
+        const stillJoinable = canStudentJoinSession({
+          dbStatus: "LIVE",
+          dateKey,
+          startTime: range.startTime,
+          endTime: range.endTime,
+        });
+        if (!stillJoinable) {
+          // Fall through to API live list (may still have an in-window session)
+        } else {
+          return {
+            sessionId: activeLiveClass.sessionId || activeLiveClass.id,
+            courseName: activeLiveClass.courseName || activeCourse.name,
+            facultyName: activeLiveClass.facultyName || activeCourse.facultyName || "Faculty01",
+            batchName: activeLiveClass.batchName || activeCourse.batchCode || "B001",
+            batchId: undefined as string | undefined,
+            time: activeLiveClass.time || "",
+            meetUrl: activeLiveClass.meetUrl,
+            startTime: range.startTime,
+            endTime: range.endTime,
+            scheduledDate: dateKey,
+          };
+        }
+      } else {
+        return {
+          sessionId: activeLiveClass.sessionId || activeLiveClass.id,
+          courseName: activeLiveClass.courseName || activeCourse.name,
+          facultyName: activeLiveClass.facultyName || activeCourse.facultyName || "Faculty01",
+          batchName: activeLiveClass.batchName || activeCourse.batchCode || "B001",
+          batchId: undefined as string | undefined,
+          time: activeLiveClass.time || "",
+          meetUrl: activeLiveClass.meetUrl,
+          startTime: undefined as string | undefined,
+          endTime: undefined as string | undefined,
+          scheduledDate: dateKey,
+        };
+      }
     }
     const live = activeLiveSessions.find(
       (s: any) => s.courseName?.toLowerCase() === activeCourse.name.toLowerCase()
@@ -291,8 +350,13 @@ export const StudentDashboard: React.FC = () => {
       facultyName: live.facultyName || activeCourse.facultyName || "Faculty01",
       batchName: live.batch?.name || activeCourse.batchCode || "B001",
       batchId: live.batchId || live.batch?.id || undefined,
-      time: "",
+      time: live.startTime && live.endTime ? `${live.startTime} – ${live.endTime}` : "",
       meetUrl: live.meetingUrl,
+      startTime: live.startTime || undefined,
+      endTime: live.endTime || undefined,
+      scheduledDate: live.scheduledDate
+        ? String(live.scheduledDate).slice(0, 10)
+        : istTodayKey(),
     };
   }, [activeLiveClass, activeLiveSessions, academic, activeCourse]);
 
@@ -316,6 +380,9 @@ export const StudentDashboard: React.FC = () => {
           batchId: currentLive.batchId,
           meetingUrl,
           status: "LIVE",
+          scheduledDate: currentLive.scheduledDate,
+          startTime: currentLive.startTime,
+          endTime: currentLive.endTime,
         },
         (errMsg) => alert(errMsg)
       );
@@ -332,17 +399,29 @@ export const StudentDashboard: React.FC = () => {
 
   const handleWatchLatestRecording = async () => {
     if (!latestRecording) return;
+    setShowWatchModal(true);
+    setWatchError(null);
+    setWatchPlaybackUrl(null);
     try {
       const response = await recordingAccess.mutateAsync(latestRecording.id);
-      if (response?.data?.playbackUrl) {
-        window.open(response.data.playbackUrl, "_blank", "noopener,noreferrer");
+      const url = response?.data?.playbackUrl;
+      if (!url) {
+        setWatchError("No playback URL available for this recording.");
+        return;
       }
+      setWatchPlaybackUrl(url);
     } catch (err: unknown) {
-      alert(
+      setWatchPlaybackUrl(null);
+      setWatchError(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
           "This recording is no longer available."
       );
     }
+  };
+  const handleCloseWatchModal = () => {
+    setShowWatchModal(false);
+    setWatchPlaybackUrl(null);
+    setWatchError(null);
   };
 
   // 5. Today's Sessions (Filtered for Active Course)
@@ -476,6 +555,61 @@ export const StudentDashboard: React.FC = () => {
           </Button>
         </Card>
       )}
+
+      <Dialog open={showWatchModal} onOpenChange={(open) => !open && handleCloseWatchModal()}>
+        <DialogContent className="max-w-3xl sm:max-w-4xl bg-slate-950 text-white rounded-xl p-0 overflow-hidden shadow-2xl border border-slate-800 max-h-[92vh] flex flex-col z-50">
+          <div className="p-4 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm text-white flex items-center gap-2">
+                <Video className="w-4 h-4 text-emerald-400" />
+                {latestRecording?.classSession?.title || "Class Recording"}
+              </h3>
+              <p className="text-[11px] text-slate-400 font-mono mt-0.5">View only · in-app playback</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCloseWatchModal}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+            {!watchPlaybackUrl && recordingAccess.isPending ? (
+              <Loader2 className="h-10 w-10 animate-spin text-white" />
+            ) : watchError ? (
+              <p className="text-sm text-red-400 px-4 text-center">{watchError}</p>
+            ) : watchPlaybackUrl && isDirectVideoUrl(watchPlaybackUrl) ? (
+              <video
+                key={watchPlaybackUrl}
+                src={resolveRecordingPlaybackSrc(watchPlaybackUrl)}
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+                controlsList="nodownload noremoteplayback"
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}
+                onError={async () => {
+                  if (!watchPlaybackUrl) {
+                    setWatchError(
+                      "Unable to play this recording. The stream may be unavailable — try again or contact your administrator."
+                    );
+                    return;
+                  }
+                  const src = resolveRecordingPlaybackSrc(watchPlaybackUrl);
+                  setWatchError(await describeRecordingPlaybackError(src));
+                }}
+                className="w-full h-full object-contain"
+              />
+            ) : watchPlaybackUrl ? (
+              <p className="text-sm text-slate-300 px-4 text-center">
+                This recording format cannot be played in-app. Contact your administrator.
+              </p>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <MetricGrid density="compact">
         {/* CARD 1 — OVERALL ATTENDANCE */}

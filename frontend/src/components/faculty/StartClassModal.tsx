@@ -37,6 +37,12 @@ import { classSessionsApi } from "@/services/class-sessions.api";
 import { facultyApi } from "@/services/faculty.api";
 import { batchesApi } from "@/services/batches.api";
 import { getApiErrorMessage } from "@/utils/api-error";
+import {
+  canHostClassSession,
+  getSessionHostPhase,
+  hostWindowDisabledReason,
+  resolveDisplaySessionStatus,
+} from "@/utils/session-window";
 import { CompleteClassDialog } from "./CompleteClassDialog";
 import { UploadRecordingModal } from "./UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "./UploadStudyMaterialsModal";
@@ -253,11 +259,38 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     setFinalElapsedSeconds(null);
   }, [session?.id, isOpen]);
 
+  const [hostClockTick, setHostClockTick] = useState(0);
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = window.setInterval(() => setHostClockTick((t) => t + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, [isOpen]);
+
+  const hostPhase = useMemo(() => {
+    void hostClockTick;
+    if (!session?.date || !session.startTime || !session.endTime) return "before" as const;
+    return getSessionHostPhase({
+      dateKey: session.date.slice(0, 10),
+      startTime: session.startTime,
+      endTime: session.endTime,
+    });
+  }, [session?.date, session?.startTime, session?.endTime, hostClockTick]);
+
+  const canHostNow = hostPhase === "during";
+  const canMarkAttendanceNow = canHostNow;
+  const hostDisabledReason = hostWindowDisabledReason(hostPhase);
+
   useEffect(() => {
     if (!session || !isOpen) return;
 
     const propStatus = String(session.status || "").toUpperCase();
-    const effectiveStatus = statusOverride || propStatus;
+    const displayStatus = resolveDisplaySessionStatus({
+      dbStatus: statusOverride || propStatus,
+      dateKey: session.date.slice(0, 10),
+      startTime: session.startTime,
+      endTime: session.endTime,
+    });
+    const effectiveStatus = statusOverride || displayStatus;
 
     const sessionIsCompleted = effectiveStatus === "COMPLETED";
     const sessionIsLive =
@@ -265,7 +298,8 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       (effectiveStatus === "LIVE" ||
         (statusOverride !== "COMPLETED" &&
           activeLiveClass?.status === "LIVE" &&
-          activeLiveClass?.sessionId === session.id));
+          activeLiveClass?.sessionId === session.id &&
+          hostPhase === "during"));
 
     setIsLive(sessionIsLive);
     setIsCompleted(sessionIsCompleted);
@@ -285,7 +319,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       setElapsedSeconds(0);
       setFinalElapsedSeconds(null);
     }
-  }, [session, isOpen, activeLiveClass, statusOverride]);
+  }, [session, isOpen, activeLiveClass, statusOverride, hostPhase]);
 
   // Load student roster: session attendance → batch enrollments → faculty my-students
   useEffect(() => {
@@ -467,6 +501,26 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
   const handleStartClass = async () => {
     if (!session) return;
+
+    if (
+      !canHostClassSession({
+        dateKey: session.date.slice(0, 10),
+        startTime: session.startTime,
+        endTime: session.endTime,
+      })
+    ) {
+      setAttendanceError(
+        hostWindowDisabledReason(
+          getSessionHostPhase({
+            dateKey: session.date.slice(0, 10),
+            startTime: session.startTime,
+            endTime: session.endTime,
+          })
+        ) || "Class can only be hosted during its scheduled time window."
+      );
+      return;
+    }
+
     setAttendanceError(null);
     setIsPreparingMeet(true);
 
@@ -515,17 +569,26 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
   };
 
   const handleToggleStudentStatus = (id: string, newStatus: AttendanceStatus) => {
+    if (!canMarkAttendanceNow) return;
     setStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s))
     );
   };
 
   const handleMarkAll = (status: AttendanceStatus) => {
+    if (!canMarkAttendanceNow) return;
     setStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
 
   const handleSaveAttendance = async () => {
     if (!session) return;
+    if (!canMarkAttendanceNow) {
+      setAttendanceError(
+        hostDisabledReason ||
+          "Attendance can only be marked during the scheduled class time window."
+      );
+      return;
+    }
     setIsSavingAttendance(true);
     setAttendanceError(null);
 
@@ -560,8 +623,8 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     setRecordingSyncNotice(null);
 
     try {
-      // 1. Save attendance first if students exist
-      if (isRealSessionId && students.length > 0) {
+      // 1. Save attendance first if students exist (only while session window is open)
+      if (isRealSessionId && students.length > 0 && canMarkAttendanceNow) {
         try {
           await classSessionsApi.saveAttendance(
             session.id,
@@ -760,7 +823,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                   </div>
 
                   {/* Quick toggle controls */}
-                  {!isCompleted && (
+                  {!isCompleted && canMarkAttendanceNow && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button
                         type="button"
@@ -781,6 +844,11 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                         All Absent
                       </Button>
                     </div>
+                  )}
+                  {!isCompleted && !canMarkAttendanceNow && hostDisabledReason && (
+                    <p className="text-[11px] text-muted-foreground shrink-0 max-w-[220px] text-right">
+                      {hostDisabledReason}
+                    </p>
                   )}
                 </div>
 
@@ -864,7 +932,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            disabled={isCompleted}
+                            disabled={isCompleted || !canMarkAttendanceNow}
                             onClick={() => handleToggleStudentStatus(s.id, "PRESENT")}
                             className={`px-2.5 py-1 rounded-lg font-semibold text-[11px] transition-all ${
                               s.status === "PRESENT"
@@ -876,7 +944,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                           </button>
                           <button
                             type="button"
-                            disabled={isCompleted}
+                            disabled={isCompleted || !canMarkAttendanceNow}
                             onClick={() => handleToggleStudentStatus(s.id, "ABSENT")}
                             className={`px-2.5 py-1 rounded-lg font-semibold text-[11px] transition-all ${
                               s.status === "ABSENT"
@@ -888,7 +956,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                           </button>
                           <button
                             type="button"
-                            disabled={isCompleted}
+                            disabled={isCompleted || !canMarkAttendanceNow}
                             onClick={() => handleToggleStudentStatus(s.id, "LEAVE")}
                             className={`px-2 py-1 rounded-lg font-medium text-[10px] transition-all ${
                               s.status === "LEAVE"
@@ -1056,19 +1124,27 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {!isLive && !isCompleted && (
-                <Button
-                  type="button"
-                  onClick={handleStartClass}
-                  disabled={isPreparingMeet}
-                  className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-5 h-9 text-xs"
-                >
-                  {isPreparingMeet ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4 mr-1.5 fill-current" />
+                <div className="flex flex-col items-end gap-1">
+                  <Button
+                    type="button"
+                    onClick={handleStartClass}
+                    disabled={isPreparingMeet || !canHostNow}
+                    title={hostDisabledReason || undefined}
+                    className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-5 h-9 text-xs disabled:opacity-50"
+                  >
+                    {isPreparingMeet ? (
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-1.5 fill-current" />
+                    )}
+                    Host Class
+                  </Button>
+                  {!canHostNow && hostDisabledReason && (
+                    <span className="text-[10px] text-muted-foreground max-w-[220px] text-right">
+                      {hostDisabledReason}
+                    </span>
                   )}
-                  Host Class
-                </Button>
+                </div>
               )}
 
               {isLive && (
@@ -1088,8 +1164,13 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={handleSaveAttendance}
-                    disabled={isSavingAttendance}
-                    className="rounded-xl border-slate-300 text-xs h-9"
+                    disabled={isSavingAttendance || !canMarkAttendanceNow}
+                    title={
+                      canMarkAttendanceNow
+                        ? undefined
+                        : hostDisabledReason || undefined
+                    }
+                    className="rounded-xl border-slate-300 text-xs h-9 disabled:opacity-50"
                   >
                     {isSavingAttendance ? (
                       <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />

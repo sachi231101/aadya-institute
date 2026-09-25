@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { sendSuccess, sendPaginated } from "../../utils/response";
-import type { AuthUser } from "../auth/auth.types";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./recording.service";
 import type { RecordingQueryDTO } from "./recording.types";
 
@@ -12,7 +12,7 @@ export const getRecordings = async (
 ): Promise<void> => {
   try {
     const result = await service.getRecordings(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.query as RecordingQueryDTO
     );
     sendPaginated(res, result.data, result.meta, "Recordings retrieved successfully");
@@ -28,7 +28,7 @@ export const getRecordingById = async (
 ): Promise<void> => {
   try {
     const recording = await service.getRecordingById(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string
     );
     sendSuccess(res, recording, 200, "Recording retrieved successfully");
@@ -44,7 +44,7 @@ export const createRecording = async (
 ): Promise<void> => {
   try {
     const recording = await service.createRecording(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.body
     );
     sendSuccess(res, recording, 201, "Recording created successfully");
@@ -60,7 +60,7 @@ export const deleteRecording = async (
 ): Promise<void> => {
   try {
     const result = await service.deleteRecording(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string
     );
     sendSuccess(res, result, 200, "Recording deleted successfully");
@@ -76,10 +76,60 @@ export const getRecordingAccess = async (
 ): Promise<void> => {
   try {
     const access = await service.getRecordingAccess(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string
     );
     sendSuccess(res, access, 200, "Recording playback access retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const streamRecording = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const token =
+      typeof req.query.token === "string" ? req.query.token : undefined;
+    const media = await service.streamRecording(
+      req.params.id as string,
+      token,
+      typeof req.headers.range === "string" ? req.headers.range : undefined
+    );
+
+    res.status(media.status);
+    res.setHeader(
+      "Content-Type",
+      media.contentType || "video/mp4"
+    );
+    // Allow <video src> from the Vite/prod frontend origin when API host differs.
+    // Helmet defaults to Cross-Origin-Resource-Policy: same-origin which blocks that.
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (media.contentLength != null) {
+      res.setHeader("Content-Length", String(media.contentLength));
+    }
+    if (media.contentRange) {
+      res.setHeader("Content-Range", media.contentRange);
+    }
+    res.setHeader("Accept-Ranges", media.acceptRanges || "bytes");
+    res.setHeader("Cache-Control", "private, no-store");
+    // Intentionally omit Content-Disposition: attachment (inline view-only).
+
+    media.stream.on("error", (err) => {
+      if (!res.headersSent) {
+        next(err);
+        return;
+      }
+      res.destroy(err);
+    });
+    req.on("close", () => {
+      if (typeof (media.stream as { destroy?: () => void }).destroy === "function") {
+        media.stream.destroy();
+      }
+    });
+    media.stream.pipe(res);
   } catch (error) {
     next(error);
   }
@@ -92,7 +142,7 @@ export const syncRecording = async (
 ): Promise<void> => {
   try {
     const result = await service.syncRecording(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string
     );
     sendSuccess(res, result, 200, result.message);
@@ -108,7 +158,7 @@ export const expireRecording = async (
 ): Promise<void> => {
   try {
     const result = await service.expireRecording(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string
     );
     sendSuccess(res, result, 200, "Recording expired and deleted successfully");

@@ -22,6 +22,14 @@ import { useNotificationStore } from "@/store/notification.store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
 import { PageContainer, PageHeader } from "@/components/layout";
+import {
+  canHostClassSession,
+  getSessionHostPhase,
+  hostWindowDisabledReason,
+  resolveDisplaySessionStatus,
+  splitTimeRange,
+} from "@/utils/session-window";
+import { toDateKey } from "@/constants/timetable-slots";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 type SessionWorkflowStep = "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
@@ -91,6 +99,66 @@ export const FacultyClassSession: React.FC = () => {
     queryFn: () => classSessionsApi.getAttendance(sessionId),
     enabled: hasValidSessionId,
   });
+
+  const apiClassSession = sessionAttendanceRes?.data?.classSession as
+    | {
+        scheduledDate?: string | Date;
+        startTime?: string;
+        endTime?: string;
+        sessionStatus?: string;
+      }
+    | undefined;
+
+  const sessionDateKey = useMemo(() => {
+    if (apiClassSession?.scheduledDate) return toDateKey(apiClassSession.scheduledDate);
+    const fromParam = String(scheduledDate || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(fromParam)) return fromParam.slice(0, 10);
+    return "";
+  }, [apiClassSession?.scheduledDate, scheduledDate]);
+
+  const sessionTimes = useMemo(() => {
+    if (apiClassSession?.startTime && apiClassSession?.endTime) {
+      return { startTime: apiClassSession.startTime, endTime: apiClassSession.endTime };
+    }
+    return splitTimeRange(scheduledTime);
+  }, [apiClassSession?.startTime, apiClassSession?.endTime, scheduledTime]);
+
+  const [hostClockTick, setHostClockTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setHostClockTick((t) => t + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const hostPhase = useMemo(() => {
+    void hostClockTick;
+    if (!sessionDateKey || !sessionTimes) return "before" as const;
+    return getSessionHostPhase({
+      dateKey: sessionDateKey,
+      startTime: sessionTimes.startTime,
+      endTime: sessionTimes.endTime,
+    });
+  }, [sessionDateKey, sessionTimes, hostClockTick]);
+
+  const canHostNow =
+    Boolean(sessionDateKey && sessionTimes) &&
+    canHostClassSession({
+      dateKey: sessionDateKey,
+      startTime: sessionTimes!.startTime,
+      endTime: sessionTimes!.endTime,
+    });
+  const canMarkAttendanceNow = canHostNow;
+  const hostDisabledReason = hostWindowDisabledReason(hostPhase);
+
+  const displayWorkflowStep: SessionWorkflowStep = useMemo(() => {
+    if (workflowStep === "CANCELLED") return "CANCELLED";
+    if (!sessionDateKey || !sessionTimes) return workflowStep;
+    return resolveDisplaySessionStatus({
+      dbStatus: workflowStep,
+      dateKey: sessionDateKey,
+      startTime: sessionTimes.startTime,
+      endTime: sessionTimes.endTime,
+    });
+  }, [workflowStep, sessionDateKey, sessionTimes, hostPhase]);
 
   // Fetch Batch specific students if batchId is given, or after attendance resolves a batch id
   const attendanceBatchId = sessionAttendanceRes?.data?.classSession?.batch?.id || sessionAttendanceRes?.data?.classSession?.batchId;
@@ -281,6 +349,7 @@ export const FacultyClassSession: React.FC = () => {
   }, [students, searchQuery]);
 
   const handleToggleAttendance = (id: string, status: AttendanceStatus) => {
+    if (!canMarkAttendanceNow) return;
     setStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status } : s))
     );
@@ -288,6 +357,13 @@ export const FacultyClassSession: React.FC = () => {
 
   // ─── ACTION 1: UPDATE ATTENDANCE ──────────────────────────────────────────
   const handleUpdateAttendance = async () => {
+    if (!canMarkAttendanceNow) {
+      triggerToast(
+        hostDisabledReason || "Attendance can only be marked during the scheduled class time window.",
+        "error"
+      );
+      return;
+    }
     setIsUpdatingAttendance(true);
     const nowIso = new Date().toISOString();
 
@@ -364,11 +440,26 @@ export const FacultyClassSession: React.FC = () => {
       triggerToast("A real scheduled class is required to host class.", "error");
       return;
     }
+    if (!canHostNow) {
+      triggerToast(
+        hostDisabledReason || "Class can only be hosted during its scheduled time window.",
+        "error"
+      );
+      return;
+    }
     setShowGoLiveModal(true);
   };
 
   // ─── START LIVE CLASS (Confirmed) ──────────────────────────────────────────
   const handleConfirmStartLive = async () => {
+    if (!canHostNow) {
+      triggerToast(
+        hostDisabledReason || "Class can only be hosted during its scheduled time window.",
+        "error"
+      );
+      setShowGoLiveModal(false);
+      return;
+    }
     setShowGoLiveModal(false);
     setIsPreparingMeet(true);
 
@@ -804,8 +895,13 @@ export const FacultyClassSession: React.FC = () => {
                                 <div className="inline-flex items-center rounded-xl bg-slate-50 p-1 border border-slate-200 gap-1 shrink-0">
                                   <button
                                     type="button"
+                                    disabled={!canMarkAttendanceNow}
                                     onClick={() => handleToggleAttendance(st.id, "PRESENT")}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "PRESENT"
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                                      !canMarkAttendanceNow
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer"
+                                    } ${st.status === "PRESENT"
                                         ? "bg-[#00832D] text-white shadow-xs"
                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                                       }`}
@@ -814,8 +910,13 @@ export const FacultyClassSession: React.FC = () => {
                                   </button>
                                   <button
                                     type="button"
+                                    disabled={!canMarkAttendanceNow}
                                     onClick={() => handleToggleAttendance(st.id, "ABSENT")}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "ABSENT"
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                                      !canMarkAttendanceNow
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer"
+                                    } ${st.status === "ABSENT"
                                         ? "bg-rose-600 text-white shadow-xs"
                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                                       }`}
@@ -824,8 +925,13 @@ export const FacultyClassSession: React.FC = () => {
                                   </button>
                                   <button
                                     type="button"
+                                    disabled={!canMarkAttendanceNow}
                                     onClick={() => handleToggleAttendance(st.id, "LEAVE")}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "LEAVE"
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                                      !canMarkAttendanceNow
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer"
+                                    } ${st.status === "LEAVE"
                                         ? "bg-amber-500 text-white shadow-xs"
                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                                       }`}
@@ -871,8 +977,13 @@ export const FacultyClassSession: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={handleUpdateAttendance}
-                      disabled={isUpdatingAttendance}
-                      className="w-full sm:w-auto border-2 border-primary text-primary bg-white hover:bg-blue-50 font-semibold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
+                      disabled={isUpdatingAttendance || !canMarkAttendanceNow}
+                      title={
+                        canMarkAttendanceNow
+                          ? undefined
+                          : hostDisabledReason || undefined
+                      }
+                      className="w-full sm:w-auto border-2 border-primary text-primary bg-white hover:bg-blue-50 font-semibold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isUpdatingAttendance ? (
                         <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -883,12 +994,13 @@ export const FacultyClassSession: React.FC = () => {
                     </Button>
 
                     {/* DYNAMIC ACTION 2: STATE BASED */}
-                    {workflowStep === "UPCOMING" && (
+                    {workflowStep === "UPCOMING" && displayWorkflowStep !== "COMPLETED" && (
                       <Button
                         type="button"
                         onClick={handleGoLiveClick}
-                        disabled={isPreparingMeet}
-                        className="w-full sm:w-auto bg-[#0066DA] hover:bg-primary/90 text-white font-semibold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all"
+                        disabled={isPreparingMeet || !canHostNow}
+                        title={hostDisabledReason || undefined}
+                        className="w-full sm:w-auto bg-[#0066DA] hover:bg-primary/90 text-white font-semibold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isPreparingMeet ? (
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -897,6 +1009,12 @@ export const FacultyClassSession: React.FC = () => {
                         )}
                         Host Class
                       </Button>
+                    )}
+
+                    {workflowStep === "UPCOMING" && displayWorkflowStep === "COMPLETED" && (
+                      <Badge className="bg-slate-500 text-white font-semibold text-xs px-3 py-2 rounded-xl">
+                        Ended
+                      </Badge>
                     )}
 
                     {workflowStep === "LIVE" && (
@@ -1023,11 +1141,13 @@ export const FacultyClassSession: React.FC = () => {
                     {copiedMeetLink ? "Copied" : "Copy Link"}
                   </Button>
 
-                  {workflowStep === "UPCOMING" && (
+                  {workflowStep === "UPCOMING" && displayWorkflowStep !== "COMPLETED" && (
                     <Button
                       type="button"
                       onClick={handleGoLiveClick}
-                      className="h-9 text-xs font-semibold rounded-xl bg-[#0066DA] hover:bg-primary/90 text-white gap-1.5 shadow-sm cursor-pointer"
+                      disabled={isPreparingMeet || !canHostNow}
+                      title={hostDisabledReason || undefined}
+                      className="h-9 text-xs font-semibold rounded-xl bg-[#0066DA] hover:bg-primary/90 text-white gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Play className="w-3.5 h-3.5" /> Host Class
                     </Button>
@@ -1340,8 +1460,9 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleConfirmStartLive}
-              disabled={isPreparingMeet}
-              className="h-10 text-xs font-semibold bg-[#0066DA] hover:bg-primary/90 text-white rounded-xl shadow-md cursor-pointer gap-2"
+              disabled={isPreparingMeet || !canHostNow}
+              title={hostDisabledReason || undefined}
+              className="h-10 text-xs font-semibold bg-[#0066DA] hover:bg-primary/90 text-white rounded-xl shadow-md cursor-pointer gap-2 disabled:opacity-50"
             >
               {isPreparingMeet ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

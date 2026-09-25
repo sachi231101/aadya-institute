@@ -17,8 +17,10 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "db:clean": "tsx prisma/clear-database-except-admin.ts",
     "seed:users": "tsx src/scripts/seed-initial-users.ts",
+    "seed:class-session-stress": "tsx src/scripts/seed-class-session-stress.ts",
     "verify:logins": "tsx src/scripts/verify-5-logins.ts",
     "test": "tsx --test src/tests/*.test.ts",
+    "test:class-session-e2e": "tsx --test src/tests/class-session-e2e-flow.test.ts src/tests/session-window.test.ts",
     "test:redis": "tsx src/scripts/test-redis.ts",
     "postinstall": "prisma generate"
   },

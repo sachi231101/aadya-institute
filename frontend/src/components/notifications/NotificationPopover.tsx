@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { useAuthStore } from "@/store/auth.store";
+import { canStudentJoinSession, istTodayKey } from "@/utils/session-window";
 
 export const NotificationPopover: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -227,6 +228,24 @@ export const NotificationPopover: React.FC = () => {
                   (item as any).event === "LIVE_CLASS_STARTED" ||
                   item.metadata?.event === "LIVE_CLASS_STARTED";
 
+                const meta = item.metadata || {};
+                const joinStart = meta.startTime as string | undefined;
+                const joinEnd = meta.endTime as string | undefined;
+                const joinDateKey = String(
+                  meta.scheduledDate || istTodayKey()
+                ).slice(0, 10);
+                const showJoinClass =
+                  isLiveNotification &&
+                  Boolean(item.link) &&
+                  (!joinStart ||
+                    !joinEnd ||
+                    canStudentJoinSession({
+                      dbStatus: "LIVE",
+                      dateKey: joinDateKey,
+                      startTime: joinStart,
+                      endTime: joinEnd,
+                    }));
+
                 return (
                   <div
                     key={item.id}
@@ -287,7 +306,7 @@ export const NotificationPopover: React.FC = () => {
                     </div>
 
                     {/* Interactive Join Class Button on Live Notification Card */}
-                    {isLiveNotification && (
+                    {showJoinClass && (
                       <div className="pl-11 pt-1 flex items-center justify-end">
                         <Button
                           type="button"
