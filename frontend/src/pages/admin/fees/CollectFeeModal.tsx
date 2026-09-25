@@ -59,19 +59,18 @@ export function CollectFeeModal(props: CollectFeeModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const pending = collectFee.isPending || createPayment.isPending;
-  const maxAmount = outstanding;
+  // More than this line's due spills into the student's next open dues
+  // (the backend caps the amount at the student's total outstanding).
+  const spillsOver = amount > outstanding + 0.009;
+  const useFifo = isStudentMode || applyFifo || spillsOver;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0 || !paymentModeMasterId) return;
-    if (amount > maxAmount + 0.009) {
-      setError(`Amount cannot exceed outstanding ${formatMoney(maxAmount)}`);
-      return;
-    }
     setError(null);
 
     try {
-      if (!isStudentMode && !applyFifo) {
+      if (!useFifo) {
         await collectFee.mutateAsync({
           id: props.item.id,
           payload: {
@@ -96,17 +95,10 @@ export function CollectFeeModal(props: CollectFeeModalProps) {
           amount,
           paymentModeMasterId,
           feeHeadMasterId: feeHeadMasterId || undefined,
-          // When collecting from an installment row without FIFO, pin to that line
-          pendingFeeId:
-            !isStudentMode && !applyFifo ? props.item.id : undefined,
           transactionRef: transactionRef || undefined,
           notes,
         });
-        props.onSuccess?.(
-          applyFifo || isStudentMode
-            ? `Collected ${formatMoney(amount)} (applied FIFO to open dues)`
-            : `Collected ${formatMoney(amount)}`
-        );
+        props.onSuccess?.(`Collected ${formatMoney(amount)} (applied to earliest open dues)`);
       }
       props.onClose();
     } catch (err: unknown) {
@@ -190,11 +182,17 @@ export function CollectFeeModal(props: CollectFeeModalProps) {
               type="number"
               required
               min={1}
-              max={maxAmount}
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
             />
+            {spillsOver && (
+              <p className="text-xs text-slate-500 mt-1">
+                {formatMoney(amount - outstanding)} more than{" "}
+                {isStudentMode ? "this amount due" : "this charge"} will be applied to the
+                next open installments.
+              </p>
+            )}
           </div>
 
           <div>

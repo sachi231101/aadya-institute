@@ -150,6 +150,35 @@ export const applyFifoSameHeadOnly = <T extends PendingBalanceRow>(
   return { allocations: all, remainingUnapplied: remaining };
 };
 
+/**
+ * Fill the preferred head first (if any), then spill into the other open
+ * heads so a collection is never rejected just because of the chosen head.
+ */
+export const applyFifoPreferredHeadFirst = <T extends PendingBalanceRow>(
+  rows: T[],
+  amount: number,
+  preferredHeadId?: string | null,
+  today: Date = startOfDay()
+): { allocations: FifoAllocation<T>[]; remainingUnapplied: number } => {
+  if (!preferredHeadId) return applyFifoSameHeadOnly(rows, amount, null, today);
+  const preferred = applyFifoToPendingRows(
+    rows.filter((r) => r.feeHeadMasterId === preferredHeadId),
+    amount,
+    today
+  );
+  if (preferred.remainingUnapplied <= 0) return preferred;
+  const rest = applyFifoSameHeadOnly(
+    rows.filter((r) => r.feeHeadMasterId !== preferredHeadId),
+    preferred.remainingUnapplied,
+    null,
+    today
+  );
+  return {
+    allocations: [...preferred.allocations, ...rest.allocations],
+    remainingUnapplied: rest.remainingUnapplied,
+  };
+};
+
 export const reverseAmountOnPendingRow = (
   row: PendingBalanceRow,
   amount: number,

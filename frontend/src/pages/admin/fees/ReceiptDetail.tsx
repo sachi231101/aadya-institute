@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { aggregateAllocationsByFeeHeadAndInstallment } from "@/utils/fee-display.util";
 import { FeeToastBanner, useFeeToast } from "./FeeToast";
 
 async function openPdfBlob(blob: Blob, mode: "download" | "print", filename: string) {
@@ -267,12 +268,10 @@ export const ReceiptDetail: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                receipt.allocations.map((a, idx) => (
-                  <TableRow key={a.id || idx}>
-                    <TableCell>
-                      {a.pendingFee?.feeHead || a.pendingFeeId || "Charge"}
-                    </TableCell>
-                    <TableCell>{a.pendingFee?.installmentNo ?? "—"}</TableCell>
+                aggregateAllocationsByFeeHeadAndInstallment(receipt.allocations).map((a) => (
+                  <TableRow key={a.key}>
+                    <TableCell>{a.feeHead}</TableCell>
+                    <TableCell>{a.installmentNo ?? "—"}</TableCell>
                     <TableCell className="font-bold">{formatMoney(a.amount)}</TableCell>
                   </TableRow>
                 ))

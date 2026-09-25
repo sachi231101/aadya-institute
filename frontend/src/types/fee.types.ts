@@ -236,6 +236,16 @@ export interface StudentInvoice {
   }>;
   lineItems?: unknown;
   branchId?: string | null;
+  /** Detail view only: per-course invoices combined into this installment. */
+  courseInvoices?: Array<{
+    id: string;
+    invoiceNo: string;
+    courseName: string;
+    totalAmount: number;
+    amountPaid: number;
+    balance: number;
+    status: StudentInvoiceStatus;
+  }>;
 }
 
 export type OtherInvoiceStatus =

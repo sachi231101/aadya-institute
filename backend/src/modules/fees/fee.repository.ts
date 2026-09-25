@@ -17,6 +17,7 @@ import type {
 } from "./fee.types";
 import {
   applyAmountToPendingRow,
+  applyFifoPreferredHeadFirst,
   applyFifoSameHeadOnly,
   derivePendingStatus,
   getIstDayBounds,
@@ -356,19 +357,23 @@ export const FeeRepository = {
     recordedById?: string;
   }): Promise<Payment> {
     const balanceRows = params.openPending.map(asBalanceRow);
-    const { allocations, remainingUnapplied } = applyFifoSameHeadOnly(
+    const totalOpen = roundMoney(balanceRows.reduce((s, r) => s + Math.max(0, r.dueAmount), 0));
+    if (totalOpen <= 0) {
+      throw new AppError("This student has no outstanding dues to collect", 400);
+    }
+    if (params.amount > totalOpen + 0.009) {
+      throw new AppError(
+        `Amount ₹${params.amount} is more than the student's total outstanding ₹${totalOpen}`,
+        400
+      );
+    }
+    const { allocations, remainingUnapplied } = applyFifoPreferredHeadFirst(
       balanceRows,
       params.amount,
       params.preferredHeadId || params.masters.feeHeadMasterId
     );
-    if (remainingUnapplied > 0.009) {
-      throw new AppError(
-        `Payment amount exceeds open dues by ₹${remainingUnapplied.toFixed(2)}`,
-        400
-      );
-    }
-    if (allocations.length === 0) {
-      throw new AppError("No open dues to apply this payment to", 400);
+    if (remainingUnapplied > 0.009 || allocations.length === 0) {
+      throw new AppError("Could not apply this payment to the student's open dues", 400);
     }
     return FeeRepository.recordAllocatedPayment({
       instituteId: params.instituteId,
@@ -378,7 +383,8 @@ export const FeeRepository = {
         pendingFeeId: a.row.id!,
         amount: a.applied,
       })),
-      masters: params.masters,
+      // Receipt carries the head actually paid, not just the preferred one
+      masters: { ...params.masters, feeHeadMasterId: undefined, feeHead: undefined },
       dto: params.dto,
       recordedById: params.recordedById,
     });
@@ -1424,6 +1430,31 @@ export const FeeRepository = {
           : null,
       })),
     };
+  },
+
+  /** Other courses' invoices for the same student + fee head + installment. */
+  async findSameInstallmentInvoiceIds(params: {
+    instituteId: string;
+    excludeId: string;
+    studentId: string;
+    feeHeadMasterId: string | null;
+    installmentNo: number;
+  }): Promise<string[]> {
+    const rows = await prisma.studentInvoice.findMany({
+      where: {
+        instituteId: params.instituteId,
+        studentId: params.studentId,
+        id: { not: params.excludeId },
+        status: { not: "CANCELLED" },
+        pendingFee: {
+          ...(params.feeHeadMasterId ? { feeHeadMasterId: params.feeHeadMasterId } : {}),
+          installmentNo: params.installmentNo,
+        },
+      },
+      select: { id: true },
+      orderBy: { invoiceNo: "asc" },
+    });
+    return rows.map((r) => r.id);
   },
 
   async cancelStudentInvoice(id: string, instituteId: string, reason?: string) {
