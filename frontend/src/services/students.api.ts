@@ -223,7 +223,8 @@ export const studentsApi = {
   },
 
   continueStudent: async (
-    id: string
+    id: string,
+    data?: { notes?: string }
   ): Promise<
     SingleResponse<{
       id: string;
@@ -232,6 +233,10 @@ export const studentsApi = {
       batchCode?: string;
     }>
   > => {
+    const body =
+      data?.notes?.trim() !== undefined && data.notes.trim() !== ""
+        ? { notes: data.notes.trim() }
+        : undefined;
     const response = await api.post<
       SingleResponse<{
         id: string;
@@ -239,7 +244,7 @@ export const studentsApi = {
         batchRestored: boolean;
         batchCode?: string;
       }>
-    >(`/students/${id}/continue`);
+    >(`/students/${id}/continue`, body);
     return response.data;
   },
 

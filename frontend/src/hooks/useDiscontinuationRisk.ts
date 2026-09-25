@@ -55,10 +55,13 @@ export const useDiscontinueStudent = () => {
   });
 };
 
+export type ContinueStudentVariables = { id: string; notes?: string };
+
 export const useContinueStudent = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => studentsApi.continueStudent(id),
+    mutationFn: ({ id, notes }: ContinueStudentVariables) =>
+      studentsApi.continueStudent(id, notes ? { notes } : undefined),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: [DISCONTINUATION_RISK_KEY] });
       queryClient.invalidateQueries({ queryKey: [STUDENTS_KEY, id] });

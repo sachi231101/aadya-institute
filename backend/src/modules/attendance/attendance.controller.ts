@@ -127,7 +127,8 @@ export const mark = async (req: AuthenticatedRequest, res: Response, next: NextF
 
 export const bulkMark = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.bulkMarkAttendance(req.body, req.user?.userId);
+    const authUser = toAuthUser(req);
+    const data = await service.bulkMarkAttendance(req.body, req.user?.userId, authUser);
     sendSuccess(res, data, 200, "Bulk attendance marked successfully");
   } catch (err) { next(err); }
 };

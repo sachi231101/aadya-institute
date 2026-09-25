@@ -23,6 +23,7 @@ import {
   requireFacultyIdIfPureFaculty,
 } from "../../utils/auth-user.util";
 import {
+  assertCanMarkAttendanceForSessionDay,
   assertCanMarkSessionAttendance,
   toSessionDateKey,
 } from "../../utils/session-window.util";
@@ -388,6 +389,11 @@ export const submitBulkSessionAttendance = async (
 ) => {
   const session = await verifySessionAccess(currentUser, classSessionId);
 
+  assertCanMarkAttendanceForSessionDay({
+    scheduledDate: session.scheduledDate,
+    roles: currentUser.roles,
+  });
+
   if (isPureFaculty(currentUser.roles)) {
     assertCanMarkSessionAttendance({
       dateKey: toSessionDateKey(session.scheduledDate),
@@ -441,6 +447,11 @@ export const updateAttendanceRecord = async (
 
   // Verify access to the session
   await verifySessionAccess(currentUser, existing.classSessionId);
+
+  assertCanMarkAttendanceForSessionDay({
+    scheduledDate: existing.classSession.scheduledDate,
+    roles: currentUser.roles,
+  });
 
   if (isPureFaculty(currentUser.roles)) {
     assertCanMarkSessionAttendance({
@@ -706,13 +717,19 @@ export const markAttendance = async (
   markedBy?: string,
   currentUser?: AuthUser
 ) => {
-  if (currentUser && isPureFaculty(currentUser.roles) && dto.classSessionId) {
+  if (currentUser && dto.classSessionId) {
     const session = await verifySessionAccess(currentUser, dto.classSessionId);
-    assertCanMarkSessionAttendance({
-      dateKey: toSessionDateKey(session.scheduledDate),
-      startTime: session.startTime,
-      endTime: session.endTime,
+    assertCanMarkAttendanceForSessionDay({
+      scheduledDate: session.scheduledDate,
+      roles: currentUser.roles,
     });
+    if (isPureFaculty(currentUser.roles)) {
+      assertCanMarkSessionAttendance({
+        dateKey: toSessionDateKey(session.scheduledDate),
+        startTime: session.startTime,
+        endTime: session.endTime,
+      });
+    }
   }
 
   const result = await repo.upsertStudentAttendance({
@@ -737,7 +754,34 @@ export const markAttendance = async (
   return result;
 };
 
-export const bulkMarkAttendance = async (dto: BulkMarkAttendanceDto, markedBy?: string) => {
+export const bulkMarkAttendance = async (
+  dto: BulkMarkAttendanceDto,
+  markedBy?: string,
+  currentUser?: AuthUser
+) => {
+  if (currentUser) {
+    const sessionIds = new Set<string>();
+    if (dto.classSessionId) sessionIds.add(dto.classSessionId);
+    for (const entry of dto.entries) {
+      const sid = entry.classSessionId || dto.classSessionId;
+      if (sid) sessionIds.add(sid);
+    }
+    for (const classSessionId of sessionIds) {
+      const session = await verifySessionAccess(currentUser, classSessionId);
+      assertCanMarkAttendanceForSessionDay({
+        scheduledDate: session.scheduledDate,
+        roles: currentUser.roles,
+      });
+      if (isPureFaculty(currentUser.roles)) {
+        assertCanMarkSessionAttendance({
+          dateKey: toSessionDateKey(session.scheduledDate),
+          startTime: session.startTime,
+          endTime: session.endTime,
+        });
+      }
+    }
+  }
+
   const entries = dto.entries.map((e) => ({
     classSessionId: e.classSessionId || dto.classSessionId!,
     studentId: e.studentId,

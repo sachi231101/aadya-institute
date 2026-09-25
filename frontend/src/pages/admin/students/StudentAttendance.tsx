@@ -155,7 +155,7 @@ export const StudentAttendance: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { canEditItem } = usePermissions();
+  const { canEditItem, isAdmin } = usePermissions();
   const canEditAttendance = canEditItem("students.attendance");
   const {
     branches,
@@ -263,6 +263,8 @@ export const StudentAttendance: React.FC = () => {
   );
 
   const todayKey = localTodayKey();
+  const isTodaySelected = selectedDate === todayKey;
+  const canMarkSelectedDate = canEditAttendance && (isAdmin || isTodaySelected);
   const filterKey = `${effectiveBranch}|${selectedBatch}`;
   const alreadyJumpedForFilters = nearestJumpKey === filterKey;
   const nearbyFrom = shiftDateKey(todayKey, -30);
@@ -725,7 +727,7 @@ export const StudentAttendance: React.FC = () => {
                 size="sm"
                 className="h-9"
                 onClick={() => setIsScanQrModalOpen(true)}
-                disabled={!activeSessionId}
+                disabled={!activeSessionId || !canMarkSelectedDate}
               >
                 Check in by name / code
               </Button>
@@ -734,7 +736,7 @@ export const StudentAttendance: React.FC = () => {
                 size="sm"
                 className="h-9 bg-primary hover:bg-primary/90 text-white"
                 onClick={handleSaveAttendance}
-                disabled={!activeSessionId || isSaving || markedCount === 0}
+                disabled={!activeSessionId || !canMarkSelectedDate || isSaving || markedCount === 0}
               >
                 {isSaving ? "Saving…" : hasUnsavedChanges ? "Save changes" : "Save attendance"}
               </Button>
@@ -757,6 +759,20 @@ export const StudentAttendance: React.FC = () => {
             <CheckCircle2 className="h-4 w-4 shrink-0" />
           )}
           <span>{toast.message}</span>
+        </div>
+      )}
+
+      {canEditAttendance && !isTodaySelected && activeTab === "list" && (
+        <div
+          className={`p-3 rounded-lg border text-sm ${
+            isAdmin
+              ? "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900/40 dark:text-amber-200"
+              : "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-900/40 dark:border-slate-800 dark:text-slate-300"
+          }`}
+        >
+          {isAdmin
+            ? "Correcting attendance for a past class."
+            : "View only — attendance can be taken for today. Ask Admin to correct past classes."}
         </div>
       )}
 
@@ -898,7 +914,7 @@ export const StudentAttendance: React.FC = () => {
         ))}
       </div>
 
-      {canEditAttendance && activeTab === "list" && activeSession && (
+      {canMarkSelectedDate && activeTab === "list" && activeSession && (
         <p className="text-xs text-muted-foreground">
           {hasUnsavedChanges
             ? "Unsaved changes — save to record marks for this class."
@@ -925,7 +941,7 @@ export const StudentAttendance: React.FC = () => {
                       }
                       onChange={handleSelectAll}
                       className="rounded border-border text-primary h-4 w-4 cursor-pointer"
-                      disabled={!canEditAttendance}
+                      disabled={!canMarkSelectedDate}
                     />
                   </TableHead>
                   <TableHead>Student</TableHead>
@@ -986,7 +1002,7 @@ export const StudentAttendance: React.FC = () => {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => handleToggleSelect(stu.id)}
-                            disabled={!canEditAttendance}
+                            disabled={!canMarkSelectedDate}
                             className="rounded border-border text-primary h-4 w-4 cursor-pointer disabled:opacity-50"
                           />
                         </TableCell>
@@ -997,7 +1013,7 @@ export const StudentAttendance: React.FC = () => {
                           </p>
                         </TableCell>
                         <TableCell>
-                          {canEditAttendance ? (
+                          {canMarkSelectedDate ? (
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <button
                                 type="button"
@@ -1059,11 +1075,11 @@ export const StudentAttendance: React.FC = () => {
                               value={stu.remarks}
                               onChange={(e) => handleRemarksChange(stu.id, e.target.value)}
                               placeholder="Optional"
-                              readOnly={!canEditAttendance}
-                              disabled={!canEditAttendance}
+                              readOnly={!canMarkSelectedDate}
+                              disabled={!canMarkSelectedDate}
                               className="w-full h-8 px-2.5 text-xs bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:opacity-70"
                             />
-                            {canEditAttendance && stu.status === "LEAVE" && (
+                            {canMarkSelectedDate && stu.status === "LEAVE" && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button
@@ -1105,7 +1121,7 @@ export const StudentAttendance: React.FC = () => {
                               >
                                 View profile
                               </DropdownMenuItem>
-                              {canEditAttendance && (
+                              {canMarkSelectedDate && (
                                 <DropdownMenuItem
                                   onClick={() => handleStatusChange(stu.id, "LEAVE")}
                                 >
@@ -1131,7 +1147,7 @@ export const StudentAttendance: React.FC = () => {
             </Table>
           </div>
 
-          {canEditAttendance && selectedIds.size > 0 && (
+          {canMarkSelectedDate && selectedIds.size > 0 && (
             <div className="p-3 border-t border-border bg-muted/40 flex flex-wrap items-center gap-2 justify-between">
               <span className="text-xs font-semibold text-foreground">
                 {selectedIds.size} selected

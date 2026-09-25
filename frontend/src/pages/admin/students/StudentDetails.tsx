@@ -22,6 +22,8 @@ import { PageContainer } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -34,6 +36,11 @@ import {
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getApiErrorMessage } from "@/utils/api-error";
+import {
+  CONTINUE_STUDENT_DIALOG_DESCRIPTION,
+  continueSuccessMessage,
+  studentAllocationPath,
+} from "@/utils/continue-student.util";
 
 export const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +58,11 @@ export const StudentDetails: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [admissionNotes, setAdmissionNotes] = useState("");
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<{
+    message: string;
+    showAllocationAction?: boolean;
+  } | null>(null);
+  const [continueNotes, setContinueNotes] = useState("");
   const continueMutation = useContinueStudent();
 
   const basePath = location.pathname.startsWith("/counselor")
@@ -158,7 +169,11 @@ export const StudentDetails: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ["students"] });
 
       setIsActivateModalOpen(false);
-      setSuccessToast(isDraftStudent ? "Admission confirmed and student is now active." : "Batch updated.");
+      setSuccessToast({
+        message: isDraftStudent
+          ? "Admission confirmed and student is now active."
+          : "Batch updated.",
+      });
       setTimeout(() => setSuccessToast(null), 5000);
     } catch (err: any) {
       setDialogError(err?.response?.data?.message || "Failed to activate student admission.");
@@ -228,17 +243,25 @@ export const StudentDetails: React.FC = () => {
   const handleConfirmContinue = async () => {
     if (!id) return;
     setDialogError(null);
+    const notes = continueNotes.trim();
     try {
-      const res = await continueMutation.mutateAsync(id);
+      const res = await continueMutation.mutateAsync({
+        id,
+        notes: notes || undefined,
+      });
       const result = res.data;
-      const restoredMsg = result?.batchRestored
-        ? result.batchCode
-          ? ` Previous batch ${result.batchCode} was restored.`
-          : " Previous batch enrollment was restored."
-        : " Assign a batch from Student Allocation if needed.";
-      setSuccessToast(`Student reactivated.${restoredMsg}`);
+      const restoredMsg = continueSuccessMessage({
+        batchRestored: Boolean(result?.batchRestored),
+        batchCode: result?.batchCode,
+      });
+      const needsAllocation = !result?.batchRestored;
+      setSuccessToast({
+        message: `Student reactivated.${restoredMsg}`,
+        showAllocationAction: needsAllocation,
+      });
+      setContinueNotes("");
       setIsContinueDialogOpen(false);
-      setTimeout(() => setSuccessToast(null), 5000);
+      setTimeout(() => setSuccessToast(null), needsAllocation ? 8000 : 5000);
     } catch (err) {
       setDialogError(getApiErrorMessage(err, "Failed to continue student."));
     }
@@ -406,11 +429,29 @@ export const StudentDetails: React.FC = () => {
   return (
     <PageContainer className="text-foreground animate-in fade-in duration-200">
       {successToast && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 rounded-lg p-3 flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">{successToast}</span>
-          <Button size="sm" variant="ghost" onClick={() => setSuccessToast(null)} className="h-7 text-xs shrink-0">
-            Dismiss
-          </Button>
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span className="text-sm font-medium">{successToast.message}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            {successToast.showAllocationAction ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-emerald-600/40 text-emerald-800 hover:bg-emerald-500/10"
+                onClick={() =>
+                  navigate(
+                    studentAllocationPath(basePath, {
+                      search: student?.studentCode || student?.user?.name || "",
+                    })
+                  )
+                }
+              >
+                Open Student Allocation
+              </Button>
+            ) : null}
+            <Button size="sm" variant="ghost" onClick={() => setSuccessToast(null)} className="h-7 text-xs">
+              Dismiss
+            </Button>
+          </div>
         </div>
       )}
 
@@ -439,6 +480,7 @@ export const StudentDetails: React.FC = () => {
               size="sm"
               onClick={() => {
                 setDialogError(null);
+                setContinueNotes("");
                 setIsContinueDialogOpen(true);
               }}
               disabled={continueMutation.isPending}
@@ -1331,7 +1373,10 @@ export const StudentDetails: React.FC = () => {
         onOpenChange={(open) => {
           if (!continueMutation.isPending) {
             setIsContinueDialogOpen(open);
-            if (!open) setDialogError(null);
+            if (!open) {
+              setDialogError(null);
+              setContinueNotes("");
+            }
           }
         }}
       >
@@ -1339,9 +1384,24 @@ export const StudentDetails: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Continue student?</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Reactivate this student and restore previous batch if available?
+              {CONTINUE_STUDENT_DIALOG_DESCRIPTION}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="continue-notes-detail" className="text-xs font-semibold">
+              Notes <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <Textarea
+              id="continue-notes-detail"
+              value={continueNotes}
+              onChange={(e) => setContinueNotes(e.target.value)}
+              placeholder="Optional note for this reactivation"
+              rows={3}
+              maxLength={1000}
+              disabled={continueMutation.isPending}
+              className="text-sm resize-none"
+            />
+          </div>
           {dialogError && (
             <p className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-md px-3 py-2">
               {dialogError}

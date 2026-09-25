@@ -151,7 +151,9 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
                 <TableHead>File</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Uploaded</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right w-12 normal-case tracking-normal">
+                  Manage
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -22,18 +22,14 @@ import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type { BackendClassSession } from "@/services/class-sessions.api";
 import { ROUTES } from "@/constants/routes";
-
-const todayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+import { localTodayKey } from "@/constants/timetable-slots";
 
 export const FacultyTakeAttendance: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { data: dashboardRes } = useFacultyDashboard();
   const facultyId = user?.facultyId || dashboardRes?.data?.profile?.id;
-  const today = todayKey();
+  const today = localTodayKey();
 
   const { data, isLoading, isError, refetch } = useClassSessions({
     startDate: today,

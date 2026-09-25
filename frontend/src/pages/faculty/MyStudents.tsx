@@ -87,7 +87,7 @@ export const FacultyMyStudents: React.FC = () => {
                       <th className="py-3 pr-4">Batches</th>
                       <th className="py-3 pr-4">Attendance</th>
                       <th className="py-3 pr-4">Status</th>
-                      <th className="py-3">Actions</th>
+                      <th className="py-3 w-[140px] normal-case tracking-normal">Manage</th>
                     </tr>
                   </thead>
                   <tbody>

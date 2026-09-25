@@ -10,11 +10,7 @@ import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { useAuthStore } from "@/store/auth.store";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type { BackendClassSession } from "@/services/class-sessions.api";
-
-const todayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+import { localTodayKey } from "@/constants/timetable-slots";
 
 const sessionLabel = (s: BackendClassSession) => {
   const course = getSessionSubjectLabel({ title: s.title, batch: s.batch });
@@ -33,7 +29,7 @@ export const FacultyAttendanceFilter: React.FC = () => {
   const facultyName =
     user?.name || dashboardRes?.data?.profile?.name || "Faculty";
 
-  const [attendanceDate, setAttendanceDate] = useState(todayKey());
+  const attendanceDate = localTodayKey();
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [scheduleSearch, setScheduleSearch] = useState("");
 
@@ -51,7 +47,7 @@ export const FacultyAttendanceFilter: React.FC = () => {
     return rows.filter((s) => sessionLabel(s).toLowerCase().includes(q));
   }, [data?.data, scheduleSearch]);
 
-  const canContinue = Boolean(attendanceDate && selectedSessionId);
+  const canContinue = Boolean(selectedSessionId);
 
   return (
     <PageContainer>
@@ -91,12 +87,13 @@ export const FacultyAttendanceFilter: React.FC = () => {
               <Input
                 type="date"
                 value={attendanceDate}
-                onChange={(e) => {
-                  setAttendanceDate(e.target.value);
-                  setSelectedSessionId("");
-                }}
-                className="h-10"
+                readOnly
+                disabled
+                className="h-10 bg-slate-50"
               />
+              <p className="text-[11px] text-slate-400">
+                Attendance can only be taken for today&apos;s classes.
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -138,7 +135,7 @@ export const FacultyAttendanceFilter: React.FC = () => {
                     No class scheduled for this date
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Pick another date, or ask admin to schedule a class session first.
+                    Ask admin to schedule a class session for today, or use History to view past classes.
                   </p>
                 </div>
               ) : (

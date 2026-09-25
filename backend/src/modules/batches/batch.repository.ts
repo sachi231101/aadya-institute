@@ -114,7 +114,7 @@ const resolveLineTimes = (line: ScheduleLineDto) => {
 };
 
 /** Fill start/end from timeslot master `data` when the client only sent the master ID. */
-const enrichScheduleLinesWithMasterTimes = async (
+export const enrichScheduleLinesWithMasterTimes = async (
   lines: ScheduleLineDto[]
 ): Promise<ScheduleLineDto[]> => {
   const ids = [
@@ -589,6 +589,41 @@ export const findBatchById = async (id: string, instituteId: string) => {
   });
 };
 
+/** Lightweight rows for lazy lifecycle status reconcile. */
+export const findBatchLifecycleRows = async (
+  instituteId: string,
+  branchId?: string,
+  branchIds?: string[]
+) => {
+  const where: Record<string, unknown> = { instituteId };
+  if (branchId) {
+    where.branchId = branchId;
+  } else if (branchIds && branchIds.length > 0) {
+    where.branchId = { in: branchIds };
+  }
+
+  return prisma.batch.findMany({
+    where,
+    select: {
+      id: true,
+      status: true,
+      startDate: true,
+      expectedEndDate: true,
+    },
+  });
+};
+
+export const updateBatchStatusesByIds = async (
+  ids: string[],
+  status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED"
+) => {
+  if (ids.length === 0) return { count: 0 };
+  return prisma.batch.updateMany({
+    where: { id: { in: ids } },
+    data: { status },
+  });
+};
+
 export const createBatch = async (instituteId: string, data: CreateBatchDto) => {
   const branchId = data.branchId?.trim();
   if (!branchId) {
@@ -962,6 +997,85 @@ export const deleteBatchSchedule = async (batchId: string, scheduleId: string, i
   return prisma.batchSchedule.delete({ where: { id: scheduleId } });
 };
 
+/** Build the Prisma where clause used for faculty day/slot conflict detection. */
+export const buildFacultyScheduleConflictWhere = (params: {
+  instituteId: string;
+  facultyId: string;
+  dayOfWeek: number;
+  startTime?: string;
+  endTime?: string;
+  timeslotMasterId?: string;
+  startDate?: string;
+  endDate?: string;
+  excludeBatchId?: string;
+  excludeScheduleId?: string;
+}): Record<string, unknown> => {
+  const {
+    instituteId,
+    facultyId,
+    dayOfWeek,
+    startTime,
+    endTime,
+    timeslotMasterId,
+    startDate,
+    endDate,
+    excludeBatchId,
+    excludeScheduleId,
+  } = params;
+
+  const conflictWhere: Record<string, unknown> = {
+    dayOfWeek,
+    status: "ACTIVE",
+    facultyId,
+    batch: { instituteId },
+  };
+
+  if (excludeBatchId) {
+    conflictWhere.batchId = { not: excludeBatchId };
+  }
+  if (excludeScheduleId) {
+    conflictWhere.id = { not: excludeScheduleId };
+  }
+  if (timeslotMasterId) {
+    conflictWhere.timeslotMasterId = timeslotMasterId;
+  } else if (startTime && endTime) {
+    conflictWhere.startTime = startTime;
+    conflictWhere.endTime = endTime;
+  }
+  if (startDate || endDate) {
+    const rangeStart = startDate ? new Date(startDate) : undefined;
+    const rangeEnd = endDate ? new Date(endDate) : undefined;
+    conflictWhere.AND = [
+      rangeEnd ? { effectiveFrom: { lte: rangeEnd } } : {},
+      {
+        OR: [{ effectiveTo: null }, rangeStart ? { effectiveTo: { gte: rangeStart } } : {}],
+      },
+    ];
+  }
+
+  return conflictWhere;
+};
+
+/** Returns true when an ACTIVE BatchSchedule already holds this faculty/day/slot. */
+export const hasFacultyScheduleConflict = async (params: {
+  instituteId: string;
+  facultyId: string;
+  dayOfWeek: number;
+  startTime?: string;
+  endTime?: string;
+  timeslotMasterId?: string;
+  startDate?: string;
+  endDate?: string;
+  excludeBatchId?: string;
+  excludeScheduleId?: string;
+}): Promise<boolean> => {
+  const conflict = await prisma.batchSchedule.findFirst({
+    where: buildFacultyScheduleConflictWhere(params),
+    select: { id: true },
+  });
+  return Boolean(conflict);
+};
+
 export const findAvailableFaculty = async (instituteId: string, query: AvailableFacultyQuery) => {
   const {
     dayOfWeek,
@@ -975,6 +1089,7 @@ export const findAvailableFaculty = async (instituteId: string, query: Available
     excludeBatchId,
   } = query;
 
+  // Reuse the same conflict shape as assert/hasFacultyScheduleConflict, but for any faculty.
   const conflictWhere: Record<string, unknown> = {
     dayOfWeek,
     status: "ACTIVE",
