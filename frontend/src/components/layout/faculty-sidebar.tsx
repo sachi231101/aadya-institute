@@ -94,11 +94,6 @@ const facultyNavItems: NavItem[] = [
         icon: FileText,
       },
       {
-        title: "Create Assignment",
-        url: "/faculty/assignments/create",
-        icon: FileText,
-      },
-      {
         title: "Submissions Queue",
         url: "/faculty/assignments/submissions",
         icon: Inbox,

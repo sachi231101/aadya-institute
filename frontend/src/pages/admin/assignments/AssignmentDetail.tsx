@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/dialog";
 import type { AssignmentSubmission } from "@/services/assignments.api";
 import { usePermissions } from "@/hooks/usePermissions";
-import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 async function downloadAttachment(assignmentId: string, fileName?: string | null) {
   const token = localStorage.getItem("token");
@@ -73,12 +72,14 @@ export const AssignmentDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const assignmentsBase = `${basePath}/assignments`;
-  const { canEditItem } = usePermissions();
-  const canEditAssignments = canEditItem("assignments.all");
+  const { canEditItem, hasPermission } = usePermissions();
+  const canEditAssignments =
+    canEditItem("assignments.all") || hasPermission("assignment.update");
   const canGradeSubmissions =
     canEditItem("assignments.submissions") ||
     canEditItem("assignments.reviews") ||
-    canEditAssignments;
+    canEditAssignments ||
+    hasPermission("assignment.grade");
 
   const { data, isLoading, isError, refetch } = useAssignmentById(id);
   const assignment = data?.data;
@@ -212,41 +213,43 @@ export const AssignmentDetail: React.FC = () => {
           >
             {assignmentStatusLabel(assignment.status)}
           </Badge>
-          <PermissionGate itemKey="assignments.all" mode="write">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 px-3.5 border-border shadow-xs hover:bg-muted font-medium gap-1.5 cursor-pointer text-text-primary"
-            onClick={() => setEditOpen(true)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 px-3.5 border-border shadow-xs hover:bg-muted font-medium gap-1.5 cursor-pointer text-text-primary"
-            onClick={async () => {
-              await updateMutation.mutateAsync({
-                id,
-                data: { status: assignment.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" },
-              });
-              refetch();
-            }}
-          >
-            {assignment.status === "ACTIVE" ? (
-              <>
-                <Lock className="h-3.5 w-3.5 text-amber-600" />
-                Close
-              </>
-            ) : (
-              <>
-                <Unlock className="h-3.5 w-3.5 text-emerald-600" />
-                Reopen
-              </>
-            )}
-          </Button>
-          </PermissionGate>
+          {canEditAssignments && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3.5 border-border shadow-xs hover:bg-muted font-medium gap-1.5 cursor-pointer text-text-primary"
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3.5 border-border shadow-xs hover:bg-muted font-medium gap-1.5 cursor-pointer text-text-primary"
+                onClick={async () => {
+                  await updateMutation.mutateAsync({
+                    id,
+                    data: { status: assignment.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" },
+                  });
+                  refetch();
+                }}
+              >
+                {assignment.status === "ACTIVE" ? (
+                  <>
+                    <Lock className="h-3.5 w-3.5 text-amber-600" />
+                    Lock
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-3.5 w-3.5 text-emerald-600" />
+                    Unlock
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
         }
       />

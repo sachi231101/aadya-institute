@@ -4,7 +4,12 @@ import { AppError } from "../../middlewares/error.middleware";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { buildMeta } from "../../utils/pagination";
-import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import {
+  getBranchScopeFilter,
+  hasBranchAccess,
+  isBranchLockedRole,
+} from "../../utils/branch-isolation.util";
+import { isPureFaculty as isPureFacultyRoles } from "../../utils/auth-user.util";
 import { assertCourseAvailableForBranch } from "../../utils/course-branch.util";
 import { saveFile, getFileUrl } from "../../integrations/storage/storage.client";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
@@ -46,9 +51,260 @@ const getFacultyIdForUser = async (userId: string): Promise<string | null> => {
 const isAdminOrManager = (user: AuthUser) =>
   user.roles.includes("ADMIN") || user.roles.includes("CENTER_MANAGER");
 
+const isAdminUser = (user: AuthUser) =>
+  user.roles.includes("ADMIN") || user.roles.includes("SUPER_ADMIN");
+
 /** Faculty teaching scope is by facultyId, not user.branchId (batches can be on other branches). */
-const isPureFaculty = (user: AuthUser) =>
-  user.roles.includes("FACULTY") && !isAdminOrManager(user) && !user.roles.includes("COUNSELLOR");
+const isPureFaculty = (user: AuthUser) => isPureFacultyRoles(user.roles);
+
+const isStudentViewer = (user: AuthUser) =>
+  user.roles.includes("STUDENT") &&
+  !user.roles.includes("ADMIN") &&
+  !user.roles.includes("FACULTY") &&
+  !user.roles.includes("CENTER_MANAGER");
+
+type AssignmentBranchScope = {
+  /** Pure faculty / student / admin with no branch pin — do not filter by branch. */
+  skipBranchFilter: boolean;
+  /** Branch-locked user with no allowedBranchIds and no branchId. */
+  emptyScope: boolean;
+  branchId?: string;
+  branchIds?: string[];
+};
+
+/**
+ * Resolve list/write branch scope for assignments.
+ * Reuses getBranchScopeFilter; does not duplicate isolation rules.
+ * Admin may optionally pin a branch via requestedBranchId (list filter / create context).
+ */
+const resolveAssignmentBranchScope = (
+  user: AuthUser,
+  requestedBranchId?: string
+): AssignmentBranchScope => {
+  if (isPureFaculty(user) || isStudentViewer(user)) {
+    return { skipBranchFilter: true, emptyScope: false };
+  }
+
+  if (isAdminUser(user)) {
+    if (requestedBranchId) {
+      return {
+        skipBranchFilter: false,
+        emptyScope: false,
+        branchId: requestedBranchId,
+      };
+    }
+    return { skipBranchFilter: true, emptyScope: false };
+  }
+
+  // Misconfigured JWT: branch-locked with no branch assignment → no institute-wide leak
+  if (isBranchLockedRole(user.roles)) {
+    const allowed = user.allowedBranchIds ?? [];
+    if (allowed.length === 0 && !user.branchId) {
+      return { skipBranchFilter: false, emptyScope: true };
+    }
+  }
+
+  const scope = getBranchScopeFilter(user, requestedBranchId);
+  // CM/Counsellor with multiple allowed branches may narrow the list UI to one
+  // of their allowed ids; only honor requestedBranchId when it is in scope.
+  if (
+    requestedBranchId &&
+    (scope.branchIds?.includes(requestedBranchId) ||
+      scope.branchId === requestedBranchId ||
+      hasBranchAccess(user, requestedBranchId))
+  ) {
+    return {
+      skipBranchFilter: false,
+      emptyScope: false,
+      branchId: requestedBranchId,
+    };
+  }
+
+  return {
+    skipBranchFilter: false,
+    emptyScope: false,
+    branchId: scope.branchId,
+    branchIds: scope.branchIds,
+  };
+};
+
+const assertAssignmentBranchScopeOrThrow = (user: AuthUser): AssignmentBranchScope => {
+  const scope = resolveAssignmentBranchScope(user);
+  if (scope.emptyScope) {
+    throw new AppError("Branch assignment required", 403);
+  }
+  return scope;
+};
+
+type BatchWithBranch = { id: string; branchId: string };
+
+/**
+ * Faculty: must teach every target.
+ * Branch-locked (CM/Counsellor): every target batch.branchId must be in scope (404 outside).
+ * Admin: allowed.
+ */
+const assertTargetsInScope = async (
+  currentUser: AuthUser,
+  batches: BatchWithBranch[],
+  facultyIdForTeachCheck?: string | null
+) => {
+  if (isAdminUser(currentUser)) return;
+
+  if (isPureFaculty(currentUser)) {
+    const facultyId =
+      facultyIdForTeachCheck || (await getFacultyIdForUser(currentUser.id));
+    if (!facultyId) throw new AppError("Faculty profile not found for this user", 403);
+    for (const batch of batches) {
+      await assertFacultyTeachesBatch(facultyId, batch.id);
+    }
+    return;
+  }
+
+  assertAssignmentBranchScopeOrThrow(currentUser);
+
+  for (const batch of batches) {
+    if (!hasBranchAccess(currentUser, batch.branchId)) {
+      throw new AppError("Batch not found", 404);
+    }
+  }
+};
+
+/** True when any primary or target batch is in the caller's branch scope. */
+const assignmentHasInScopeBatch = (
+  currentUser: AuthUser,
+  assignment: {
+    batch?: { branchId?: string | null } | null;
+    classSession?: { batch?: { branchId?: string | null } | null } | null;
+    targets?: Array<{ batch?: { branchId?: string | null } | null }> | null;
+  }
+): boolean => {
+  if (isAdminUser(currentUser) || isPureFaculty(currentUser) || isStudentViewer(currentUser)) {
+    return true;
+  }
+
+  const branchIds: string[] = [];
+  if (assignment.batch?.branchId) branchIds.push(assignment.batch.branchId);
+  if (assignment.classSession?.batch?.branchId) {
+    branchIds.push(assignment.classSession.batch.branchId);
+  }
+  for (const t of assignment.targets || []) {
+    if (t.batch?.branchId) branchIds.push(t.batch.branchId);
+  }
+
+  if (branchIds.length === 0) return false;
+  return branchIds.some((id) => hasBranchAccess(currentUser, id));
+};
+
+const collectInScopeTargetBatchIds = (
+  currentUser: AuthUser,
+  assignment: {
+    batchId: string;
+    batch?: { id?: string; branchId?: string | null } | null;
+    targets?: Array<{ batchId: string; batch?: { branchId?: string | null } | null }> | null;
+  }
+): string[] => {
+  const ids = new Set<string>();
+  if (assignment.batch?.branchId && hasBranchAccess(currentUser, assignment.batch.branchId)) {
+    ids.add(assignment.batchId);
+  }
+  for (const t of assignment.targets || []) {
+    if (t.batch?.branchId && hasBranchAccess(currentUser, t.batch.branchId)) {
+      ids.add(t.batchId);
+    }
+  }
+  return [...ids];
+};
+
+/** For branch-locked users: keep only in-scope targets and students enrolled there. */
+const filterAssignmentPayloadForBranchScope = async <T extends {
+  batchId: string;
+  batch?: { branchId?: string | null } | null;
+  targets?: Array<{ batchId: string; batch?: { branchId?: string | null } | null; [k: string]: unknown }> | null;
+  recipients?: Array<{ studentId: string; [k: string]: unknown }> | null;
+  submissions?: Array<{ studentId: string; [k: string]: unknown }> | null;
+}>(
+  currentUser: AuthUser,
+  assignment: T
+): Promise<T> => {
+  if (isAdminUser(currentUser) || isPureFaculty(currentUser) || isStudentViewer(currentUser)) {
+    return assignment;
+  }
+
+  const inScopeBatchIds = collectInScopeTargetBatchIds(currentUser, assignment);
+  if (inScopeBatchIds.length === 0) {
+    return {
+      ...assignment,
+      targets: [],
+      recipients: [],
+      submissions: [],
+    };
+  }
+
+  const enrollments = await prisma.batchEnrollment.findMany({
+    where: { batchId: { in: inScopeBatchIds }, status: "ACTIVE" },
+    select: { studentId: true },
+  });
+  const studentIds = new Set(enrollments.map((e) => e.studentId));
+
+  return {
+    ...assignment,
+    targets: (assignment.targets || []).filter((t) => inScopeBatchIds.includes(t.batchId)),
+    recipients: (assignment.recipients || []).filter((r) => studentIds.has(r.studentId)),
+    submissions: (assignment.submissions || []).filter((s) => studentIds.has(s.studentId)),
+  };
+};
+
+/**
+ * Grade/download: submission student must be enrolled in an in-scope target batch.
+ */
+const assertSubmissionInBranchScope = async (
+  currentUser: AuthUser,
+  submission: {
+    studentId: string;
+    assignment: {
+      batchId: string;
+      batch?: { branchId?: string | null } | null;
+      classSession?: { batch?: { branchId?: string | null } | null } | null;
+      targets?: Array<{ batchId: string; batch?: { branchId?: string | null } | null }> | null;
+    };
+  }
+) => {
+  if (isAdminUser(currentUser) || isPureFaculty(currentUser)) return;
+
+  const scope = assertAssignmentBranchScopeOrThrow(currentUser);
+
+  if (!assignmentHasInScopeBatch(currentUser, submission.assignment)) {
+    throw new AppError("Submission not found", 404);
+  }
+
+  const targetBatchIds = [
+    submission.assignment.batchId,
+    ...(submission.assignment.targets || []).map((t) => t.batchId),
+  ];
+  const scopeIds = scope.branchId
+    ? [scope.branchId]
+    : scope.branchIds && scope.branchIds.length > 0
+      ? scope.branchIds
+      : null;
+
+  if (!scopeIds) {
+    throw new AppError("Submission not found", 404);
+  }
+
+  const enrollment = await prisma.batchEnrollment.findFirst({
+    where: {
+      studentId: submission.studentId,
+      status: "ACTIVE",
+      batchId: { in: targetBatchIds },
+      batch: { branchId: { in: scopeIds } },
+    },
+    select: { id: true },
+  });
+
+  if (!enrollment) {
+    throw new AppError("Submission not found", 404);
+  }
+};
 
 const parseOptionalDate = (value?: string | null): Date | null | undefined => {
   if (value === undefined) return undefined;
@@ -108,11 +364,13 @@ const validateMaster = async (
 
 const validateAndNormalizeTargets = async (
   currentUser: AuthUser,
-  targets: AssignmentTargetDTO[]
+  targets: AssignmentTargetDTO[],
+  facultyIdForTeachCheck?: string | null
 ): Promise<AssignmentTargetDTO[]> => {
   if (!targets.length) throw new AppError("At least one target row is required", 400);
 
   const normalized: AssignmentTargetDTO[] = [];
+  const batchesForScope: BatchWithBranch[] = [];
 
   for (const target of targets) {
     const course = await prisma.course.findFirst({
@@ -131,15 +389,12 @@ const validateAndNormalizeTargets = async (
       where: {
         id: target.batchId,
         instituteId: currentUser.instituteId,
-        ...(currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
-          ? {}
-          : currentUser.branchId
-            ? { branchId: currentUser.branchId }
-            : {}),
       },
       include: { batchCourses: { select: { courseId: true } } },
     });
     if (!batch) throw new AppError("Batch not found in target", 400);
+
+    batchesForScope.push({ id: batch.id, branchId: batch.branchId });
 
     await assertCourseAvailableForBranch(
       currentUser.instituteId,
@@ -162,6 +417,8 @@ const validateAndNormalizeTargets = async (
       batchId: target.batchId,
     });
   }
+
+  await assertTargetsInScope(currentUser, batchesForScope, facultyIdForTeachCheck);
 
   return normalized;
 };
@@ -297,17 +554,12 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
-  const isStudentViewer =
-    currentUser.roles.includes("STUDENT") &&
-    !currentUser.roles.includes("ADMIN") &&
-    !currentUser.roles.includes("FACULTY") &&
-    !currentUser.roles.includes("CENTER_MANAGER");
+  const studentViewer = isStudentViewer(currentUser);
+  const scope = resolveAssignmentBranchScope(currentUser, query.branchId);
 
-  // Students: enrollment scope. Faculty: facultyId scope. Others: branch lock.
-  const branchId =
-    currentUser.roles.includes("ADMIN") || isStudentViewer || isPureFaculty(currentUser)
-      ? undefined
-      : (currentUser.branchId ?? undefined);
+  if (scope.emptyScope) {
+    return { data: [], meta: buildMeta(0, page, limit) };
+  }
 
   let facultyId = query.facultyId;
   if (isPureFaculty(currentUser)) {
@@ -318,7 +570,7 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
 
   let studentBatchIds: string[] | undefined;
   let forStudentId: string | undefined;
-  if (isStudentViewer) {
+  if (studentViewer) {
     const student = await prisma.student.findFirst({
       where: { userId: currentUser.id, instituteId: currentUser.instituteId },
       include: { batchEnrollments: { where: { status: "ACTIVE" } } },
@@ -333,7 +585,8 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
 
   const { assignments, total } = await repo.findAssignments({
     instituteId: currentUser.instituteId,
-    branchId,
+    branchId: scope.skipBranchFilter ? undefined : scope.branchId,
+    branchIds: scope.skipBranchFilter ? undefined : scope.branchIds,
     batchId: query.batchId,
     batchIds: studentBatchIds,
     forStudentId,
@@ -349,13 +602,18 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
     take: limit,
   });
 
-  // Students must only see their own submission rows
-  const data = forStudentId
+  let data = forStudentId
     ? assignments.map((a) => ({
         ...a,
         submissions: (a.submissions || []).filter((s) => s.studentId === forStudentId),
       }))
     : assignments;
+
+  if (!scope.skipBranchFilter && !scope.emptyScope) {
+    data = await Promise.all(
+      data.map((a) => filterAssignmentPayloadForBranchScope(currentUser, a))
+    );
+  }
 
   return { data, meta: buildMeta(total, page, limit) };
 };
@@ -369,18 +627,20 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
     throw new AppError("Assignment not found", 404);
   }
 
-  const isStudentViewer =
-    currentUser.roles.includes("STUDENT") &&
-    !currentUser.roles.includes("ADMIN") &&
-    !currentUser.roles.includes("FACULTY") &&
-    !currentUser.roles.includes("CENTER_MANAGER");
+  const studentViewer = isStudentViewer(currentUser);
 
-  // Branch isolation for managers/counsellors; faculty authorized by ownership below.
-  if (!isStudentViewer && !isPureFaculty(currentUser)) {
-    assertBranchRecordAccess(currentUser, batch.branchId, "Assignment not found");
+  // Branch isolation for managers/counsellors: any target batch in scope.
+  if (!studentViewer && !isPureFaculty(currentUser) && !isAdminUser(currentUser)) {
+    const scope = resolveAssignmentBranchScope(currentUser);
+    if (scope.emptyScope) {
+      throw new AppError("Branch assignment required", 403);
+    }
+    if (!assignmentHasInScopeBatch(currentUser, assignment)) {
+      throw new AppError("Assignment not found", 404);
+    }
   }
 
-  if (isStudentViewer) {
+  if (studentViewer) {
     const student = await prisma.student.findFirst({
       where: { userId: currentUser.id, instituteId: currentUser.instituteId },
     });
@@ -420,7 +680,7 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
     }
   }
 
-  return assignment;
+  return filterAssignmentPayloadForBranchScope(currentUser, assignment);
 };
 
 export const createAssignment = async (currentUser: AuthUser, dto: CreateAssignmentDTO) => {
@@ -634,10 +894,10 @@ export const listSubmissions = async (currentUser: AuthUser, query: SubmissionQu
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
-  const branchId =
-    currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
-      ? undefined
-      : (currentUser.branchId ?? undefined);
+  const scope = resolveAssignmentBranchScope(currentUser);
+  if (scope.emptyScope) {
+    return { data: [], meta: buildMeta(0, page, limit) };
+  }
 
   let facultyId = query.facultyId;
   if (isPureFaculty(currentUser)) {
@@ -654,7 +914,8 @@ export const listSubmissions = async (currentUser: AuthUser, query: SubmissionQu
 
   const { submissions, total } = await repo.findSubmissions({
     instituteId: currentUser.instituteId,
-    branchId,
+    branchId: scope.skipBranchFilter ? undefined : scope.branchId,
+    branchIds: scope.skipBranchFilter ? undefined : scope.branchIds,
     batchId: query.batchId,
     facultyId,
     status: query.status,
@@ -682,14 +943,7 @@ export const gradeSubmission = async (
     throw new AppError("Submission not found", 404);
   }
 
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    !isPureFaculty(currentUser) &&
-    currentUser.branchId &&
-    batch.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Submission not found", 404);
-  }
+  await assertSubmissionInBranchScope(currentUser, submission);
 
   if (isPureFaculty(currentUser)) {
     const facultyId = await getFacultyIdForUser(currentUser.id);
@@ -789,8 +1043,14 @@ export const uploadSubmissionFile = async (
   file: Express.Multer.File
 ) => {
   const assignment = await getAssignmentById(currentUser, assignmentId);
+  if (assignment.status !== "ACTIVE") {
+    throw new AppError("This assignment is closed", 400);
+  }
   if (assignment.restrictStudentUpload) {
     throw new AppError("Student uploads are restricted for this assignment", 403);
+  }
+  if (assignment.validTill && new Date() > assignment.validTill) {
+    throw new AppError("Assignment is no longer valid for submission", 400);
   }
 
   if (!file?.buffer?.length) {
@@ -894,7 +1154,8 @@ export const getSubmissionDownload = async (
   const isStaff =
     currentUser.roles.includes("ADMIN") ||
     currentUser.roles.includes("CENTER_MANAGER") ||
-    currentUser.roles.includes("FACULTY");
+    currentUser.roles.includes("FACULTY") ||
+    currentUser.roles.includes("COUNSELLOR");
 
   if (!isStaff) {
     const student = await prisma.student.findFirst({
@@ -903,10 +1164,19 @@ export const getSubmissionDownload = async (
     if (!student || student.id !== submission.studentId) {
       throw new AppError("File not found", 404);
     }
-  } else if (currentUser.roles.includes("FACULTY") && !isAdminOrManager(currentUser)) {
+  } else if (isPureFaculty(currentUser)) {
     const facultyId = await getFacultyIdForUser(currentUser.id);
     if (!facultyId || facultyId !== submission.assignment.facultyId) {
       throw new AppError("File not found", 404);
+    }
+  } else if (!isAdminUser(currentUser)) {
+    try {
+      await assertSubmissionInBranchScope(currentUser, submission);
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw new AppError("File not found", 404);
+      }
+      throw err;
     }
   }
 
@@ -924,10 +1194,10 @@ export const getSubmissionDownload = async (
 };
 
 export const getAssignmentStats = async (currentUser: AuthUser) => {
-  const branchId =
-    currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
-      ? undefined
-      : (currentUser.branchId ?? undefined);
+  const scope = resolveAssignmentBranchScope(currentUser);
+  if (scope.emptyScope) {
+    return { activeAssignments: 0, pendingSubmissions: 0, pendingGrading: 0 };
+  }
 
   let facultyId: string | undefined;
   if (isPureFaculty(currentUser)) {
@@ -936,7 +1206,8 @@ export const getAssignmentStats = async (currentUser: AuthUser) => {
 
   return repo.countAssignmentStats({
     instituteId: currentUser.instituteId,
-    branchId,
+    branchId: scope.skipBranchFilter ? undefined : scope.branchId,
+    branchIds: scope.skipBranchFilter ? undefined : scope.branchIds,
     facultyId,
   });
 };
@@ -945,7 +1216,7 @@ export const getBatchEnrolledStudents = async (
   currentUser: AuthUser,
   batchIds: string[]
 ) => {
-  const unique = [...new Set(batchIds.filter(Boolean))];
+  let unique = [...new Set(batchIds.filter(Boolean))];
   if (unique.length === 0) return [];
 
   if (isPureFaculty(currentUser)) {
@@ -954,20 +1225,25 @@ export const getBatchEnrolledStudents = async (
     for (const batchId of unique) {
       await assertFacultyTeachesBatch(ownFacultyId, batchId);
     }
+  } else if (!isAdminUser(currentUser)) {
+    const scope = resolveAssignmentBranchScope(currentUser);
+    if (scope.emptyScope) return [];
+
+    const batches = await prisma.batch.findMany({
+      where: { id: { in: unique }, instituteId: currentUser.instituteId },
+      select: { id: true, branchId: true },
+    });
+    unique = batches
+      .filter((b) => hasBranchAccess(currentUser, b.branchId))
+      .map((b) => b.id);
+    if (unique.length === 0) return [];
   }
 
   const enrollments = await prisma.batchEnrollment.findMany({
     where: {
       batchId: { in: unique },
       status: "ACTIVE",
-      batch: {
-        instituteId: currentUser.instituteId,
-        ...(currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
-          ? {}
-          : currentUser.branchId
-            ? { branchId: currentUser.branchId }
-            : {}),
-      },
+      batch: { instituteId: currentUser.instituteId },
     },
     include: {
       student: {

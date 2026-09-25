@@ -11,24 +11,33 @@ import {
   Lock,
   Unlock,
   Download,
-  Paperclip,
+  MoreVertical,
 } from "lucide-react";
 import {
   useAssignments,
   useDeleteAssignment,
   useUpdateAssignment,
 } from "@/hooks/useAssignments";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
+import { usePermissions } from "@/hooks/usePermissions";
 import { assignmentsApi, type Assignment } from "@/services/assignments.api";
 import { getPortalBasePath } from "@/utils/portal-path";
 import {
   assignmentStatusLabel,
   formatAssignmentDueDate,
 } from "@/utils/assignment.utils";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { PageContainer, PageHeader, FilterToolbar } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -75,6 +84,21 @@ export const AssignmentList: React.FC = () => {
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
   const assignmentsBase = `${basePath}/assignments`;
+  const isFacultyPortal = basePath === "/faculty";
+
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
+  const { canEditItem, hasPermission } = usePermissions();
+  const canUpdateAssignment =
+    canEditItem("assignments.all") || hasPermission("assignment.update");
+  const canDeleteAssignment =
+    canEditItem("assignments.all") || hasPermission("assignment.delete");
 
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -83,8 +107,12 @@ export const AssignmentList: React.FC = () => {
     () => ({
       page,
       limit,
+      // Faculty teaching-desk: no branch pin. Admin/CM: optional/required scope filter.
+      ...(!isFacultyPortal && branchIdForQuery
+        ? { branchId: branchIdForQuery }
+        : {}),
     }),
-    [page, limit]
+    [page, limit, isFacultyPortal, branchIdForQuery]
   );
 
   const { data, isLoading, isError, refetch } = useAssignments(params);
@@ -117,6 +145,26 @@ export const AssignmentList: React.FC = () => {
           </PermissionGate>
         }
       />
+
+      {!isFacultyPortal && showBranchSelector && (
+        <FilterToolbar className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+          <select
+            value={selectedBranchId}
+            onChange={(e) => {
+              setSelectedBranchId(e.target.value);
+              setPage(1);
+            }}
+            className="h-9 text-sm border border-border rounded-lg px-3 text-foreground bg-background focus:outline-none focus:border-primary"
+          >
+            {allowAllBranches && <option value="ALL">All branches</option>}
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </FilterToolbar>
+      )}
 
       <Card className="rounded-xl border-border/50 shadow-sm">
         <CardContent className="p-3.5 space-y-4">
@@ -233,53 +281,63 @@ export const AssignmentList: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center px-1 py-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-muted"
-                            title="View"
-                            onClick={() => navigate(`${assignmentsBase}/${a.id}`)}
-                          >
-                            <Eye className="h-3.5 w-3.5 text-text-secondary" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-muted"
-                            title="Edit"
-                            onClick={() => navigate(`${assignmentsBase}/${a.id}?edit=1`)}
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-text-secondary" />
-                          </Button>
-                          {a.attachmentFileKey && (
-                            <Button size="icon" variant="ghost" className="h-6 w-6 p-0 hover:bg-muted" title="Has attachment">
-                              <Paperclip className="h-3.5 w-3.5 text-text-muted" />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground"
+                              aria-label="Assignment actions"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-muted"
-                            title={a.status === "ACTIVE" ? "Close" : "Reopen"}
-                            onClick={() => handleCloseToggle(a)}
-                          >
-                            {a.status === "ACTIVE" ? (
-                              <Lock className="h-3.5 w-3.5 text-amber-600" />
-                            ) : (
-                              <Unlock className="h-3.5 w-3.5 text-emerald-600" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 text-xs">
+                            <DropdownMenuItem
+                              onClick={() => navigate(`${assignmentsBase}/${a.id}`)}
+                            >
+                              <Eye className="mr-2 h-3.5 w-3.5" />
+                              View
+                            </DropdownMenuItem>
+                            {canUpdateAssignment && (
+                              <DropdownMenuItem
+                                onClick={() => navigate(`${assignmentsBase}/${a.id}?edit=1`)}
+                              >
+                                <Pencil className="mr-2 h-3.5 w-3.5" />
+                                Edit
+                              </DropdownMenuItem>
                             )}
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Delete"
-                            onClick={() => handleDelete(a)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                            {canUpdateAssignment && (
+                              <DropdownMenuItem onClick={() => handleCloseToggle(a)}>
+                                {a.status === "ACTIVE" ? (
+                                  <>
+                                    <Lock className="mr-2 h-3.5 w-3.5 text-amber-600" />
+                                    Lock
+                                  </>
+                                ) : (
+                                  <>
+                                    <Unlock className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                                    Unlock
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteAssignment && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => handleDelete(a)}
+                                >
+                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

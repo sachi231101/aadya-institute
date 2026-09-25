@@ -27,8 +27,32 @@ const submissionSelect = {
 const targetInclude = {
   course: { select: { id: true, name: true, code: true } },
   courseModule: { select: { id: true, name: true, code: true, topics: true } },
-  batch: { select: { id: true, name: true, code: true, courseId: true } },
+  batch: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      courseId: true,
+      instituteId: true,
+      branchId: true,
+    },
+  },
 } satisfies Prisma.AssignmentTargetInclude;
+
+/** Match assignments whose primary batch or any target batch is in scope. */
+const assignmentBranchScopeWhere = (
+  branchId?: string,
+  branchIds?: string[]
+): Prisma.AssignmentWhereInput | undefined => {
+  const ids = branchId ? [branchId] : branchIds;
+  if (!ids || ids.length === 0) return undefined;
+  return {
+    OR: [
+      { batch: { branchId: { in: ids } } },
+      { targets: { some: { batch: { branchId: { in: ids } } } } },
+    ],
+  };
+};
 
 const assignmentInclude = {
   classSession: {
@@ -156,6 +180,8 @@ export const createAssignment = async (data: {
 export const findAssignments = async (params: {
   instituteId: string;
   branchId?: string;
+  /** Multi-branch scope (primary batch OR any target batch). */
+  branchIds?: string[];
   batchId?: string;
   batchIds?: string[];
   /** When set, only batch-wide (no recipients) or explicitly assigned to this student */
@@ -174,6 +200,7 @@ export const findAssignments = async (params: {
   const {
     instituteId,
     branchId,
+    branchIds,
     batchId,
     batchIds,
     forStudentId,
@@ -189,11 +216,22 @@ export const findAssignments = async (params: {
     take,
   } = params;
 
+  const branchScope = assignmentBranchScopeWhere(branchId, branchIds);
+
+  const andClauses: Prisma.AssignmentWhereInput[] = [];
+  if (branchScope) andClauses.push(branchScope);
+  if (forStudentId) {
+    andClauses.push({
+      OR: [
+        { recipients: { none: {} } },
+        { recipients: { some: { studentId: forStudentId } } },
+      ],
+    });
+  }
+
   const where: Prisma.AssignmentWhereInput = {
-    batch: {
-      instituteId,
-      ...(branchId ? { branchId } : {}),
-    },
+    batch: { instituteId },
+    ...(andClauses.length > 0 ? { AND: andClauses } : {}),
     ...(batchIds && batchIds.length > 0
       ? {
           OR: [
@@ -206,18 +244,6 @@ export const findAssignments = async (params: {
             OR: [{ batchId }, { targets: { some: { batchId } } }],
           }
         : {}),
-    ...(forStudentId
-      ? {
-          AND: [
-            {
-              OR: [
-                { recipients: { none: {} } },
-                { recipients: { some: { studentId: forStudentId } } },
-              ],
-            },
-          ],
-        }
-      : {}),
     ...(classSessionId ? { classSessionId } : {}),
     ...(facultyId ? { facultyId } : {}),
     ...(status ? { status: status as Prisma.EnumStatusFilter["equals"] } : {}),
@@ -377,7 +403,13 @@ export const findSubmissionById = (id: string) =>
               batch: { select: { instituteId: true, branchId: true } },
             },
           },
-          batch: { select: { instituteId: true, branchId: true } },
+          batch: { select: { id: true, instituteId: true, branchId: true } },
+          targets: {
+            select: {
+              batchId: true,
+              batch: { select: { id: true, instituteId: true, branchId: true } },
+            },
+          },
         },
       },
       student: {
@@ -473,6 +505,7 @@ export const upsertSubmission = (data: {
 export const findSubmissions = async (params: {
   instituteId: string;
   branchId?: string;
+  branchIds?: string[];
   batchId?: string;
   facultyId?: string;
   status?: AssignmentSubmissionStatus;
@@ -486,6 +519,7 @@ export const findSubmissions = async (params: {
   const {
     instituteId,
     branchId,
+    branchIds,
     batchId,
     facultyId,
     status,
@@ -511,12 +545,13 @@ export const findSubmissions = async (params: {
           ? { submittedAt: { not: null } }
           : {};
 
+  const scopeIds = branchId ? [branchId] : branchIds;
+  const assignmentBranchScope = assignmentBranchScopeWhere(branchId, branchIds);
+
   const where: Prisma.AssignmentSubmissionWhereInput = {
     assignment: {
-      batch: {
-        instituteId,
-        ...(branchId ? { branchId } : {}),
-      },
+      batch: { instituteId },
+      ...(assignmentBranchScope ? { AND: [assignmentBranchScope] } : {}),
       ...(batchId
         ? {
             OR: [{ batchId }, { targets: { some: { batchId } } }],
@@ -524,6 +559,19 @@ export const findSubmissions = async (params: {
         : {}),
       ...(facultyId ? { facultyId } : {}),
     },
+    // Branch-locked lists: only students enrolled on an in-scope batch
+    ...(scopeIds && scopeIds.length > 0
+      ? {
+          student: {
+            batchEnrollments: {
+              some: {
+                status: "ACTIVE",
+                batch: { branchId: { in: scopeIds } },
+              },
+            },
+          },
+        }
+      : {}),
     ...statusFilter,
     ...(search
       ? {
@@ -580,14 +628,14 @@ export const findSubmissions = async (params: {
 export const countAssignmentStats = async (params: {
   instituteId: string;
   branchId?: string;
+  branchIds?: string[];
   facultyId?: string;
 }) => {
+  const branchScope = assignmentBranchScopeWhere(params.branchId, params.branchIds);
   const baseWhere: Prisma.AssignmentWhereInput = {
     ...(params.facultyId ? { facultyId: params.facultyId } : {}),
-    batch: {
-      instituteId: params.instituteId,
-      ...(params.branchId ? { branchId: params.branchId } : {}),
-    },
+    batch: { instituteId: params.instituteId },
+    ...(branchScope ? { AND: [branchScope] } : {}),
   };
 
   const [activeAssignments, pendingSubmissions, pendingGrading] = await Promise.all([

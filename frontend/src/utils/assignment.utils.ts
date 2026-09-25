@@ -47,7 +47,7 @@ export function submissionStatusVariant(
 }
 
 export function assignmentStatusLabel(status?: string): string {
-  if (status === "INACTIVE") return "Closed";
+  if (status === "INACTIVE") return "Locked";
   return "Active";
 }
 
@@ -56,11 +56,57 @@ export function canStudentSubmit(opts: {
   submissionStatus?: string | null;
   dueDate?: string | null;
   allowLate?: boolean;
+  validTill?: string | null;
+  restrictStudentUpload?: boolean;
 }): boolean {
   if (opts.assignmentStatus === "INACTIVE") return false;
   if (opts.submissionStatus === "GRADED") return false;
+  if (opts.restrictStudentUpload) return false;
+  if (opts.validTill && new Date(opts.validTill).getTime() < Date.now()) return false;
   if (!opts.dueDate) return true;
   const pastDue = new Date(opts.dueDate).getTime() < Date.now();
   if (pastDue && !opts.allowLate) return false;
   return true;
+}
+
+/** Student list filter tabs: mutually exclusive per assignment. */
+export type StudentAssignmentFilterStatus =
+  | "PENDING"
+  | "SUBMITTED"
+  | "GRADED"
+  | "OVERDUE";
+
+/**
+ * Derive the student Assignments toolbar status.
+ * Overdue = past due and not submitted (allowLate only controls whether submit is still allowed).
+ */
+export function resolveStudentAssignmentFilterStatus(opts: {
+  submission?: {
+    submissionStatus?: string | null;
+    submittedAt?: string | null;
+    evaluatedAt?: string | null;
+    marks?: number | null;
+  } | null;
+  dueDate?: string | null;
+}): StudentAssignmentFilterStatus {
+  const submission = opts.submission;
+  if (
+    submission?.submissionStatus === "GRADED" ||
+    submission?.evaluatedAt ||
+    submission?.marks != null
+  ) {
+    return "GRADED";
+  }
+  if (
+    submission?.submittedAt ||
+    submission?.submissionStatus === "SUBMITTED" ||
+    submission?.submissionStatus === "LATE"
+  ) {
+    return "SUBMITTED";
+  }
+  const isPastDue = opts.dueDate
+    ? Date.now() > new Date(opts.dueDate).getTime()
+    : false;
+  if (isPastDue) return "OVERDUE";
+  return "PENDING";
 }

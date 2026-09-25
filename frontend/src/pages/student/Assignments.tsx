@@ -33,7 +33,12 @@ import { useAssignments, useSubmitAssignment, useUploadSubmissionFile } from "@/
 import { useAuthStore } from "@/store/auth.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
-import { canStudentSubmit, formatMarks } from "@/utils/assignment.utils";
+import {
+  canStudentSubmit,
+  formatMarks,
+  assignmentStatusLabel,
+  resolveStudentAssignmentFilterStatus,
+} from "@/utils/assignment.utils";
 import { assignmentsApi, type Assignment, type AssignmentSubmission } from "@/services/assignments.api";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar, PageSection } from "@/components/layout";
 
@@ -45,6 +50,7 @@ interface EnrichedAssignment {
   batchCode: string;
   instructions: string;
   dueDate: string;
+  validTill?: string | null;
   maxMarks: number;
   allowLate: boolean;
   restrictStudentUpload: boolean;
@@ -90,51 +96,45 @@ export const StudentAssignments: React.FC = () => {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const getSubmissionForUser = (assignment: Assignment): AssignmentSubmission | undefined =>
-    assignment.submissions?.find(
+  const getSubmissionForUser = (assignment: Assignment): AssignmentSubmission | undefined => {
+    const subs = assignment.submissions ?? [];
+    const matched = subs.find(
       (s) =>
-        s.studentId === academic.studentId ||
+        (academic.studentId != null && s.studentId === academic.studentId) ||
         (s.student as { user?: { id?: string } })?.user?.id === userId
     );
+    if (matched) return matched;
+    // Student list API already scopes submissions to the viewer
+    if (subs.length === 1) return subs[0];
+    return undefined;
+  };
+
+  const statusColors: Record<
+    ReturnType<typeof resolveStudentAssignmentFilterStatus>,
+    string
+  > = {
+    GRADED: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30",
+    SUBMITTED: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    OVERDUE: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
+    PENDING: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+  };
 
   const getAssignmentStatus = (assignment: Assignment) => {
     const submission = getSubmissionForUser(assignment);
-    if (
-      submission?.submissionStatus === "GRADED" ||
-      submission?.evaluatedAt ||
-      submission?.marks != null
-    ) {
-      return {
-        status: "GRADED" as const,
-        label: "GRADED",
-        color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30",
-        submission,
-      };
-    }
-    if (submission?.submittedAt || submission?.submissionStatus === "SUBMITTED" || submission?.submissionStatus === "LATE") {
-      return {
-        status: "SUBMITTED" as const,
-        label: submission?.submissionStatus === "LATE" ? "LATE" : "SUBMITTED",
-        color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-        submission,
-      };
-    }
-
-    const isPastDue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
-    if (isPastDue && !assignment.allowLate) {
-      return {
-        status: "OVERDUE" as const,
-        label: "OVERDUE",
-        color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
-        submission: undefined,
-      };
-    }
-
+    const status = resolveStudentAssignmentFilterStatus({
+      submission,
+      dueDate: assignment.dueDate,
+    });
+    const label =
+      status === "SUBMITTED" && submission?.submissionStatus === "LATE"
+        ? "LATE"
+        : status;
     return {
-      status: "PENDING" as const,
-      label: "PENDING",
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
-      submission: undefined,
+      status,
+      label,
+      color: statusColors[status],
+      // Keep PENDING placeholder rows out of UI "has submission" checks
+      submission: status === "SUBMITTED" || status === "GRADED" ? submission : undefined,
     };
   };
 
@@ -154,6 +154,7 @@ export const StudentAssignments: React.FC = () => {
         batchCode: batch?.code || academic.primaryBatch?.code || "",
         instructions: asg.description || "",
         dueDate: asg.dueDate || "",
+        validTill: asg.validTill,
         maxMarks: asg.maxMarks ?? 100,
         allowLate: !!asg.allowLate,
         restrictStudentUpload: !!asg.restrictStudentUpload,
@@ -223,6 +224,28 @@ export const StudentAssignments: React.FC = () => {
   const handleSubmitAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAssignment || !uploadedFile) return;
+    if (
+      !canStudentSubmit({
+        assignmentStatus: selectedAssignment.assignmentStatus,
+        submissionStatus: selectedAssignment.statusInfo.submission?.submissionStatus,
+        dueDate: selectedAssignment.dueDate,
+        allowLate: selectedAssignment.allowLate,
+        validTill: selectedAssignment.validTill,
+        restrictStudentUpload: selectedAssignment.restrictStudentUpload,
+      })
+    ) {
+      alert(
+        selectedAssignment.assignmentStatus === "INACTIVE"
+          ? "This assignment is locked. Submissions are closed."
+          : selectedAssignment.restrictStudentUpload
+            ? "Student file upload is restricted for this assignment."
+            : selectedAssignment.validTill &&
+                new Date(selectedAssignment.validTill).getTime() < Date.now()
+              ? "This assignment is no longer valid for submission."
+              : "You cannot submit this assignment right now."
+      );
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -259,12 +282,26 @@ export const StudentAssignments: React.FC = () => {
       submissionStatus: currentSubmission?.submissionStatus,
       dueDate: selectedAssignment.dueDate,
       allowLate: selectedAssignment.allowLate,
-    }) && !selectedAssignment.restrictStudentUpload
+      validTill: selectedAssignment.validTill,
+      restrictStudentUpload: selectedAssignment.restrictStudentUpload,
+    })
+    : false;
+
+  const isSelectedLocked = selectedAssignment?.assignmentStatus === "INACTIVE";
+
+  const isValidTillExpired = selectedAssignment?.validTill
+    ? new Date(selectedAssignment.validTill).getTime() < Date.now()
     : false;
 
   const isCurrentOverdue = selectedAssignment
     ? selectedAssignment.statusInfo.status === "OVERDUE" ||
-    (!canSubmitSelected && !currentSubmission && !!selectedAssignment.dueDate && new Date() > new Date(selectedAssignment.dueDate))
+    (!canSubmitSelected &&
+      !currentSubmission &&
+      !isSelectedLocked &&
+      !selectedAssignment.restrictStudentUpload &&
+      !isValidTillExpired &&
+      !!selectedAssignment.dueDate &&
+      new Date() > new Date(selectedAssignment.dueDate))
     : false;
 
   return (
@@ -399,6 +436,7 @@ export const StudentAssignments: React.FC = () => {
             const isSubmitted = assignment.statusInfo.status === "SUBMITTED" || assignment.statusInfo.status === "GRADED";
             const isGraded = assignment.statusInfo.status === "GRADED";
             const isOverdue = assignment.statusInfo.status === "OVERDUE";
+            const isLocked = assignment.assignmentStatus === "INACTIVE";
             const submission = assignment.statusInfo.submission;
 
             return (
@@ -436,7 +474,14 @@ export const StudentAssignments: React.FC = () => {
                     </div>
 
                     {/* Status Badge */}
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
+                      {isLocked && (
+                        <Badge
+                          className="text-xs font-semibold uppercase px-3 py-1 rounded-xl border bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                        >
+                          {assignmentStatusLabel("INACTIVE")}
+                        </Badge>
+                      )}
                       <Badge
                         className={`text-xs font-semibold uppercase px-3 py-1 rounded-xl border ${assignment.statusInfo.color}`}
                       >
@@ -511,7 +556,7 @@ export const StudentAssignments: React.FC = () => {
 
                     <Button
                       onClick={() => handleOpenAssignment(assignment)}
-                      className={`text-xs font-bold h-9 px-5 rounded-xl cursor-pointer transition-all ${isSubmitted
+                      className={`text-xs font-bold h-9 px-5 rounded-xl cursor-pointer transition-all ${isSubmitted || isLocked
                           ? "bg-muted hover:bg-muted/80 text-foreground"
                           : "bg-primary hover:bg-primary text-white shadow-md shadow-indigo-500/20 hover:scale-102"
                         }`}
@@ -520,6 +565,11 @@ export const StudentAssignments: React.FC = () => {
                         <>
                           <Eye className="w-3.5 h-3.5 mr-1.5" />
                           <span>View Submission</span>
+                        </>
+                      ) : isLocked ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5 mr-1.5" />
+                          <span>View Assignment</span>
                         </>
                       ) : (
                         <>
@@ -556,16 +606,23 @@ export const StudentAssignments: React.FC = () => {
                     </div>
                   </div>
 
-                  <Badge
-                    className={`text-xs font-semibold uppercase px-3 py-1 rounded-xl border ${currentSubmission
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        : isCurrentOverdue
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                      }`}
-                  >
-                    {currentSubmission ? "✓ SUBMITTED" : isCurrentOverdue ? "OVERDUE" : "PENDING"}
-                  </Badge>
+                  <div className="shrink-0 flex flex-col items-end gap-1.5">
+                    {isSelectedLocked && (
+                      <Badge className="text-xs font-semibold uppercase px-3 py-1 rounded-xl border bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600">
+                        {assignmentStatusLabel("INACTIVE")}
+                      </Badge>
+                    )}
+                    <Badge
+                      className={`text-xs font-semibold uppercase px-3 py-1 rounded-xl border ${currentSubmission
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          : isCurrentOverdue
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        }`}
+                    >
+                      {currentSubmission ? "✓ SUBMITTED" : isCurrentOverdue ? "OVERDUE" : "PENDING"}
+                    </Badge>
+                  </div>
                 </div>
               </DialogHeader>
 
@@ -632,6 +689,23 @@ export const StudentAssignments: React.FC = () => {
               {selectedAssignment.restrictStudentUpload && !currentSubmission && (
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                   Student file upload is restricted for this assignment. Contact your faculty if you need to submit.
+                </p>
+              )}
+              {isValidTillExpired && !currentSubmission && (
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  Valid till {new Date(selectedAssignment.validTill!).toLocaleString("en-IN")} — submissions are closed.
+                </p>
+              )}
+              {selectedAssignment.validTill && !isValidTillExpired && !currentSubmission && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Valid till{" "}
+                  {new Date(selectedAssignment.validTill).toLocaleString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </p>
               )}
 
@@ -715,6 +789,37 @@ export const StudentAssignments: React.FC = () => {
                       )}
                     </div>
                   )}
+                </div>
+              ) : isSelectedLocked ? (
+                /* Locked / inactive — view only */
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200 dark:border-slate-700 text-center space-y-1.5">
+                  <AlertCircle className="w-6 h-6 text-slate-500 dark:text-slate-400 mx-auto" />
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    This assignment is locked.
+                  </p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Submissions are closed. You can still view the assignment details and any prior submission.
+                  </p>
+                </div>
+              ) : selectedAssignment.restrictStudentUpload ? (
+                <div className="p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-center space-y-1.5">
+                  <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
+                  <p className="text-xs font-bold text-amber-900 dark:text-amber-300">
+                    File upload is restricted
+                  </p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    You can view this assignment, but student submissions are disabled. Contact your faculty if you need to submit.
+                  </p>
+                </div>
+              ) : isValidTillExpired ? (
+                <div className="p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-center space-y-1.5">
+                  <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
+                  <p className="text-xs font-bold text-amber-900 dark:text-amber-300">
+                    This assignment is no longer valid for submission.
+                  </p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    The valid-till date has passed. You can still view the assignment details.
+                  </p>
                 </div>
               ) : isCurrentOverdue ? (
                 /* Overdue without submission */
@@ -813,8 +918,12 @@ export const StudentAssignments: React.FC = () => {
                 </form>
               )}
 
-              {/* Close Button if already submitted or overdue */}
-              {(currentSubmission || isCurrentOverdue) && (
+              {/* Close Button if already submitted, locked, restricted, expired, or overdue */}
+              {(currentSubmission ||
+                isCurrentOverdue ||
+                isSelectedLocked ||
+                selectedAssignment.restrictStudentUpload ||
+                isValidTillExpired) && (
                 <div className="pt-2 flex justify-end">
                   <Button
                     type="button"

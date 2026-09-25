@@ -40,7 +40,6 @@ const CENTER_NAV_ITEM_KEYS = [
   "schedule.live",
   "schedule.recordings",
   "assignments.all",
-  "assignments.create",
   "assignments.submissions",
   "assignments.reviews",
   "exams.all",

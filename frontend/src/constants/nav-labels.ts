@@ -42,7 +42,6 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
 
   // Assignments
   "assignments.all": "All Assignments",
-  "assignments.create": "Create Assignment",
   "assignments.submissions": "Submissions Queue",
   "assignments.reviews": "Grading Queue",
 

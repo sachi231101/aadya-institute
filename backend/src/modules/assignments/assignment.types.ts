@@ -55,6 +55,8 @@ export interface AssignmentQueryDTO {
   assignedTo?: string;
   academicYearMasterId?: string;
   assignmentTypeMasterId?: string;
+  /** Admin optional filter; ignored for spoofing by branch-locked roles. */
+  branchId?: string;
   page?: number;
   limit?: number;
 }

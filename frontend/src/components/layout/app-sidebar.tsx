@@ -148,7 +148,6 @@ const data = {
       icon: ClipboardList,
       items: [
         { title: L["assignments.all"] ?? "All Assignments", url: A.ASSIGNMENTS.ALL },
-        { title: L["assignments.create"] ?? "Create Assignment", url: A.ASSIGNMENTS.CREATE },
         { title: L["assignments.submissions"] ?? "Submissions Queue", url: A.ASSIGNMENTS.SUBMISSIONS },
         { title: L["assignments.reviews"] ?? "Grading Queue", url: A.ASSIGNMENTS.REVIEWS },
       ],
