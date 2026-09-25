@@ -161,7 +161,6 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "assignments.all", label: "All Assignments", readPermissions: ["assignment.read"], writePermissions: ["assignment.create", "assignment.update", "assignment.delete"] },
-      { key: "assignments.create", label: "Create Assignment", readPermissions: ["assignment.read"], writePermissions: ["assignment.create"] },
       { key: "assignments.submissions", label: "Submissions Queue", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade"] },
       { key: "assignments.reviews", label: "Grading Queue", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade", "assignment.update"] },
     ],

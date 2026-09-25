@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { coursesApi, type CourseData } from "@/services/courses.api";
 import { batchesApi, type BatchData } from "@/services/batches.api";
 import { formatBatchSubjectNames, batchIncludesFaculty } from "@/utils/batch.utils";
@@ -47,36 +48,89 @@ function parseTopics(topics: unknown): string[] {
 interface Props {
   lines: AssignmentTargetLine[];
   onChange: (lines: AssignmentTargetLine[]) => void;
-  /** When set, only batches taught by this faculty are shown */
+  /** When set, only batches taught by this faculty are shown (teaching desk; no branch lock). */
   facultyId?: string;
+  /**
+   * When set, courses/batches are scoped to this branch (admin / CM / counsellor).
+   * Omit for faculty teaching-desk so cross-branch teaching batches stay visible.
+   */
+  branchId?: string;
+  /** When true and branchId is missing, show a prompt instead of loading all branches mixed. */
+  requireBranch?: boolean;
 }
 
 export const AssignmentTargetLinesEditor: React.FC<Props> = ({
   lines,
   onChange,
   facultyId,
+  branchId,
+  requireBranch = false,
 }) => {
+  const branchReady = !requireBranch || Boolean(branchId);
+
   const { data: coursesRes } = useQuery({
-    queryKey: ["courses", "assignment-targets"],
-    queryFn: () => coursesApi.getAll({ status: "ACTIVE" }),
+    queryKey: ["courses", "assignment-targets", branchId || "all"],
+    queryFn: () =>
+      coursesApi.getAll({
+        status: "ACTIVE",
+        ...(branchId ? { branchId } : {}),
+      }),
+    enabled: branchReady,
   });
 
   const { data: batchesRes, isLoading: batchesLoading } = useQuery({
-    queryKey: ["batches", "assignment-targets", facultyId || "all"],
-    queryFn: () => batchesApi.getAll(),
+    queryKey: ["batches", "assignment-targets", facultyId || "all", branchId || "all"],
+    queryFn: () =>
+      batchesApi.getAll({
+        ...(branchId ? { branchId } : {}),
+        ...(facultyId ? { facultyId } : {}),
+      }),
+    enabled: branchReady,
   });
 
   const batches = useMemo(() => {
-    const all = (batchesRes?.data || []) as BatchData[];
+    let all = (batchesRes?.data || []) as BatchData[];
+    if (branchId) {
+      all = all.filter(
+        (b) => b.branchId === branchId || b.branch?.id === branchId
+      );
+    }
     if (!facultyId) return all;
     // Backend already scopes faculty lists; keep a defensive client filter that
     // also recognizes schedule-based teaching links.
     return all.filter((b) => batchIncludesFaculty(b as never, facultyId));
-  }, [batchesRes, facultyId]);
+  }, [batchesRes, facultyId, branchId]);
 
   const courses = useMemo(() => {
     const all = (coursesRes?.data || []) as CourseData[];
-    if (!facultyId) return all;
+    const scopedByBranch = branchId
+      ? all.filter((c) => {
+          const ids =
+            c.branchIds ??
+            c.courseBranches?.map((cb) => cb.branchId) ??
+            [];
+          // No branch metadata: trust the API response (already branch-scoped when possible).
+          if (ids.length === 0) return true;
+          return ids.includes(branchId);
+        })
+      : all;
+
+    if (!facultyId) {
+      // When branch-scoped, prefer courses that appear on batches of that branch
+      // so empty course→batch pairs are avoided.
+      if (!branchId) return scopedByBranch;
+      const allowedCourseIds = new Set<string>();
+      for (const b of batches) {
+        if (b.courseId) allowedCourseIds.add(b.courseId);
+        b.batchCourses?.forEach((bc) => {
+          if (bc.courseId) allowedCourseIds.add(bc.courseId);
+        });
+        if (b.course?.id) allowedCourseIds.add(b.course.id);
+      }
+      if (allowedCourseIds.size === 0) return scopedByBranch;
+      return scopedByBranch.filter((c) => allowedCourseIds.has(c.id));
+    }
+
     const allowedCourseIds = new Set<string>();
     for (const b of batches) {
       if (b.courseId) allowedCourseIds.add(b.courseId);
@@ -88,8 +142,8 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
     // Do not fall back to every institute course — that produces course options
     // with zero matching batches (the faculty create-assignment failure mode).
     if (allowedCourseIds.size === 0) return [];
-    return all.filter((c) => allowedCourseIds.has(c.id));
-  }, [coursesRes, batches, facultyId]);
+    return scopedByBranch.filter((c) => allowedCourseIds.has(c.id));
+  }, [coursesRes, batches, facultyId, branchId]);
 
   const updateLine = (key: string, patch: Partial<AssignmentTargetLine>) => {
     onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -100,17 +154,23 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
     onChange(lines.filter((l) => l.key !== key));
   };
 
+  const needBranch = requireBranch && !branchId;
   const noFacultyBatches = Boolean(facultyId) && !batchesLoading && batches.length === 0;
 
   return (
     <div className="space-y-3">
-      {noFacultyBatches && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          No batches are linked to your faculty profile yet. Ask admin to assign you as batch
-          faculty (or on a batch course/schedule), then refresh this page.
+      {needBranch && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Select a branch above to load courses and batches.
         </p>
       )}
-      <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-text-secondary px-1">
+      {noFacultyBatches && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          No batches are linked to your faculty profile yet. Ask admin to assign you as batch
+          faculty, then refresh.
+        </p>
+      )}
+      <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground">
         <div className="col-span-3">Course *</div>
         <div className="col-span-3">Module</div>
         <div className="col-span-2">Topic</div>
@@ -134,11 +194,10 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
         type="button"
         variant="outline"
         size="sm"
-        className="text-[#2563EB]"
         onClick={() => onChange([...lines, createEmptyTargetLine()])}
-        disabled={noFacultyBatches}
+        disabled={noFacultyBatches || needBranch}
       >
-        <Plus className="h-4 w-4 mr-1" /> Add target row
+        <Plus className="h-4 w-4 mr-1" /> Add target
       </Button>
     </div>
   );
@@ -168,8 +227,9 @@ const TargetLineRow: React.FC<{
   }, [batches, line.courseId]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-lg border bg-muted/20">
-      <div className="md:col-span-3">
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+      <div className="md:col-span-3 space-y-1">
+        <Label className="md:hidden text-xs text-muted-foreground">Course *</Label>
         <select
           value={line.courseId}
           onChange={(e) =>
@@ -190,7 +250,8 @@ const TargetLineRow: React.FC<{
           ))}
         </select>
       </div>
-      <div className="md:col-span-3">
+      <div className="md:col-span-3 space-y-1">
+        <Label className="md:hidden text-xs text-muted-foreground">Module</Label>
         <select
           value={line.courseModuleId}
           disabled={!line.courseId}
@@ -205,7 +266,8 @@ const TargetLineRow: React.FC<{
           ))}
         </select>
       </div>
-      <div className="md:col-span-2">
+      <div className="md:col-span-2 space-y-1">
+        <Label className="md:hidden text-xs text-muted-foreground">Topic</Label>
         <select
           value={line.topic}
           disabled={!line.courseModuleId || topics.length === 0}
@@ -220,7 +282,8 @@ const TargetLineRow: React.FC<{
           ))}
         </select>
       </div>
-      <div className="md:col-span-3">
+      <div className="md:col-span-3 space-y-1">
+        <Label className="md:hidden text-xs text-muted-foreground">Batch *</Label>
         <select
           value={line.batchId}
           disabled={!line.courseId}
@@ -240,7 +303,7 @@ const TargetLineRow: React.FC<{
           ))}
         </select>
         {line.courseId && filteredBatches.length === 0 && (
-          <p className="text-[11px] text-amber-700 mt-1">No assigned batch matches this course.</p>
+          <p className="text-xs text-amber-800">No batch matches this course.</p>
         )}
       </div>
       <div className="md:col-span-1 flex items-center justify-end">
@@ -248,7 +311,7 @@ const TargetLineRow: React.FC<{
           type="button"
           size="icon"
           variant="ghost"
-          className="text-red-600"
+          className="text-destructive"
           disabled={!canRemove}
           onClick={onRemove}
         >

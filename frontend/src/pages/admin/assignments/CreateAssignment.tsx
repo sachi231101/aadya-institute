@@ -1,11 +1,10 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import {
-  FileText,
   Loader2,
   AlertCircle,
   Upload,
@@ -17,6 +16,7 @@ import {
   useUploadAssignmentAttachment,
   useEnrolledStudentsForBatches,
 } from "@/hooks/useAssignments";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { facultyApi } from "@/services/faculty.api";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import {
@@ -40,21 +40,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const schema = z.object({
-  title: z.string().min(2, "Title is required"),
-  facultyId: z.string().min(1, "Faculty is required"),
-  description: z.string().optional(),
-  assignedAt: z.string().optional(),
-  dueDate: z.string().min(1, "Due date is required"),
-  validTillEnabled: z.boolean().default(false),
-  validTill: z.string().optional(),
-  academicYearMasterId: z.string().min(1, "Academic year is required"),
-  assignmentTypeMasterId: z.string().optional(),
-  maxMarks: z.coerce.number().int().positive().max(1000).default(100),
-  allowLate: z.boolean().default(false),
-  restrictStudentUpload: z.boolean().default(false),
-  youtubeVideoId: z.string().optional(),
-});
+const schema = z
+  .object({
+    title: z.string().min(2, "Title is required"),
+    facultyId: z.string().min(1, "Faculty is required"),
+    description: z.string().optional(),
+    assignedAt: z.string().optional(),
+    dueDate: z.string().min(1, "Due date is required"),
+    validTillEnabled: z.boolean().default(false),
+    validTill: z.string().optional(),
+    academicYearMasterId: z.string().min(1, "Academic year is required"),
+    assignmentTypeMasterId: z.string().optional(),
+    maxMarks: z.coerce.number().int().positive().max(1000).default(100),
+    allowLate: z.boolean().default(false),
+    restrictStudentUpload: z.boolean().default(false),
+    youtubeVideoId: z.string().optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.validTillEnabled && !values.validTill?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Valid-till date is required when enabled",
+        path: ["validTill"],
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -74,8 +84,8 @@ export const CreateAssignment: React.FC = () => {
     isAdmin ||
     isFacultyPortal ||
     !roleScope ||
-    canEditItem("assignments.create") ||
-    canEditItem("assignments.all");
+    canEditItem("assignments.all") ||
+    canEditItem("assignments.create");
   const ownFacultyId = user?.facultyId || undefined;
   const createMutation = useCreateAssignment();
   const uploadAttachment = useUploadAssignmentAttachment();
@@ -87,11 +97,24 @@ export const CreateAssignment: React.FC = () => {
   const [studentPickerOpen, setStudentPickerOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (!canCreate) {
-      navigate(assignmentsBase, { replace: true, state: { accessDenied: true, readOnly: true } });
-    }
-  }, [canCreate, navigate, assignmentsBase]);
+  // Admin / CM / Counsellor: reuse shared branch scope (not faculty teaching-desk).
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
+
+  /** Concrete branch for course/batch targeting. Faculty portal stays unscoped. */
+  const targetBranchId = useMemo(() => {
+    if (isFacultyPortal) return undefined;
+    if (branchIdForQuery) return branchIdForQuery;
+    // Single allowed/available branch: use it even if store still says ALL.
+    if (branches.length === 1) return branches[0].id;
+    return undefined;
+  }, [isFacultyPortal, branchIdForQuery, branches]);
 
   const {
     register,
@@ -118,6 +141,42 @@ export const CreateAssignment: React.FC = () => {
     },
   });
 
+  const prevBranchRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (isFacultyPortal) return;
+    if (prevBranchRef.current === undefined) {
+      prevBranchRef.current = targetBranchId;
+      return;
+    }
+    if (prevBranchRef.current !== targetBranchId) {
+      prevBranchRef.current = targetBranchId;
+      setTargets([createEmptyTargetLine()]);
+      setSelectedStudentIds([]);
+      setValue("facultyId", "");
+    }
+  }, [targetBranchId, isFacultyPortal, setValue]);
+
+  // Create form: prefer a concrete branch over "All" so targets stay scoped.
+  useEffect(() => {
+    if (isFacultyPortal || !allowAllBranches) return;
+    if (selectedBranchId !== "ALL") return;
+    if (branches.length === 1) {
+      setSelectedBranchId(branches[0].id);
+    }
+  }, [
+    isFacultyPortal,
+    allowAllBranches,
+    selectedBranchId,
+    branches,
+    setSelectedBranchId,
+  ]);
+
+  useEffect(() => {
+    if (!canCreate) {
+      navigate(assignmentsBase, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canCreate, navigate, assignmentsBase]);
+
   useEffect(() => {
     if (isFacultyPortal && ownFacultyId) {
       setValue("facultyId", ownFacultyId, { shouldValidate: true });
@@ -142,15 +201,35 @@ export const CreateAssignment: React.FC = () => {
   const validTillEnabled = watch("validTillEnabled");
   const academicYearMasterId = watch("academicYearMasterId");
   const assignmentTypeMasterId = watch("assignmentTypeMasterId");
+  const selectedFacultyId = watch("facultyId");
 
+  // Admin/CM/Counsellor: faculty list scoped to selected branch (same API as faculty list pages).
   const { data: facultyRes } = useQuery({
-    queryKey: ["faculty-list"],
-    queryFn: () => facultyApi.getAll({ limit: 100 }),
-    enabled: !isFacultyPortal,
+    queryKey: ["faculty-list", "assignment-create", targetBranchId || "none"],
+    queryFn: () =>
+      facultyApi.getAll({
+        limit: 100,
+        ...(targetBranchId ? { branchId: targetBranchId } : {}),
+      }),
+    enabled: !isFacultyPortal && Boolean(targetBranchId),
   });
   const facultyList = facultyRes?.data || [];
   const lockedFacultyLabel = user?.name || "You";
 
+  // Drop stale faculty when branch filter returns a different set.
+  useEffect(() => {
+    if (isFacultyPortal || !targetBranchId || !selectedFacultyId) return;
+    if (facultyList.length === 0) return;
+    if (!facultyList.some((f) => f.id === selectedFacultyId)) {
+      setValue("facultyId", "");
+    }
+  }, [
+    isFacultyPortal,
+    targetBranchId,
+    selectedFacultyId,
+    facultyList,
+    setValue,
+  ]);
   const batchIds = useMemo(
     () => [...new Set(targets.map((t) => t.batchId).filter(Boolean))],
     [targets]
@@ -160,9 +239,17 @@ export const CreateAssignment: React.FC = () => {
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
+    if (!isFacultyPortal && !targetBranchId) {
+      setError("Select a branch before assigning courses and batches");
+      return;
+    }
     const validTargets = targets.filter((t) => t.courseId && t.batchId);
     if (validTargets.length === 0) {
       setError("Add at least one target with course and batch");
+      return;
+    }
+    if (limitStudents && selectedStudentIds.length === 0) {
+      setError("Select at least one student, or turn off “Limit to specific students”");
       return;
     }
 
@@ -191,10 +278,7 @@ export const CreateAssignment: React.FC = () => {
           topic: t.topic || null,
           batchId: t.batchId,
         })),
-        recipientStudentIds:
-          limitStudents && selectedStudentIds.length > 0
-            ? selectedStudentIds
-            : undefined,
+        recipientStudentIds: limitStudents ? selectedStudentIds : undefined,
       });
 
       const id = result?.data?.id as string | undefined;
@@ -218,16 +302,14 @@ export const CreateAssignment: React.FC = () => {
     <PageContainer maxWidth="narrow">
       <PageHeader
         title="Create Assignment"
-        description="Set details, attach materials, and target courses and batches."
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={() => navigate(assignmentsBase)}>
               Cancel
             </Button>
             <Button
               type="submit"
               form="create-assignment-form"
-              className="bg-primary hover:bg-[#125387] text-white shadow-sm"
               disabled={createMutation.isPending || uploadAttachment.isPending}
             >
               {(createMutation.isPending || uploadAttachment.isPending) && (
@@ -239,32 +321,58 @@ export const CreateAssignment: React.FC = () => {
         }
       />
 
-      <form id="create-assignment-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form id="create-assignment-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {error && (
           <p className="text-sm text-red-600 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
+            <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </p>
         )}
 
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Basics</CardTitle>
+        <Card className="border-border/60 shadow-sm rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Basics</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
+            {!isFacultyPortal && (showBranchSelector || (allowAllBranches && branches.length > 0)) && (
+              <div className="sm:col-span-2 space-y-1.5 max-w-xs">
+                <Label>Branch *</Label>
+                <select
+                  value={
+                    selectedBranchId !== "ALL"
+                      ? selectedBranchId
+                      : targetBranchId || ""
+                  }
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next) setSelectedBranchId(next);
+                  }}
+                  className="w-full h-10 px-3 border rounded-md text-sm bg-background"
+                >
+                  {allowAllBranches && !targetBranchId && (
+                    <option value="">Select branch</option>
+                  )}
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="sm:col-span-2 space-y-1.5">
               <Label>Title *</Label>
               <Input {...register("title")} placeholder="e.g. React Hooks Lab" />
-              {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title.message}</p>}
+              {errors.title && <p className="text-xs text-red-600">{errors.title.message}</p>}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Assigned date</Label>
               <Input type="datetime-local" {...register("assignedAt")} />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Due date *</Label>
               <Input type="datetime-local" {...register("dueDate")} />
-              {errors.dueDate && <p className="text-xs text-red-600 mt-1">{errors.dueDate.message}</p>}
+              {errors.dueDate && <p className="text-xs text-red-600">{errors.dueDate.message}</p>}
             </div>
             <div className="sm:col-span-2 space-y-2">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -272,10 +380,15 @@ export const CreateAssignment: React.FC = () => {
                 Set valid-till date
               </label>
               {validTillEnabled && (
-                <Input type="datetime-local" {...register("validTill")} />
+                <div className="space-y-1.5">
+                  <Input type="datetime-local" {...register("validTill")} />
+                  {errors.validTill && (
+                    <p className="text-xs text-red-600">{errors.validTill.message}</p>
+                  )}
+                </div>
               )}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Academic year *</Label>
               <MasterSelect
                 entityType="academicyear"
@@ -285,10 +398,10 @@ export const CreateAssignment: React.FC = () => {
                 includeEmpty={false}
               />
               {errors.academicYearMasterId && (
-                <p className="text-xs text-red-600 mt-1">{errors.academicYearMasterId.message}</p>
+                <p className="text-xs text-red-600">{errors.academicYearMasterId.message}</p>
               )}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Assignment type</Label>
               <MasterSelect
                 entityType="assignmenttype"
@@ -297,17 +410,22 @@ export const CreateAssignment: React.FC = () => {
                 placeholder="Select type"
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Faculty *</Label>
               {isFacultyPortal ? (
                 <>
                   <input type="hidden" {...register("facultyId")} />
                   <Input value={lockedFacultyLabel} disabled className="bg-muted/40" />
-                  <p className="text-xs text-text-muted mt-1">Assignments are created under your faculty profile.</p>
                 </>
               ) : (
-                <select {...register("facultyId")} className="w-full h-10 px-3 border rounded-md text-sm bg-background">
-                  <option value="">Select faculty</option>
+                <select
+                  {...register("facultyId")}
+                  disabled={!targetBranchId}
+                  className="w-full h-10 px-3 border rounded-md text-sm bg-background disabled:opacity-50"
+                >
+                  <option value="">
+                    {targetBranchId ? "Select faculty" : "Select branch first"}
+                  </option>
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || f.employeeCode}
@@ -316,56 +434,55 @@ export const CreateAssignment: React.FC = () => {
                 </select>
               )}
               {errors.facultyId && (
-                <p className="text-xs text-red-600 mt-1">{errors.facultyId.message}</p>
+                <p className="text-xs text-red-600">{errors.facultyId.message}</p>
               )}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Max marks</Label>
               <Input type="number" min={1} max={1000} {...register("maxMarks")} />
             </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-sm cursor-pointer sm:col-span-1">
               <input type="checkbox" {...register("allowLate")} />
               Allow late submissions
             </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <label className="flex items-center gap-2 text-sm cursor-pointer sm:col-span-1">
               <input type="checkbox" {...register("restrictStudentUpload")} />
               Restrict student file upload
             </label>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Instructions & media</CardTitle>
+        <Card className="border-border/60 shadow-sm rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Materials</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
+            <div className="space-y-1.5">
               <Label>Instructions / remarks</Label>
               <textarea
                 {...register("description")}
-                className="w-full min-h-[100px] p-3 border rounded-md text-sm"
+                className="w-full min-h-[88px] p-3 border rounded-md text-sm"
                 placeholder="What should students do?"
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>YouTube video ID</Label>
               <Input {...register("youtubeVideoId")} placeholder="e.g. dQw4w9WgXcQ" />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Instructor attachment</Label>
               {attachment ? (
-                <div className="flex items-center justify-between p-3 border rounded-md text-sm">
+                <div className="flex items-center justify-between gap-2 h-10 px-3 border rounded-md text-sm">
                   <span className="truncate">{attachment.name}</span>
-                  <Button type="button" size="icon" variant="ghost" onClick={() => { setAttachment(null); setFileError(null); }}>
+                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => { setAttachment(null); setFileError(null); }}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/30">
-                  <Upload className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Select file to upload</span>
-                  <span className="text-xs text-text-muted">
-                    Allowed: {ALLOWED_ATTACHMENT_LABEL} (max 10MB)
+                <label className="flex items-center gap-3 h-10 px-3 border border-dashed rounded-md cursor-pointer hover:bg-muted/30 text-sm">
+                  <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground truncate">
+                    Upload file · {ALLOWED_ATTACHMENT_LABEL} · max 10MB
                   </span>
                   <input
                     type="file"
@@ -388,24 +505,25 @@ export const CreateAssignment: React.FC = () => {
                   />
                 </label>
               )}
-              {fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
+              {fileError && <p className="text-xs text-red-600">{fileError}</p>}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Audience targeting</CardTitle>
+        <Card className="border-border/60 shadow-sm rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Targets</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <AssignmentTargetLinesEditor
               lines={targets}
               onChange={setTargets}
               facultyId={isFacultyPortal ? effectiveFacultyId : undefined}
+              branchId={isFacultyPortal ? undefined : targetBranchId}
+              requireBranch={!isFacultyPortal}
             />
-
-            <div className="pt-2 border-t space-y-3">
-              <label className="flex items-center gap-2 text-sm font-medium">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"
                   checked={limitStudents}

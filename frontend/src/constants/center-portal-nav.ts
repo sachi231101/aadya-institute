@@ -141,7 +141,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "assignments",
     items: [
       { title: "All Assignments", url: "/center/assignments", itemKey: "assignments.all" },
-      { title: "Create Assignment", url: "/center/assignments/create", itemKey: "assignments.create" },
       { title: L["assignments.submissions"] ?? "Submissions Queue", url: "/center/assignments/submissions", itemKey: "assignments.submissions" },
       { title: L["assignments.reviews"] ?? "Grading Queue", url: "/center/assignments/reviews", itemKey: "assignments.reviews" },
     ],

@@ -66,6 +66,7 @@ export const queryAssignmentSchema = z.object({
   assignedTo: z.string().optional(),
   academicYearMasterId: z.string().optional(),
   assignmentTypeMasterId: z.string().optional(),
+  branchId: z.string().optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });

@@ -115,6 +115,7 @@ export interface AssignmentQueryParams {
   assignedTo?: string;
   academicYearMasterId?: string;
   assignmentTypeMasterId?: string;
+  branchId?: string;
 }
 
 export interface SubmissionQueryParams {
