@@ -242,12 +242,6 @@ export const InvoiceDetail: React.FC = () => {
               <span className="text-text-secondary">Due date:</span>{" "}
               {formatOrgDate(invoice.dueDate)}
             </div>
-            {(invoice.courseInvoices?.length ?? 0) > 1 && (
-              <div className="sm:col-span-2">
-                <span className="text-text-secondary">Includes invoices:</span>{" "}
-                {invoice.courseInvoices!.map((ci) => ci.invoiceNo).join(", ")}
-              </div>
-            )}
             {invoice.notes && (
               <div className="sm:col-span-2">
                 <span className="text-text-secondary">Notes:</span> {invoice.notes}
