@@ -117,17 +117,15 @@ export function aggregateInvoicesByStudentAndInstallment<T extends InvoiceLike>(
     existing.amountPaid = Number(existing.amountPaid) + Number(row.amountPaid);
     existing.balance = Number(existing.balance) + Number(row.balance);
     existing.sourceIds.push(row.id);
-    // Keep earliest due date and worst status; prefer latest invoice no as primary id
+    // Keep earliest due date and worst status; the lowest invoice no is the
+    // one number shown for the whole installment (matches detail page + PDF).
     if (row.dueDate && existing.dueDate && new Date(row.dueDate) < new Date(existing.dueDate)) {
       existing.dueDate = row.dueDate;
     }
     if (row.status === "OVERDUE") existing.status = "OVERDUE";
-    const rowDate = row.date || row.dueDate || (row as { invoiceDate?: string }).invoiceDate;
-    const existingDate =
-      existing.date || existing.dueDate || (existing as { invoiceDate?: string }).invoiceDate;
-    if (rowDate && existingDate && new Date(rowDate) >= new Date(existingDate)) {
+    if (row.invoiceNo && (!existing.invoiceNo || row.invoiceNo < existing.invoiceNo)) {
       existing.id = row.id;
-      if (row.invoiceNo) existing.invoiceNo = row.invoiceNo;
+      existing.invoiceNo = row.invoiceNo;
     }
   }
 
@@ -205,9 +203,13 @@ export function aggregateChargesByFeeHeadAndInstallment<
     if (!existingHadOpenDue && rowDue > 0.009) {
       existing.id = row.id;
       existing.status = row.status;
-      existing.invoiceNo = (row as { invoiceNo?: string | null }).invoiceNo ?? existing.invoiceNo;
       existing.feeHeadMasterId =
         (row as { feeHeadMasterId?: string }).feeHeadMasterId ?? existing.feeHeadMasterId;
+    }
+    const rowInvoiceNo = (row as { invoiceNo?: string | null }).invoiceNo;
+    const existingInvoiceNo = (existing as { invoiceNo?: string | null }).invoiceNo;
+    if (rowInvoiceNo && (!existingInvoiceNo || rowInvoiceNo < existingInvoiceNo)) {
+      (existing as { invoiceNo?: string | null }).invoiceNo = rowInvoiceNo;
     }
     if (row.dueDate && existing.dueDate && new Date(row.dueDate) < new Date(existing.dueDate)) {
       existing.dueDate = row.dueDate;

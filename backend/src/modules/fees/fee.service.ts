@@ -841,9 +841,7 @@ export const FeeService = {
     // Multi-course students get one invoice per course for the same installment;
     // show the whole installment so it matches the (merged) invoice list.
     const pf = invoice.pendingFee as { feeHeadMasterId?: string | null; installmentNo?: number } | null;
-    if (!pf || !invoice.studentId || invoice.status === "CANCELLED") {
-      return { ...invoice, courseInvoices: [] };
-    }
+    if (!pf || !invoice.studentId || invoice.status === "CANCELLED") return invoice;
     const siblingIds = await FeeRepository.findSameInstallmentInvoiceIds({
       instituteId: currentUser.instituteId,
       excludeId: invoice.id,
@@ -851,7 +849,7 @@ export const FeeService = {
       feeHeadMasterId: pf.feeHeadMasterId ?? null,
       installmentNo: pf.installmentNo ?? 1,
     });
-    if (siblingIds.length === 0) return { ...invoice, courseInvoices: [] };
+    if (siblingIds.length === 0) return invoice;
 
     const siblings = (
       await Promise.all(
@@ -884,21 +882,14 @@ export const FeeService = {
 
     return {
       ...invoice,
+      // One number for the whole installment, whichever course line was opened
+      invoiceNo: all.map((inv) => inv.invoiceNo).sort()[0],
       totalAmount,
       amountPaid,
       balance,
       status,
-      courseName: all.map((inv) => inv.courseName).join(", "),
+      courseName: [...new Set(all.map((inv) => inv.courseName))].join(", "),
       allocations: [...allocationsByPayment.values()],
-      courseInvoices: all.map((inv) => ({
-        id: inv.id,
-        invoiceNo: inv.invoiceNo,
-        courseName: inv.courseName,
-        totalAmount: inv.totalAmount,
-        amountPaid: inv.amountPaid,
-        balance: inv.balance,
-        status: inv.status,
-      })),
     };
   },
 
