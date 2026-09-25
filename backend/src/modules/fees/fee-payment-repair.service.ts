@@ -1,11 +1,18 @@
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
-import { applyFifoSameHeadOnly, derivePendingStatus, startOfDay } from "./fee-balance.util";
+import {
+  applyFifoSameHeadOnly,
+  applyFifoToPendingRows,
+  derivePendingStatus,
+  reverseAmountOnPendingRow,
+  startOfDay,
+} from "./fee-balance.util";
 import { roundMoney, toMoneyNumber } from "./fee-money.util";
 import {
   linkAllocationToInvoice,
   syncInvoicesForPendingFeeIds,
 } from "./fee-invoice.service";
+import { enqueueReceiptPdfGeneration } from "./fee-receipt-pdf.service";
 import { resolveTuitionFeeHead } from "./fee-provision.service";
 import {
   isApplicationFeePayment,
@@ -692,6 +699,132 @@ async function mergeSplitInitialDownPayments(instituteId: string): Promise<numbe
 }
 
 /**
+ * Multi-course admissions used to apply the single "Initial / down payment"
+ * receipt to the oldest admission only, spilling into its installment 2 while
+ * the other courses' installment 1 stayed open. Re-apply those receipts FIFO
+ * across all of the student's admissions (same receipt, same amount).
+ */
+async function reallocateMisspreadInitialDownPayments(instituteId: string): Promise<number> {
+  const payments = await prisma.payment.findMany({
+    where: {
+      instituteId,
+      status: "SUCCESS",
+      notes: { contains: "Initial / down payment", mode: "insensitive" },
+      studentId: { not: null },
+      allocations: { some: { pendingFee: { installmentNo: { gt: 1 } } } },
+    },
+    include: { allocations: { include: { pendingFee: true } } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: 1000,
+  });
+
+  let fixed = 0;
+  for (const payment of payments) {
+    const headId = payment.allocations[0]?.pendingFee.feeHeadMasterId ?? payment.feeHeadMasterId;
+    const openFirstInstallment = await prisma.pendingFee.count({
+      where: {
+        instituteId,
+        studentId: payment.studentId!,
+        feeHeadMasterId: headId,
+        installmentNo: 1,
+        dueAmount: { gt: 0 },
+      },
+    });
+    if (openFirstInstallment === 0) continue;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const touched = new Set<string>();
+        for (const alloc of payment.allocations) {
+          const pf = await tx.pendingFee.findUniqueOrThrow({ where: { id: alloc.pendingFeeId } });
+          const reversed = reverseAmountOnPendingRow(
+            {
+              dueAmount: toMoneyNumber(pf.dueAmount),
+              amountPaid: toMoneyNumber(pf.amountPaid),
+              dueDate: pf.dueDate,
+            },
+            toMoneyNumber(alloc.amount)
+          );
+          await tx.pendingFee.update({
+            where: { id: pf.id },
+            data: {
+              amountPaid: reversed.amountPaid,
+              dueAmount: reversed.dueAmount,
+              status: reversed.status,
+              overdueDays: reversed.overdueDays,
+            },
+          });
+          touched.add(pf.id);
+        }
+        await tx.paymentAllocation.deleteMany({ where: { paymentId: payment.id } });
+
+        const open = await tx.pendingFee.findMany({
+          where: {
+            instituteId,
+            studentId: payment.studentId!,
+            feeHeadMasterId: headId,
+            dueAmount: { gt: 0 },
+          },
+          orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }, { createdAt: "asc" }],
+        });
+        const { allocations, remainingUnapplied } = applyFifoToPendingRows(
+          open.map((p) => ({
+            id: p.id,
+            dueAmount: toMoneyNumber(p.dueAmount),
+            amountPaid: toMoneyNumber(p.amountPaid),
+            dueDate: p.dueDate,
+            installmentNo: p.installmentNo,
+          })),
+          toMoneyNumber(payment.amount)
+        );
+        if (remainingUnapplied > 0.009 || allocations.length === 0) {
+          throw new Error(`Could not re-apply ₹${remainingUnapplied} of receipt`);
+        }
+
+        for (const alloc of allocations) {
+          await tx.paymentAllocation.create({
+            data: { paymentId: payment.id, pendingFeeId: alloc.row.id!, amount: alloc.applied },
+          });
+          await tx.pendingFee.update({
+            where: { id: alloc.row.id! },
+            data: {
+              amountPaid: alloc.amountPaid,
+              dueAmount: alloc.dueAmount,
+              status: alloc.status,
+              overdueDays: alloc.overdueDays,
+            },
+          });
+          await linkAllocationToInvoice(tx, payment.id, alloc.row.id!);
+          touched.add(alloc.row.id!);
+        }
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { pendingFeeId: allocations.length === 1 ? allocations[0].row.id! : null },
+        });
+        await syncInvoicesForPendingFeeIds(tx, [...touched]);
+      });
+      enqueueReceiptPdfGeneration(payment.id);
+      fixed += 1;
+      logger.info(
+        { instituteId, studentId: payment.studentId, receiptNo: payment.receiptNo },
+        "Re-applied initial down payment across all admissions"
+      );
+    } catch (err) {
+      logger.warn(
+        {
+          instituteId,
+          paymentId: payment.id,
+          receiptNo: payment.receiptNo,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        "Failed to re-apply initial down payment"
+      );
+    }
+  }
+  return fixed;
+}
+
+/**
  * Legacy admissions sometimes created SUCCESS receipts without PaymentAllocation
  * rows, so PendingFee dues never decreased. Allocate those receipts FIFO onto
  * the student's open charge lines (once per process per institute).
@@ -743,6 +876,16 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     return 0;
   });
 
+  const respreadDownPayments = await reallocateMisspreadInitialDownPayments(instituteId).catch(
+    (err) => {
+      logger.warn(
+        { instituteId, error: err instanceof Error ? err.message : String(err) },
+        "Failed down-payment re-spread repair"
+      );
+      return 0;
+    }
+  );
+
   const orphans = await prisma.payment.findMany({
     where: {
       instituteId,
@@ -759,7 +902,8 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     misattributedFixed === 0 &&
     wipedFixed === 0 &&
     redistributedFixed === 0 &&
-    mergedDownPayments === 0
+    mergedDownPayments === 0 &&
+    respreadDownPayments === 0
   ) {
     repairedInstitutes.add(instituteId);
     return 0;
@@ -770,7 +914,8 @@ export async function repairUnallocatedPayments(instituteId: string): Promise<nu
     misattributedFixed +
     wipedFixed +
     redistributedFixed +
-    mergedDownPayments;
+    mergedDownPayments +
+    respreadDownPayments;
 
   for (const payment of orphans) {
     if (!payment.studentId) continue;

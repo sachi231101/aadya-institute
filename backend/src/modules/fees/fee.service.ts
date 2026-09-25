@@ -365,11 +365,13 @@ export const FeeService = {
       return serializePayment(payment as unknown as Record<string, unknown>);
     }
 
-    // Same-head FIFO across open dues
+    // Same-head FIFO across open dues. Only scope to one admission when the
+    // caller asked for it: a multi-course student's pay-now is split across
+    // every course's first installment, not just the oldest admission.
     const openPending = await FeeRepository.findOpenPendingFeesForStudent(
       currentUser.instituteId,
       student.id,
-      { admissionId: admissionId || undefined, feeHeadMasterId: masters.feeHeadMasterId }
+      { admissionId: dto.admissionId || undefined }
     );
 
     const payment = await FeeRepository.recordFifoPayment({
@@ -835,7 +837,69 @@ export const FeeService = {
     const invoice = await FeeRepository.findStudentInvoiceById(id, currentUser.instituteId);
     if (!invoice) throw new AppError("Invoice not found", 404);
     assertBranchRecordAccess(currentUser, invoice.branchId);
-    return invoice;
+
+    // Multi-course students get one invoice per course for the same installment;
+    // show the whole installment so it matches the (merged) invoice list.
+    const pf = invoice.pendingFee as { feeHeadMasterId?: string | null; installmentNo?: number } | null;
+    if (!pf || !invoice.studentId || invoice.status === "CANCELLED") {
+      return { ...invoice, courseInvoices: [] };
+    }
+    const siblingIds = await FeeRepository.findSameInstallmentInvoiceIds({
+      instituteId: currentUser.instituteId,
+      excludeId: invoice.id,
+      studentId: invoice.studentId,
+      feeHeadMasterId: pf.feeHeadMasterId ?? null,
+      installmentNo: pf.installmentNo ?? 1,
+    });
+    if (siblingIds.length === 0) return { ...invoice, courseInvoices: [] };
+
+    const siblings = (
+      await Promise.all(
+        siblingIds.map((sid) => FeeRepository.findStudentInvoiceById(sid, currentUser.instituteId))
+      )
+    ).filter((s): s is NonNullable<typeof s> => !!s);
+    const all = [invoice, ...siblings];
+
+    const allocationsByPayment = new Map<string, (typeof invoice.allocations)[number]>();
+    for (const a of all.flatMap((inv) => inv.allocations)) {
+      const existing = allocationsByPayment.get(a.paymentId);
+      if (existing) {
+        existing.amount = roundMoney(existing.amount + a.amount);
+      } else {
+        allocationsByPayment.set(a.paymentId, { ...a });
+      }
+    }
+
+    const totalAmount = roundMoney(all.reduce((s, inv) => s + inv.totalAmount, 0));
+    const amountPaid = roundMoney(all.reduce((s, inv) => s + inv.amountPaid, 0));
+    const balance = roundMoney(all.reduce((s, inv) => s + inv.balance, 0));
+    const status =
+      balance <= 0.009
+        ? "PAID"
+        : all.some((inv) => inv.status === "OVERDUE")
+          ? "OVERDUE"
+          : amountPaid > 0
+            ? "PARTIALLY_PAID"
+            : "ISSUED";
+
+    return {
+      ...invoice,
+      totalAmount,
+      amountPaid,
+      balance,
+      status,
+      courseName: all.map((inv) => inv.courseName).join(", "),
+      allocations: [...allocationsByPayment.values()],
+      courseInvoices: all.map((inv) => ({
+        id: inv.id,
+        invoiceNo: inv.invoiceNo,
+        courseName: inv.courseName,
+        totalAmount: inv.totalAmount,
+        amountPaid: inv.amountPaid,
+        balance: inv.balance,
+        status: inv.status,
+      })),
+    };
   },
 
   async cancelStudentInvoice(currentUser: AuthUser, id: string, reason?: string) {

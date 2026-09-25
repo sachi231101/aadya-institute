@@ -4,6 +4,7 @@ import {
   applyAmountToPendingRow,
   applyFifoToPendingRows,
   applyFifoSameHeadOnly,
+  applyFifoPreferredHeadFirst,
   derivePendingStatus,
   reverseAmountOnPendingRow,
   getIstTodayDateString,
@@ -21,6 +22,47 @@ describe("Fee balance helpers", () => {
   dueSoon.setDate(dueSoon.getDate() + 10);
   const overdue = new Date();
   overdue.setDate(overdue.getDate() - 5);
+
+  test("multi-course 30,000 collection fills installment 2 of every course, then installment 3", () => {
+    const rows = [
+      { id: "c1-2", dueAmount: 12500, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "tuition" },
+      { id: "c1-3", dueAmount: 12500, amountPaid: 0, dueDate: dueSoon, installmentNo: 3, feeHeadMasterId: "tuition" },
+      { id: "c2-2", dueAmount: 6250, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "tuition" },
+      { id: "c2-3", dueAmount: 6250, amountPaid: 0, dueDate: dueSoon, installmentNo: 3, feeHeadMasterId: "tuition" },
+      { id: "c3-2", dueAmount: 1250, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "tuition" },
+    ];
+    const { allocations, remainingUnapplied } = applyFifoPreferredHeadFirst(rows, 30000, null);
+    assert.strictEqual(remainingUnapplied, 0);
+    assert.deepStrictEqual(
+      allocations.map((a) => [a.row.id, a.applied]),
+      [["c1-2", 12500], ["c2-2", 6250], ["c3-2", 1250], ["c1-3", 10000]]
+    );
+  });
+
+  test("preferred head with no dues falls back to other open heads", () => {
+    const rows = [
+      { id: "t2", dueAmount: 20000, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "tuition" },
+      { id: "t3", dueAmount: 20000, amountPaid: 0, dueDate: dueSoon, installmentNo: 3, feeHeadMasterId: "tuition" },
+    ];
+    const { allocations, remainingUnapplied } = applyFifoPreferredHeadFirst(rows, 30000, "course-fees");
+    assert.strictEqual(remainingUnapplied, 0);
+    assert.deepStrictEqual(
+      allocations.map((a) => [a.row.id, a.applied]),
+      [["t2", 20000], ["t3", 10000]]
+    );
+  });
+
+  test("preferred head is filled before other heads", () => {
+    const rows = [
+      { id: "t2", dueAmount: 20000, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "tuition" },
+      { id: "book", dueAmount: 500, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "book" },
+    ];
+    const { allocations } = applyFifoPreferredHeadFirst(rows, 1000, "book");
+    assert.deepStrictEqual(
+      allocations.map((a) => [a.row.id, a.applied]),
+      [["book", 500], ["t2", 500]]
+    );
+  });
 
   test("full collect clears installment dueAmount and marks PAID", () => {
     const result = applyAmountToPendingRow(

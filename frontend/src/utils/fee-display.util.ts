@@ -139,6 +139,34 @@ export function aggregateInvoicesByStudentAndInstallment<T extends InvoiceLike>(
   );
 }
 
+/** Receipt allocation lines: one row per fee head + installment (no course). */
+export function aggregateAllocationsByFeeHeadAndInstallment(
+  allocations: Array<{
+    amount: number | string;
+    pendingFee?: { feeHead?: string | null; installmentNo?: number | null } | null;
+  }>
+): Array<{ key: string; feeHead: string; installmentNo: number | null; amount: number }> {
+  const map = new Map<
+    string,
+    { key: string; feeHead: string; installmentNo: number | null; amount: number }
+  >();
+  for (const a of allocations) {
+    const feeHead = normalizeFeeHeadLabel(a.pendingFee?.feeHead, null);
+    const installmentNo = a.pendingFee?.installmentNo ?? null;
+    const key = `${feeHead}::${installmentNo ?? "-"}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.amount += Number(a.amount);
+    } else {
+      map.set(key, { key, feeHead, installmentNo, amount: Number(a.amount) });
+    }
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      a.feeHead.localeCompare(b.feeHead) || (a.installmentNo ?? 0) - (b.installmentNo ?? 0)
+  );
+}
+
 /** Charge lines: one row per fee head + installment (no course). */
 export function aggregateChargesByFeeHeadAndInstallment<
   T extends MoneyLike & {

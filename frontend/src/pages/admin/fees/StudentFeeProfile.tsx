@@ -22,6 +22,7 @@ import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationF
 import { getPortalBasePath } from "@/utils/portal-path";
 import {
   aggregateChargesByFeeHeadAndInstallment,
+  aggregateAllocationsByFeeHeadAndInstallment,
   aggregateInvoicesByStudentAndInstallment,
   normalizeFeeHeadLabel,
   paymentTypeLabel,
@@ -259,11 +260,6 @@ export const StudentFeeProfile: React.FC = () => {
                 </Button>
               </PermissionGate>
             )}
-            <Button variant="outline" asChild className="gap-2">
-              <Link to={`${basePath}/fees/payments?studentId=${statement.student.id}`}>
-                <Wallet className="h-4 w-4" /> Record Payment
-              </Link>
-            </Button>
           </>
         }
       />
@@ -391,11 +387,10 @@ export const StudentFeeProfile: React.FC = () => {
                       </div>
                       {(p.allocations || []).length > 0 ? (
                         <ul className="text-xs text-slate-600 space-y-1 border-t border-slate-100 pt-2">
-                          {p.allocations!.map((a) => (
-                            <li key={a.id || `${a.pendingFeeId}-${a.amount}`} className="flex justify-between gap-2">
+                          {aggregateAllocationsByFeeHeadAndInstallment(p.allocations!).map((a) => (
+                            <li key={a.key} className="flex justify-between gap-2">
                               <span>
-                                {a.pendingFee?.feeHead || "Charge"} · Inst #
-                                {a.pendingFee?.installmentNo ?? "—"}
+                                {a.feeHead} · Inst #{a.installmentNo ?? "—"}
                               </span>
                               <span className="font-medium">{formatMoney(a.amount)}</span>
                             </li>
