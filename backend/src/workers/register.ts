@@ -22,6 +22,7 @@ export const registerWorkers = async (): Promise<void> => {
     await import("../queues/recording.queue");
     await import("../queues/google-recording.queue");
     await import("../queues/ai-calling.queue");
+    await import("../queues/call-summary-embedding.queue");
     await import("../queues/automation.queue");
     await import("../queues/exam-grading.queue");
     await import("../queues/exam-expiry.queue");

@@ -12,19 +12,15 @@ export interface TestResult {
 export const testAiConnection = async (
   instituteId: string
 ): Promise<TestResult> => {
-  const row = await repo.findByInstituteAndType(instituteId, "AI");
-  const creds = decryptCredentials(row?.encryptedCredentials);
-  const apiKey = creds.apiKey || process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || "";
-  if (!apiKey) {
+  const { resolveAiCredentials } = await import("../integration.service");
+  const creds = await resolveAiCredentials(instituteId);
+  if (!creds.apiKey) {
     return { success: false, message: "API key is not configured" };
   }
-  const baseUrl =
-    (row?.configuration as { baseUrl?: string } | null)?.baseUrl ||
-    process.env.LLM_BASE_URL ||
-    "https://api.openai.com/v1";
+  const baseUrl = creds.baseUrl.replace(/\/$/, "");
   try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+    const res = await fetch(`${baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${creds.apiKey}` },
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {

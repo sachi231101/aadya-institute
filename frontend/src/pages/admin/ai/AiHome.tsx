@@ -96,7 +96,7 @@ export const AiHome: React.FC = () => {
       center: {
         greeting: `How can I help you today, ${firstName || "Center Manager"}?`,
         subtitle: `Ask anything about ${branchName} operations.`,
-        placeholder: `Ask about ${branchName}...`,
+        placeholder: `Ask about ${branchName} — e.g. student details for a name or phone...`,
         quickActions: [
           {
             id: "cm-1",
@@ -112,8 +112,8 @@ export const AiHome: React.FC = () => {
           },
           {
             id: "cm-3",
-            label: "Students needing attention",
-            query: `Show students with low attendance in ${branchName}`,
+            label: "Find student details",
+            query: `Show full student details for a student in ${branchName} — I will give the name or phone`,
             icon: Users,
           },
           {
@@ -220,7 +220,7 @@ export const AiHome: React.FC = () => {
       admin: {
         greeting: `How can I help you today, ${firstName || "Admin"}?`,
         subtitle: "Ask anything about your institute.",
-        placeholder: "Ask anything about your institute...",
+        placeholder: "Ask anything — e.g. student details for Rahul or 9876543210...",
         quickActions: [
           {
             id: "a-1",
@@ -236,8 +236,8 @@ export const AiHome: React.FC = () => {
           },
           {
             id: "a-3",
-            label: "Student insights",
-            query: "Show students at risk of discontinuation",
+            label: "Find student details",
+            query: "Show full student details — ask me for a name or phone number",
             icon: GraduationCap,
           },
           {

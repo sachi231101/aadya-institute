@@ -3,6 +3,9 @@ export interface ActiveSessionItem {
   tokenHashPreview: string;
   expiresAt: string;
   createdAt: string;
+  lastSeenAt: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 export interface UserSettingsResponse {

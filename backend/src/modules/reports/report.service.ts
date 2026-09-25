@@ -6,6 +6,7 @@ import { getDiscontinuationRisk } from "../attendance/attendance.service";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   StudentReportResponse,
+  StudentReportFilters,
   FacultyReportResponse,
   FacultyReportFilters,
   CourseReportResponse,
@@ -27,10 +28,10 @@ export class ReportService {
    */
   static async getStudentReport(
     instituteId: string,
-    branchScope?: string | StudentReportBranchScope
+    branchScope?: string | StudentReportFilters | StudentReportBranchScope
   ): Promise<StudentReportResponse> {
-    const scope =
-      typeof branchScope === "string" ? { branchId: branchScope } : branchScope;
+    const scope: StudentReportFilters =
+      typeof branchScope === "string" ? { branchId: branchScope } : branchScope || {};
     return ReportRepository.getStudentReportData(instituteId, scope);
   }
 

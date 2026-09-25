@@ -57,6 +57,9 @@ export class SettingsRepository {
       tokenHashPreview: `••••${rt.tokenHash.slice(-6)}`,
       expiresAt: rt.expiresAt.toISOString(),
       createdAt: rt.createdAt.toISOString(),
+      lastSeenAt: rt.lastSeenAt ? rt.lastSeenAt.toISOString() : null,
+      ipAddress: rt.ipAddress ?? null,
+      userAgent: rt.userAgent ?? null,
     }));
 
     return {

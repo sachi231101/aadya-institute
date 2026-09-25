@@ -354,6 +354,7 @@ export const IntegrationDetail: React.FC = () => {
         setMessage("Dialer settings saved. Voice Agent is managed in the Sarvam dashboard.");
       } else {
         await upsert.mutateAsync({
+          ...(type === "AI" ? { provider: "GEMINI" } : {}),
           isEnabled,
           configuration: config,
           ...(Object.keys(credentials).length ? { credentials } : {}),
@@ -653,9 +654,9 @@ export const IntegrationDetail: React.FC = () => {
                   <div>
                     <Label>Model</Label>
                     <Input
-                      value={String(config.model ?? "gpt-4o-mini")}
+                      value={String(config.model ?? "gemini-3.8-flash")}
                       onChange={setConfigField("model")}
-                      placeholder="gpt-4o-mini"
+                      placeholder="gemini-3.8-flash"
                     />
                   </div>
                   <div>
@@ -663,11 +664,14 @@ export const IntegrationDetail: React.FC = () => {
                     <Input
                       value={String(config.baseUrl ?? "")}
                       onChange={setConfigField("baseUrl")}
-                      placeholder="https://api.openai.com/v1"
+                      placeholder="https://generativelanguage.googleapis.com/v1beta/openai"
                     />
+                    <p className="text-xs text-text-secondary mt-1">
+                      Leave blank to use Gemini&apos;s OpenAI-compatible endpoint. Provider defaults to GEMINI.
+                    </p>
                   </div>
                   <SecretField
-                    label="API Key"
+                    label="Gemini API Key"
                     configured={hasCredential && !replaceSecrets.apiKey}
                     value={secrets.apiKey ?? ""}
                     onChange={setSecret("apiKey")}

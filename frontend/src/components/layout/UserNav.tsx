@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/auth.store";
-import { User, Settings, LogOut, ChevronDown } from "lucide-react";
+import { Settings, LogOut, ChevronDown } from "lucide-react";
 
 interface UserNavProps {
   className?: string;
@@ -29,15 +29,6 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
   const email = user?.email || "admin@aadya.in";
   const role = (user?.roles?.[0] || user?.role || "ADMIN").toUpperCase();
   const initial = (name.charAt(0) || "A").toUpperCase();
-
-  // Role-based profile link
-  const getProfilePath = () => {
-    if (role.includes("STUDENT")) return "/student/profile";
-    if (role.includes("FACULTY")) return "/faculty/home";
-    if (role.includes("COUNSELLOR")) return "/counselor/dashboard";
-    if (role.includes("CENTER_MANAGER")) return "/center/home";
-    return "/admin/settings";
-  };
 
   return (
     <DropdownMenu>
@@ -82,27 +73,20 @@ export const UserNav: React.FC<UserNavProps> = ({ className = "" }) => {
 
         <DropdownMenuSeparator className="my-1 bg-border/60" />
 
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            onClick={() => navigate(getProfilePath())}
-            className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg cursor-pointer hover:bg-accent focus:bg-accent transition-colors"
-          >
-            <User size={14} className="text-muted-foreground" />
-            <span>Profile & Account</span>
-          </DropdownMenuItem>
-
-          {role.includes("ADMIN") && (
-            <DropdownMenuItem
-              onClick={() => navigate("/admin/settings")}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg cursor-pointer hover:bg-accent focus:bg-accent transition-colors"
-            >
-              <Settings size={14} className="text-muted-foreground" />
-              <span>Platform Settings</span>
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuGroup>
-
-        <DropdownMenuSeparator className="my-1 bg-border/60" />
+        {role.includes("ADMIN") && (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => navigate("/admin/settings")}
+                className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg cursor-pointer hover:bg-accent focus:bg-accent transition-colors"
+              >
+                <Settings size={14} className="text-muted-foreground" />
+                <span>Platform Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator className="my-1 bg-border/60" />
+          </>
+        )}
 
         <DropdownMenuItem
           onClick={handleLogout}

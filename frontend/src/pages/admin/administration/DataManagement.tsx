@@ -1,123 +1,66 @@
 ﻿import React, { useState } from "react";
 import {
   Database,
-  Upload,
   Download,
   Trash2,
   ShieldCheck,
   Loader2,
   AlertCircle,
   RotateCcw,
-  FileSpreadsheet,
+  AlertTriangle,
 } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/layout";
 import {
-  useImportJobs,
   useDeletedRecords,
   useBackupStatus,
-  usePreviewImport,
-  useConfirmImport,
   useExportData,
   useRestoreBranch,
 } from "@/hooks/useDataManagement";
-import { dataManagementApi, type ImportEntityType, type ExportEntityType } from "@/services/data-management.api";
+import { type ExportEntityType } from "@/services/data-management.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
+
+type RestoreBranchTarget = { id: string; name: string; code: string };
+
+/** Soft-delete mangles codes as `CODE__del__id`; show the original for UI. */
+const displayBranchCode = (code: string) => code.split("__del__")[0] || code;
 
 export const DataManagement: React.FC = () => {
   const { token } = useAuthStore();
-  const [entityType, setEntityType] = useState<ImportEntityType>("students");
   const [exportType, setExportType] = useState<ExportEntityType>("students");
-  const [csvText, setCsvText] = useState("");
-  const [fileName, setFileName] = useState<string | undefined>();
-  const [preview, setPreview] = useState<{
-    jobId: string;
-    totalRows: number;
-    validRows: number;
-    errorRows: number;
-    preview: Record<string, string>[];
-    errors: Array<{ row: number; field?: string; message: string }>;
-  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<RestoreBranchTarget | null>(null);
 
-  const { data: importsData, isLoading: importsLoading, refetch: refetchImports } = useImportJobs({ limit: 20 });
   const { data: deletedData, isLoading: deletedLoading, refetch: refetchDeleted } = useDeletedRecords();
   const { data: backupData, isLoading: backupLoading, refetch: refetchBackup } = useBackupStatus();
 
-  const previewMutation = usePreviewImport();
-  const confirmMutation = useConfirmImport();
   const exportMutation = useExportData();
   const restoreMutation = useRestoreBranch();
 
-  const importJobs = importsData?.data?.data || importsData?.data || [];
   const deletedBranches = deletedData?.data?.branches || [];
   const blockedUsers = deletedData?.data?.users || [];
   const backup = backupData?.data;
 
-  const handleFile = async (file: File | null) => {
-    if (!file) return;
-    setFileName(file.name);
-    const text = await file.text();
-    setCsvText(text);
-    setPreview(null);
-  };
-
-  const handleDownloadTemplate = async () => {
+  const handleConfirmRestore = async () => {
+    if (!restoreTarget) return;
     try {
-      const res = await dataManagementApi.getTemplate(entityType);
-      const csv = res.data?.csv || "";
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = res.data?.fileName || `${entityType}-template.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      setMessage("Failed to download template");
-    }
-  };
-
-  const handlePreview = async () => {
-    if (!csvText.trim()) {
-      setMessage("Paste or upload CSV content first");
-      return;
-    }
-    try {
-      const res = await previewMutation.mutateAsync({ entityType, csv: csvText, fileName });
-      setPreview(res.data);
-      setMessage(`Preview ready: ${res.data.validRows} valid / ${res.data.errorRows} errors`);
-      refetchImports();
+      await restoreMutation.mutateAsync(restoreTarget.id);
+      setMessage(`Branch "${restoreTarget.name}" restored successfully.`);
+      setRestoreTarget(null);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Preview failed";
-      setMessage(msg);
-    }
-  };
-
-  const handleConfirm = async () => {
-    if (!preview?.jobId) return;
-    try {
-      const res = await confirmMutation.mutateAsync(preview.jobId);
-      setMessage(`Import ${res.data?.status || "completed"}`);
-      setPreview(null);
-      setCsvText("");
-      refetchImports();
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Confirm failed";
+        "Failed to restore branch";
       setMessage(msg);
     }
   };
@@ -156,7 +99,7 @@ export const DataManagement: React.FC = () => {
             <Database className="w-6 h-6" /> Data Management
           </span>
         }
-        description="Import, export, restore soft-deleted records, and view backup health."
+        description="Export data, restore soft-deleted records, and view backup health."
       />
 
       {message && (
@@ -165,135 +108,6 @@ export const DataManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Import */}
-      <Card className="border-border/50">
-        <CardContent className="p-6 space-y-4">
-          <h3 className="font-bold flex items-center gap-2">
-            <Upload className="w-4 h-4" /> Import
-          </h3>
-          <div className="flex flex-wrap gap-2 items-center">
-            <select
-              className="border rounded-lg px-3 py-2 text-sm"
-              value={entityType}
-              onChange={(e) => {
-                setEntityType(e.target.value as ImportEntityType);
-                setPreview(null);
-              }}
-            >
-              <option value="students">Students</option>
-              <option value="leads">Leads</option>
-              <option value="users">Users</option>
-            </select>
-            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-              <FileSpreadsheet className="w-4 h-4 mr-1" /> Template
-            </Button>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="text-sm"
-              onChange={(e) => handleFile(e.target.files?.[0] || null)}
-            />
-          </div>
-          <textarea
-            className="w-full min-h-[120px] border rounded-xl p-3 text-xs font-mono"
-            placeholder="Paste CSV content here..."
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <Button
-              className="bg-primary text-white"
-              size="sm"
-              onClick={handlePreview}
-              disabled={previewMutation.isPending}
-            >
-              {previewMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              Preview
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleConfirm}
-              disabled={!preview?.jobId || confirmMutation.isPending || (preview?.validRows ?? 0) === 0}
-            >
-              {confirmMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              Confirm Import
-            </Button>
-          </div>
-          {preview && (
-            <div className="space-y-2 text-sm">
-              <p>
-                Rows: {preview.totalRows} · Valid: {preview.validRows} · Errors: {preview.errorRows}
-              </p>
-              {preview.errors.length > 0 && (
-                <div className="text-red-600 text-xs space-y-1 max-h-28 overflow-auto">
-                  {preview.errors.slice(0, 10).map((e, i) => (
-                    <div key={i}>
-                      Row {e.row}
-                      {e.field ? ` (${e.field})` : ""}: {e.message}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Recent Import Jobs</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Rows</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importsLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6">
-                      <Loader2 className="w-4 h-4 animate-spin inline" />
-                    </TableCell>
-                  </TableRow>
-                ) : !Array.isArray(importJobs) || importJobs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-text-secondary">
-                      No import jobs yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  importJobs.map(
-                    (job: {
-                      id: string;
-                      entityType: string;
-                      status: string;
-                      totalRows: number;
-                      successRows: number;
-                      errorRows: number;
-                      createdAt: string;
-                    }) => (
-                      <TableRow key={job.id}>
-                        <TableCell>{job.entityType}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{job.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {job.successRows}/{job.totalRows}
-                          {job.errorRows > 0 ? ` (${job.errorRows} err)` : ""}
-                        </TableCell>
-                        <TableCell>{new Date(job.createdAt).toLocaleString("en-IN")}</TableCell>
-                      </TableRow>
-                    )
-                  )
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 2. Export */}
       <Card className="border-border/50">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-bold flex items-center gap-2">
@@ -323,7 +137,6 @@ export const DataManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 3. Soft-deleted / blocked */}
       <Card className="border-border/50">
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -345,14 +158,21 @@ export const DataManagement: React.FC = () => {
                 ) : (
                   <ul className="space-y-2">
                     {deletedBranches.map((b: { id: string; name: string; code: string }) => (
-                      <li key={b.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm">
-                        <span>
-                          {b.name} <span className="text-text-secondary">({b.code})</span>
+                      <li
+                        key={b.id}
+                        className="flex items-center justify-between gap-3 border rounded-lg px-3 py-2 text-sm min-w-0"
+                      >
+                        <span className="min-w-0 flex-1 break-words">
+                          <span className="font-medium">{b.name}</span>{" "}
+                          <span className="text-text-secondary break-all">
+                            ({displayBranchCode(b.code)})
+                          </span>
                         </span>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => restoreMutation.mutate(b.id)}
+                          className="shrink-0"
+                          onClick={() => setRestoreTarget(b)}
                           disabled={restoreMutation.isPending}
                         >
                           <RotateCcw className="w-3 h-3 mr-1" /> Restore
@@ -382,7 +202,6 @@ export const DataManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 4. Backup status */}
       <Card className="border-border/50">
         <CardContent className="p-6 space-y-3">
           <div className="flex items-center justify-between">
@@ -421,6 +240,53 @@ export const DataManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(restoreTarget)}
+        onOpenChange={(open) => {
+          if (!open && !restoreMutation.isPending) setRestoreTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Restore
+            </DialogTitle>
+            <DialogDescription>
+              Restore branch <strong>"{restoreTarget?.name}"</strong>
+              {restoreTarget?.code ? (
+                <>
+                  {" "}
+                  (<span className="font-mono text-xs">{displayBranchCode(restoreTarget.code)}</span>)
+                </>
+              ) : null}
+              ? It will become active again and available across the application.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRestoreTarget(null)}
+              disabled={restoreMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-white"
+              onClick={handleConfirmRestore}
+              disabled={restoreMutation.isPending}
+            >
+              {restoreMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-1" />
+              )}
+              Restore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };

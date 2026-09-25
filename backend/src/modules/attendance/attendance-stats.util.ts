@@ -27,7 +27,7 @@ export const computeAttendancePercentage = (presentCount: number, conductedCount
  */
 export const computeStudentAttendanceSummaries = async (
   studentIds: string[],
-  options?: { batchIds?: string[] }
+  options?: { batchIds?: string[]; dateFrom?: string; dateTo?: string }
 ): Promise<Map<string, StudentAttendanceSummary>> => {
   const result = new Map<string, StudentAttendanceSummary>();
   for (const id of studentIds) {
@@ -58,11 +58,26 @@ export const computeStudentAttendanceSummaries = async (
 
   if (allBatchIds.size === 0) return result;
 
+  const scheduledDateFilter =
+    options?.dateFrom || options?.dateTo
+      ? {
+          scheduledDate: {
+            ...(options.dateFrom
+              ? { gte: new Date(`${options.dateFrom}T00:00:00.000Z`) }
+              : {}),
+            ...(options.dateTo
+              ? { lte: new Date(`${options.dateTo}T23:59:59.999Z`) }
+              : {}),
+          },
+        }
+      : {};
+
   const sessions = await prisma.classSession.findMany({
     where: {
       batchId: { in: [...allBatchIds] },
       status: "ACTIVE",
       sessionStatus: { not: "CANCELLED" },
+      ...scheduledDateFilter,
       OR: [
         { sessionStatus: { in: ["COMPLETED", "LIVE"] } },
         { attendance: { some: {} } },
@@ -109,7 +124,7 @@ export const computeStudentAttendanceSummaries = async (
 
 export const computeStudentAttendanceSummary = async (
   studentId: string,
-  options?: { batchIds?: string[] }
+  options?: { batchIds?: string[]; dateFrom?: string; dateTo?: string }
 ): Promise<StudentAttendanceSummary> => {
   const map = await computeStudentAttendanceSummaries([studentId], options);
   return map.get(studentId) ?? emptyAttendanceSummary();

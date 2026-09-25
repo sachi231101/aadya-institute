@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import {
   User as UserIcon,
   Lock,
@@ -16,13 +16,13 @@ import {
   Camera,
   RotateCcw,
   Save,
-  ShieldCheck,
   ChevronRight,
-  Download,
   Laptop,
   Check,
   Smartphone,
+  Loader2,
 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/auth.store";
 import { Link } from "react-router-dom";
 import {
@@ -33,6 +33,7 @@ import {
   useUpdateSystem,
   useRevokeSession,
 } from "../../../hooks/useSettings";
+import { securityApi, type SecuritySession } from "@/services/security.api";
 import { Card } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Input } from "@/components/ui/input";
@@ -43,17 +44,63 @@ import { useUIStore } from "@/store/ui.store";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+
+const getStoredRefreshToken = () => {
+  try {
+    return (
+      localStorage.getItem("refreshToken") ||
+      sessionStorage.getItem("refreshToken") ||
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+function formatDeviceLabel(userAgent: string | null | undefined): {
+  label: string;
+  kind: "mobile" | "desktop";
+} {
+  if (!userAgent?.trim()) {
+    return { label: "Unknown device", kind: "desktop" };
+  }
+  const ua = userAgent;
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+  let browser = "Browser";
+  if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = "Chrome";
+  else if (/Firefox\//i.test(ua)) browser = "Firefox";
+  else if (/Safari\//i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+
+  let os = "";
+  if (/Windows NT/i.test(ua)) os = "Windows";
+  else if (/Mac OS X/i.test(ua)) os = "macOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/iPhone|iPad/i.test(ua)) os = "iOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  return {
+    label: os ? `${browser} on ${os}` : browser,
+    kind: isMobile ? "mobile" : "desktop",
+  };
+}
+
+function formatLastSeen(iso: string | null | undefined, createdAt: string): string {
+  const raw = iso || createdAt;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Active just now";
+  if (mins < 60) return `Last active ${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Last active ${hours}h ago`;
+  return `Last active ${date.toLocaleString("en-IN")}`;
+}
 
 export const Settings: React.FC = () => {
   const { user: authUser, updateUser } = useAuthStore();
+  const queryClient = useQueryClient();
   const { data } = useGetSettings();
 
   const updatePersonalMutation = useUpdatePersonal();
@@ -64,8 +111,37 @@ export const Settings: React.FC = () => {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    "personal" | "security" | "notifications" | "system" | "sessions" | "permissions"
+    "personal" | "security" | "notifications" | "system" | "sessions"
   >("personal");
+
+  const sessionsQuery = useQuery({
+    queryKey: ["security", "sessions", "mine"],
+    queryFn: () => securityApi.getSessions(getStoredRefreshToken()),
+    enabled: activeTab === "sessions",
+  });
+
+  const mySessions = useMemo(() => {
+    const all = sessionsQuery.data ?? [];
+    if (!authUser?.id) return all;
+    return all.filter((s: SecuritySession) => s.userId === authUser.id);
+  }, [sessionsQuery.data, authUser?.id]);
+
+  const logoutOthersMutation = useMutation({
+    mutationFn: () => securityApi.logoutOtherSessions(getStoredRefreshToken()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["security", "sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setToastMessage("✓ Other sessions signed out.");
+      setTimeout(() => setToastMessage(null), 3000);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to sign out other sessions.";
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(null), 3000);
+    },
+  });
 
   // Personal Information State (matching exact mockup defaults)
   const [fullName, setFullName] = useState("Aadya Admin");
@@ -87,7 +163,6 @@ export const Settings: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   // Notification Preferences State
   const [emailAdmissions, setEmailAdmissions] = useState(true);
@@ -186,7 +261,6 @@ export const Settings: React.FC = () => {
       { currentPassword, newPassword },
       {
         onSuccess: () => {
-          setIsPasswordModalOpen(false);
           setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
@@ -199,46 +273,6 @@ export const Settings: React.FC = () => {
         },
       }
     );
-  };
-
-  const handleDownloadMyData = () => {
-    const profileData = {
-      user: {
-        name: fullName,
-        email,
-        phone: mobileNumber,
-        alternateEmail,
-        designation,
-        department,
-        branch,
-        employeeId,
-        dateOfBirth,
-        gender,
-        address,
-      },
-      account: {
-        role: "ADMIN",
-        status: "Active",
-        verified: true,
-        memberSince: "12 Jan 2023",
-        lastLogin: "24 Aug 2026, 10:45 AM",
-      },
-      exportedAt: new Date().toISOString(),
-    };
-
-    const blob = new Blob([JSON.stringify(profileData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Aadya_Admin_Profile_Data_${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setToastMessage("✓ Profile data exported successfully.");
-    setTimeout(() => setToastMessage(null), 3000);
   };
 
   return (
@@ -331,18 +365,6 @@ export const Settings: React.FC = () => {
           <Monitor className="h-4 w-4" />
           <span>Active Sessions</span>
         </button>
-
-        <button
-          onClick={() => setActiveTab("permissions")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "permissions"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <ShieldCheck className="h-4 w-4 text-purple-600" />
-          <span>Roles & Permissions</span>
-        </button>
       </div>
 
       {/* ─── 3. REDESIGNED PROFILE HEADER CARD ──────────────────────────── */}
@@ -352,8 +374,6 @@ export const Settings: React.FC = () => {
             {/* Dark Patterned Avatar Box */}
             <div className="relative shrink-0">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] flex items-center justify-center text-white shadow-md relative overflow-hidden border border-slate-700">
-                {/* Subtle Geometric Pattern Overlay */}
-                <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:8px_8px]" />
                 <span className="text-2xl sm:text-3xl font-bold tracking-wider text-white relative z-10">
                   AA
                 </span>
@@ -552,7 +572,7 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
 
-              {/* Employee ID (System-oriented official identifier field) */}
+              {/* Employee ID — system-assigned, not editable */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
                   Employee ID
@@ -563,10 +583,12 @@ export const Settings: React.FC = () => {
                   </div>
                   <Input
                     value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
-                    className="h-10 pl-11 bg-slate-100/80 border-slate-200 text-slate-800 font-mono font-bold text-xs rounded-xl"
+                    readOnly
+                    disabled
+                    className="h-10 pl-11 bg-slate-100/80 border-slate-200 text-slate-800 font-mono font-bold text-xs rounded-xl cursor-not-allowed opacity-90"
                   />
                 </div>
+                <p className="text-[10px] text-slate-400">System-assigned — cannot be changed</p>
               </div>
 
               {/* Date of Birth */}
@@ -624,9 +646,8 @@ export const Settings: React.FC = () => {
             </div>
           </Card>
 
-          {/* Right Column (1/3 width): Profile Summary & Quick Actions */}
+          {/* Right Column (1/3 width): Profile Summary */}
           <div className="space-y-5">
-            {/* 1. Profile Summary Card */}
             <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <UserIcon className="h-4 w-4 text-primary" />
@@ -664,66 +685,6 @@ export const Settings: React.FC = () => {
                     <Check className="h-3.5 w-3.5 stroke-[3]" /> Verified
                   </span>
                 </div>
-              </div>
-            </Card>
-
-            {/* 2. Quick Actions Card */}
-            <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Quick Actions
-                </h3>
-              </div>
-
-              <div className="space-y-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsPasswordModalOpen(true)}
-                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
-                      <Lock className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
-                      Change Password
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-700" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("sessions")}
-                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
-                      <Monitor className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
-                      Manage Sessions
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-700" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadMyData}
-                  className="w-full p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-primary">
-                      <Download className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-primary">
-                      Download My Data
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-700" />
-                </button>
               </div>
             </Card>
           </div>
@@ -967,171 +928,123 @@ export const Settings: React.FC = () => {
       {/* ─── TAB 5: ACTIVE SESSIONS ─────────────────────────────────────── */}
       {activeTab === "sessions" && (
         <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 shrink-0">
-              <Monitor className="h-5 w-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-slate-900 tracking-tight">
-                Active Devices & Sessions
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                View devices currently signed into your administrator account.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 divide-y divide-slate-100 text-xs">
-            <div className="pt-2 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-100 text-slate-700">
-                  <Laptop className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Chrome on Windows 11</span>
-                    <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
-                      CURRENT SESSION
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-500">Bengaluru, India • IP: 103.212.14.82</span>
-                </div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 shrink-0">
+                <Monitor className="h-5 w-5 stroke-[2.2]" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 tracking-tight">
+                  Active Devices & Sessions
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Devices currently signed into your account (from live refresh tokens).
+                </p>
               </div>
             </div>
-
-            <div className="pt-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-100 text-slate-700">
-                  <Smartphone className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 block">Safari on iPhone 15 Pro</span>
-                  <span className="text-[11px] text-slate-500">Bengaluru, India • Last active 2 hours ago</span>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  revokeSessionMutation.mutate("sess-iphone", {
-                    onSuccess: () => {
-                      setToastMessage("✓ Revoked iPhone session successfully.");
-                      setTimeout(() => setToastMessage(null), 3000);
-                    },
-                    onError: () => {
-                      setToastMessage("✓ Session revoked.");
-                      setTimeout(() => setToastMessage(null), 3000);
-                    },
-                  });
-                }}
-                className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg cursor-pointer"
-              >
-                Revoke
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* ─── 4F. TAB 6: ROLES & PERMISSIONS (EXAMINATION SYSTEM) ─────────── */}
-      {activeTab === "permissions" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 sm:p-7 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-purple-600" />
-                Examination Roles & Granular RBAC Permissions
-              </h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Review and configure system-wide access controls, role inheritance, and granular examination rights.
-              </p>
-            </div>
-
             <Button
-              size="sm"
               variant="outline"
-              onClick={() => {
-                window.location.href = "/admin/counselor/all";
-              }}
-              className="text-xs text-purple-700 border-purple-200 hover:bg-purple-50 shrink-0 gap-1.5"
+              size="sm"
+              disabled={
+                logoutOthersMutation.isPending ||
+                mySessions.filter((s) => !s.isCurrent).length === 0
+              }
+              onClick={() => logoutOthersMutation.mutate()}
+              className="h-8 text-xs shrink-0"
             >
-              <Briefcase className="h-3.5 w-3.5" />
-              Manage Staff Permissions
+              {logoutOthersMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : null}
+              Sign out others
             </Button>
           </div>
 
-          {/* Role Hierarchy Overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-100 space-y-1">
-              <span className="text-[10px] font-semibold uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                ADMIN
-              </span>
-              <p className="text-xs font-bold text-slate-900 pt-1">Full Institute Scope</p>
-              <p className="text-[11px] text-slate-500">
-                Unrestricted access to all exams, banks, questions, scheduling, publishing, and delete actions.
-              </p>
+          {sessionsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-500 text-sm gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading sessions...
             </div>
-
-            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-1">
-              <span className="text-[10px] font-semibold uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                CENTER MANAGER
-              </span>
-              <p className="text-xs font-bold text-slate-900 pt-1">Branch Isolated Scope</p>
-              <p className="text-[11px] text-slate-500">
-                Create, schedule, assign batches, and manage question banks for their designated branch.
-              </p>
+          ) : sessionsQuery.isError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              Could not load sessions. Try again or open Administration → Security.
             </div>
-
-            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1">
-              <span className="text-[10px] font-semibold uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                COUNSELLOR / FACULTY
-              </span>
-              <p className="text-xs font-bold text-slate-900 pt-1">Configurable Access</p>
-              <p className="text-[11px] text-slate-500">
-                Default read access. Admins can grant authoring and question bank rights via user management.
-              </p>
+          ) : mySessions.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 px-3 py-8 text-center text-xs text-slate-500">
+              No active sessions found for your account.
             </div>
-          </div>
-
-          {/* Granular Permissions Breakdown */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase text-slate-700 tracking-wider">
-              Examination Permission Dictionary
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { name: "exam.read", desc: "View examinations, status, and metadata", roles: "ADMIN, CM, COUNSELLOR, FACULTY" },
-                { name: "exam.create", desc: "Create new examination drafts and configure rules", roles: "ADMIN, CM" },
-                { name: "exam.update", desc: "Update details, duration, passing marks, and instructions", roles: "ADMIN, CM" },
-                { name: "exam.publish", desc: "Publish draft exams after pre-flight readiness checklist", roles: "ADMIN, CM" },
-                { name: "exam.schedule", desc: "Set start/end live windows and submission deadlines", roles: "ADMIN, CM" },
-                { name: "exam.assign", desc: "Assign and unassign student batches to examinations", roles: "ADMIN, CM" },
-                { name: "exam.manage_questions", desc: "Add, remove, and reorder questions inside exams", roles: "ADMIN, CM" },
-                { name: "exam.manage_question_bank", desc: "Create, update, and manage question banks", roles: "ADMIN, CM" },
-                { name: "exam.manage_settings", desc: "Configure proctoring, fullscreen, and anti-cheat parameters", roles: "ADMIN" },
-                { name: "question.read", desc: "Browse questions catalog and options", roles: "ADMIN, CM, COUNSELLOR, FACULTY" },
-                { name: "question.create", desc: "Author single/multiple choice, numerical, or descriptive questions", roles: "ADMIN, CM" },
-                { name: "question.update", desc: "Update question text, correct answers, and scoring", roles: "ADMIN, CM" },
-                { name: "question.delete", desc: "Delete questions not in use by any exam", roles: "ADMIN, CM" },
-                { name: "question_bank.create", desc: "Create subject-specific question repositories", roles: "ADMIN, CM" },
-              ].map((perm) => (
-                <div
-                  key={perm.name}
-                  className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col justify-between gap-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <code className="text-[11px] font-bold text-purple-700 bg-purple-100/70 px-1.5 py-0.5 rounded">
-                      {perm.name}
-                    </code>
-                    <span className="text-[10px] font-semibold text-slate-400">
-                      {perm.roles}
-                    </span>
+          ) : (
+            <div className="space-y-3 divide-y divide-slate-100 text-xs">
+              {mySessions.map((session) => {
+                const device = formatDeviceLabel(session.userAgent);
+                const Icon = device.kind === "mobile" ? Smartphone : Laptop;
+                return (
+                  <div
+                    key={session.id}
+                    className="pt-3 first:pt-2 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 rounded-xl bg-slate-100 text-slate-700 shrink-0">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900">{device.label}</span>
+                          {session.isCurrent ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                              CURRENT SESSION
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="text-[11px] text-slate-500 block truncate">
+                          {session.ipAddress ? `IP: ${session.ipAddress}` : "IP: —"}
+                          {" • "}
+                          {session.isCurrent
+                            ? "This device"
+                            : formatLastSeen(session.lastSeenAt, session.createdAt)}
+                        </span>
+                        {session.userAgent ? (
+                          <span
+                            className="text-[10px] text-slate-400 block truncate max-w-[420px]"
+                            title={session.userAgent}
+                          >
+                            {session.userAgent}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    {!session.isCurrent ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={revokeSessionMutation.isPending}
+                        onClick={() => {
+                          revokeSessionMutation.mutate(session.id, {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({
+                                queryKey: ["security", "sessions"],
+                              });
+                              setToastMessage("✓ Session revoked.");
+                              setTimeout(() => setToastMessage(null), 3000);
+                            },
+                            onError: (err: unknown) => {
+                              const msg =
+                                (err as { response?: { data?: { message?: string } } })
+                                  ?.response?.data?.message || "Failed to revoke session.";
+                              setToastMessage(msg);
+                              setTimeout(() => setToastMessage(null), 3000);
+                            },
+                          });
+                        }}
+                        className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 rounded-lg cursor-pointer shrink-0"
+                      >
+                        Revoke
+                      </Button>
+                    ) : null}
                   </div>
-                  <p className="text-[11px] text-slate-600 mt-1">{perm.desc}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
+          )}
         </Card>
       )}
 
@@ -1168,72 +1081,6 @@ export const Settings: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      {/* ─── MODAL: CHANGE PASSWORD MODAL ───────────────────────────────── */}
-      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-xl p-6 border-slate-200 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-slate-900">
-              Change Administrator Password
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
-              Enter your current password and choose a secure new password.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3.5 my-3 text-xs">
-            <div className="space-y-1">
-              <Label className="text-[11px] font-bold text-slate-700">Current Password *</Label>
-              <Input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-9 text-xs rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[11px] font-bold text-slate-700">New Password *</Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-9 text-xs rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[11px] font-bold text-slate-700">Confirm New Password *</Label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="h-9 text-xs rounded-xl"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsPasswordModalOpen(false)}
-              className="text-xs font-bold rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleChangePasswordSubmit}
-              disabled={changePasswordMutation.isPending}
-              className="bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl"
-            >
-              Update Password
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </PageContainer>
   );
 };

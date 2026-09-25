@@ -12,10 +12,11 @@ import {
   fetchWhatsappNumberService,
   getIntegrationService,
   listIntegrationsService,
+  resolveAiCredentials,
   testIntegrationService,
   upsertIntegrationService,
 } from "../modules/integrations/integration.service";
-import { INTEGRATION_TYPES } from "../modules/integrations/integration.types";
+import { INTEGRATION_CATALOG, INTEGRATION_TYPES } from "../modules/integrations/integration.types";
 import { schemaForType } from "../modules/integrations/integration.validation";
 import integrationRoutes from "../modules/integrations/integration.routes";
 import { AppError } from "../middlewares/error.middleware";
@@ -33,7 +34,19 @@ describe("Integration credentials utilities", () => {
     assert.ok(masked!.endsWith("1234"));
   });
 
+  test("AI catalog defaults to GEMINI and still lists OPENAI", () => {
+    assert.strictEqual(INTEGRATION_CATALOG.AI.defaultProvider, "GEMINI");
+    assert.deepStrictEqual(INTEGRATION_CATALOG.AI.providers, ["GEMINI", "OPENAI"]);
+  });
+
   test("upsert schemas accept type-specific payloads", () => {
+    assert.ok(
+      schemaForType("AI").safeParse({
+        provider: "GEMINI",
+        credentials: { apiKey: "AIza-test" },
+        configuration: { model: "gemini-3.8-flash" },
+      }).success
+    );
     assert.ok(
       schemaForType("AI").safeParse({
         provider: "OPENAI",
@@ -219,6 +232,45 @@ describe("Integrations service", () => {
     assert.ok(!row!.encryptedCredentials!.includes(secret));
     const decrypted = decryptCredentials(row!.encryptedCredentials);
     assert.strictEqual(decrypted.apiKey, secret);
+  });
+
+  test("resolveAiCredentials uses Gemini defaults when provider is GEMINI", async () => {
+    const prevBase = process.env.LLM_BASE_URL;
+    const prevModel = process.env.LLM_MODEL;
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevLlm = process.env.LLM_API_KEY;
+    delete process.env.LLM_BASE_URL;
+    delete process.env.LLM_MODEL;
+    process.env.GEMINI_API_KEY = "gemini-env-key-test";
+    delete process.env.LLM_API_KEY;
+
+    try {
+      await upsertIntegrationService(adminA, "AI", {
+        provider: "GEMINI",
+        configuration: {},
+        credentials: { apiKey: "gemini-integration-key" },
+        replaceCredentials: true,
+      });
+
+      const creds = await resolveAiCredentials(instituteAId);
+      assert.strictEqual(creds.provider, "GEMINI");
+      assert.strictEqual(creds.apiKey, "gemini-integration-key");
+      assert.strictEqual(
+        creds.baseUrl,
+        "https://generativelanguage.googleapis.com/v1beta/openai"
+      );
+      assert.strictEqual(creds.model, "gemini-3.8-flash");
+      assert.strictEqual(creds.isEnabled, true);
+    } finally {
+      if (prevBase === undefined) delete process.env.LLM_BASE_URL;
+      else process.env.LLM_BASE_URL = prevBase;
+      if (prevModel === undefined) delete process.env.LLM_MODEL;
+      else process.env.LLM_MODEL = prevModel;
+      if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevLlm === undefined) delete process.env.LLM_API_KEY;
+      else process.env.LLM_API_KEY = prevLlm;
+    }
   });
 
   test("institute A cannot read or mutate institute B integrations", async () => {

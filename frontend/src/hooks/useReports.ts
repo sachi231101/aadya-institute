@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { getScopedBranchId } from "@/utils/branch-scope.util";
 import type {
   StudentReportData,
+  StudentReportParams,
   FacultyReportData,
   FacultyReportParams,
   CourseReportData,
@@ -18,12 +19,20 @@ import type {
   ExaminationsReportParams,
 } from "../services/reports.api";
 
-export const useStudentReport = (branchId?: string) => {
+export const useStudentReport = (branchIdOrParams?: string | StudentReportParams) => {
   const { user } = useAuthStore();
-  const scopedBranchId = getScopedBranchId(user, branchId);
+  const params: StudentReportParams =
+    typeof branchIdOrParams === "string"
+      ? { branchId: branchIdOrParams }
+      : branchIdOrParams || {};
+  const scopedBranchId = getScopedBranchId(user, params.branchId);
+  const scopedParams: StudentReportParams = {
+    ...params,
+    branchId: scopedBranchId,
+  };
   return useQuery<StudentReportData>({
-    queryKey: ["reports", "students", scopedBranchId],
-    queryFn: () => reportsApi.getStudentReport(scopedBranchId),
+    queryKey: ["reports", "students", scopedParams],
+    queryFn: () => reportsApi.getStudentReport(scopedParams),
     staleTime: 1000 * 60 * 5,
   });
 };

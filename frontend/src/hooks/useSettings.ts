@@ -58,6 +58,7 @@ export const useRevokeSession = () => {
     mutationFn: (sessionId: string) => settingsApi.revokeSession(sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
+      queryClient.invalidateQueries({ queryKey: ["security", "sessions"] });
     },
   });
 };

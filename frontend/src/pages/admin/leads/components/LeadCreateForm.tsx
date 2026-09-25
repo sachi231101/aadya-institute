@@ -25,8 +25,7 @@ export const leadCreateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
   phoneNumber: z
     .string()
-    .min(10, "Phone number must be at least 10 digits")
-    .regex(/^[0-9+\s-]{10,15}$/, "Please enter a valid phone number"),
+    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
   interestedIn: z.string().min(1, "Interest or course name is required").trim(),
   courseId: z.string().optional().or(z.literal("")),
   sourceMasterId: z.string().optional().or(z.literal("")),
@@ -170,7 +169,15 @@ export const LeadCreateForm: React.FC<LeadCreateFormProps> = ({
               <FormItem>
                 <FormLabel>Phone Number *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g. 9876543210" {...field} />
+                  <Input
+                    placeholder="e.g. 9876543210"
+                    inputMode="numeric"
+                    maxLength={10}
+                    {...field}
+                    onChange={(e) =>
+                      field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                    }
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

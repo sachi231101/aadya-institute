@@ -2,7 +2,7 @@ import type { AuthUser } from "../auth/auth.types";
 import { AISecurityScopeService } from "./security/ai-scope.service";
 import { AIAgentRepository } from "./ai-agent.repository";
 import { AI_TOOL_DEFINITIONS, executeAITool } from "./tools";
-import { llmClient } from "../../integrations/llm/llm.client";
+import { aiGateway } from "../../integrations/llm/ai-gateway.service";
 import { buildSystemPrompt } from "../../integrations/llm/system-prompt";
 import type { ChatMessage } from "../../integrations/llm/llm.types";
 import type { AIChatRequestDTO, AIChatResponseDTO } from "./ai-agent.types";
@@ -75,14 +75,16 @@ export const AIAgentService = {
 
     const recentDbMessages = await AIAgentRepository.getRecentMessages(conversationId, 10);
 
+    // Only carry clean user/assistant text into the LLM prompt.
+    // DB tool rows lack Gemini thought_signature metadata and break multi-turn tool calls.
     const memoryMessages: ChatMessage[] = [
       { role: "system", content: systemPromptContent },
-      ...recentDbMessages.map((m) => ({
-        role: m.role as "user" | "assistant" | "system" | "tool",
-        content: m.content,
-        toolName: m.toolName || undefined,
-        toolCallId: m.toolCallId || undefined,
-      })),
+      ...recentDbMessages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
     ];
 
     const toolsUsed: string[] = [];
@@ -94,21 +96,37 @@ export const AIAgentService = {
     while (loopCount < MAX_LOOPS) {
       loopCount++;
 
-      const llmResult = await llmClient.generateChatCompletion(
-        memoryMessages,
-        AI_TOOL_DEFINITIONS,
-        { temperature: 0.1 }
-      );
+      let llmResult;
+      try {
+        llmResult = await aiGateway.generateChatCompletion(
+          authContext.instituteId,
+          memoryMessages,
+          AI_TOOL_DEFINITIONS,
+          { temperature: 0.1 }
+        );
+      } catch (llmErr: any) {
+        const msg =
+          llmErr?.message ||
+          "AI is temporarily unavailable. Please try again in a moment.";
+        logger.warn(
+          { err: msg, conversationId, userId: authContext.userId },
+          "[AI Data Agent] LLM failure"
+        );
+        throw new AppError(msg, 503);
+      }
 
       const assistantMsg = llmResult.message;
 
       // Case A: LLM requested tool execution
       if (assistantMsg.toolCalls && assistantMsg.toolCalls.length > 0) {
-        // Record assistant intent message with tool calls
+        // Record assistant intent message with tool calls (+ Gemini thought signatures)
         memoryMessages.push({
           role: "assistant",
           content: assistantMsg.content || "",
           toolCalls: assistantMsg.toolCalls,
+          ...(assistantMsg.extra_content
+            ? { extra_content: assistantMsg.extra_content }
+            : {}),
         });
 
         // Execute each tool call securely

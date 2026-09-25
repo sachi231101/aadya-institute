@@ -32,6 +32,7 @@ import {
   executeGetBranchSummary,
   executeGetDailyOperationsSummary,
 } from "./dashboard.tools";
+import { executeSearchCallSummaries } from "./call-summary.tools";
 
 export const AI_TOOL_DEFINITIONS: ToolFunctionDefinition[] = [
   // 1. Student Tools
@@ -56,10 +57,17 @@ export const AI_TOOL_DEFINITIONS: ToolFunctionDefinition[] = [
   },
   {
     name: "get_student_details",
-    description: "Get detailed profile, attendance percentage, and pending fee status for a specific student.",
+    description:
+      "Get full student profile by name, phone number, student code, or ID. Use whenever the user asks for a specific student's details (e.g. 'show details for Rahul', 'student 9876543210'). Returns contact, branch, course, batch, attendance, and fees. If multiple students match, returns a short list to clarify.",
     parameters: {
       type: "object",
       properties: {
+        query: {
+          type: "string",
+          description: "Name, phone, email, or student code typed by the user",
+        },
+        name: { type: "string", description: "Student full or partial name" },
+        phone: { type: "string", description: "Student phone number" },
         studentId: { type: "string", description: "Specific student ID" },
         studentCode: { type: "string", description: "Student code (e.g. STU-001)" },
       },
@@ -205,6 +213,27 @@ export const AI_TOOL_DEFINITIONS: ToolFunctionDefinition[] = [
       properties: {},
     },
   },
+
+  // 8. Call summary semantic search
+  {
+    name: "search_call_summaries",
+    description:
+      "Semantic search over AI call summaries (what leads said on calls). Use for questions like EMI/installment interest, callbacks, objections, or topics mentioned in call summaries — not for exact lead counts (use lead summary tools for those).",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Natural language topic to search for in AI call summaries",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum matches to return (default 5, max 10)",
+        },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 export async function executeAITool(
@@ -263,6 +292,9 @@ export async function executeAITool(
       return { success: true, data: await executeGetBranchSummary(context, args) };
     case "get_daily_operations_summary":
       return { success: true, data: await executeGetDailyOperationsSummary(context, args) };
+
+    case "search_call_summaries":
+      return { success: true, data: await executeSearchCallSummaries(context, args) };
 
     default:
       throw new AppError(`Unknown tool: ${toolName}`, 400);

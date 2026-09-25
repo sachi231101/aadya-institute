@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-export const studentReportQuerySchema = z.object({
-  branchId: z.string().cuid("Invalid branch ID format").optional(),
-});
-
 const optionalTrimmedString = z.preprocess(
   (value) =>
     typeof value === "string" && value.trim().length > 0
@@ -31,6 +27,38 @@ const optionalDate = z.preprocess(
     .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)), "Invalid date")
     .optional()
 );
+
+export const studentReportQuerySchema = z
+  .object({
+    branchId: optionalCuid,
+    courseId: optionalCuid,
+    batchId: optionalCuid,
+    status: optionalTrimmedString,
+    riskFlag: z
+      .preprocess(
+        (value) =>
+          typeof value === "string" && value.trim().length > 0
+            ? value.trim()
+            : undefined,
+        z.enum(["Normal", "At Risk", "Triggered"]).optional()
+      ),
+    dateFrom: optionalDate,
+    dateTo: optionalDate,
+  })
+  .superRefine((query, ctx) => {
+    if (
+      query.dateFrom &&
+      query.dateTo &&
+      new Date(`${query.dateFrom}T00:00:00.000Z`) >
+        new Date(`${query.dateTo}T23:59:59.999Z`)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateTo"],
+        message: "dateTo must be on or after dateFrom",
+      });
+    }
+  });
 
 export const admissionsReportQuerySchema = z
   .object({
