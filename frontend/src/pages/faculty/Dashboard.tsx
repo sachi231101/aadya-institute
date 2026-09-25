@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -22,10 +22,15 @@ import { PageContainer, PageHeader, PageSection, MetricGrid, FilterToolbar } fro
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
+import { useIstTodayKey } from "@/hooks/useIstTodayKey";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import type { FacultyDashboardSession } from "@/types/faculty.types";
 import { LeaveRequestReviewPanel } from "@/components/leave/LeaveRequestReviewPanel";
+import {
+  canHostClassSession,
+  resolveDisplaySessionStatus,
+} from "@/utils/session-window";
 
 type SessionCard = FacultyDashboardSession & {
   isToday: boolean;
@@ -64,19 +69,23 @@ export const FacultyDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"TODAY" | "ALL" | "UPCOMING" | "COMPLETED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [tabInitialized, setTabInitialized] = useState(false);
+  const [hostClockTick, setHostClockTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setHostClockTick((t) => t + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const dashboard = dashRes?.data;
   const rawFacultyName = dashboard?.profile?.name || user?.name || "Faculty";
   const facultyName = rawFacultyName.charAt(0).toUpperCase() + rawFacultyName.slice(1);
   const branchName = dashboard?.profile?.branch?.name || "Aadya Branch";
 
-  const todayIso = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
+  const todayIso = useIstTodayKey(30_000);
 
   const myAssignedClasses: SessionCard[] = useMemo(() => {
     if (!dashboard) return [];
+    void hostClockTick;
 
     const toCard = (s: FacultyDashboardSession): SessionCard => {
       let status = (s.sessionStatus || "UPCOMING").toUpperCase();
@@ -91,6 +100,12 @@ export const FacultyDashboard: React.FC = () => {
             ? `${rawDate.getUTCFullYear()}-${String(rawDate.getUTCMonth() + 1).padStart(2, "0")}-${String(rawDate.getUTCDate()).padStart(2, "0")}`
             : todayIso;
       const isToday = dateKey === todayIso;
+      status = resolveDisplaySessionStatus({
+        dbStatus: status,
+        dateKey,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      });
       return {
         ...s,
         scheduledDate: dateKey,
@@ -117,7 +132,7 @@ export const FacultyDashboard: React.FC = () => {
       if (dateCmp !== 0) return dateCmp;
       return String(a.startTime).localeCompare(String(b.startTime));
     });
-  }, [dashboard, activeLiveClass, todayIso]);
+  }, [dashboard, activeLiveClass, todayIso, hostClockTick]);
 
   // Once data loads: if today is empty but other scheduled classes exist, stay on ALL
   React.useEffect(() => {
@@ -181,6 +196,7 @@ export const FacultyDashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleOpenClass = (cls: SessionCard) => {
+    const dateKey = cls.scheduledDate ? cls.scheduledDate.split("T")[0] : todayIso;
     setSelectedModalClass({
       id: cls.id,
       title: cls.title || cls.subjectName || "Class Session",
@@ -189,7 +205,7 @@ export const FacultyDashboard: React.FC = () => {
       batchId: cls.batchId || undefined,
       batchName: cls.batchName || cls.batchCode || "Batch",
       batchCode: cls.batchCode || "BATCH",
-      date: cls.scheduledDate ? cls.scheduledDate.split("T")[0] : todayIso,
+      date: dateKey,
       startTime: cls.startTime,
       endTime: cls.endTime,
       roomNo: cls.roomNo || "Room 101",
@@ -203,6 +219,17 @@ export const FacultyDashboard: React.FC = () => {
 
   const handleJoinGoogleMeet = async (cls: SessionCard, e: React.MouseEvent) => {
     e.stopPropagation();
+    const dateKey = String(cls.scheduledDate || todayIso).slice(0, 10);
+    if (
+      !canHostClassSession({
+        dateKey,
+        startTime: cls.startTime,
+        endTime: cls.endTime,
+      })
+    ) {
+      alert("Meet join is only available during the scheduled class time window.");
+      return;
+    }
     try {
       let meetingUrl: string | undefined = cls.meetingUrl || undefined;
       if (!meetingUrl) {
@@ -443,6 +470,13 @@ export const FacultyDashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
               {displayedClasses.map((cls) => {
                 const isLive = cls.sessionStatus === "LIVE";
+                const dateKey = String(cls.scheduledDate || todayIso).slice(0, 10);
+                const inHostWindow = canHostClassSession({
+                  dateKey,
+                  startTime: cls.startTime,
+                  endTime: cls.endTime,
+                });
+                const showJoinMeet = inHostWindow && (isLive || cls.mode === "ONLINE");
                 return (
                   <div
                     key={cls.id}
@@ -473,7 +507,7 @@ export const FacultyDashboard: React.FC = () => {
                           </Badge>
                         ) : cls.sessionStatus === "COMPLETED" ? (
                           <Badge className="bg-emerald-100 text-emerald-800 font-semibold text-xs px-2.5 py-0.5 rounded-full">
-                            Completed
+                            Ended
                           </Badge>
                         ) : (
                           <Badge className="bg-emerald-50 text-emerald-700 font-semibold text-xs px-2.5 py-0.5 rounded-full">
@@ -531,7 +565,7 @@ export const FacultyDashboard: React.FC = () => {
                         {isLive ? "Session in progress" : cls.sessionStatus === "COMPLETED" ? "Class completed" : "Scheduled"}
                       </span>
                       <div className="flex items-center gap-2 ml-auto">
-                        {(isLive || cls.mode === "ONLINE") && (
+                        {(showJoinMeet) && (
                           <Button
                             type="button"
                             variant="outline"

@@ -8,6 +8,12 @@ import { buildMeta } from "../../utils/pagination";
 import { getRecordingRetentionMs } from "../recordings/recording-retention.service";
 import { googleRecordingQueue } from "../../queues/google-recording.queue";
 import { hasBranchAccess } from "../../utils/branch-isolation.util";
+import {
+  assertCanStartLiveSession,
+  canExposeMeetingJoinUrl,
+  getSessionHostPhase,
+  toSessionDateKey,
+} from "../../utils/session-window.util";
 
 async function applyClassSessionMasters(
   instituteId: string,
@@ -237,6 +243,26 @@ export const classSessionService = {
       throw new AppError("Class session not found", 404);
     }
 
+    const dateKey = toSessionDateKey(existing.scheduledDate);
+    const status = String(existing.sessionStatus || "").toUpperCase();
+
+    assertCanStartLiveSession({
+      sessionStatus: status,
+      dateKey,
+      startTime: existing.startTime,
+      endTime: existing.endTime,
+    });
+
+    // In-window reconnect while already LIVE — return without rewriting status/timestamps.
+    if (status === "LIVE") {
+      return {
+        session: existing,
+        notifiedStudentsCount: 0,
+        notifiedStudents: [],
+        alreadyLive: true,
+      };
+    }
+
     const updatedSession = await classSessionRepository.startLive(id, instituteId, meetingUrl);
 
     // Send targeted instant notifications to all actively enrolled students of this specific batch
@@ -273,6 +299,7 @@ export const classSessionService = {
               courseName,
               batchName,
               facultyName,
+              scheduledDate: toSessionDateKey(updatedSession.scheduledDate),
               startTime: updatedSession.startTime,
               endTime: updatedSession.endTime,
             },
@@ -300,6 +327,22 @@ export const classSessionService = {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
       throw new AppError("Class session not found", 404);
+    }
+
+    // Idempotent: already ended — return current state without re-running side effects.
+    if (existing.sessionStatus === "COMPLETED") {
+      return {
+        session: existing,
+        recording: existing.recording,
+        syncQueued: false,
+        recordingStatus: existing.recording?.recordingStatus ?? null,
+        message: "Class session already ended.",
+        alreadyCompleted: true,
+      };
+    }
+
+    if (existing.sessionStatus !== "LIVE") {
+      throw new AppError("Class is not live", 400);
     }
 
     const session = await classSessionRepository.endLive(id, instituteId);
@@ -413,15 +456,32 @@ export const classSessionService = {
     branchId?: string,
     batchIds?: string[],
     facultyId?: string,
-    branchIds?: string[]
+    branchIds?: string[],
+    now?: Date
   ) => {
-    return classSessionRepository.findActiveLiveSessions(
+    const sessions = await classSessionRepository.findActiveLiveSessions(
       instituteId,
       branchId,
       batchIds,
       facultyId,
       branchIds
     );
+
+    // Only sessions still inside the Asia/Kolkata half-open window [start, end).
+    // Stuck DB LIVE after end time must not appear on Live Classes.
+    return sessions.filter((session) => {
+      if (!session.scheduledDate || !session.startTime || !session.endTime) {
+        return false;
+      }
+      return (
+        getSessionHostPhase({
+          dateKey: toSessionDateKey(session.scheduledDate),
+          startTime: session.startTime,
+          endTime: session.endTime,
+          now,
+        }) === "during"
+      );
+    });
   },
 
   cancelSession: async (id: string, instituteId: string) => {
@@ -527,15 +587,13 @@ export const classSessionService = {
       };
 
       if (isFaculty && !isCenterManager) {
-        // Faculty access: allowed if assigned to this session, or has branch access
+        // Pure faculty: assigned to this session only (same ownership as start-live)
         const faculty = await prisma.faculty.findFirst({
           where: { userId: currentUser.id || currentUser.userId },
         });
 
         const isAssignedFaculty = faculty && faculty.id === session.facultyId;
-        const branchAllowed = hasBranchAccess(userAuth, session.branchId);
-
-        if (!isAssignedFaculty && !branchAllowed) {
+        if (!isAssignedFaculty) {
           const err: any = new Error("You are not authorized to access this class meeting");
           err.statusCode = 403;
           throw err;
@@ -572,7 +630,23 @@ export const classSessionService = {
       }
     }
 
-    const meetingUrl = session.meetingUrl || session.googleMeetSpace?.meetingUri;
+    const rawMeetingUrl = session.meetingUrl || session.googleMeetSpace?.meetingUri || null;
+    const rawMeetingCode =
+      session.googleMeetSpace?.meetingCode ||
+      (rawMeetingUrl ? rawMeetingUrl.split("/").pop() : undefined);
+
+    // Join fields only while LIVE and still inside the Asia/Kolkata window.
+    // Admin/SUPER_ADMIN may still see history URLs. Stuck LIVE after end → redact.
+    const dateKey = toSessionDateKey(session.scheduledDate);
+    const inJoinWindow = canExposeMeetingJoinUrl({
+      sessionStatus: session.sessionStatus,
+      dateKey,
+      startTime: session.startTime,
+      endTime: session.endTime,
+    });
+    const canSeeJoinFields = inJoinWindow || isAdmin;
+    const meetingUrl = canSeeJoinFields ? rawMeetingUrl : null;
+    const meetingCode = canSeeJoinFields ? rawMeetingCode : undefined;
 
     return {
       classSessionId: session.id,
@@ -582,7 +656,7 @@ export const classSessionService = {
       endTime: session.endTime,
       mode: session.mode,
       meetingUrl,
-      meetingCode: session.googleMeetSpace?.meetingCode || (meetingUrl ? meetingUrl.split("/").pop() : undefined),
+      meetingCode,
       spaceName: session.googleMeetSpace?.spaceName,
       recordingEnabled: session.googleMeetSpace?.recordingEnabled ?? false,
       sessionStatus: session.sessionStatus,

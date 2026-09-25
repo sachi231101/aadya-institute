@@ -54,6 +54,11 @@ import {
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getApiErrorMessage } from "@/utils/api-error";
+import {
+  getSessionHostPhase,
+  resolveDisplaySessionStatus,
+  type SessionHostPhase,
+} from "@/utils/session-window";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +90,8 @@ export interface ScheduledClassItem {
   classroomMasterId?: string;
   isOnlineLink?: boolean;
   status: ClassStatus;
+  /** IST host window phase — used to de-emphasize live Join after end. */
+  hostPhase: SessionHostPhase;
   enrolledStudentsCount: number;
   attendanceMarked: boolean;
 }
@@ -100,10 +107,11 @@ const inferIconType = (name: string): ScheduledClassItem["iconType"] => {
   return "general";
 };
 
-const mapSessionStatusToUI = (sessionStatus?: string): ClassStatus => {
-  switch (sessionStatus) {
+const mapDisplayStatusToUI = (
+  display: ReturnType<typeof resolveDisplaySessionStatus>
+): ClassStatus => {
+  switch (display) {
     case "LIVE":
-    case "ONGOING":
       return "LIVE";
     case "COMPLETED":
       return "COMPLETED";
@@ -126,7 +134,8 @@ const formatDateLabel = (dateStr: string): string => {
 
 const mapSessionToScheduledClassItem = (
   session: BackendClassSession,
-  branchesList: Array<{ id: string; name: string }>
+  branchesList: Array<{ id: string; name: string }>,
+  now: Date = new Date()
 ): ScheduledClassItem => {
   const branchObj = branchesList.find((b) => b.id === session.branchId);
   const batchSubjects = formatBatchSubjectNames(
@@ -141,6 +150,22 @@ const mapSessionToScheduledClassItem = (
   const mode = (session.mode || "OFFLINE") as ClassMode;
   const facultyName = session.faculty?.user?.name || session.faculty?.employeeCode;
   const isFacultyAssigned = !!session.facultyId && !!facultyName;
+  const startTime = session.startTime || "";
+  const endTime = session.endTime || "";
+  const hostPhase = getSessionHostPhase({
+    dateKey: dateStr,
+    startTime,
+    endTime,
+    now,
+  });
+  // Display overlay: stuck DB LIVE after IST end → Completed (no DB rewrite).
+  const displayStatus = resolveDisplaySessionStatus({
+    dbStatus: session.sessionStatus,
+    dateKey: dateStr,
+    startTime,
+    endTime,
+    now,
+  });
 
   return {
     id: session.id,
@@ -160,8 +185,8 @@ const mapSessionToScheduledClassItem = (
     isFacultyAssigned,
     date: dateStr,
     dateLabel: formatDateLabel(dateStr),
-    startTime: session.startTime,
-    endTime: session.endTime,
+    startTime,
+    endTime,
     mode,
     locationOrLink:
       mode === "ONLINE"
@@ -169,7 +194,8 @@ const mapSessionToScheduledClassItem = (
         : session.roomNo || "TBD",
     classroomMasterId: session.classroomMasterId || undefined,
     isOnlineLink: mode === "ONLINE",
-    status: isFacultyAssigned ? mapSessionStatusToUI(session.sessionStatus) : "UNASSIGNED",
+    status: isFacultyAssigned ? mapDisplayStatusToUI(displayStatus) : "UNASSIGNED",
+    hostPhase,
     enrolledStudentsCount: (session as BackendClassSession & { enrolledStudentsCount?: number }).enrolledStudentsCount ?? 0,
     attendanceMarked: session.sessionStatus === "COMPLETED",
   };
@@ -254,10 +280,20 @@ export const Classes: React.FC = () => {
   const createSession = useCreateClassSession();
   const updateSession = useUpdateClassSession();
 
+  // Re-evaluate IST windows so past-end LIVE rows flip to Completed without reload.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const classesList = useMemo(() => {
     const sessions = sessionsResponse?.data ?? [];
-    return sessions.map((session) => mapSessionToScheduledClassItem(session, branchesList));
-  }, [sessionsResponse, branchesList]);
+    const now = new Date(nowMs);
+    return sessions.map((session) =>
+      mapSessionToScheduledClassItem(session, branchesList, now)
+    );
+  }, [sessionsResponse, branchesList, nowMs]);
 
   const uniqueBatches = useMemo(
     () => [...new Set(classesList.map((c) => c.batchCode))].sort(),
@@ -791,19 +827,31 @@ export const Classes: React.FC = () => {
 
                     <td className="py-2.5 px-4 align-middle">
                       {item.isOnlineLink ? (
-                        <a
-                          href={item.locationOrLink !== "Online" ? item.locationOrLink : "#"}
-                          target={item.locationOrLink !== "Online" ? "_blank" : undefined}
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (item.locationOrLink === "Online") e.preventDefault();
-                          }}
-                          className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
-                        >
-                          <LinkIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">Meeting link</span>
-                        </a>
+                        item.hostPhase === "after" ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-muted-foreground font-medium text-xs"
+                            title="Scheduled window has ended"
+                          >
+                            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Ended</span>
+                          </span>
+                        ) : item.locationOrLink !== "Online" ? (
+                          <a
+                            href={item.locationOrLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs"
+                          >
+                            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Meeting link</span>
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground font-medium text-xs">
+                            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">No link yet</span>
+                          </span>
+                        )
                       ) : (
                         <div className="flex items-center gap-1 text-foreground font-medium text-xs">
                           <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

@@ -78,7 +78,18 @@ app.use(
     credentials: true,
   })
 );
-app.use(compression());
+app.use(
+  compression({
+    // Never gzip recording streams — breaks Content-Length / Range for HTML5 video.
+    filter: (req, res) => {
+      const path = req.path || "";
+      if (/\/recordings\/[^/]+\/stream$/i.test(path)) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 

@@ -6,6 +6,7 @@ import {
   formatTimeToAmPm,
   parseAmPmToTimeInput,
 } from "@/utils/master.utils";
+import { istTodayKey } from "@/utils/session-window";
 
 export type TimetablePeriodSlot = {
   period: number;
@@ -313,10 +314,8 @@ export const toDateKey = (value: string | Date): string => {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 };
 
-export const localTodayKey = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
+/** Institute "today" as YYYY-MM-DD in Asia/Kolkata (not browser local). */
+export const localTodayKey = (): string => istTodayKey();
 
 export const addDaysToDateKey = (dateKey: string, days: number): string => {
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -366,7 +365,7 @@ export const formatDateKeyLabel = (dateKey: string, options?: Intl.DateTimeForma
   });
 };
 
-/** Monday–Sunday range for weekOffset (0 = current week), using local "today". */
+/** Monday–Sunday range for weekOffset (0 = current week), using IST "today". */
 export const getWeekRangeFromOffset = (weekOffset: number) => {
   const todayKey = localTodayKey();
   const [y, m, d] = todayKey.split("-").map(Number);

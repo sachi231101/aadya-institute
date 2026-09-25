@@ -237,12 +237,16 @@ export const disconnectGoogleWorkspace = async (
 };
 
 /**
- * Resolves an active authenticated Google OAuth2Client for the session or institute
+ * Resolves an active authenticated Google OAuth2Client for the session or institute.
+ * When allowInstituteFallback is false (pure faculty Meet host), only the user's
+ * own Workspace connection is used — no institute-level fallback.
  */
 export const resolveGoogleAuthClient = async (
   currentUser: AuthUser,
-  organizerUserId?: string
+  organizerUserId?: string,
+  options?: { allowInstituteFallback?: boolean }
 ) => {
+  const allowInstituteFallback = options?.allowInstituteFallback !== false;
   let conn: any = null;
 
   if (organizerUserId) {
@@ -254,13 +258,15 @@ export const resolveGoogleAuthClient = async (
     conn = await repo.findConnectionByUserId(userId);
   }
 
-  if (!conn) {
+  if (!conn && allowInstituteFallback) {
     conn = await repo.findConnectionByInstituteId(currentUser.instituteId);
   }
 
   if (!conn || conn.status !== "CONNECTED") {
     throw new AppError(
-      "Google Workspace authorization is required. Please connect your Google Workspace account first.",
+      allowInstituteFallback
+        ? "Google Workspace authorization is required. Please connect your Google Workspace account first."
+        : "Google Workspace authorization is required. Connect your personal Google Workspace account to host Meet for your classes.",
       400
     );
   }
@@ -298,9 +304,18 @@ export const createMeetSpaceForSession = async (
     throw new AppError("Class session not found", 404);
   }
 
+  if (session.sessionStatus === "CANCELLED" || session.sessionStatus === "COMPLETED") {
+    throw new AppError(
+      "Cannot create a Google Meet space for a cancelled or completed class session",
+      400,
+      "CLASS_SESSION_NOT_HOSTABLE"
+    );
+  }
+
   const isFaculty = currentUser.roles.includes("FACULTY");
   const isAdmin = currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
   const isCenterManager = currentUser.roles.includes("CENTER_MANAGER");
+  const isPureFaculty = isFaculty && !isAdmin && !isCenterManager;
 
   let isAssignedFaculty = false;
   if (isFaculty) {
@@ -331,12 +346,17 @@ export const createMeetSpaceForSession = async (
   }
 
   // Faculty assignment check
-  if (isFaculty && !isAdmin && !isCenterManager && !isAssignedFaculty) {
+  if (isPureFaculty && !isAssignedFaculty) {
     throw new AppError("You can only create Google Meet spaces for your assigned class sessions", 403);
   }
 
   const organizerUserId = currentUser.id || currentUser.userId!;
-  const { authClient, connection } = await resolveGoogleAuthClient(currentUser, organizerUserId);
+  // Pure faculty must use their personal Workspace connection (no institute fallback).
+  const { authClient, connection } = await resolveGoogleAuthClient(
+    currentUser,
+    organizerUserId,
+    { allowInstituteFallback: !isPureFaculty }
+  );
 
   const meetResult = await googleMeet.createGoogleMeetSpace(authClient, {
     accessType: dto.accessType || "TRUSTED",
@@ -488,6 +508,11 @@ export const syncSessionRecordings = async (
   const WAITING_MESSAGE =
     "Waiting for Google Meet recording in Drive. Ensure recording was started in Meet, then end the Meet so Google can finish processing.";
 
+  // Set once auth resolves; used to lock viewer download on AVAILABLE ingest.
+  let driveAuthClient: Awaited<
+    ReturnType<typeof resolveGoogleAuthClient>
+  >["authClient"] | null = null;
+
   const upsertFromDriveArtifact = async (params: {
     googleRecordingId?: string | null;
     googleConferenceRecordId?: string | null;
@@ -624,6 +649,25 @@ export const syncSessionRecordings = async (
 
     session.recording = upserted;
 
+    if (recordingStatus === "AVAILABLE" && driveFileId && driveAuthClient) {
+      try {
+        await googleDrive.shareDriveFileWithLinkViewers(driveAuthClient, driveFileId);
+      } catch (shareErr) {
+        logger.warn(
+          { err: shareErr, classSessionId: session.id, driveFileId },
+          "[google-workspace] Failed to share Drive file with link viewers on ingest"
+        );
+      }
+      try {
+        await googleDrive.restrictFileForViewers(driveAuthClient, driveFileId);
+      } catch (restrictErr) {
+        logger.warn(
+          { err: restrictErr, classSessionId: session.id, driveFileId },
+          "[google-workspace] Failed to restrict Drive file for viewers on ingest"
+        );
+      }
+    }
+
     if (recordingStatus === "AVAILABLE" && !wasAvailable) {
       setImmediate(() => {
         void triggerRecordingAvailableNotification(upserted.id);
@@ -653,6 +697,7 @@ export const syncSessionRecordings = async (
       currentUser,
       session.googleMeetSpace.organizerUserId
     );
+    driveAuthClient = authClient;
     const conferenceRecords = await googleMeet.listConferenceRecords(
       authClient,
       session.googleMeetSpace.spaceName

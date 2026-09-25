@@ -43,6 +43,13 @@ import {
   selectFacultyTimetableColumns,
   type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
+import { useIstTodayKey } from "@/hooks/useIstTodayKey";
+import {
+  canHostClassSession,
+  getSessionHostPhase,
+  hostWindowDisabledReason,
+  resolveDisplaySessionStatus,
+} from "@/utils/session-window";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
@@ -126,9 +133,13 @@ export const FacultyMySchedule: React.FC = () => {
   const dashboard = dashRes?.data;
   const facultyId = user?.facultyId || dashboard?.profile?.id;
 
-  // Week Navigator — real current week's Monday (local), not a hardcoded demo week
+  // Week Navigator — real current week's Monday (IST), not a hardcoded demo week
   const [weekOffset, setWeekOffset] = useState(0);
-  const weekRange = useMemo(() => getWeekRangeFromOffset(weekOffset), [weekOffset]);
+  const todayIso = useIstTodayKey(30_000);
+  const weekRange = useMemo(
+    () => getWeekRangeFromOffset(weekOffset),
+    [weekOffset, todayIso]
+  );
 
   // Query sessions for this faculty within the visible week
   const sessionQueryParams = useMemo(() => {
@@ -169,13 +180,26 @@ export const FacultyMySchedule: React.FC = () => {
     isEmpty: slotsEmpty,
   } = useTimetableSlotColumns(branchId);
 
-  // Mobile selected day index (0 to 6) — default to local today within the week
+  // Mobile selected day index (0 to 6) — track IST today within the visible week
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
     const todayKey = localTodayKey();
     const [y, m, d] = todayKey.split("-").map(Number);
-    const jsDay = new Date(y, m - 1, d).getDay();
+    const jsDay = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay();
     return (jsDay + 6) % 7;
   });
+
+  useEffect(() => {
+    const [y, m, d] = todayIso.split("-").map(Number);
+    if (!y || !m || !d) return;
+    const monday = weekRange.mondayKey;
+    const [my, mm, md] = monday.split("-").map(Number);
+    const todayUtc = Date.UTC(y, m - 1, d, 12, 0, 0);
+    const mondayUtc = Date.UTC(my, mm - 1, md, 12, 0, 0);
+    const diffDays = Math.round((todayUtc - mondayUtc) / (24 * 60 * 60 * 1000));
+    if (diffDays >= 0 && diffDays <= 6) {
+      setMobileDayIndex(diffDays);
+    }
+  }, [todayIso, weekRange.mondayKey]);
 
   const [viewMode, setViewMode] = useState<"TIMETABLE" | "LIST">("TIMETABLE");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -200,9 +224,6 @@ export const FacultyMySchedule: React.FC = () => {
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [recordingModalSession, setRecordingModalSession] = useState<ClassSessionModalData | null>(null);
   const [materialsModalSession, setMaterialsModalSession] = useState<ClassSessionModalData | null>(null);
-
-  const todayIso = useMemo(() => localTodayKey(), []);
-
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
       const iso = (() => {
@@ -272,6 +293,14 @@ export const FacultyMySchedule: React.FC = () => {
       );
       const startTime = s.startTime || masterSlot?.start || "09:00 AM";
       const endTime = s.endTime || masterSlot?.end || "10:00 AM";
+      // liveSeconds ticks every second so display status flips at window boundaries
+      void liveSeconds;
+      status = resolveDisplaySessionStatus({
+        dbStatus: status,
+        dateKey: scheduledDate,
+        startTime,
+        endTime,
+      });
       const startParsed = parseTimeTo24Hour(startTime);
       const endParsed = parseTimeTo24Hour(endTime);
 
@@ -321,7 +350,7 @@ export const FacultyMySchedule: React.FC = () => {
     });
 
     return Array.from(map.values());
-  }, [sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, masterTimeSlots]);
+  }, [sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, masterTimeSlots, liveSeconds]);
 
   const timeSlotColumns: TimetablePeriodSlot[] = useMemo(
     () =>
@@ -452,11 +481,23 @@ export const FacultyMySchedule: React.FC = () => {
       enrolledStudentsCount: cls.studentCount,
     };
 
+    const phase = getSessionHostPhase({
+      dateKey: cls.date,
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+    });
+    const inWindow = phase === "during";
+
     // Prefer StartClassModal for the full startLive path (same as Dashboard).
-    // If already LIVE, open modal so faculty can rejoin Meet / manage attendance.
-    if (cls.status === "LIVE") {
+    // If already LIVE and still in window, open modal so faculty can rejoin Meet / manage attendance.
+    if (cls.status === "LIVE" && inWindow) {
       setSelectedClassForModal(modalData);
       setIsClassModalOpen(true);
+      return;
+    }
+
+    if (!inWindow) {
+      alert(hostWindowDisabledReason(phase) || "Class cannot be hosted outside its scheduled time.");
       return;
     }
 
@@ -521,6 +562,42 @@ export const FacultyMySchedule: React.FC = () => {
           "Connect or reauthorize Google Workspace before joining this class."
       );
     }
+  };
+
+  const canHostClass = (cls: FormattedTimetableClass) =>
+    canHostClassSession({
+      dateKey: cls.date,
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+    });
+
+  /** Same scheduled window as Host Class — mark only while phase is `during`. */
+  const canMarkAttendance = (cls: FormattedTimetableClass) => canHostClass(cls);
+
+  const attendanceWindowTitle = (cls: FormattedTimetableClass) => {
+    if (cls.attendanceStatus === "Updated" || canMarkAttendance(cls)) return undefined;
+    return (
+      hostWindowDisabledReason(
+        getSessionHostPhase({
+          dateKey: cls.date,
+          startTime: cls.startTime,
+          endTime: cls.endTime,
+        })
+      ) || undefined
+    );
+  };
+
+  const hostButtonLabel = (cls: FormattedTimetableClass) => {
+    if (cls.status === "LIVE") return "Open Google Meet";
+    if (cls.status === "COMPLETED") return "Ended";
+    return "Host Class";
+  };
+
+  const statusBadgeLabel = (status: FormattedTimetableClass["status"]) => {
+    if (status === "LIVE") return "LIVE";
+    if (status === "COMPLETED") return "Ended";
+    if (status === "CANCELLED") return "Cancelled";
+    return "Upcoming";
   };
 
   const weekRangeLabel = useMemo(() => weekRange.label, [weekRange.label]);
@@ -951,10 +1028,12 @@ export const FacultyMySchedule: React.FC = () => {
                                   className={
                                     cls.status === "LIVE"
                                       ? "bg-emerald-600 text-white animate-pulse text-[9px] px-1.5 h-5"
-                                      : "bg-blue-500/10 text-blue-700 border-blue-500/20 text-[9px] px-1.5 h-5"
+                                      : cls.status === "COMPLETED"
+                                        ? "bg-slate-500 text-white text-[9px] px-1.5 h-5"
+                                        : "bg-blue-500/10 text-blue-700 border-blue-500/20 text-[9px] px-1.5 h-5"
                                   }
                                 >
-                                  {cls.status === "LIVE" ? "LIVE" : "Upcoming"}
+                                  {statusBadgeLabel(cls.status)}
                                 </Badge>
                               </div>
                               <h4 className="font-semibold text-sm text-foreground leading-tight">
@@ -1071,10 +1150,12 @@ export const FacultyMySchedule: React.FC = () => {
                                 className={`text-[9px] font-semibold px-1.5 py-0 h-5 rounded-md ${
                                   isLive
                                     ? "bg-emerald-600 text-white animate-pulse"
-                                    : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                                    : cls.status === "COMPLETED"
+                                      ? "bg-slate-500 text-white"
+                                      : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
                                 }`}
                               >
-                                {isLive ? "LIVE" : "Upcoming"}
+                                {statusBadgeLabel(cls.status)}
                               </Badge>
                             </div>
                             <h4 className="font-semibold text-sm text-foreground leading-tight truncate">
@@ -1132,10 +1213,12 @@ export const FacultyMySchedule: React.FC = () => {
                           className={`text-[9px] font-semibold px-1.5 py-0 h-5 rounded-md ${
                             currentSelectedClass.status === "LIVE"
                               ? "bg-emerald-600 text-white animate-pulse"
-                              : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                              : currentSelectedClass.status === "COMPLETED"
+                                ? "bg-slate-500 text-white"
+                                : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
                           }`}
                         >
-                          {currentSelectedClass.status === "LIVE" ? "LIVE" : "Upcoming"}
+                          {statusBadgeLabel(currentSelectedClass.status)}
                         </Badge>
                         {currentSelectedClass.status === "LIVE" && (
                           <span className="text-[11px] font-mono font-semibold text-emerald-600 flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
@@ -1310,7 +1393,12 @@ export const FacultyMySchedule: React.FC = () => {
                       type="button"
                       variant="outline"
                       onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
-                      className="flex-1 h-9 rounded-lg border-border bg-background text-foreground font-semibold text-xs shadow-xs hover:bg-muted/60 flex items-center justify-center gap-1.5 cursor-pointer"
+                      disabled={
+                        currentSelectedClass.attendanceStatus !== "Updated" &&
+                        !canMarkAttendance(currentSelectedClass)
+                      }
+                      title={attendanceWindowTitle(currentSelectedClass)}
+                      className="flex-1 h-9 rounded-lg border-border bg-background text-foreground font-semibold text-xs shadow-xs hover:bg-muted/60 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <UserCheck className="w-3.5 h-3.5 text-primary" />{" "}
                       {currentSelectedClass.attendanceStatus === "Updated"
@@ -1321,12 +1409,22 @@ export const FacultyMySchedule: React.FC = () => {
                     <Button
                       type="button"
                       onClick={() => handleGoLive(currentSelectedClass)}
-                      className="flex-1 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                      disabled={!canHostClass(currentSelectedClass)}
+                      title={
+                        canHostClass(currentSelectedClass)
+                          ? undefined
+                          : hostWindowDisabledReason(
+                              getSessionHostPhase({
+                                dateKey: currentSelectedClass.date,
+                                startTime: currentSelectedClass.startTime,
+                                endTime: currentSelectedClass.endTime,
+                              })
+                            ) || undefined
+                      }
+                      className="flex-1 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Video className="w-3.5 h-3.5" />{" "}
-                      {currentSelectedClass.status === "LIVE"
-                        ? "Open Google Meet"
-                        : "Host Class"}
+                      {hostButtonLabel(currentSelectedClass)}
                     </Button>
                   </div>
                 </Card>
@@ -1368,7 +1466,7 @@ export const FacultyMySchedule: React.FC = () => {
                         </Badge>
                       ) : cls.status === "COMPLETED" ? (
                         <Badge className="bg-slate-500 text-white font-semibold text-[9px] px-1.5 py-0 h-5">
-                          Completed
+                          Ended
                         </Badge>
                       ) : (
                         <Badge
@@ -1417,17 +1515,33 @@ export const FacultyMySchedule: React.FC = () => {
                     <Button
                       variant="outline"
                       onClick={() => handleNavigateToSession(cls, "attendance")}
-                      className="rounded-lg h-9 text-xs font-semibold border-border"
+                      disabled={
+                        cls.attendanceStatus !== "Updated" && !canMarkAttendance(cls)
+                      }
+                      title={attendanceWindowTitle(cls)}
+                      className="rounded-lg h-9 text-xs font-semibold border-border disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <UserCheck className="w-3.5 h-3.5 mr-1 text-primary" />{" "}
                       {cls.attendanceStatus === "Updated" ? "View Attendance" : "Attendance"}
                     </Button>
                     <Button
                       onClick={() => handleGoLive(cls)}
-                      className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 text-xs px-3"
+                      disabled={!canHostClass(cls)}
+                      title={
+                        canHostClass(cls)
+                          ? undefined
+                          : hostWindowDisabledReason(
+                              getSessionHostPhase({
+                                dateKey: cls.date,
+                                startTime: cls.startTime,
+                                endTime: cls.endTime,
+                              })
+                            ) || undefined
+                      }
+                      className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 text-xs px-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Video className="w-3.5 h-3.5 mr-1.5" />{" "}
-                      {cls.status === "LIVE" ? "Open Google Meet" : "Host Class"}
+                      {hostButtonLabel(cls)}
                     </Button>
                   </div>
                 </CardContent>

@@ -10,6 +10,7 @@ import {
   getRecordings,
   getRecordingById,
   getRecordingAccess,
+  streamRecording,
   createRecording,
   deleteRecording,
   syncRecording,
@@ -17,6 +18,9 @@ import {
 } from "./recording.controller";
 
 const router = Router();
+
+// Short-lived query token auth for <video src> (Bearer cannot be set by HTML5 video).
+router.get("/:id/stream", streamRecording);
 
 router.use(authMiddleware);
 

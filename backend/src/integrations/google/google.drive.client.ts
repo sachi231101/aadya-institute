@@ -1,8 +1,80 @@
 import { google } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
+import type { Readable } from "stream";
 import { logger } from "../../config/logger";
 import type { GoogleDriveFileMetadata } from "./google.types";
 import { getGoogleHttpStatus, toGoogleAppError } from "./google-error.util";
+
+export interface StreamDriveFileOptions {
+  /** Inclusive byte offset (Range start). */
+  start?: number;
+  /** Inclusive byte offset (Range end). */
+  end?: number;
+}
+
+export interface StreamDriveFileResult {
+  stream: Readable;
+  status: number;
+  contentType?: string;
+  contentLength?: number;
+  contentRange?: string;
+  acceptRanges?: string;
+}
+
+/**
+ * Read a response header from plain objects or Fetch/undici `Headers`.
+ * googleapis stream responses often expose a Headers instance where
+ * Object.entries/keys are empty — Content-Range must still be readable
+ * or HTML5 <video> fails on 206 Partial Content.
+ */
+export const headerValue = (
+  headers: Record<string, unknown> | Headers | undefined,
+  name: string
+): string | undefined => {
+  if (!headers) return undefined;
+
+  // Fetch Headers / AxiosHeaders-style getters (not enumerable via Object.entries)
+  const getter = (headers as { get?: (key: string) => string | null }).get;
+  if (typeof getter === "function") {
+    try {
+      const viaGet = getter.call(headers, name);
+      if (viaGet != null && String(viaGet).trim() !== "") {
+        return String(viaGet);
+      }
+    } catch {
+      /* fall through to object enumeration */
+    }
+  }
+
+  const lower = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+    if (key.toLowerCase() !== lower) continue;
+    if (Array.isArray(value)) return value[0] != null ? String(value[0]) : undefined;
+    if (value == null) return undefined;
+    return String(value);
+  }
+  return undefined;
+};
+
+/**
+ * HTML5 <video> on extensionless /stream URLs relies on Content-Type.
+ * Helmet sets X-Content-Type-Options: nosniff, so application/octet-stream
+ * from Drive alt=media will not play — normalize to a video MIME.
+ */
+export const normalizeRecordingStreamContentType = (
+  raw?: string | null
+): string => {
+  const full = (raw || "").trim();
+  const value = full.split(";")[0].trim().toLowerCase();
+  if (!value || value === "application/octet-stream" || value === "binary/octet-stream") {
+    return "video/mp4";
+  }
+  if (value.startsWith("video/")) {
+    return full.split(";")[0].trim();
+  }
+  // Unexpected non-video type (e.g. HTML/JSON error body) — keep as-is so clients fail loudly.
+  return full.split(";")[0].trim() || "video/mp4";
+};
 
 export type RestrictedViewerPermission =
   | { domain: string; expiresAt?: never; emailAddress?: never }
@@ -79,6 +151,183 @@ export const validateFileId = async (
 };
 
 export const checkDriveFileAccess = validateFileId;
+
+/** Stable in-app embed URL — Drive /preview chrome omits Download/Share for viewers. */
+export const buildDrivePreviewUrl = (fileId: string): string =>
+  `https://drive.google.com/file/d/${normalizeDriveFileId(fileId)}/preview`;
+
+/**
+ * Streams Drive file bytes (alt=media) with optional Range support for HTML5 seeking.
+ * Callers must pipe the returned stream and must not set Content-Disposition: attachment.
+ */
+export const streamDriveFile = async (
+  authClient: OAuth2Client,
+  fileId: string,
+  options?: StreamDriveFileOptions
+): Promise<StreamDriveFileResult> => {
+  if (!isValidDriveFileId(fileId)) {
+    throw toGoogleAppError({ status: 404 }, "RECORDING_NOT_READY");
+  }
+
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
+  const requestHeaders: Record<string, string> = {};
+  if (options?.start != null && Number.isFinite(options.start) && options.start >= 0) {
+    const end =
+      options.end != null && Number.isFinite(options.end) && options.end >= options.start
+        ? String(Math.floor(options.end))
+        : "";
+    requestHeaders.Range = `bytes=${Math.floor(options.start)}-${end}`;
+  }
+
+  try {
+    const response = await drive.files.get(
+      {
+        fileId: normalizedFileId,
+        alt: "media",
+        supportsAllDrives: true,
+      },
+      {
+        responseType: "stream",
+        headers: requestHeaders,
+      }
+    );
+
+    const headers = (response.headers || {}) as Record<string, unknown>;
+    const contentType = normalizeRecordingStreamContentType(
+      headerValue(headers, "content-type")
+    );
+    const contentLengthRaw = headerValue(headers, "content-length");
+    const contentLength = contentLengthRaw ? Number(contentLengthRaw) : undefined;
+    const contentRange = headerValue(headers, "content-range");
+    const acceptRanges = headerValue(headers, "accept-ranges") || "bytes";
+    const status =
+      typeof response.status === "number" && response.status > 0
+        ? response.status
+        : contentRange
+          ? 206
+          : 200;
+
+    return {
+      stream: response.data as Readable,
+      status,
+      contentType,
+      contentLength:
+        contentLength != null && Number.isFinite(contentLength) ? contentLength : undefined,
+      contentRange,
+      acceptRanges,
+    };
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    if (status === 404) {
+      throw toGoogleAppError({ status: 404 }, "RECORDING_NOT_READY");
+    }
+    logger.error(
+      { status, fileId: normalizedFileId },
+      "Failed to stream Google Drive recording media"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
+  }
+};
+
+/**
+ * Anyone with the link can view. Lets Google serve the preview without a
+ * per-student permission check on every Watch click. Idempotent.
+ */
+export const shareDriveFileWithLinkViewers = async (
+  authClient: OAuth2Client,
+  fileId: string
+): Promise<void> => {
+  if (!isValidDriveFileId(fileId)) {
+    throw toGoogleAppError({ status: 404 }, "RECORDING_NOT_READY");
+  }
+
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
+  const existing = await drive.permissions.list({
+    fileId: normalizedFileId,
+    supportsAllDrives: true,
+    fields: "permissions(id,type,role)",
+  });
+  const anyone = existing.data.permissions?.find((permission) => permission.type === "anyone");
+  if (anyone?.id && anyone.role !== "reader") {
+    await drive.permissions.update({
+      fileId: normalizedFileId,
+      permissionId: anyone.id,
+      supportsAllDrives: true,
+      requestBody: { role: "reader" },
+    });
+    return;
+  }
+  if (anyone) return;
+
+  await drive.permissions.create({
+    fileId: normalizedFileId,
+    supportsAllDrives: true,
+    sendNotificationEmail: false,
+    requestBody: {
+      type: "anyone",
+      role: "reader",
+      allowFileDiscovery: false,
+    },
+  });
+};
+
+/**
+ * Prevents viewers (readers) from downloading, printing, or copying the file.
+ * Writers/owners are unaffected. Idempotent when already restricted.
+ */
+export const restrictFileForViewers = async (
+  authClient: OAuth2Client,
+  fileId: string
+): Promise<void> => {
+  if (!isValidDriveFileId(fileId)) {
+    throw toGoogleAppError({ status: 404 }, "RECORDING_NOT_READY");
+  }
+
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
+  try {
+    await drive.files.update({
+      fileId: normalizedFileId,
+      supportsAllDrives: true,
+      requestBody: {
+        copyRequiresWriterPermission: true,
+        downloadRestrictions: {
+          itemDownloadRestriction: {
+            restrictedForReaders: true,
+          },
+        },
+      } as any,
+    });
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    // Older Drive API builds may reject downloadRestrictions — fall back to copy flag only.
+    if (status === 400 || status === 403) {
+      try {
+        await drive.files.update({
+          fileId: normalizedFileId,
+          supportsAllDrives: true,
+          requestBody: {
+            copyRequiresWriterPermission: true,
+          },
+        });
+        return;
+      } catch (fallbackError: unknown) {
+        logger.error(
+          { status: getGoogleHttpStatus(fallbackError), fileId: normalizedFileId },
+          "Failed to restrict Google Drive recording for viewers"
+        );
+        throw toGoogleAppError(fallbackError, "GOOGLE_UNAVAILABLE");
+      }
+    }
+    logger.error(
+      { status, fileId: normalizedFileId },
+      "Failed to restrict Google Drive recording for viewers"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
+  }
+};
 
 /**
  * Grants restricted playback access. Domain access is preferred when configured;

@@ -96,6 +96,10 @@ export interface StudentDashboardData {
     meetingUrl?: string | null;
     batchId?: string | null;
     courseId?: string | null;
+    scheduledDate?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    sessionStatus?: string | null;
     batch?: {
       id: string;
       code: string;
