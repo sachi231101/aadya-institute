@@ -19,11 +19,21 @@ export interface ScheduleSummary {
   }>;
 }
 
+export interface StudentReportParams {
+  branchId?: string;
+  courseId?: string;
+  batchId?: string;
+  status?: string;
+  riskFlag?: "Normal" | "At Risk" | "Triggered";
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface StudentReportData {
   summary: {
     totalStudents: number;
-    avgAttendanceRate: number;
-    assignmentCompletionRate: number;
+    avgAttendanceRate: number | null;
+    assignmentCompletionRate: number | null;
     discontinuationRiskCount: number;
   };
   enrollmentTrend: { month: string; students: number }[];
@@ -35,6 +45,8 @@ export interface StudentReportData {
     name: string;
     branchId?: string;
     branchName: string;
+    batchName: string;
+    status: string;
     courseName: string;
     coursePackage?: string;
     courses?: Array<{ id: string; name: string; code?: string }>;
@@ -43,8 +55,14 @@ export interface StudentReportData {
     dateOfBirth?: string | null;
     counsellorName?: string | null;
     attendancePercentage: number;
+    presentCount: number;
+    absentCount: number;
+    leaveCount: number;
+    conductedCount: number;
     assignmentsSubmitted: number;
     totalAssignments: number;
+    consecutiveTheoryAbsences: number;
+    lastAttendedAt?: string | null;
     riskFlag: "Normal" | "At Risk" | "Triggered";
   }[];
 }
@@ -549,8 +567,14 @@ export interface FinancialReportData {
 }
 
 export const reportsApi = {
-  getStudentReport: async (branchId?: string): Promise<StudentReportData> => {
-    const response = await api.get("/reports/students", { params: { branchId } });
+  getStudentReport: async (
+    branchIdOrParams?: string | StudentReportParams
+  ): Promise<StudentReportData> => {
+    const params: StudentReportParams =
+      typeof branchIdOrParams === "string"
+        ? { branchId: branchIdOrParams }
+        : branchIdOrParams || {};
+    const response = await api.get("/reports/students", { params });
     return response.data.data;
   },
 

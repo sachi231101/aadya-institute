@@ -31,7 +31,7 @@ export const upsertIntegrationSchema = z.object({
 });
 
 export const upsertAiSchema = upsertIntegrationSchema.extend({
-  provider: z.enum(["OPENAI"]).optional(),
+  provider: z.enum(["GEMINI", "OPENAI"]).optional(),
   configuration: z
     .object({
       model: z.string().optional(),

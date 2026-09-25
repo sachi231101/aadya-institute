@@ -235,6 +235,7 @@ model Institute {
   backupStatuses           BackupStatus[]
   integrations             Integration[]
   callLogs                 CallLog[]
+  callSummaryEmbeddings    CallSummaryEmbedding[]
   aiCallingConfig          InstituteAiCallingConfig?
   aiCallingUsageDaily      AiCallingUsageDaily[]
   whatsappAutomationConfig WhatsAppAutomationConfig?
@@ -317,11 +318,12 @@ model Branch {
   userBranchAccesses    UserBranchAccess[]
   invitations           UserInvitation[]
   activityLogs          ActivityLog[]
-  callLogs              CallLog[]
-  leaveRequests         LeaveRequest[]
-  announcements         Announcement[]
-  courseBranches        CourseBranch[]
-  facultyScheduleBlocks FacultyScheduleBlock[]
+  callLogs                CallLog[]
+  callSummaryEmbeddings   CallSummaryEmbedding[]
+  leaveRequests           LeaveRequest[]
+  announcements           Announcement[]
+  courseBranches          CourseBranch[]
+  facultyScheduleBlocks   FacultyScheduleBlock[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -1266,13 +1268,14 @@ model CallLog {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  institute Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch    Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  importJob DataImportJob?  @relation(fields: [importJobId], references: [id], onDelete: SetNull)
-  agent     AiCallingAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  student   Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  lead      Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  caller    User?           @relation("CallLogCaller", fields: [callerUserId], references: [id], onDelete: SetNull)
+  institute             Institute               @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch                Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  importJob             DataImportJob?          @relation(fields: [importJobId], references: [id], onDelete: SetNull)
+  agent                 AiCallingAgent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  student               Student?                @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  lead                  Lead?                   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  caller                User?                   @relation("CallLogCaller", fields: [callerUserId], references: [id], onDelete: SetNull)
+  callSummaryEmbedding  CallSummaryEmbedding?
 
   @@index([studentId])
   @@index([leadId])
@@ -1285,6 +1288,31 @@ model CallLog {
   @@index([instituteId, status])
   @@index([instituteId, callType])
   @@index([leadId, attemptNumber])
+}
+
+/// Semantic index of CallLog.aiSummary for Aadya AI vector search.
+/// embedding is float8[768] (Gemini text-embedding-004); cosine via SQL unnest.
+model CallSummaryEmbedding {
+  id          String   @id @default(cuid())
+  callLogId   String   @unique
+  instituteId String
+  branchId    String?
+  leadId      String?
+  content     String
+  embedding   Float[]
+  model       String
+  contentHash String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  callLog   CallLog   @relation(fields: [callLogId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([instituteId, branchId])
+  @@index([leadId])
+  @@index([instituteId])
 }
 
 model ActivityLog {
@@ -1819,12 +1847,13 @@ model Lead {
   stageMaster        MasterRecord?  @relation("LeadStageMaster", fields: [stageMasterId], references: [id], onDelete: SetNull)
   leadTypeMaster     MasterRecord?  @relation("LeadTypeMaster", fields: [leadTypeMasterId], references: [id], onDelete: SetNull)
 
-  assignments  LeadAssignment[]
-  stageHistory LeadStageHistory[]
-  activities   LeadActivity[]
-  followUps    LeadFollowUp[]
-  callLogs     CallLog[]
-  applications Application[]
+  assignments             LeadAssignment[]
+  stageHistory            LeadStageHistory[]
+  activities              LeadActivity[]
+  followUps               LeadFollowUp[]
+  callLogs                CallLog[]
+  callSummaryEmbeddings   CallSummaryEmbedding[]
+  applications            Application[]
 
   @@index([instituteId])
   @@index([branchId])

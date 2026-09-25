@@ -27,8 +27,8 @@ export const INTEGRATION_CATALOG: Record<
   AI: {
     name: "AI Integration",
     description: "Connect AI services for Ask AI and academy intelligence.",
-    defaultProvider: "OPENAI",
-    providers: ["OPENAI"],
+    defaultProvider: "GEMINI",
+    providers: ["GEMINI", "OPENAI"],
   },
   WHATSAPP: {
     name: "WhatsApp Integration",

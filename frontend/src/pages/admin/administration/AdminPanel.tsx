@@ -12,7 +12,6 @@ import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import {
   useInvitations,
   useCreateInvitation,
-  useRevokeInvitation,
 } from "@/hooks/useInvitations";
 import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
@@ -31,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageContainer, PageHeader } from "@/components/layout";
 
-type TabKey = "all" | "active" | "inactive" | "invitations" | "access";
 type RoleFilter = "all" | "CENTER_MANAGER" | "COUNSELLOR" | "FACULTY" | "ADMIN";
 
 const STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"] as const;
@@ -43,14 +41,6 @@ const ROLE_LABELS: Record<string, string> = {
   COUNSELLOR: "Counsellor",
   FACULTY: "Faculty",
 };
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "inactive", label: "Inactive" },
-  { key: "invitations", label: "Pending Invitations" },
-  { key: "access", label: "User Access" },
-];
 
 const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
   { key: "all", label: "All Roles" },
@@ -156,7 +146,19 @@ const ManagerCard = ({
                     <Edit className="h-4 w-4 mr-2" /> Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onAction(manager.id, "changeBranch")}>
-                    <Building2 className="h-4 w-4 mr-2" /> Change Branch
+                    <Building2 className="h-4 w-4 mr-2" />{" "}
+                    {branch ? "Change Branch" : "Assign Branch"}
+                  </DropdownMenuItem>
+                  {branch && (
+                    <DropdownMenuItem
+                      className="text-amber-700 focus:text-amber-700 dark:text-amber-400 dark:focus:text-amber-400 cursor-pointer"
+                      onClick={() => onAction(manager.id, "removeBranch")}
+                    >
+                      <Ban className="h-4 w-4 mr-2" /> Remove from Branch
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => onAction(manager.id, "editAccess")}>
+                    <Shield className="h-4 w-4 mr-2" /> Edit Branch Access
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onAction(manager.id, "resetPassword")}>
                     <Key className="h-4 w-4 mr-2" /> Reset Password
@@ -179,7 +181,23 @@ const ManagerCard = ({
         </div>
 
         <div className="px-3.5 py-3 mx-4 rounded-xl bg-muted/40 border border-border/70 flex-1 space-y-1">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Assigned Branch</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Assigned Branch
+            </p>
+            {branch && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[10px] font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-500/10 dark:text-amber-400"
+                onClick={() => onAction(manager.id, "removeBranch")}
+              >
+                <Ban className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
+            )}
+          </div>
           {branch ? (
             <>
               <h4 className="text-xs sm:text-sm font-bold text-foreground leading-tight flex items-center gap-1.5 truncate">
@@ -194,8 +212,19 @@ const ManagerCard = ({
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-xs py-1">
-              <AlertTriangle className="h-3.5 w-3.5" /> No Branch Assigned
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-xs py-1">
+                <AlertTriangle className="h-3.5 w-3.5" /> No Branch Assigned
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[10px] font-bold rounded-lg"
+                onClick={() => onAction(manager.id, "changeBranch")}
+              >
+                Assign
+              </Button>
             </div>
           )}
         </div>
@@ -231,12 +260,11 @@ export const AdminPanel: React.FC = () => {
 
   const { data: usersResponse, isLoading: usersLoading } = useAdminUsers({ limit: 100 });
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100 });
-  const { data: invitationsResponse, isLoading: invitationsLoading } = useInvitations({ limit: 50 });
+  const { data: invitationsResponse } = useInvitations({ limit: 50 });
   const deleteUserMutation = useDeleteUser();
   const resetPasswordMutation = useResetUserPassword();
   const { policy, requirements } = usePasswordRequirements();
   const createInvitationMutation = useCreateInvitation();
-  const revokeInvitationMutation = useRevokeInvitation();
   const updateBranchAccessMutation = useUpdateUserBranchAccess();
 
   const allUsers = usersResponse?.data ?? [];
@@ -245,18 +273,6 @@ export const AdminPanel: React.FC = () => {
 
   const staffUsers = useMemo(() => allUsers.filter(isStaffUser), [allUsers]);
 
-  const accessUsers = useMemo(
-    () =>
-      staffUsers.filter(
-        (u) =>
-          u.roles.includes("CENTER_MANAGER") ||
-          u.roles.includes("COUNSELLOR") ||
-          u.roles.includes("ADMIN")
-      ),
-    [staffUsers]
-  );
-
-  const [tab, setTab] = useState<TabKey>("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -271,7 +287,7 @@ export const AdminPanel: React.FC = () => {
   const [accessBranchIds, setAccessBranchIds] = useState<string[]>([]);
 
   const [activeModal, setActiveModal] = useState<
-    "delete" | "resetPassword" | "changeBranch" | null
+    "delete" | "resetPassword" | "changeBranch" | "removeBranch" | null
   >(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -292,31 +308,41 @@ export const AdminPanel: React.FC = () => {
         m.phone?.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
       if (roleFilter !== "all" && !m.roles.includes(roleFilter)) return false;
-      if (tab === "active") return m.status === "ACTIVE";
-      if (tab === "inactive") return m.status === "INACTIVE" || m.status === "BLOCKED";
       return true;
     });
-  }, [staffUsers, searchQuery, tab, roleFilter]);
+  }, [staffUsers, searchQuery, roleFilter]);
 
   const activeStaffCount = staffUsers.filter((m) => m.status === "ACTIVE").length;
   const assignedBranchesCount = new Set(staffUsers.map((m) => m.branchId).filter(Boolean)).size;
 
   const handleAction = (id: string, action: string) => {
-    setSelectedManagerId(id);
     if (action === "viewManager") {
       navigate(`/admin/administration/admins/${id}`);
-    } else if (action === "editManager") {
-      navigate(`/admin/administration/admins/${id}/edit`);
-    } else {
-      setActiveModal(action as any);
-      setDeleteConfirmText("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setRevealedPassword(null);
-      setPasswordCopied(false);
-      setResetPasswordError(null);
-      setNewBranchId(staffUsers.find((m) => m.id === id)?.branchId || "");
+      return;
     }
+    if (action === "editManager") {
+      navigate(`/admin/administration/admins/${id}/edit`);
+      return;
+    }
+    if (action === "editAccess") {
+      const user = staffUsers.find((m) => m.id === id);
+      if (!user) return;
+      setAccessUserId(user.id);
+      const ids =
+        user.branchAccesses?.map((b) => b.branchId) ??
+        (user.branchId ? [user.branchId] : []);
+      setAccessBranchIds(ids);
+      return;
+    }
+    setSelectedManagerId(id);
+    setActiveModal(action as "delete" | "resetPassword" | "changeBranch" | "removeBranch");
+    setDeleteConfirmText("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setRevealedPassword(null);
+    setPasswordCopied(false);
+    setResetPasswordError(null);
+    setNewBranchId(staffUsers.find((m) => m.id === id)?.branchId || "");
   };
 
   const closeModal = () => {
@@ -385,6 +411,53 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleChangeBranchSubmit = () => {
+    if (!selectedManagerId || !newBranchId.trim()) {
+      addNotification("Please select a branch.", "error");
+      return;
+    }
+    const user = staffUsers.find((m) => m.id === selectedManagerId);
+    const existingExtra =
+      user?.branchAccesses?.map((b) => b.branchId).filter((id) => id !== user.branchId) ?? [];
+    const branchIds = [...new Set([newBranchId, ...existingExtra])];
+
+    updateBranchAccessMutation.mutate(
+      { id: selectedManagerId, data: { branchIds } },
+      {
+        onSuccess: () => {
+          addNotification("Branch assigned successfully.", "success");
+          closeModal();
+        },
+        onError: (err: any) =>
+          addNotification(err?.response?.data?.message || "Failed to update branch.", "error"),
+      }
+    );
+  };
+
+  const handleRemoveBranchSubmit = () => {
+    if (!selectedManagerId) return;
+    const user = staffUsers.find((m) => m.id === selectedManagerId);
+    const remaining =
+      user?.branchAccesses
+        ?.map((b) => b.branchId)
+        .filter((id) => id !== user.branchId) ?? [];
+
+    updateBranchAccessMutation.mutate(
+      { id: selectedManagerId, data: { branchIds: remaining } },
+      {
+        onSuccess: () => {
+          addNotification("User removed from branch.", "success");
+          closeModal();
+        },
+        onError: (err: any) =>
+          addNotification(
+            err?.response?.data?.message || "Failed to remove branch assignment.",
+            "error"
+          ),
+      }
+    );
+  };
+
   const handleInvite = () => {
     if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
       addNotification("Name and email are required.", "error");
@@ -426,20 +499,11 @@ export const AdminPanel: React.FC = () => {
             roleName: "CENTER_MANAGER",
             branchId: "",
           });
-          setTab("invitations");
         },
         onError: (err: any) =>
           addNotification(err?.response?.data?.message || "Invite failed.", "error"),
       }
     );
-  };
-
-  const openAccessEditor = (user: UserResponse) => {
-    setAccessUserId(user.id);
-    const ids =
-      user.branchAccesses?.map((b) => b.branchId) ??
-      (user.branchId ? [user.branchId] : []);
-    setAccessBranchIds(ids);
   };
 
   const saveAccess = () => {
@@ -557,23 +621,6 @@ export const AdminPanel: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar self-start md:self-auto">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap border cursor-pointer ${
-                  tab === t.key
-                    ? "bg-primary text-white border-primary shadow-xs"
-                    : "bg-card text-muted-foreground border-border hover:bg-muted/40 hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {(tab === "all" || tab === "active" || tab === "inactive") && (
-          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
             {ROLE_FILTERS.map((f) => (
               <button
                 key={f.key}
@@ -588,187 +635,41 @@ export const AdminPanel: React.FC = () => {
               </button>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
-      {(tab === "all" || tab === "active" || tab === "inactive") && (
-        filteredStaff.length === 0 ? (
-          <Card className="border border-border bg-card rounded-xl shadow-xs py-16 text-center">
-            <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
-              <div className="h-16 w-16 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
-                <Users className="h-8 w-8" />
-              </div>
-              <h3 className="text-base font-bold text-foreground mb-1">No Users Found</h3>
-              <p className="text-xs text-muted-foreground mb-6">
-                {searchQuery || roleFilter !== "all"
-                  ? "No users match your search criteria."
-                  : "Invite or add a staff user to get started."}
-              </p>
-              <Button onClick={() => setInviteOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
-                <UserPlus className="h-4 w-4 mr-2" /> Invite User
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filteredStaff.map((manager) => (
-              <ManagerCard
-                key={manager.id}
-                manager={manager}
-                branch={
-                  allBranches.find((b) => b.id === manager.branchId) ||
-                  allBranches.find((b) => b.managerUserId === manager.id)
-                }
-                staffUsers={staffUsers}
-                onAction={handleAction}
-              />
-            ))}
-          </div>
-        )
-      )}
-
-      {tab === "invitations" && (
-        <Card className="border border-border rounded-xl shadow-xs overflow-hidden">
-          <CardContent className="p-0">
-            {invitationsLoading ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : invitations.length === 0 ? (
-              <div className="py-16 text-center space-y-3">
-                <Mail className="h-10 w-10 mx-auto text-muted-foreground" />
-                <p className="font-bold text-foreground">No pending invitations</p>
-                <Button onClick={() => setInviteOpen(true)} className="rounded-xl font-bold">
-                  <UserPlus className="h-4 w-4 mr-2" /> Invite User
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40 border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-bold">Name</th>
-                      <th className="px-4 py-3 font-bold">Email</th>
-                      <th className="px-4 py-3 font-bold">Role</th>
-                      <th className="px-4 py-3 font-bold">Branch</th>
-                      <th className="px-4 py-3 font-bold">Expires</th>
-                      <th className="px-4 py-3 font-bold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invitations
-                      .filter((inv) => {
-                        if (!searchQuery) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          inv.name.toLowerCase().includes(q) ||
-                          inv.email.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((inv) => (
-                        <tr key={inv.id} className="border-b border-border/60 hover:bg-muted/20">
-                          <td className="px-4 py-3 font-semibold text-foreground">{inv.name}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{inv.email}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-border bg-muted/40">
-                              {inv.roleName}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {inv.branch?.name || "—"}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {new Date(inv.expiresAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
-                              disabled={revokeInvitationMutation.isPending}
-                              onClick={() =>
-                                revokeInvitationMutation.mutate(inv.id, {
-                                  onSuccess: () =>
-                                    addNotification("Invitation revoked.", "success"),
-                                  onError: (err: any) =>
-                                    addNotification(
-                                      err?.response?.data?.message || "Revoke failed.",
-                                      "error"
-                                    ),
-                                })
-                              }
-                            >
-                              <Ban className="h-3.5 w-3.5 mr-1.5" /> Revoke
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === "access" && (
-        <Card className="border border-border rounded-xl shadow-xs overflow-hidden">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-bold">User</th>
-                    <th className="px-4 py-3 font-bold">Roles</th>
-                    <th className="px-4 py-3 font-bold">Primary Branch</th>
-                    <th className="px-4 py-3 font-bold">Extra Branches</th>
-                    <th className="px-4 py-3 font-bold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {accessUsers
-                    .filter((u) => {
-                      if (!searchQuery) return true;
-                      const q = searchQuery.toLowerCase();
-                      return (
-                        u.name.toLowerCase().includes(q) ||
-                        u.email?.toLowerCase().includes(q)
-                      );
-                    })
-                    .map((user) => (
-                      <tr key={user.id} className="border-b border-border/60 hover:bg-muted/20">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-foreground">{user.name}</div>
-                          <div className="text-xs text-muted-foreground">{user.email}</div>
-                        </td>
-                        <td className="px-4 py-3 text-xs font-semibold">
-                          {user.roles.map((r) => ROLE_LABELS[r] || r).join(", ")}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {user.branch?.name || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {(user.branchAccesses ?? [])
-                            .map((b) => b.branch?.name || b.branchId)
-                            .join(", ") || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl"
-                            onClick={() => openAccessEditor(user)}
-                          >
-                            <Building2 className="h-3.5 w-3.5 mr-1.5" /> Edit Access
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+      {filteredStaff.length === 0 ? (
+        <Card className="border border-border bg-card rounded-xl shadow-xs py-16 text-center">
+          <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
+            <div className="h-16 w-16 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
+              <Users className="h-8 w-8" />
             </div>
+            <h3 className="text-base font-bold text-foreground mb-1">No Users Found</h3>
+            <p className="text-xs text-muted-foreground mb-6">
+              {searchQuery || roleFilter !== "all"
+                ? "No users match your search criteria."
+                : "Invite or add a staff user to get started."}
+            </p>
+            <Button onClick={() => setInviteOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
+              <UserPlus className="h-4 w-4 mr-2" /> Invite User
+            </Button>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filteredStaff.map((manager) => (
+            <ManagerCard
+              key={manager.id}
+              manager={manager}
+              branch={
+                allBranches.find((b) => b.id === manager.branchId) ||
+                allBranches.find((b) => b.managerUserId === manager.id)
+              }
+              staffUsers={staffUsers}
+              onAction={handleAction}
+            />
+          ))}
+        </div>
       )}
 
       {/* Invite dialog */}
@@ -1062,9 +963,11 @@ export const AdminPanel: React.FC = () => {
       <Dialog open={activeModal === "changeBranch"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Assign/Change Branch</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {selectedManager?.branchId ? "Change Branch" : "Assign Branch"}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Select a new branch for {selectedManager?.name}.
+              Select a branch for {selectedManager?.name}.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -1087,12 +990,58 @@ export const AdminPanel: React.FC = () => {
             </Button>
             <Button
               className="bg-primary text-white rounded-xl"
-              onClick={() => {
-                addNotification("Branch reassigned successfully.", "success");
-                closeModal();
-              }}
+              onClick={handleChangeBranchSubmit}
+              disabled={!newBranchId || updateBranchAccessMutation.isPending}
             >
-              Update Branch
+              {updateBranchAccessMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Update Branch"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === "removeBranch"} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="bg-card border-border text-foreground rounded-xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Ban className="h-5 w-5" /> Remove from Branch?
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Remove{" "}
+              <span className="font-semibold text-foreground">{selectedManager?.name}</span> from{" "}
+              <span className="font-semibold text-foreground">
+                {selectedManager?.branch?.name || "their assigned branch"}
+              </span>
+              . They will no longer have access scoped to that branch.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-400">
+            Center Managers and Counsellors normally need a branch. You can assign a different
+            branch afterward from Change Branch.
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeModal} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
+              onClick={handleRemoveBranchSubmit}
+              disabled={updateBranchAccessMutation.isPending}
+            >
+              {updateBranchAccessMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Removing…
+                </>
+              ) : (
+                "Remove from Branch"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

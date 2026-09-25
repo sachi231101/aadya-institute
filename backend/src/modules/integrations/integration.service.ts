@@ -414,16 +414,46 @@ export const syncGoogleWorkspaceIntegration = async (params: {
   }
 };
 
+const GEMINI_OPENAI_COMPAT_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai";
+const GEMINI_DEFAULT_MODEL = "gemini-3.8-flash";
+const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
+const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
+
+/**
+ * Resolve LLM credentials for Ask AI / academy intelligence.
+ * Prefer institute Integration secrets; fall back to env.
+ * GEMINI (default) uses Google's OpenAI-compatible endpoint.
+ */
 export const resolveAiCredentials = async (instituteId: string) => {
   const row = await repo.findByInstituteAndType(instituteId, "AI");
   const creds = decryptCredentials(row?.encryptedCredentials);
   const config = (row?.configuration || {}) as { model?: string; baseUrl?: string };
+  const provider = (
+    row?.provider ||
+    process.env.LLM_PROVIDER ||
+    INTEGRATION_CATALOG.AI.defaultProvider
+  ).toUpperCase();
+  const isGemini = provider === "GEMINI";
+
+  const defaultBaseUrl = isGemini
+    ? GEMINI_OPENAI_COMPAT_BASE_URL
+    : OPENAI_DEFAULT_BASE_URL;
+  const defaultModel = isGemini ? GEMINI_DEFAULT_MODEL : OPENAI_DEFAULT_MODEL;
+
   return {
+    provider,
     apiKey:
-      creds.apiKey || process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || "",
-    model: config.model || process.env.LLM_MODEL || "gpt-4o-mini",
+      creds.apiKey ||
+      process.env.GEMINI_API_KEY ||
+      process.env.LLM_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      "",
+    model: config.model || process.env.LLM_MODEL || defaultModel,
     baseUrl:
-      config.baseUrl || process.env.LLM_BASE_URL || "https://api.openai.com/v1",
+      (config.baseUrl && config.baseUrl.trim()) ||
+      process.env.LLM_BASE_URL ||
+      defaultBaseUrl,
     isEnabled: row?.isEnabled ?? true,
   };
 };

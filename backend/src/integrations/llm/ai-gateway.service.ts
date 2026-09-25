@@ -9,7 +9,7 @@ import { resolveAiCredentials } from "../../modules/integrations/integration.ser
 /**
  * Central AI gateway — all modules should call this instead of constructing
  * LLM clients with ad-hoc credentials. Decrypts institute Integration secrets
- * in memory only; falls back to env LLM_API_KEY / OPENAI_API_KEY.
+ * in memory only; falls back to env GEMINI_API_KEY / LLM_API_KEY / OPENAI_API_KEY.
  */
 export class AIGatewayService {
   async generateChatCompletion(

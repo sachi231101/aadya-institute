@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
 import { useModules } from "../../../hooks/useModules";
@@ -18,6 +19,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader } from "@/components/layout";
+
+type PendingDelete =
+  | { type: "module"; moduleId: string; name: string; topicCount: number }
+  | { type: "topic"; moduleId: string; topicId: string; name: string };
 
 export const Curriculum: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,6 +67,9 @@ export const Curriculum: React.FC = () => {
   const [topicHours, setTopicHours] = useState<number>(4);
   const [topicDescription, setTopicDescription] = useState("");
   const [topicSubmitting, setTopicSubmitting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId);
 
@@ -112,19 +120,41 @@ export const Curriculum: React.FC = () => {
     }
   };
 
-  const handleDeleteTopic = async (moduleId: string, topicId: string) => {
-    if (confirm("Are you sure you want to remove this topic?")) {
-      try {
-        await deleteTopic(moduleId, topicId);
-      } catch (err: any) {
-        alert(err.response?.data?.message || err.message || "Failed to delete topic");
-      }
-    }
+  const handleDeleteTopic = (moduleId: string, topicId: string, topicName: string) => {
+    setDeleteError(null);
+    setPendingDelete({ type: "topic", moduleId, topicId, name: topicName });
   };
 
-  const handleDeleteModule = async (moduleId: string) => {
-    if (confirm("Are you sure you want to delete this module?")) {
-      await deleteModule(moduleId);
+  const handleDeleteModule = (
+    moduleId: string,
+    moduleName: string,
+    topicCount: number
+  ) => {
+    setDeleteError(null);
+    setPendingDelete({ type: "module", moduleId, name: moduleName, topicCount });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      setDeleteSubmitting(true);
+      setDeleteError(null);
+      if (pendingDelete.type === "module") {
+        await deleteModule(pendingDelete.moduleId);
+      } else {
+        await deleteTopic(pendingDelete.moduleId, pendingDelete.topicId);
+      }
+      setPendingDelete(null);
+    } catch (err: any) {
+      setDeleteError(
+        err.response?.data?.message ||
+          err.message ||
+          (pendingDelete.type === "module"
+            ? "Failed to delete module"
+            : "Failed to delete topic")
+      );
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -238,7 +268,13 @@ export const Curriculum: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
-                        onClick={() => handleDeleteModule(module.id)}
+                        onClick={() =>
+                          handleDeleteModule(
+                            module.id,
+                            module.name,
+                            moduleTopics.length
+                          )
+                        }
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -273,7 +309,13 @@ export const Curriculum: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
-                                onClick={() => handleDeleteTopic(module.id, topic.id)}
+                                onClick={() =>
+                                  handleDeleteTopic(
+                                    module.id,
+                                    topic.id,
+                                    topic.title || "this topic"
+                                  )
+                                }
                                 title="Remove topic"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -445,6 +487,80 @@ export const Curriculum: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 rounded-full bg-rose-500/10 text-rose-500 shrink-0 border border-rose-500/20">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-foreground">
+                  {pendingDelete.type === "module" ? "Delete Module" : "Remove Topic"}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Are you sure you want to{" "}
+                  {pendingDelete.type === "module" ? "permanently delete" : "remove"}{" "}
+                  <span className="font-bold text-foreground">{pendingDelete.name}</span>
+                  {pendingDelete.type === "module" && pendingDelete.topicCount > 0
+                    ? ` and its ${pendingDelete.topicCount} topic${
+                        pendingDelete.topicCount === 1 ? "" : "s"
+                      }`
+                    : ""}
+                  ?
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            {pendingDelete.type === "module" && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-400">
+                This cannot be undone. Topics under this module will also be removed.
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!deleteSubmitting) {
+                    setPendingDelete(null);
+                    setDeleteError(null);
+                  }
+                }}
+                disabled={deleteSubmitting}
+                className="text-xs font-bold h-9 px-4 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteSubmitting}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl gap-2"
+              >
+                {deleteSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : pendingDelete.type === "module" ? (
+                  "Delete Module"
+                ) : (
+                  "Remove Topic"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

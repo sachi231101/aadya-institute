@@ -30,10 +30,22 @@ export const getStudentReport = async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
+    const extraFilters = {
+      courseId: req.query.courseId as string | undefined,
+      batchId: req.query.batchId as string | undefined,
+      status: req.query.status as string | undefined,
+      riskFlag: req.query.riskFlag as "Normal" | "At Risk" | "Triggered" | undefined,
+      dateFrom: req.query.dateFrom as string | undefined,
+      dateTo: req.query.dateTo as string | undefined,
+    };
+
     if (isPureFaculty(user.roles)) {
       const facultyId = await requireFacultyIdIfPureFaculty(user);
       const studentIds = await getFacultyTeachingStudentIds(facultyId!, instituteId);
-      const data = await ReportService.getStudentReport(instituteId, { studentIds });
+      const data = await ReportService.getStudentReport(instituteId, {
+        studentIds,
+        ...extraFilters,
+      });
       sendSuccess(res, data, 200, "Student report retrieved successfully");
       return;
     }
@@ -42,7 +54,11 @@ export const getStudentReport = async (req: AuthenticatedRequest, res: Response)
       user,
       req.query.branchId as string | undefined
     );
-    const data = await ReportService.getStudentReport(instituteId, { branchId, branchIds });
+    const data = await ReportService.getStudentReport(instituteId, {
+      branchId,
+      branchIds,
+      ...extraFilters,
+    });
     sendSuccess(res, data, 200, "Student report retrieved successfully");
   } catch (err: any) {
     sendError(res, err.message || "Failed to fetch student report", err.statusCode || 400);

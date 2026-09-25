@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import type {
   StudentReportResponse,
+  StudentReportFilters,
   FacultyReportResponse,
   CourseReportResponse,
   CourseReportFilters,
@@ -8,13 +9,15 @@ import type {
   ScheduleSummaryResponse,
   AdmissionsReportFilters,
 } from "./report.types";
+import {
+  computeAssignmentCompletionRate,
+  computeAvgAttendanceRate,
+  computeConsecutiveTheoryAbsences,
+  resolveStudentRiskFlag,
+} from "./student-report.util";
 
-export interface StudentReportBranchScope {
-  branchId?: string;
-  branchIds?: string[];
-  /** When set, restrict report to these student IDs (faculty teaching desk). */
-  studentIds?: string[];
-}
+/** @deprecated Prefer StudentReportFilters — kept for service import compatibility. */
+export type StudentReportBranchScope = StudentReportFilters;
 
 export class ReportRepository {
   /**
@@ -22,31 +25,54 @@ export class ReportRepository {
    */
   static async getStudentReportData(
     instituteId: string,
-    { branchId, branchIds, studentIds }: StudentReportBranchScope = {}
+    filters: StudentReportFilters = {}
   ): Promise<StudentReportResponse> {
+    const {
+      branchId,
+      branchIds,
+      studentIds,
+      courseId,
+      batchId,
+      status,
+      riskFlag: riskFlagFilter,
+      dateFrom,
+      dateTo,
+    } = filters;
+
+    const emptyDistribution = [
+      { range: "90-100% Attendance", count: 0, color: "#10b981" },
+      { range: "75-89% Attendance", count: 0, color: "#1769AA" },
+      { range: "50-74% Attendance", count: 0, color: "#f59e0b" },
+      { range: "Below 50% (Risk)", count: 0, color: "#ef4444" },
+    ];
+
     if (studentIds && studentIds.length === 0) {
       return {
         summary: {
           totalStudents: 0,
-          avgAttendanceRate: 0,
-          assignmentCompletionRate: 0,
+          avgAttendanceRate: null,
+          assignmentCompletionRate: null,
           discontinuationRiskCount: 0,
         },
         enrollmentTrend: [],
-        attendanceDistribution: [
-          { range: "90-100% Attendance", count: 0, color: "#10b981" },
-          { range: "75-89% Attendance", count: 0, color: "#1769AA" },
-          { range: "50-74% Attendance", count: 0, color: "#f59e0b" },
-          { range: "Below 50% (Risk)", count: 0, color: "#ef4444" },
-        ],
+        attendanceDistribution: emptyDistribution,
         courseShare: [],
         students: [],
       };
     }
 
+    // Default ACTIVE; pass status=ALL to include every status
+    const statusFilter =
+      !status || status.toUpperCase() === "ACTIVE"
+        ? { status: "ACTIVE" as const }
+        : status.toUpperCase() === "ALL"
+          ? {}
+          : { status: status.toUpperCase() as "ACTIVE" | "ON_LEAVE" | "COMPLETED" | "DISCONTINUED" | "CANCELLED" };
+
     const students = await prisma.student.findMany({
       where: {
         instituteId,
+        ...statusFilter,
         ...(studentIds
           ? { id: { in: studentIds } }
           : branchId
@@ -54,6 +80,28 @@ export class ReportRepository {
             : branchIds?.length
               ? { branchId: { in: branchIds } }
               : {}),
+        ...(batchId
+          ? {
+              batchEnrollments: {
+                some: { batchId, status: "ACTIVE" },
+              },
+            }
+          : {}),
+        ...(courseId
+          ? {
+              OR: [
+                { admissions: { some: { courseId } } },
+                {
+                  batchEnrollments: {
+                    some: {
+                      status: "ACTIVE",
+                      batch: { courseId },
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       include: {
         user: { select: { name: true, email: true } },
@@ -81,11 +129,26 @@ export class ReportRepository {
           },
           orderBy: { createdAt: "asc" },
         },
-        studentAttendances: true,
-        assignmentSubmissions: true,
+        assignmentSubmissions: {
+          select: {
+            assignmentId: true,
+            submittedAt: true,
+            submissionStatus: true,
+          },
+        },
         batchEnrollments: {
           where: { status: "ACTIVE" },
-          select: { batchId: true },
+          select: {
+            batchId: true,
+            batch: {
+              select: {
+                id: true,
+                name: true,
+                courseId: true,
+                course: { select: { id: true, name: true, code: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -94,32 +157,110 @@ export class ReportRepository {
     const allBatchIds = [
       ...new Set(students.flatMap((s) => s.batchEnrollments.map((e) => e.batchId))),
     ];
+
+    const assignmentDateFilter =
+      dateFrom || dateTo
+        ? {
+            assignedAt: {
+              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00.000Z`) } : {}),
+              ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
+            },
+          }
+        : {};
+
     const assignmentCountsByBatch = new Map<string, number>();
+    const assignmentIdsByBatch = new Map<string, Set<string>>();
     if (allBatchIds.length > 0) {
-      const grouped = await prisma.assignment.groupBy({
-        by: ["batchId"],
-        where: { batchId: { in: allBatchIds }, status: "ACTIVE" },
-        _count: { _all: true },
+      const assignments = await prisma.assignment.findMany({
+        where: {
+          batchId: { in: allBatchIds },
+          status: "ACTIVE",
+          ...assignmentDateFilter,
+        },
+        select: { id: true, batchId: true },
       });
-      for (const row of grouped) {
-        assignmentCountsByBatch.set(row.batchId, row._count._all);
+      for (const row of assignments) {
+        assignmentCountsByBatch.set(
+          row.batchId,
+          (assignmentCountsByBatch.get(row.batchId) ?? 0) + 1
+        );
+        if (!assignmentIdsByBatch.has(row.batchId)) {
+          assignmentIdsByBatch.set(row.batchId, new Set());
+        }
+        assignmentIdsByBatch.get(row.batchId)!.add(row.id);
       }
     }
 
-    const totalStudents = students.length;
-
+    const studentIdList = students.map((s) => s.id);
     const { computeStudentAttendanceSummaries } = await import(
       "../attendance/attendance-stats.util"
     );
-    const attendanceByStudent = await computeStudentAttendanceSummaries(
-      students.map((s) => s.id)
-    );
+    const attendanceByStudent = await computeStudentAttendanceSummaries(studentIdList, {
+      ...(batchId ? { batchIds: [batchId] } : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {}),
+    });
 
-    let sumAttendance = 0;
+    // Batch-fetch theory attendance for consecutive-absence streaks (full history)
+    const theoryAttendances =
+      studentIdList.length > 0
+        ? await prisma.studentAttendance.findMany({
+            where: {
+              studentId: { in: studentIdList },
+              classSession: { sessionType: "THEORY" },
+            },
+            select: {
+              studentId: true,
+              status: true,
+              markedAt: true,
+              classSession: { select: { scheduledDate: true } },
+            },
+            orderBy: { classSession: { scheduledDate: "desc" } },
+          })
+        : [];
+
+    const theoryByStudent = new Map<
+      string,
+      Array<{ status: string; scheduledDate: Date; markedAt: Date }>
+    >();
+    for (const row of theoryAttendances) {
+      if (!theoryByStudent.has(row.studentId)) {
+        theoryByStudent.set(row.studentId, []);
+      }
+      theoryByStudent.get(row.studentId)!.push({
+        status: row.status,
+        scheduledDate: row.classSession.scheduledDate,
+        markedAt: row.markedAt,
+      });
+    }
+
+    // Last PRESENT across any session type
+    const presentMarks =
+      studentIdList.length > 0
+        ? await prisma.studentAttendance.findMany({
+            where: {
+              studentId: { in: studentIdList },
+              status: "PRESENT",
+            },
+            select: {
+              studentId: true,
+              markedAt: true,
+              classSession: { select: { scheduledDate: true } },
+            },
+            orderBy: { classSession: { scheduledDate: "desc" } },
+          })
+        : [];
+    const lastAttendedByStudent = new Map<string, string>();
+    for (const row of presentMarks) {
+      if (lastAttendedByStudent.has(row.studentId)) continue;
+      lastAttendedByStudent.set(
+        row.studentId,
+        (row.classSession.scheduledDate || row.markedAt).toISOString()
+      );
+    }
+
     let totalAssignmentsAvailable = 0;
     let totalAssignmentsCompleted = 0;
-    let discontinuationRiskCount = 0;
-
     let countRange90_100 = 0;
     let countRange75_89 = 0;
     let countRange50_74 = 0;
@@ -144,6 +285,8 @@ export class ReportRepository {
         courses.length > 0 ? courses.map((c) => c.name).join(", ") : "Unassigned";
       const courseName = coursePackage;
       const branchName = s.branch?.name || "Aadya Central Branch";
+      const primaryBatch = s.batchEnrollments[0]?.batch;
+      const batchName = primaryBatch?.name || "—";
       const combinedNotes = s.admissions.map((a) => a.notes).filter(Boolean).join(" | ");
 
       const gender =
@@ -178,39 +321,49 @@ export class ReportRepository {
         null;
 
       const stats = attendanceByStudent.get(s.id);
-      const totalClasses = stats?.conductedCount ?? 0;
+      const conductedCount = stats?.conductedCount ?? 0;
       const attendancePct = stats?.attendancePercentage ?? 0;
+      const presentCount = stats?.presentCount ?? 0;
+      const absentCount = stats?.absentCount ?? 0;
+      const leaveCount = stats?.leaveCount ?? 0;
 
-      if (totalClasses > 0) {
-        sumAttendance += attendancePct;
+      if (attendancePct >= 90 && conductedCount > 0) countRange90_100++;
+      else if (attendancePct >= 75 && conductedCount > 0) countRange75_89++;
+      else if (attendancePct >= 50 && conductedCount > 0) countRange50_74++;
+      else if (conductedCount > 0) countRangeBelow50++;
+
+      const studentAssignmentIds = new Set<string>();
+      for (const e of s.batchEnrollments) {
+        const ids = assignmentIdsByBatch.get(e.batchId);
+        if (ids) {
+          for (const id of ids) studentAssignmentIds.add(id);
+        }
       }
-
-      if (attendancePct >= 90 && totalClasses > 0) countRange90_100++;
-      else if (attendancePct >= 75 && totalClasses > 0) countRange75_89++;
-      else if (attendancePct >= 50 && totalClasses > 0) countRange50_74++;
-      else if (totalClasses > 0) countRangeBelow50++;
-
-      const submittedCount = s.assignmentSubmissions.filter(
-        (sub) =>
-          sub.submittedAt != null ||
-          sub.submissionStatus === "SUBMITTED" ||
-          sub.submissionStatus === "LATE" ||
-          sub.submissionStatus === "GRADED"
-      ).length;
       const totalCount = s.batchEnrollments.reduce(
         (sum, e) => sum + (assignmentCountsByBatch.get(e.batchId) ?? 0),
         0
       );
+      const submittedCount = s.assignmentSubmissions.filter((sub) => {
+        if (studentAssignmentIds.size > 0 && !studentAssignmentIds.has(sub.assignmentId)) {
+          return false;
+        }
+        return (
+          sub.submittedAt != null ||
+          sub.submissionStatus === "SUBMITTED" ||
+          sub.submissionStatus === "LATE" ||
+          sub.submissionStatus === "GRADED"
+        );
+      }).length;
       totalAssignmentsCompleted += submittedCount;
       totalAssignmentsAvailable += totalCount;
 
-      let riskFlag: "Normal" | "At Risk" | "Triggered" = "Normal";
-      if (attendancePct < 50 && totalClasses > 0) {
-        riskFlag = "Triggered";
-        discontinuationRiskCount++;
-      } else if (attendancePct < 75 && totalClasses > 0) {
-        riskFlag = "At Risk";
-      }
+      const theoryRows = theoryByStudent.get(s.id) || [];
+      const consecutiveTheoryAbsences = computeConsecutiveTheoryAbsences(theoryRows);
+      const riskFlag = resolveStudentRiskFlag(
+        consecutiveTheoryAbsences,
+        attendancePct,
+        conductedCount
+      );
 
       return {
         id: s.id,
@@ -218,6 +371,8 @@ export class ReportRepository {
         name: studentName,
         branchId: s.branchId,
         branchName,
+        batchName,
+        status: s.status,
         courseName,
         coursePackage,
         courses,
@@ -226,48 +381,78 @@ export class ReportRepository {
         dateOfBirth,
         counsellorName,
         attendancePercentage: attendancePct,
+        presentCount,
+        absentCount,
+        leaveCount,
+        conductedCount,
         assignmentsSubmitted: submittedCount,
         totalAssignments: totalCount,
+        consecutiveTheoryAbsences,
+        lastAttendedAt: lastAttendedByStudent.get(s.id) || null,
         riskFlag,
       };
     });
 
-    const studentsWithClasses = students.filter((s) => s.studentAttendances.length > 0).length;
-    const avgAttendance = studentsWithClasses > 0 ? Math.round(sumAttendance / studentsWithClasses) : 0;
-    const assignmentCompletionRate =
-      totalAssignmentsAvailable > 0
-        ? Math.round((totalAssignmentsCompleted / totalAssignmentsAvailable) * 100)
-        : 0;
+    const filteredRows = riskFlagFilter
+      ? studentRows.filter((row) => row.riskFlag === riskFlagFilter)
+      : studentRows;
 
-    // Monthly Enrollment Growth Trend (Last 6 Months strictly from DB)
+    const avgAttendance = computeAvgAttendanceRate(filteredRows);
+    const assignmentCompletionRate = computeAssignmentCompletionRate(
+      riskFlagFilter
+        ? filteredRows.reduce((sum, r) => sum + r.assignmentsSubmitted, 0)
+        : totalAssignmentsCompleted,
+      riskFlagFilter
+        ? filteredRows.reduce((sum, r) => sum + r.totalAssignments, 0)
+        : totalAssignmentsAvailable
+    );
+
+    const discontinuationRiskCount = filteredRows.filter(
+      (s) => s.consecutiveTheoryAbsences >= 2
+    ).length;
+
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const now = new Date();
     const enrollmentTrend = [];
-
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const mLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
       const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-
-      const countInMonth = students.filter((s) => new Date(s.createdAt) <= endOfMonth).length;
-
-      enrollmentTrend.push({
-        month: mLabel,
-        students: countInMonth,
-      });
+      const countInMonth = students.filter((s) => {
+        if (riskFlagFilter) {
+          const row = filteredRows.find((r) => r.id === s.id);
+          if (!row) return false;
+        }
+        return new Date(s.createdAt) <= endOfMonth;
+      }).length;
+      enrollmentTrend.push({ month: mLabel, students: countInMonth });
     }
 
-    // Attendance Distribution strictly from DB counts
+    // Recalculate distribution from filtered rows
+    let f90 = 0;
+    let f75 = 0;
+    let f50 = 0;
+    let fBelow = 0;
+    for (const row of filteredRows) {
+      if (row.conductedCount <= 0) continue;
+      if (row.attendancePercentage >= 90) f90++;
+      else if (row.attendancePercentage >= 75) f75++;
+      else if (row.attendancePercentage >= 50) f50++;
+      else fBelow++;
+    }
+
     const attendanceDistribution = [
-      { range: "90-100% Attendance", count: countRange90_100, color: "#10b981" },
-      { range: "75-89% Attendance", count: countRange75_89, color: "#1769AA" },
-      { range: "50-74% Attendance", count: countRange50_74, color: "#f59e0b" },
-      { range: "Below 50% (Risk)", count: countRangeBelow50, color: "#ef4444" },
+      { range: "90-100% Attendance", count: riskFlagFilter ? f90 : countRange90_100, color: "#10b981" },
+      { range: "75-89% Attendance", count: riskFlagFilter ? f75 : countRange75_89, color: "#1769AA" },
+      { range: "50-74% Attendance", count: riskFlagFilter ? f50 : countRange50_74, color: "#f59e0b" },
+      { range: "Below 50% (Risk)", count: riskFlagFilter ? fBelow : countRangeBelow50, color: "#ef4444" },
     ];
 
-    // Course Share — count each package course (student may appear in multiple courses)
     const courseMap = new Map<string, number>();
-    students.forEach((s) => {
+    const studentsForShare = riskFlagFilter
+      ? students.filter((s) => filteredRows.some((r) => r.id === s.id))
+      : students;
+    studentsForShare.forEach((s) => {
       const names = s.admissions
         .map((a) => a.course?.name)
         .filter((n): n is string => !!n);
@@ -290,7 +475,7 @@ export class ReportRepository {
 
     return {
       summary: {
-        totalStudents,
+        totalStudents: filteredRows.length,
         avgAttendanceRate: avgAttendance,
         assignmentCompletionRate,
         discontinuationRiskCount,
@@ -298,7 +483,7 @@ export class ReportRepository {
       enrollmentTrend,
       attendanceDistribution,
       courseShare,
-      students: studentRows,
+      students: filteredRows,
     };
   }
 

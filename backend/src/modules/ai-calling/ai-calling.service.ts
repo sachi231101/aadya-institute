@@ -1378,6 +1378,13 @@ export const AiCallingService = {
       ...(leadId ? { leadId } : {}),
     });
 
+    if (aiSummary && String(aiSummary).trim()) {
+      const { enqueueCallSummaryEmbedding } = await import(
+        "../../queues/call-summary-embedding.queue"
+      );
+      void enqueueCallSummaryEmbedding(callLog.id);
+    }
+
     const config = await resolveAiCallingConfig(instituteId);
     const dateKey = usageDateKey(new Date(), config.timezone);
     if (isTerminalCallStatus(mappedStatus)) {

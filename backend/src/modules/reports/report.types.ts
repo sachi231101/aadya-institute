@@ -15,10 +15,25 @@ export interface CourseShareItem {
   color: string;
 }
 
+export interface StudentReportFilters {
+  branchId?: string;
+  branchIds?: string[];
+  studentIds?: string[];
+  courseId?: string;
+  batchId?: string;
+  /** Defaults to ACTIVE when omitted. Pass ALL to include every status. */
+  status?: string;
+  riskFlag?: "Normal" | "At Risk" | "Triggered";
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface StudentReportSummary {
   totalStudents: number;
-  avgAttendanceRate: number;
-  assignmentCompletionRate: number;
+  /** Null when no students have conducted classes in scope. */
+  avgAttendanceRate: number | null;
+  /** Null when no assignments exist in scope. */
+  assignmentCompletionRate: number | null;
   discontinuationRiskCount: number;
 }
 
@@ -28,6 +43,8 @@ export interface StudentPerformanceRow {
   name: string;
   branchId?: string;
   branchName: string;
+  batchName: string;
+  status: string;
   courseName: string;
   /** Joined admission course names (course package). */
   coursePackage: string;
@@ -37,8 +54,14 @@ export interface StudentPerformanceRow {
   dateOfBirth: string | null;
   counsellorName: string | null;
   attendancePercentage: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  conductedCount: number;
   assignmentsSubmitted: number;
   totalAssignments: number;
+  consecutiveTheoryAbsences: number;
+  lastAttendedAt: string | null;
   riskFlag: "Normal" | "At Risk" | "Triggered";
 }
 
