@@ -167,6 +167,37 @@ export const assertCanStartLiveSession = (params: {
  * Enforce faculty session attendance marking within the same half-open window as Host.
  * Admin / center-manager corrections are gated by the caller (do not call for non-faculty).
  */
+const normalizeRoleNames = (roles: string[] | undefined): string[] =>
+  (roles || []).map((r) => String(r).toUpperCase());
+
+/** Admin roles that may mark or correct attendance on non-today session dates. */
+export const isAttendanceCorrectionAdmin = (roles: string[] | undefined): boolean => {
+  const normalized = normalizeRoleNames(roles);
+  return normalized.includes("ADMIN") || normalized.includes("SUPER_ADMIN");
+};
+
+/**
+ * Day-of gate: non-admin roles may only mark attendance when the session's
+ * calendar date (UTC-noon / YYYY-MM-DD key) matches today in Asia/Kolkata.
+ */
+export const assertCanMarkAttendanceForSessionDay = (params: {
+  scheduledDate: Date | string;
+  roles: string[] | undefined;
+  now?: Date;
+}): void => {
+  if (isAttendanceCorrectionAdmin(params.roles)) return;
+
+  const sessionDay = toSessionDateKey(params.scheduledDate);
+  const todayDay = istTodayKey(params.now);
+  if (sessionDay !== todayDay) {
+    throw new AppError(
+      "Attendance can only be marked for today's classes",
+      403,
+      "ATTENDANCE_NOT_TODAY"
+    );
+  }
+};
+
 export const assertCanMarkSessionAttendance = (params: {
   dateKey: string;
   startTime: string;

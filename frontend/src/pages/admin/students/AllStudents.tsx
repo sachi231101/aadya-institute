@@ -28,6 +28,13 @@ import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/Permiss
 import { CourseChips } from "@/components/common/CourseChips";
 import { coursesFromStudent } from "@/utils/admission-package.utils";
 import { getApiErrorMessage } from "@/utils/api-error";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  CONTINUE_STUDENT_DIALOG_DESCRIPTION,
+  continueSuccessMessage,
+  studentAllocationPath,
+} from "@/utils/continue-student.util";
 
 function statusBadgeClass(status: string) {
   switch (status) {
@@ -53,11 +60,16 @@ export const AllStudents: React.FC = () => {
   const [continueTarget, setContinueTarget] = useState<{
     id: string;
     name: string;
+    studentCode: string;
   } | null>(null);
+  const [continueNotes, setContinueNotes] = useState("");
   const [continueError, setContinueError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(
-    null
-  );
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error";
+    actionLabel?: string;
+    onAction?: () => void;
+  } | null>(null);
   const continueMutation = useContinueStudent();
   const { isAdmin } = usePermissions();
   const tableColSpan = isAdmin ? 8 : 7;
@@ -228,22 +240,42 @@ export const AllStudents: React.FC = () => {
   const closeContinueDialog = () => {
     if (continueMutation.isPending) return;
     setContinueTarget(null);
+    setContinueNotes("");
     setContinueError(null);
   };
 
   const handleConfirmContinue = async () => {
     if (!continueTarget) return;
     setContinueError(null);
+    const notes = continueNotes.trim();
     try {
-      const res = await continueMutation.mutateAsync(continueTarget.id);
+      const res = await continueMutation.mutateAsync({
+        id: continueTarget.id,
+        notes: notes || undefined,
+      });
       const result = res.data;
-      const restoredMsg = result?.batchRestored
-        ? result.batchCode
-          ? ` Previous batch ${result.batchCode} was restored.`
-          : " Previous batch enrollment was restored."
-        : " Assign a batch from Student Allocation if needed.";
-      showToast(`${continueTarget.name} reactivated.${restoredMsg}`, "success");
+      const restoredMsg = continueSuccessMessage({
+        batchRestored: Boolean(result?.batchRestored),
+        batchCode: result?.batchCode,
+      });
+      const allocationSearch = continueTarget.studentCode || continueTarget.name;
+      const needsAllocation = !result?.batchRestored;
+      setToast({
+        message: `${continueTarget.name} reactivated.${restoredMsg}`,
+        tone: "success",
+        ...(needsAllocation
+          ? {
+              actionLabel: "Open Student Allocation",
+              onAction: () =>
+                navigate(
+                  studentAllocationPath(basePath, { search: allocationSearch })
+                ),
+            }
+          : {}),
+      });
+      setTimeout(() => setToast(null), needsAllocation ? 8000 : 4000);
       setContinueTarget(null);
+      setContinueNotes("");
     } catch (err) {
       setContinueError(getApiErrorMessage(err, "Failed to continue student."));
     }
@@ -253,13 +285,24 @@ export const AllStudents: React.FC = () => {
     <PageContainer>
       {toast && (
         <div
-          className={`rounded-lg p-3 text-sm font-medium border ${
+          className={`rounded-lg p-3 text-sm font-medium border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${
             toast.tone === "success"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
               : "bg-rose-500/10 border-rose-500/30 text-rose-700"
           }`}
         >
-          {toast.message}
+          <span>{toast.message}</span>
+          {toast.onAction && toast.actionLabel ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 border-emerald-600/40 text-emerald-800 hover:bg-emerald-500/10"
+              onClick={toast.onAction}
+            >
+              {toast.actionLabel}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -356,7 +399,9 @@ export const AllStudents: React.FC = () => {
                 <TableHead>Course</TableHead>
                 <TableHead>Batch</TableHead>
                 <TableHead>Status</TableHead>
-                {isAdmin ? <TableHead>Actions</TableHead> : null}
+                {isAdmin ? (
+                  <TableHead className="w-[88px] normal-case tracking-normal">Manage</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -424,7 +469,12 @@ export const AllStudents: React.FC = () => {
                             disabled={continueMutation.isPending}
                             onClick={() => {
                               setContinueError(null);
-                              setContinueTarget({ id: student.id, name: student.name });
+                              setContinueNotes("");
+                              setContinueTarget({
+                                id: student.id,
+                                name: student.name,
+                                studentCode: student.studentCode,
+                              });
                             }}
                           >
                             Continue
@@ -452,14 +502,34 @@ export const AllStudents: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Continue student?</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Reactivate this student and restore previous batch if available?
+              {CONTINUE_STUDENT_DIALOG_DESCRIPTION}
             </DialogDescription>
           </DialogHeader>
           {continueTarget && (
             <p className="text-sm text-foreground">
               <span className="font-medium">{continueTarget.name}</span>
+              {continueTarget.studentCode ? (
+                <span className="text-muted-foreground font-mono text-xs ml-2">
+                  {continueTarget.studentCode}
+                </span>
+              ) : null}
             </p>
           )}
+          <div className="space-y-1.5">
+            <Label htmlFor="continue-notes-all" className="text-xs font-semibold">
+              Notes <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <Textarea
+              id="continue-notes-all"
+              value={continueNotes}
+              onChange={(e) => setContinueNotes(e.target.value)}
+              placeholder="Optional note for this reactivation"
+              rows={3}
+              maxLength={1000}
+              disabled={continueMutation.isPending}
+              className="text-sm resize-none"
+            />
+          </div>
           {continueError && (
             <p className="text-xs text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-md px-3 py-2">
               {continueError}

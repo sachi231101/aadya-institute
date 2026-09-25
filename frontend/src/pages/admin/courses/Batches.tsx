@@ -43,7 +43,18 @@ import {
   newLineKey,
   type ScheduleLineFormRow,
 } from "@/components/batches/BatchScheduleLinesEditor";
-import {
+
+const FACULTY_SCHEDULE_CONFLICT_MESSAGE =
+  "This faculty member is already assigned to another class at this time. Please select a different time slot or faculty member.";
+
+const scheduleLineConflictKey = (line: {
+  facultyId?: string;
+  dayOfWeek: number;
+  timeslotMasterId?: string;
+  startTime?: string;
+  endTime?: string;
+}) =>
+  `${line.facultyId || ""}|${line.dayOfWeek}|${line.timeslotMasterId || ""}|${line.startTime || ""}|${line.endTime || ""}`;import {
   Table,
   TableBody,
   TableCell,
@@ -107,7 +118,7 @@ export const Batches: React.FC = () => {
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [expectedEndDate, setExpectedEndDate] = useState("");
   const [remark, setRemark] = useState("");
-  const [batchStatus, setBatchStatus] = useState<BatchData["status"]>("UPCOMING");
+  const [isCancelled, setIsCancelled] = useState(false);
   /** Explicit branch for create when list filter is All branches. */
   const [formBranchId, setFormBranchId] = useState("");
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
@@ -172,16 +183,6 @@ export const Batches: React.FC = () => {
   const totalCapacity = batches.reduce((acc, b) => acc + (b.capacity || 35), 0);
   const avgOccupancy = totalCapacity > 0 ? Math.round((totalEnrolled / totalCapacity) * 100) : 0;
 
-  useEffect(() => {
-    if (editingBatch || scheduleLines.length === 0 || name.trim()) return;
-    const courseIds = [...new Set(scheduleLines.map((l) => l.courseId).filter(Boolean))];
-    const names = courseIds
-      .map((id) => courses.find((c) => c.id === id)?.name)
-      .filter(Boolean);
-    if (names.length === 1) setName(`${names[0]} Batch`);
-    else if (names.length > 1) setName(`${names[0]} Full Stack Batch`);
-  }, [scheduleLines, courses, editingBatch, name]);
-
   const resetFormFields = () => {
     setName("");
     setCode("");
@@ -190,7 +191,7 @@ export const Batches: React.FC = () => {
     setStartDate(new Date().toISOString().slice(0, 10));
     setExpectedEndDate("");
     setRemark("");
-    setBatchStatus("UPCOMING");
+    setIsCancelled(false);
     setCapacity(35);
     setFormBranchId("");
     setFormError(null);
@@ -212,7 +213,7 @@ export const Batches: React.FC = () => {
     setExpectedEndDate(batch.expectedEndDate ? batch.expectedEndDate.split("T")[0] : "");
     setRemark(batch.remark || "");
     setFacultyId(batch.facultyId || batch.faculty?.id || "");
-    setBatchStatus(batch.status || "UPCOMING");
+    setIsCancelled(batch.status === "CANCELLED");
     setCapacity(batch.capacity || 35);
     setFormBranchId(batch.branchId || "");
 
@@ -353,6 +354,41 @@ export const Batches: React.FC = () => {
         };
       });
 
+      const seenSlots = new Set<string>();
+      for (const line of scheduleLinesPayload) {
+        if (!line.facultyId) continue;
+        const key = scheduleLineConflictKey(line);
+        if (seenSlots.has(key)) {
+          setFormError(FACULTY_SCHEDULE_CONFLICT_MESSAGE);
+          return;
+        }
+        seenSlots.add(key);
+      }
+
+      const precheckBranchId = editingBatch?.branchId || createBranchId;
+      for (const line of scheduleLinesPayload) {
+        if (!line.facultyId || line.dayOfWeek === undefined) continue;
+        try {
+          const available = await batchesApi.getAvailableFaculty({
+            dayOfWeek: line.dayOfWeek,
+            timeslotMasterId: line.timeslotMasterId,
+            startTime: line.startTime,
+            endTime: line.endTime,
+            startDate: startDate || undefined,
+            endDate: expectedEndDate || undefined,
+            branchId: precheckBranchId || undefined,
+            excludeBatchId: editingBatch?.id,
+          });
+          const availableIds = new Set((available.data || []).map((f) => f.id));
+          if (!availableIds.has(line.facultyId)) {
+            setFormError(FACULTY_SCHEDULE_CONFLICT_MESSAGE);
+            return;
+          }
+        } catch {
+          // Backend remains source of truth; continue to save if pre-check fails to load.
+        }
+      }
+
       const payload = {
         name,
         code,
@@ -363,7 +399,7 @@ export const Batches: React.FC = () => {
         expectedEndDate: expectedEndDate || undefined,
         capacity,
         remark: remark || undefined,
-        status: batchStatus,
+        ...(isCancelled ? { status: "CANCELLED" as const } : {}),
         ...(editingBatch ? {} : { branchId: createBranchId }),
       };
 
@@ -891,16 +927,23 @@ export const Batches: React.FC = () => {
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
                       Batch Status
                     </label>
-                    <select
-                      value={batchStatus}
-                      onChange={(e) => setBatchStatus(e.target.value as BatchData["status"])}
-                      className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
-                    >
-                      <option value="UPCOMING">Upcoming</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </select>
+                    <div className="h-10 px-3 rounded-xl border border-border bg-muted/40 flex items-center justify-between gap-3">
+                      <p className="text-[11px] text-muted-foreground leading-tight">
+                        Status follows start / end dates
+                        {editingBatch && !isCancelled
+                          ? ` · currently ${editingBatch.status}`
+                          : ""}
+                      </p>
+                      <label className="flex items-center gap-1.5 shrink-0 cursor-pointer text-xs font-medium text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={isCancelled}
+                          onChange={(e) => setIsCancelled(e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        Cancelled
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">

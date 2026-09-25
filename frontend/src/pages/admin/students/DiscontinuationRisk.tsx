@@ -259,8 +259,8 @@ export const DiscontinuationRisk: React.FC = () => {
                 <TableHead className="border border-border bg-muted/50 h-9 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
                   Risk
                 </TableHead>
-                <TableHead className="border border-border bg-muted/50 h-9 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
-                  Actions
+                <TableHead className="border border-border bg-muted/50 h-9 px-3 py-2 text-[11px] font-semibold normal-case tracking-normal w-[200px]">
+                  Manage
                 </TableHead>
               </TableRow>
             </TableHeader>

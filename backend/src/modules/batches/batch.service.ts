@@ -1,8 +1,21 @@
 import * as repository from "./batch.repository";
-import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto, GenerateSessionsDto, BatchCourseItemDto } from "./batch.types";
+import {
+  CreateBatchDto,
+  UpdateBatchDto,
+  BatchQueryFilters,
+  CreateBatchScheduleDto,
+  UpdateBatchScheduleDto,
+  GenerateSessionsDto,
+  BatchCourseItemDto,
+  ScheduleLineDto,
+} from "./batch.types";
 import { AppError } from "../../middlewares/error.middleware";
 import { prisma } from "../../config/database";
 import { eachDateKeyInRange, formatDateKey, utcNoonFromDateKey, dayOfWeekFromDateKey } from "./batch-schedule.util";
+import {
+  resolveBatchLifecycleStatus,
+  type BatchLifecycleStatus,
+} from "./batch-lifecycle-status.util";
 import * as studentAllocationService from "../students/student-allocation.service";
 import * as facultyAllocationService from "../faculty/faculty-allocation.service";
 import type { AuthUser } from "../auth/auth.types";
@@ -15,6 +28,98 @@ import {
   isBranchLockedRole,
 } from "../../utils/branch-isolation.util";
 import { assertFacultyOwnsBatch, isPureFaculty } from "../../utils/auth-user.util";
+
+export { resolveBatchLifecycleStatus } from "./batch-lifecycle-status.util";
+
+export const FACULTY_SCHEDULE_CONFLICT_MESSAGE =
+  "This faculty member is already assigned to another class at this time. Please select a different time slot or faculty member.";
+
+type FacultyConflictLine = {
+  facultyId?: string | null;
+  dayOfWeek: number;
+  startTime?: string;
+  endTime?: string;
+  timeslotMasterId?: string | null;
+  status?: "ACTIVE" | "INACTIVE" | string | null;
+};
+
+const facultyConflictSlotKey = (line: FacultyConflictLine): string => {
+  const timeslot = line.timeslotMasterId?.trim() || "";
+  const start = line.startTime?.trim() || "";
+  const end = line.endTime?.trim() || "";
+  return `${line.facultyId}|${line.dayOfWeek}|${timeslot}|${start}|${end}`;
+};
+
+/**
+ * Reject when faculty already holds the same ACTIVE day+slot on another batch,
+ * or when the payload itself duplicates faculty/day/slot.
+ */
+export const assertNoFacultyScheduleConflicts = async (params: {
+  instituteId: string;
+  lines: FacultyConflictLine[];
+  startDate?: string | Date | null;
+  expectedEndDate?: string | Date | null;
+  excludeBatchId?: string;
+  excludeScheduleId?: string;
+}): Promise<void> => {
+  const activeLines = params.lines.filter(
+    (line) =>
+      line.facultyId &&
+      String(line.facultyId).trim() !== "" &&
+      line.status !== "INACTIVE"
+  );
+  if (activeLines.length === 0) return;
+
+  const asScheduleLines: ScheduleLineDto[] = activeLines.map((line) => ({
+    courseId: "",
+    dayOfWeek: line.dayOfWeek,
+    facultyId: line.facultyId || undefined,
+    startTime: line.startTime || undefined,
+    endTime: line.endTime || undefined,
+    timeslotMasterId: line.timeslotMasterId || undefined,
+    status: line.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+  }));
+
+  const enriched = await repository.enrichScheduleLinesWithMasterTimes(asScheduleLines);
+
+  const seen = new Set<string>();
+  for (const line of enriched) {
+    if (!line.facultyId) continue;
+    const key = facultyConflictSlotKey(line);
+    if (seen.has(key)) {
+      throw new AppError(FACULTY_SCHEDULE_CONFLICT_MESSAGE, 400);
+    }
+    seen.add(key);
+  }
+
+  const startDate =
+    params.startDate instanceof Date
+      ? params.startDate.toISOString()
+      : params.startDate || undefined;
+  const endDate =
+    params.expectedEndDate instanceof Date
+      ? params.expectedEndDate.toISOString()
+      : params.expectedEndDate || undefined;
+
+  for (const line of enriched) {
+    if (!line.facultyId) continue;
+    const hasConflict = await repository.hasFacultyScheduleConflict({
+      instituteId: params.instituteId,
+      facultyId: line.facultyId,
+      dayOfWeek: line.dayOfWeek,
+      startTime: line.startTime,
+      endTime: line.endTime,
+      timeslotMasterId: line.timeslotMasterId,
+      startDate,
+      endDate,
+      excludeBatchId: params.excludeBatchId,
+      excludeScheduleId: params.excludeScheduleId,
+    });
+    if (hasConflict) {
+      throw new AppError(FACULTY_SCHEDULE_CONFLICT_MESSAGE, 400);
+    }
+  }
+};
 
 /**
  * Resolve and authorize a single branchId for batch create.
@@ -94,6 +199,56 @@ const loadBatchForUser = async (id: string, user: AuthUser) => {
   return batch;
 };
 
+/**
+ * Persist lifecycle status when stored value drifts from start/end dates.
+ * CANCELLED is never overwritten by date rules.
+ */
+const reconcileBatchLifecycleRows = async (
+  rows: Array<{
+    id: string;
+    status: string;
+    startDate: Date;
+    expectedEndDate: Date | null;
+  }>
+): Promise<void> => {
+  const byStatus = new Map<BatchLifecycleStatus, string[]>();
+  for (const row of rows) {
+    const resolved = resolveBatchLifecycleStatus({
+      startDate: row.startDate,
+      expectedEndDate: row.expectedEndDate,
+      currentStatus: row.status,
+    });
+    if (resolved === row.status) continue;
+    const list = byStatus.get(resolved) || [];
+    list.push(row.id);
+    byStatus.set(resolved, list);
+  }
+  for (const [status, ids] of byStatus) {
+    await repository.updateBatchStatusesByIds(ids, status);
+  }
+};
+
+const reconcileBatchesInScope = async (
+  instituteId: string,
+  branchId?: string,
+  branchIds?: string[]
+): Promise<void> => {
+  const rows = await repository.findBatchLifecycleRows(instituteId, branchId, branchIds);
+  await reconcileBatchLifecycleRows(rows);
+};
+
+const resolveStatusForWrite = (params: {
+  startDate: Date | string;
+  expectedEndDate?: Date | string | null;
+  /** Client may only force CANCELLED; other lifecycle values are ignored. */
+  requestedStatus?: string | null;
+}): BatchLifecycleStatus =>
+  resolveBatchLifecycleStatus({
+    startDate: params.startDate,
+    expectedEndDate: params.expectedEndDate,
+    currentStatus: params.requestedStatus === "CANCELLED" ? "CANCELLED" : undefined,
+  });
+
 export const getBatches = async (
   user: AuthUser,
   filters: BatchQueryFilters = {},
@@ -104,6 +259,7 @@ export const getBatches = async (
   }
 ) => {
   if (options?.skipBranchScope) {
+    await reconcileBatchesInScope(user.instituteId);
     return repository.findAllBatches(user.instituteId, undefined, filters);
   }
 
@@ -116,6 +272,7 @@ export const getBatches = async (
   }
 
   const scope = getBranchScopeFilter(user, options?.requestedBranchId);
+  await reconcileBatchesInScope(user.instituteId, scope.branchId, scope.branchIds);
   return repository.findAllBatches(
     user.instituteId,
     scope.branchId,
@@ -125,7 +282,17 @@ export const getBatches = async (
 };
 
 export const getBatchById = async (id: string, user: AuthUser) => {
-  return loadBatchForUser(id, user);
+  const batch = await loadBatchForUser(id, user);
+  const resolved = resolveBatchLifecycleStatus({
+    startDate: batch.startDate,
+    expectedEndDate: batch.expectedEndDate,
+    currentStatus: batch.status,
+  });
+  if (resolved !== batch.status) {
+    await repository.updateBatchStatusesByIds([batch.id], resolved);
+    return { ...batch, status: resolved };
+  }
+  return batch;
 };
 
 const validateBatchCourses = async (
@@ -204,10 +371,30 @@ export const createBatch = async (user: AuthUser, data: CreateBatchDto) => {
     scheduleLines: data.scheduleLines,
   };
 
+  if (!payload.startDate) {
+    throw new AppError("Start date is required", 400);
+  }
+
+  payload.status = resolveStatusForWrite({
+    startDate: payload.startDate,
+    expectedEndDate: payload.expectedEndDate || null,
+    requestedStatus: data.status,
+  });
+
   const existing = await repository.findAllBatches(user.instituteId, undefined, { search: data.code });
   if (existing.some((b) => b.code.toLowerCase() === data.code.toLowerCase())) {
     throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);
   }
+
+  if (payload.scheduleLines && payload.scheduleLines.length > 0) {
+    await assertNoFacultyScheduleConflicts({
+      instituteId: user.instituteId,
+      lines: payload.scheduleLines,
+      startDate: payload.startDate,
+      expectedEndDate: payload.expectedEndDate,
+    });
+  }
+
   const batch = await repository.createBatch(user.instituteId, payload);
 
   // Bridge schedule lines → ClassSession so faculty dashboard/attendance sees classes immediately.
@@ -279,6 +466,29 @@ export const updateBatch = async (id: string, user: AuthUser, data: UpdateBatchD
       400
     );
   }
+
+  if (safeData.scheduleLines && safeData.scheduleLines.length > 0) {
+    await assertNoFacultyScheduleConflicts({
+      instituteId: user.instituteId,
+      lines: safeData.scheduleLines,
+      startDate: safeData.startDate || existingBatch.startDate,
+      expectedEndDate: safeData.expectedEndDate || existingBatch.expectedEndDate,
+      excludeBatchId: id,
+    });
+  }
+
+  const effectiveStart =
+    safeData.startDate !== undefined ? safeData.startDate : existingBatch.startDate;
+  const effectiveEnd =
+    safeData.expectedEndDate !== undefined
+      ? safeData.expectedEndDate || null
+      : existingBatch.expectedEndDate;
+
+  safeData.status = resolveStatusForWrite({
+    startDate: effectiveStart,
+    expectedEndDate: effectiveEnd,
+    requestedStatus: data.status,
+  });
 
   const result = await repository.updateBatch(id, user.instituteId, safeData);
   if (result.count === 0) {
@@ -396,7 +606,25 @@ export const addBatchSchedule = async (
   user: AuthUser,
   data: CreateBatchScheduleDto
 ) => {
-  await loadBatchForUser(batchId, user);
+  const batch = await loadBatchForUser(batchId, user);
+  if (data.status !== "INACTIVE" && data.facultyId) {
+    await assertNoFacultyScheduleConflicts({
+      instituteId: user.instituteId,
+      lines: [
+        {
+          facultyId: data.facultyId,
+          dayOfWeek: data.dayOfWeek,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          timeslotMasterId: data.timeslotMasterId,
+          status: data.status || "ACTIVE",
+        },
+      ],
+      startDate: data.effectiveFrom || batch.startDate,
+      expectedEndDate: data.effectiveTo || batch.expectedEndDate,
+      // Same-batch overlaps must also be rejected when adding a single line.
+    });
+  }
   const schedule = await repository.createBatchSchedule(batchId, user.instituteId, data);
   if (!schedule) throw new AppError("Failed to create batch schedule", 400);
   try {
@@ -413,7 +641,43 @@ export const updateBatchScheduleEntry = async (
   user: AuthUser,
   data: UpdateBatchScheduleDto
 ) => {
-  await loadBatchForUser(batchId, user);
+  const batch = await loadBatchForUser(batchId, user);
+  const existingSchedules = await repository.findBatchSchedules(batchId, user.instituteId);
+  const existing = existingSchedules?.find((s) => s.id === scheduleId);
+  if (!existing) throw new AppError("Batch schedule not found", 404);
+
+  const mergedStatus = data.status ?? existing.status;
+  const mergedFacultyId =
+    data.facultyId !== undefined ? data.facultyId : existing.facultyId;
+
+  if (mergedStatus !== "INACTIVE" && mergedFacultyId) {
+    await assertNoFacultyScheduleConflicts({
+      instituteId: user.instituteId,
+      lines: [
+        {
+          facultyId: mergedFacultyId,
+          dayOfWeek: data.dayOfWeek ?? existing.dayOfWeek,
+          startTime: data.startTime ?? existing.startTime,
+          endTime: data.endTime ?? existing.endTime,
+          timeslotMasterId:
+            data.timeslotMasterId !== undefined
+              ? data.timeslotMasterId
+              : existing.timeslotMasterId,
+          status: mergedStatus,
+        },
+      ],
+      startDate:
+        data.effectiveFrom ||
+        existing.effectiveFrom ||
+        batch.startDate,
+      expectedEndDate:
+        data.effectiveTo !== undefined
+          ? data.effectiveTo
+          : existing.effectiveTo || batch.expectedEndDate,
+      excludeScheduleId: scheduleId,
+    });
+  }
+
   const schedule = await repository.updateBatchSchedule(
     batchId,
     scheduleId,

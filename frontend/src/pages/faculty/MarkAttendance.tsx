@@ -30,6 +30,7 @@ import {
   getSessionHostPhase,
   hostWindowDisabledReason,
 } from "@/utils/session-window";
+import { localTodayKey, toDateKey } from "@/constants/timetable-slots";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
@@ -98,8 +99,10 @@ export const FacultyMarkAttendance: React.FC = () => {
     enrolledCount > 0 && (markedCount >= enrolledCount || donePct >= 100);
 
   const sessionDateKey = classMeta?.scheduledDate
-    ? String(classMeta.scheduledDate).slice(0, 10)
+    ? toDateKey(classMeta.scheduledDate)
     : "";
+  const isNotTodaySession =
+    Boolean(sessionDateKey) && sessionDateKey !== localTodayKey();
   const sessionStartTime = classMeta?.startTime ? String(classMeta.startTime) : "";
   const sessionEndTime = classMeta?.endTime ? String(classMeta.endTime) : "";
   const hasSessionWindow = Boolean(sessionDateKey && sessionStartTime && sessionEndTime);
@@ -120,7 +123,8 @@ export const FacultyMarkAttendance: React.FC = () => {
   const windowDisabledReason =
     attendancePhase != null ? hostWindowDisabledReason(attendancePhase) : null;
   const isOutsideWindow = hasSessionWindow && !canMarkAttendanceNow;
-  const isLocked = forceViewMode || isFullyMarked || isOutsideWindow;
+  const isLocked =
+    forceViewMode || isFullyMarked || isOutsideWindow || isNotTodaySession;
 
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -216,6 +220,10 @@ export const FacultyMarkAttendance: React.FC = () => {
   };
 
   const persistAttendance = async (): Promise<boolean> => {
+    if (isNotTodaySession) {
+      setSaveError("Attendance can only be marked for today's classes.");
+      return false;
+    }
     if (isOutsideWindow) {
       setSaveError(
         windowDisabledReason ||
@@ -322,7 +330,13 @@ export const FacultyMarkAttendance: React.FC = () => {
         }
       />
 
-      {isOutsideWindow && !sessionLoading ? (
+      {isNotTodaySession && !sessionLoading ? (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 font-medium">
+          This class is not scheduled for today. Attendance marking is view-only — use
+          Attendance History to review past classes.
+        </div>
+      ) : null}
+      {isOutsideWindow && !isNotTodaySession && !sessionLoading ? (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 font-medium">
           {windowDisabledReason ||
             (attendancePhase === "after"
@@ -333,7 +347,7 @@ export const FacultyMarkAttendance: React.FC = () => {
             : ""}
         </div>
       ) : null}
-      {isLocked && !isOutsideWindow && !sessionLoading && students.length > 0 ? (
+      {isLocked && !isOutsideWindow && !isNotTodaySession && !sessionLoading && students.length > 0 ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 font-medium">
           Attendance already submitted for this class. Editing is locked — view only.
         </div>
@@ -569,12 +583,14 @@ export const FacultyMarkAttendance: React.FC = () => {
               {students.length} students in roster
             </span>
             <span className="text-xs text-muted-foreground mt-0.5 block">
-              {isOutsideWindow
-                ? windowDisabledReason ||
-                  "Attendance marking is only available during the scheduled class window."
-                : isLocked
-                  ? "Attendance is locked after submission."
-                  : "Saves Present / Absent / Leave for this class session."}
+              {isNotTodaySession
+                ? "Only today's classes can be marked from the faculty desk."
+                : isOutsideWindow
+                  ? windowDisabledReason ||
+                    "Attendance marking is only available during the scheduled class window."
+                  : isLocked
+                    ? "Attendance is locked after submission."
+                    : "Saves Present / Absent / Leave for this class session."}
             </span>
           </div>
           <div className="flex items-center gap-3">

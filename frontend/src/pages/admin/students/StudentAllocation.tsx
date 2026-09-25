@@ -45,10 +45,11 @@ const SELECT_ALL_MATCHING_CAP = 200;
 export const StudentAllocation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialBatchId = searchParams.get("batchId") ?? "";
+  const initialSearch = searchParams.get("search") ?? "";
   const { canEditItem } = usePermissions();
   const canEditAllocation = canEditItem("students.student_allocation");
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState<AllocationEnrollmentTab>("UNASSIGNED");
   const [selectedCourseId, setSelectedCourseId] = useState("");
@@ -588,7 +589,9 @@ export const StudentAllocation: React.FC = () => {
                   <TableHead>Course</TableHead>
                   <TableHead>Status</TableHead>
                   {activeTab === "ASSIGNED" && canEditAllocation && (
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-12 normal-case tracking-normal">
+                      Manage
+                    </TableHead>
                   )}
                 </TableRow>
               </TableHeader>
