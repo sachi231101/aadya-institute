@@ -19,7 +19,10 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuthStore } from "@/store/auth.store";
 import { useOrganization } from "@/hooks/useOrganizationContext";
-import { DEFAULT_ORG_LOGO, DEFAULT_ORG_NAME } from "@/utils/organization-display";
+import {
+  DEFAULT_ORG_NAME,
+  resolveOrganizationLogo,
+} from "@/utils/organization-display";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { CENTER_PORTAL_NAV, buildCenterNavPermissionKeys } from "@/constants/center-portal-nav";
 import {
@@ -38,7 +41,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
   const { user, logout } = useAuthStore();
   const { organization } = useOrganization();
   const orgName = organization?.name || DEFAULT_ORG_NAME;
-  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO;
+  const orgLogo = resolveOrganizationLogo(organization?.branding.logoUrl);
   const { data: branchResponse } = useBranch(user?.branchId ?? undefined);
 
   const managerName = user?.name || "Center Manager";
@@ -85,11 +88,11 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
         <Link
           to="/center/dashboard"
           className="flex items-center justify-between gap-2 px-1 py-0.5 rounded-lg hover:bg-white/5 transition-colors w-full group-data-[collapsible=icon]:justify-center"
-          title="Aadya Institute"
+          title={orgName}
         >
           <img
-            src="/aadya-logo.png"
-            alt="Aadya Institute"
+            src={orgLogo}
+            alt={orgName}
             className="h-6.5 w-auto max-w-[125px] object-contain shrink-0 drop-shadow-[0_0_1px_rgba(255,255,255,0.35)] group-data-[collapsible=icon]:max-w-[26px] group-data-[collapsible=icon]:object-left"
           />
           <span className="text-[10px] text-amber-300 font-bold tracking-wider bg-white/10 border border-white/20 px-2 py-0.5 rounded-full shrink-0 group-data-[collapsible=icon]:hidden">

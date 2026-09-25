@@ -51,6 +51,11 @@ export const useUpdateOrganization = () => {
   });
 };
 
+export const useUploadOrganizationLogo = () =>
+  useMutation({
+    mutationFn: (file: File) => organizationApi.uploadLogo(file),
+  });
+
 export type OrganizationFormState = {
   name: string;
   email: string;

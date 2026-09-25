@@ -14,6 +14,17 @@ const optionalUrl = z
   })
   .optional();
 
+const UPLOADED_LOGO_PATH =
+  /^\/api\/v1\/administration\/document-logos\/logo-[0-9a-f-]{36}\.(png|jpe?g|webp|gif)$/i;
+
+const optionalLogoUrl = z
+  .string()
+  .refine(
+    (v) => v === "" || UPLOADED_LOGO_PATH.test(v) || z.string().url().safeParse(v).success,
+    { message: "Invalid logo" }
+  )
+  .optional();
+
 const ianaTimezone = z
   .string()
   .refine(
@@ -53,7 +64,7 @@ export const createInstituteSchema = z.object({
   timezone: optionalTimezone,
   currency: optionalCurrency,
   dateFormat: optionalDateFormat,
-  logoUrl: optionalUrl,
+  logoUrl: optionalLogoUrl,
 });
 
 export const updateInstituteSchema = z.object({
@@ -70,7 +81,7 @@ export const updateInstituteSchema = z.object({
   timezone: optionalTimezone,
   currency: optionalCurrency,
   dateFormat: optionalDateFormat,
-  logoUrl: optionalUrl,
+  logoUrl: optionalLogoUrl,
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
 });
 
