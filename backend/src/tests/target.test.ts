@@ -71,6 +71,16 @@ describe("Target & Incentive Validation Schemas", () => {
     });
     assert.strictEqual(resValid.success, true);
   });
+
+  test("5b. CreateTargetPlanSchema accepts DAILY period with same-day range", () => {
+    const res = CreateTargetPlanSchema.safeParse({
+      name: "Daily Counselor Plan",
+      periodType: "DAILY",
+      startDate: "2026-09-26",
+      endDate: "2026-09-26",
+    });
+    assert.strictEqual(res.success, true);
+  });
 });
 
 describe("Target Calculation & Incentive Evaluation Engine", () => {
@@ -95,29 +105,41 @@ describe("Target Calculation & Incentive Evaluation Engine", () => {
     assert.strictEqual(incentive90, 0);
   });
 
-  test("7. Evaluates SLAB tiered incentives across achievement brackets", () => {
+  test("7. Evaluates SLAB tiered incentives across absolute achievement brackets", () => {
     const rule: any = {
       id: "rule-slab",
       targetId: "t-2",
       incentiveType: "SLAB",
       slabs: [
+        { minValue: 0, maxValue: 2999, amount: 0 },
+        { minValue: 3000, maxValue: 3999, amount: 500 },
+        { minValue: 4000, maxValue: 4999, amount: 1000 },
+        { minValue: 5000, maxValue: 999999999, amount: 2000 },
+      ],
+    };
+
+    // targetValue unused for value slabs; match on achievedValue
+    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(3000, 1500, 50, rule), 0);
+    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(3000, 3000, 100, rule), 500);
+    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(3000, 4500, 150, rule), 1000);
+    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(3000, 6000, 200, rule), 2000);
+  });
+
+  test("7b. Evaluates legacy SLAB percent brackets for backward compatibility", () => {
+    const rule: any = {
+      id: "rule-slab-pct",
+      targetId: "t-2b",
+      incentiveType: "SLAB",
+      slabs: [
         { minPercent: 0, maxPercent: 49, amount: 0 },
         { minPercent: 50, maxPercent: 74, amount: 2000 },
-        { minPercent: 75, maxPercent: 89, amount: 5000 },
-        { minPercent: 90, maxPercent: 99, amount: 7500 },
         { minPercent: 100, maxPercent: 109, amount: 10000 },
-        { minPercent: 110, maxPercent: 124, amount: 12500 },
-        { minPercent: 125, maxPercent: 999, amount: 15000 },
       ],
     };
 
     assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 8, 40, rule), 0);
     assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 12, 60, rule), 2000);
-    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 16, 80, rule), 5000);
-    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 19, 95, rule), 7500);
     assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 20, 100, rule), 10000);
-    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 23, 115, rule), 12500);
-    assert.strictEqual(TargetCalculationService.evaluateIncentiveAmount(20, 26, 130, rule), 15000);
   });
 
   test("8. Evaluates PERCENTAGE incentives based on achieved value and rate tiers", () => {
@@ -162,6 +184,267 @@ describe("Target Calculation & Incentive Evaluation Engine", () => {
     };
     const incentive = TargetCalculationService.evaluateIncentiveAmount(0, 0, 0, rule);
     assert.strictEqual(incentive, 0);
+  });
+});
+
+describe("Counsellor Fee Metric Calculations (New Fees vs Overdue Due Collection)", () => {
+  const PREFIX = "tgt-metric-calc";
+  let instituteId: string;
+  let branchId: string;
+  let courseId: string;
+  let courseName: string;
+  let feeHeadMasterId: string;
+  let counsellorId: string;
+
+  const periodStart = new Date("2026-09-01T00:00:00.000Z");
+  const periodEnd = new Date("2026-09-30T23:59:59.999Z");
+  const inPeriod = new Date("2026-09-15T10:00:00.000Z");
+  const beforePeriod = new Date("2026-08-01T10:00:00.000Z");
+
+  before(async () => {
+    const admin = await prisma.user.findFirst({
+      where: { email: { in: ["admin@aadya.in", "admin@aadya.com"] } },
+    });
+    if (!admin) throw new Error("Admin user not found for metric calc tests");
+    instituteId = admin.instituteId;
+
+    const counsellor =
+      (await prisma.user.findFirst({
+        where: {
+          instituteId,
+          email: { in: ["counsellor@aadya.in", "counsellor.ananya@aadya.com"] },
+        },
+      })) ||
+      (await prisma.user.findFirst({
+        where: {
+          instituteId,
+          userRoles: { some: { role: { name: "COUNSELLOR" } } },
+        },
+      }));
+    if (!counsellor) throw new Error("Counsellor not found for metric calc tests");
+    counsellorId = counsellor.id;
+    branchId =
+      counsellor.branchId ||
+      (await prisma.branch.findFirst({ where: { instituteId } }))!.id;
+
+    const course = await prisma.course.findFirst({ where: { instituteId } });
+    if (!course) throw new Error("Course not found for metric calc tests");
+    courseId = course.id;
+    courseName = course.name;
+
+    const existingFeeHead = await prisma.masterRecord.findFirst({
+      where: {
+        instituteId,
+        entityType: "feeheads",
+        name: "Tuition Fee",
+        status: "ACTIVE",
+      },
+    });
+    const feeHead =
+      existingFeeHead ||
+      (await prisma.masterRecord.create({
+        data: {
+          instituteId,
+          entityType: "feeheads",
+          code: "TUITION",
+          name: "Tuition Fee",
+          status: "ACTIVE",
+          sortOrder: 1,
+        },
+      }));
+    feeHeadMasterId = feeHead.id;
+
+    // Clean any leftover fixtures from a prior failed run
+    await prisma.payment.deleteMany({
+      where: { receiptNo: { startsWith: PREFIX } },
+    });
+    await prisma.pendingFee.deleteMany({
+      where: { admissionNo: { startsWith: PREFIX } },
+    });
+    await prisma.admission.deleteMany({
+      where: { admissionNo: { startsWith: PREFIX } },
+    });
+  });
+
+  after(async () => {
+    await prisma.payment.deleteMany({
+      where: { receiptNo: { startsWith: PREFIX } },
+    });
+    await prisma.pendingFee.deleteMany({
+      where: { admissionNo: { startsWith: PREFIX } },
+    });
+    await prisma.admission.deleteMany({
+      where: { admissionNo: { startsWith: PREFIX } },
+    });
+  });
+
+  test("9b. ADMISSION_REVENUE (Total New Fees) counts payments only on admissions created in period", async () => {
+    const newAdmission = await prisma.admission.create({
+      data: {
+        instituteId,
+        branchId,
+        courseId,
+        admissionNo: `${PREFIX}-NEW-ADM`,
+        studentName: "New Fee Student",
+        status: "CONFIRMED",
+        createdAt: inPeriod,
+        admissionDate: inPeriod,
+      },
+    });
+
+    const oldAdmission = await prisma.admission.create({
+      data: {
+        instituteId,
+        branchId,
+        courseId,
+        admissionNo: `${PREFIX}-OLD-ADM`,
+        studentName: "Old Admission Student",
+        status: "CONFIRMED",
+        createdAt: beforePeriod,
+        admissionDate: beforePeriod,
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        receiptNo: `${PREFIX}-NEW-PAY`,
+        instituteId,
+        branchId,
+        admissionId: newAdmission.id,
+        studentName: "New Fee Student",
+        admissionNo: newAdmission.admissionNo!,
+        courseName,
+        amount: 25000,
+        status: "SUCCESS",
+        date: inPeriod,
+        recordedById: counsellorId,
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        receiptNo: `${PREFIX}-OLD-PAY`,
+        instituteId,
+        branchId,
+        admissionId: oldAdmission.id,
+        studentName: "Old Admission Student",
+        admissionNo: oldAdmission.admissionNo!,
+        courseName,
+        amount: 40000,
+        status: "SUCCESS",
+        date: inPeriod,
+        recordedById: counsellorId,
+      },
+    });
+
+    const achieved = await TargetCalculationService.calculateAchievedMetricValue(
+      instituteId,
+      "ADMISSION_REVENUE",
+      periodStart,
+      periodEnd,
+      counsellorId,
+      branchId
+    );
+
+    assert.strictEqual(achieved, 25000);
+  });
+
+  test("9c. FEE_COLLECTION (Total Due Collection) counts only OVERDUE pending fee payments", async () => {
+    const admission = await prisma.admission.create({
+      data: {
+        instituteId,
+        branchId,
+        courseId,
+        admissionNo: `${PREFIX}-DUE-ADM`,
+        studentName: "Due Collection Student",
+        status: "CONFIRMED",
+        createdAt: beforePeriod,
+        admissionDate: beforePeriod,
+      },
+    });
+
+    const overdueFee = await prisma.pendingFee.create({
+      data: {
+        instituteId,
+        branchId,
+        admissionId: admission.id,
+        studentName: "Due Collection Student",
+        admissionNo: admission.admissionNo!,
+        phone: "+919999900001",
+        courseName,
+        totalFee: 30000,
+        amountPaid: 0,
+        dueAmount: 30000,
+        dueDate: beforePeriod,
+        status: "OVERDUE",
+        feeHeadMasterId,
+        feeHead: "Tuition Fee",
+      },
+    });
+
+    const dueSoonFee = await prisma.pendingFee.create({
+      data: {
+        instituteId,
+        branchId,
+        admissionId: admission.id,
+        studentName: "Due Collection Student",
+        admissionNo: `${PREFIX}-DUE-ADM-2`,
+        phone: "+919999900001",
+        courseName,
+        totalFee: 20000,
+        amountPaid: 0,
+        dueAmount: 20000,
+        dueDate: periodEnd,
+        status: "DUE_SOON",
+        feeHeadMasterId,
+        feeHead: "Tuition Fee",
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        receiptNo: `${PREFIX}-OVERDUE-PAY`,
+        instituteId,
+        branchId,
+        admissionId: admission.id,
+        pendingFeeId: overdueFee.id,
+        studentName: "Due Collection Student",
+        admissionNo: admission.admissionNo!,
+        courseName,
+        amount: 15000,
+        status: "SUCCESS",
+        date: inPeriod,
+        recordedById: counsellorId,
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        receiptNo: `${PREFIX}-DUESOON-PAY`,
+        instituteId,
+        branchId,
+        admissionId: admission.id,
+        pendingFeeId: dueSoonFee.id,
+        studentName: "Due Collection Student",
+        admissionNo: admission.admissionNo!,
+        courseName,
+        amount: 10000,
+        status: "SUCCESS",
+        date: inPeriod,
+        recordedById: counsellorId,
+      },
+    });
+
+    const achieved = await TargetCalculationService.calculateAchievedMetricValue(
+      instituteId,
+      "FEE_COLLECTION",
+      periodStart,
+      periodEnd,
+      counsellorId,
+      branchId
+    );
+
+    assert.strictEqual(achieved, 15000);
   });
 });
 

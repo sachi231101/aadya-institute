@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "7f6e5d4c-3b2a-1098-8765-4321fedcba09",
 		"name": "Aadya Target & Incentive Management System",
-		"description": "Comprehensive Postman API collection for Aadya Institute's Target & Incentive Management System. Covers Target Plans, Target Assignments with Fixed/Slab/Percentage Incentive Rules, CRM Metric Progress Sync, Counselor Self-Service, Leaderboard Rankings, and Incentive Approvals.",
+		"description": "Comprehensive Postman API collection for Aadya Institute's Target & Incentive Management System (Counsellor-focused).\n\nCounsellor metrics:\n- ADMISSIONS = No of Admission (confirmed/active count in period)\n- ADMISSION_REVENUE = Total New Fees (SUCCESS payments in period on admissions created in the same period)\n- FEE_COLLECTION = Total Due Collection (SUCCESS payments in period linked to PendingFee with status OVERDUE only)\n\nDay Wise: create Target Plans with periodType DAILY manually each day (startDate = endDate).\n\nAlso covers Fixed/Slab/Percentage Incentive Rules, CRM Metric Progress Sync, Counselor Self-Service, Leaderboard Rankings, and Incentive Approvals.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -58,13 +58,33 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"title\": \"September 2026 Admissions Drive\",\n  \"description\": \"Monthly admissions and revenue goals for all branches.\",\n  \"periodType\": \"MONTHLY\",\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\"\n}"
+							"raw": "{\n  \"name\": \"September 2026 Admissions Drive\",\n  \"description\": \"Monthly admissions and fee goals for counsellor targets.\",\n  \"periodType\": \"MONTHLY\",\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/targets/plans",
 							"host": ["{{baseUrl}}"],
 							"path": ["targets", "plans"]
 						}
+					}
+				},
+				{
+					"name": "Create Daily Target Plan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Daily Counsellor Targets 2026-09-26\",\n  \"description\": \"Manual day-wise counsellor plan. Create one plan per day; startDate and endDate must be the same day.\",\n  \"periodType\": \"DAILY\",\n  \"startDate\": \"2026-09-26T00:00:00.000Z\",\n  \"endDate\": \"2026-09-26T23:59:59.999Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets/plans",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "plans"]
+						},
+						"description": "Day Wise / Daily target plan — created manually each day (no auto-generation)."
 					}
 				},
 				{
@@ -130,13 +150,54 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Admissions Target\",\n  \"targetMetric\": \"ADMISSIONS\",\n  \"targetValue\": 15,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"SLAB\",\n    \"slabs\": [\n      { \"minPercent\": 80, \"maxPercent\": 99, \"amount\": 2500 },\n      { \"minPercent\": 100, \"maxPercent\": 119, \"amount\": 5000 },\n      { \"minPercent\": 120, \"maxPercent\": 999, \"amount\": 8000 }\n    ]\n  }\n}"
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 No of Admission\",\n  \"targetMetric\": \"ADMISSIONS\",\n  \"targetValue\": 15,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"SLAB\",\n    \"slabs\": [\n      { \"minPercent\": 80, \"maxPercent\": 99, \"amount\": 2500 },\n      { \"minPercent\": 100, \"maxPercent\": 119, \"amount\": 5000 },\n      { \"minPercent\": 120, \"maxPercent\": 999, \"amount\": 8000 }\n    ]\n  }\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/targets",
 							"host": ["{{baseUrl}}"],
 							"path": ["targets"]
-						}
+						},
+						"description": "ADMISSIONS = No of Admission (confirmed/active admissions credited to counsellor in period)."
+					}
+				},
+				{
+					"name": "Create Target — Total New Fees",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Total New Fees\",\n  \"targetMetric\": \"ADMISSION_REVENUE\",\n  \"targetValue\": 300000,\n  \"unit\": \"INR\",\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"PERCENTAGE\",\n    \"percentageRates\": [\n      { \"minPercent\": 100, \"maxPercent\": 120, \"percentage\": 3.0 },\n      { \"minPercent\": 121, \"maxPercent\": 999, \"percentage\": 5.0 }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets"]
+						},
+						"description": "ADMISSION_REVENUE = Total New Fees. Counts SUCCESS payments in period only when the linked admission was also created in the same period."
+					}
+				},
+				{
+					"name": "Create Target — Total Due Collection (Overdue)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Total Due Collection\",\n  \"targetMetric\": \"FEE_COLLECTION\",\n  \"targetValue\": 150000,\n  \"unit\": \"INR\",\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"FIXED\",\n    \"fixedAmount\": 5000\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets"]
+						},
+						"description": "FEE_COLLECTION = Total Due Collection. Counts SUCCESS payments in period linked to PendingFee with status OVERDUE only (via pendingFeeId or allocations)."
 					}
 				},
 				{
@@ -149,7 +210,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Revenue Target\",\n  \"targetMetric\": \"REVENUE\",\n  \"targetValue\": 300000,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"PERCENTAGE\",\n    \"percentageRates\": [\n      { \"minPercent\": 100, \"maxPercent\": 120, \"percentage\": 3.0 },\n      { \"minPercent\": 121, \"maxPercent\": 999, \"percentage\": 5.0 }\n    ]\n  }\n}"
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Revenue Target\",\n  \"targetMetric\": \"ADMISSION_REVENUE\",\n  \"targetValue\": 300000,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"PERCENTAGE\",\n    \"percentageRates\": [\n      { \"minPercent\": 100, \"maxPercent\": 120, \"percentage\": 3.0 },\n      { \"minPercent\": 121, \"maxPercent\": 999, \"percentage\": 5.0 }\n    ]\n  }\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/targets",

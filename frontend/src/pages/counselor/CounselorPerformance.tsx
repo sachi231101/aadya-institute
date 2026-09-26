@@ -379,24 +379,41 @@ export const CounselorPerformance: React.FC = () => {
                           {target.incentiveRule.incentiveType === "SLAB" &&
                             target.incentiveRule.slabs && (
                               <div className="grid grid-cols-2 gap-1 text-[11px] text-foreground pt-1 border-t border-indigo-200 dark:border-indigo-900/40">
-                                {target.incentiveRule.slabs.map((slab, idx) => (
-                                  <div
-                                    key={idx}
-                                    className={`px-2 py-1 rounded ${
-                                      percentage >= slab.minPercent &&
-                                      percentage <= slab.maxPercent
-                                    ? "bg-indigo-600 text-white font-bold"
-                                    : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {slab.minPercent}% - {slab.maxPercent}%:{" "}
-                                  <span className={percentage >= slab.minPercent && percentage <= slab.maxPercent ? "text-yellow-200" : "text-amber-600 dark:text-amber-400"}>
-                                    {formatCurrency(slab.amount)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                {target.incentiveRule.slabs.map((slab, idx) => {
+                                  const usesValue =
+                                    slab.minValue !== undefined && slab.maxValue !== undefined;
+                                  const isActive = usesValue
+                                    ? achievedVal >= Number(slab.minValue) &&
+                                      achievedVal <= Number(slab.maxValue)
+                                    : percentage >= Number(slab.minPercent ?? 0) &&
+                                      percentage <= Number(slab.maxPercent ?? 0);
+                                  const rangeLabel = usesValue
+                                    ? `${Number(slab.minValue).toLocaleString()} – ${Number(slab.maxValue).toLocaleString()}`
+                                    : `${slab.minPercent}% – ${slab.maxPercent}%`;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`px-2 py-1 rounded ${
+                                        isActive
+                                          ? "bg-indigo-600 text-white font-bold"
+                                          : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {rangeLabel}:{" "}
+                                      <span
+                                        className={
+                                          isActive
+                                            ? "text-yellow-200"
+                                            : "text-amber-600 dark:text-amber-400"
+                                        }
+                                      >
+                                        {formatCurrency(slab.amount)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
 
                         {target.incentiveRule.incentiveType === "PERCENTAGE" &&
                           target.incentiveRule.percentages && (

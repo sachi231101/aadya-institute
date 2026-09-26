@@ -8,8 +8,12 @@ import type {
 } from "@prisma/client";
 
 export interface IncentiveSlab {
-  minPercent: number;
-  maxPercent: number;
+  /** Absolute achieved amount/count range (preferred). */
+  minValue?: number;
+  maxValue?: number;
+  /** Legacy % of target — still supported for old records. */
+  minPercent?: number;
+  maxPercent?: number;
   amount: number;
 }
 

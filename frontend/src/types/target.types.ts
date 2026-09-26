@@ -9,6 +9,7 @@ export type TargetPeriod =
 export type TargetStatus =
   | "DRAFT"
   | "PUBLISHED"
+  | "UPCOMING"
   | "ACTIVE"
   | "COMPLETED"
   | "LOCKED"
@@ -26,6 +27,27 @@ export type TargetMetric =
   | "ADMISSION_REVENUE"
   | "FEE_COLLECTION";
 
+/** Counsellor-facing labels for target metrics */
+export const TARGET_METRIC_LABELS: Record<TargetMetric, string> = {
+  ADMISSIONS: "No of Admission",
+  ADMISSION_REVENUE: "Total New Fees",
+  FEE_COLLECTION: "Total Due Collection",
+  LEADS_CREATED: "Leads Created",
+  LEADS_CONTACTED: "Leads Contacted",
+  FOLLOW_UPS: "Follow Ups",
+  QUALIFIED_LEADS: "Qualified Leads",
+  COUNSELLING_SESSIONS: "Counselling Sessions",
+  DEMO_SESSIONS: "Demo Sessions",
+  CONVERTED_LEADS: "Converted Leads",
+};
+
+export function getTargetMetricLabel(metric: TargetMetric | string): string {
+  return (
+    TARGET_METRIC_LABELS[metric as TargetMetric] ??
+    String(metric).replace(/_/g, " ")
+  );
+}
+
 export type TargetType = "INDIVIDUAL" | "BRANCH";
 
 export type IncentiveType = "FIXED" | "SLAB" | "PERCENTAGE";
@@ -40,8 +62,12 @@ export type IncentiveStatus =
   | "CANCELLED";
 
 export interface IncentiveSlab {
-  minPercent: number;
-  maxPercent: number;
+  /** Absolute achieved amount/count range (preferred). */
+  minValue?: number;
+  maxValue?: number;
+  /** Legacy % of target — still supported for old records. */
+  minPercent?: number;
+  maxPercent?: number;
   amount: number;
 }
 

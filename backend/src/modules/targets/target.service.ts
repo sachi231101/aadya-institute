@@ -17,6 +17,7 @@ import type {
   PerformanceSummary,
   LeaderboardEntry,
 } from "./target.types";
+import { toDayEnd } from "./target.dates";
 
 const scopedBranchId = (user: AuthUser): string | undefined =>
   isBranchLockedRole(user.roles) ? (user.branchId ?? undefined) : undefined;
@@ -359,8 +360,12 @@ export const TargetService = {
     const progress = await TargetCalculationService.computeTargetProgress(target);
     await TargetRepository.saveTargetProgress(progress);
 
-    // If target has passed its end date, record incentive in PENDING_APPROVAL status
-    if (new Date() >= new Date(target.endDate) && target.userId && progress.potentialIncentive > 0) {
+    // Settle only after the target calendar day has fully ended (IST end-of-day)
+    if (
+      new Date() > toDayEnd(target.endDate) &&
+      target.userId &&
+      progress.potentialIncentive > 0
+    ) {
       await TargetRepository.upsertCalculatedIncentive({
         instituteId: target.instituteId,
         branchId: target.branchId,
