@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 const CATEGORY_ORDER = [
   "ADMISSIONS",
@@ -684,7 +685,9 @@ export const WhatsAppAutomations: React.FC = () => {
                 <Label className="text-xs">Phone</Label>
                 <Input
                   value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
+                  onChange={(e) => setTestPhone(sanitizeMobileInput(e.target.value))}
+                  inputMode="numeric"
+                  maxLength={10}
                   placeholder="9876543210"
                 />
               </div>

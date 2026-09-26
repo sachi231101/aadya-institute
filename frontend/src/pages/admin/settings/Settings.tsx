@@ -12,8 +12,6 @@ import {
   Building,
   Building2,
   Calendar,
-  MapPin,
-  Camera,
   RotateCcw,
   Save,
   ChevronRight,
@@ -41,9 +39,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUIStore } from "@/store/ui.store";
-import { MasterSelect } from "@/components/common/MasterSelect";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
+import { sanitizeMobileInput } from "@/utils/validation";
+import { useBranches } from "@/hooks/useBranches";
 
 const getStoredRefreshToken = () => {
   try {
@@ -98,6 +95,14 @@ function formatLastSeen(iso: string | null | undefined, createdAt: string): stri
   return `Last active ${date.toLocaleString("en-IN")}`;
 }
 
+function formatRoleLabel(role: string | undefined | null): string {
+  if (!role) return "User";
+  return role
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export const Settings: React.FC = () => {
   const { user: authUser, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
@@ -109,7 +114,6 @@ export const Settings: React.FC = () => {
   const updateSystemMutation = useUpdateSystem();
   const revokeSessionMutation = useRevokeSession();
 
-  // Active Tab
   const [activeTab, setActiveTab] = useState<
     "personal" | "security" | "notifications" | "system" | "sessions"
   >("personal");
@@ -143,74 +147,110 @@ export const Settings: React.FC = () => {
     },
   });
 
-  // Personal Information State (matching exact mockup defaults)
-  const [fullName, setFullName] = useState("Aadya Admin");
-  const [email, setEmail] = useState("admin@aadya.in");
-  const [mobileNumber, setMobileNumber] = useState("+91 98765 43210");
-  const [alternateEmail, setAlternateEmail] = useState("admin@aadyainstitute.com");
-  const [designation, setDesignation] = useState("System Administrator");
-  const [designationMasterId, setDesignationMasterId] = useState("");
-  const [department, setDepartment] = useState("Administration");
-  const [branch, setBranch] = useState("Aadya Central Branch");
-  const [employeeId, setEmployeeId] = useState("ADM001");
-  const [dateOfBirth, setDateOfBirth] = useState("15 Jan 1990");
-  const [gender, setGender] = useState("Male");
-  const [address, setAddress] = useState(
-    "123, Education Street, Koramangala, Bengaluru - 560034, Karnataka, India"
-  );
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [department, setDepartment] = useState("");
+  const [branchId, setBranchId] = useState("");
 
-  // Security State
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Notification Preferences State
-  const [emailAdmissions, setEmailAdmissions] = useState(true);
   const [emailFeeAlerts, setEmailFeeAlerts] = useState(true);
   const [emailAttendance, setEmailAttendance] = useState(false);
   const [whatsappReminders, setWhatsappReminders] = useState(true);
   const [aiCallAlerts, setAiCallAlerts] = useState(true);
 
-  // System Preferences State
   const [language, setLanguage] = useState("English (US)");
   const [timezone, setTimezone] = useState("(GMT+05:30) India Standard Time");
   const [currency, setCurrency] = useState("INR (₹)");
-  const [autoLogout, setAutoLogout] = useState("30 Minutes");
+  const [autoLogoutMinutes, setAutoLogoutMinutes] = useState(30);
 
-  // Notifications Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { options: designationOptions } = useMasterDropdown("designation");
+  const { data: branchesRes, isLoading: branchesLoading } = useBranches({
+    limit: 100,
+    status: "ACTIVE",
+  });
+  const branches = useMemo(() => branchesRes?.data || [], [branchesRes]);
 
-  // Synchronize state when data loads
+  const primaryRole = useMemo(() => {
+    const roles = authUser?.roles || [];
+    if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return "ADMIN";
+    if (roles.includes("CENTER_MANAGER")) return "CENTER_MANAGER";
+    if (roles.includes("COUNSELLOR")) return "COUNSELLOR";
+    if (roles.includes("FACULTY")) return "FACULTY";
+    return data?.user?.role || authUser?.role || roles[0] || "USER";
+  }, [authUser, data?.user?.role]);
+
+  const roleDesignation = formatRoleLabel(primaryRole);
+
+  const isBranchLocked = useMemo(() => {
+    const roles = (authUser?.roles || []).map((r) => String(r).toUpperCase());
+    if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return false;
+    return roles.some((r) =>
+      ["CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"].includes(r)
+    );
+  }, [authUser?.roles]);
+
+  const accountStatus = String(data?.user?.status || "ACTIVE").toUpperCase();
+  const selectedBranchName =
+    branches.find((b) => b.id === branchId)?.name ||
+    data?.settings?.primaryBranch ||
+    "";
+
   useEffect(() => {
-    if (data?.user) {
-      setFullName(data.user.name || authUser?.name || "Aadya Admin");
-      setEmail(data.user.email || authUser?.email || "admin@aadya.in");
-      setMobileNumber(data.user.phone || authUser?.phone || "+91 98765 43210");
-      if (data.settings?.designation) {
-        setDesignation(data.settings.designation);
-        setDesignationMasterId(findMasterIdByLabel(designationOptions, data.settings.designation));
-      }
-      if (data.settings?.department) setDepartment(data.settings.department);
-      if (data.settings?.emailAdmissions !== undefined) setEmailAdmissions(data.settings.emailAdmissions);
-      if (data.settings?.emailFeeAlerts !== undefined) setEmailFeeAlerts(data.settings.emailFeeAlerts);
-      if (data.settings?.emailAttendance !== undefined) setEmailAttendance(data.settings.emailAttendance);
-      if (data.settings?.whatsappReminders !== undefined) setWhatsappReminders(data.settings.whatsappReminders);
-      if (data.settings?.aiCallAlerts !== undefined) setAiCallAlerts(data.settings.aiCallAlerts);
+    if (!data?.user) return;
+    setFullName(data.user.name || authUser?.name || "");
+    setEmail(data.user.email || authUser?.email || "");
+    setMobileNumber(sanitizeMobileInput(data.user.phone || authUser?.phone || ""));
+    if (data.settings?.department) setDepartment(data.settings.department);
+    if (data.settings?.language) setLanguage(data.settings.language);
+    if (data.settings?.timezone) setTimezone(data.settings.timezone);
+    if (data.settings?.currencyFormat) setCurrency(data.settings.currencyFormat);
+    if (data.settings?.autoLogoutMinutes) {
+      setAutoLogoutMinutes(data.settings.autoLogoutMinutes);
     }
-  }, [data, authUser, designationOptions]);
+    if (data.settings?.emailFeeAlerts !== undefined) {
+      setEmailFeeAlerts(data.settings.emailFeeAlerts);
+    }
+    if (data.settings?.emailAttendance !== undefined) {
+      setEmailAttendance(data.settings.emailAttendance);
+    }
+    if (data.settings?.whatsappReminders !== undefined) {
+      setWhatsappReminders(data.settings.whatsappReminders);
+    }
+    if (data.settings?.aiCallAlerts !== undefined) {
+      setAiCallAlerts(data.settings.aiCallAlerts);
+    }
+  }, [data, authUser]);
 
-  // Handle Save
+  useEffect(() => {
+    if (branches.length === 0) return;
+    if (authUser?.branchId && branches.some((b) => b.id === authUser.branchId)) {
+      setBranchId(authUser.branchId);
+      return;
+    }
+    const primaryName = data?.settings?.primaryBranch?.trim();
+    if (primaryName) {
+      const matched = branches.find(
+        (b) => b.name.toLowerCase() === primaryName.toLowerCase()
+      );
+      if (matched) {
+        setBranchId(matched.id);
+        return;
+      }
+    }
+    if (!branchId) setBranchId("");
+  }, [branches, authUser?.branchId, data?.settings?.primaryBranch, branchId]);
+
   const handleSavePersonal = () => {
     updatePersonalMutation.mutate(
       {
         name: fullName,
         email,
         phone: mobileNumber,
-        designation: designationMasterId
-          ? getMasterLabel(designationOptions, designationMasterId) || designation
-          : designation,
-        designationMasterId: designationMasterId || undefined,
+        designation: roleDesignation,
         department,
         language,
         timezone,
@@ -218,11 +258,17 @@ export const Settings: React.FC = () => {
       {
         onSuccess: () => {
           updateUser({ name: fullName, email, phone: mobileNumber });
+          if (selectedBranchName) {
+            updateSystemMutation.mutate({ primaryBranch: selectedBranchName });
+          }
           setToastMessage("✓ Personal information saved successfully.");
           setTimeout(() => setToastMessage(null), 3500);
         },
-        onError: () => {
-          setToastMessage("✓ Profile settings updated locally.");
+        onError: (err: unknown) => {
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data
+              ?.message || "Failed to save personal information.";
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 3500);
         },
       }
@@ -230,18 +276,25 @@ export const Settings: React.FC = () => {
   };
 
   const handleReset = () => {
-    setFullName("Aadya Admin");
-    setEmail("admin@aadya.in");
-    setMobileNumber("+91 98765 43210");
-    setAlternateEmail("admin@aadyainstitute.com");
-    setDesignation("System Administrator");
-    setDepartment("Administration");
-    setBranch("Aadya Central Branch");
-    setEmployeeId("ADM001");
-    setDateOfBirth("15 Jan 1990");
-    setGender("Male");
-    setAddress("123, Education Street, Koramangala, Bengaluru - 560034, Karnataka, India");
-    setToastMessage("↺ Reset all unsaved form fields.");
+    setFullName(data?.user?.name || authUser?.name || "");
+    setEmail(data?.user?.email || authUser?.email || "");
+    setMobileNumber(sanitizeMobileInput(data?.user?.phone || authUser?.phone || ""));
+    setDepartment(data?.settings?.department || "");
+    if (authUser?.branchId && branches.some((b) => b.id === authUser.branchId)) {
+      setBranchId(authUser.branchId);
+    } else if (data?.settings?.primaryBranch) {
+      const matched = branches.find(
+        (b) => b.name.toLowerCase() === data.settings.primaryBranch.toLowerCase()
+      );
+      setBranchId(matched?.id || "");
+    } else {
+      setBranchId("");
+    }
+    setLanguage(data?.settings?.language || "English (US)");
+    setTimezone(data?.settings?.timezone || "(GMT+05:30) India Standard Time");
+    setCurrency(data?.settings?.currencyFormat || "INR (₹)");
+    setAutoLogoutMinutes(data?.settings?.autoLogoutMinutes || 30);
+    setToastMessage("↺ Reset unsaved form fields.");
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -267,8 +320,11 @@ export const Settings: React.FC = () => {
           setToastMessage("✓ Password updated successfully.");
           setTimeout(() => setToastMessage(null), 3500);
         },
-        onError: (err: any) => {
-          setToastMessage(err?.response?.data?.message || "⚠ Failed to update password.");
+        onError: (err: unknown) => {
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data
+              ?.message || "⚠ Failed to update password.";
+          setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 3500);
         },
       }
@@ -279,7 +335,7 @@ export const Settings: React.FC = () => {
     <PageContainer className="text-slate-800 font-sans animate-in fade-in duration-200">
       <PageHeader
         title="System Settings"
-        description="Manage your personal profile, institute system configuration, security, and portal preferences."
+        description="Manage your personal profile, security, notifications, and portal preferences."
       />
 
       {(authUser?.roles?.includes("FACULTY") || authUser?.role === "FACULTY") &&
@@ -296,7 +352,6 @@ export const Settings: React.FC = () => {
           </div>
         )}
 
-      {/* Notification Toast */}
       {toastMessage && (
         <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 flex items-center gap-2 text-xs font-bold shadow-2xs">
           <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
@@ -304,132 +359,80 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. HORIZONTAL SETTINGS NAVIGATION TABS ────────────────────── */}
       <div className="flex items-center gap-1 sm:gap-2 border-b border-slate-200 overflow-x-auto scrollbar-none pb-px">
-        <button
-          onClick={() => setActiveTab("personal")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "personal"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <UserIcon className="h-4 w-4" />
-          <span>Personal Information</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("security")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "security"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <Lock className="h-4 w-4" />
-          <span>Security & Password</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("notifications")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "notifications"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <Bell className="h-4 w-4" />
-          <span>Notification Preferences</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("system")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "system"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <Sliders className="h-4 w-4" />
-          <span>System Preferences</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("sessions")}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "sessions"
-              ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <Monitor className="h-4 w-4" />
-          <span>Active Sessions</span>
-        </button>
+        {(
+          [
+            { key: "personal", label: "Personal Information", icon: UserIcon },
+            { key: "security", label: "Security & Password", icon: Lock },
+            { key: "notifications", label: "Notification Preferences", icon: Bell },
+            { key: "system", label: "System Preferences", icon: Sliders },
+            { key: "sessions", label: "Active Sessions", icon: Monitor },
+          ] as const
+        ).map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === tab.key
+                  ? "border-primary text-primary bg-blue-50/50 rounded-t-xl"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* ─── 3. REDESIGNED PROFILE HEADER CARD ──────────────────────────── */}
       <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl overflow-hidden p-0">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between p-4 sm:p-5 gap-4">
-          <div className="flex items-center gap-4">
-            {/* Dark Patterned Avatar Box */}
-            <div className="relative shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] flex items-center justify-center text-white shadow-md relative overflow-hidden border border-slate-700">
-                <span className="text-2xl sm:text-3xl font-bold tracking-wider text-white relative z-10">
-                  AA
-                </span>
-              </div>
-              {/* Camera / Edit Icon Badge */}
-              <button
-                type="button"
-                className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white border border-slate-200 rounded-full text-slate-700 hover:text-primary hover:bg-slate-50 shadow-md transition-all cursor-pointer"
-                title="Change Avatar"
-              >
-                <Camera className="h-3.5 w-3.5" />
-              </button>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {fullName || "—"}
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100/80 text-primary border border-blue-200">
+                {formatRoleLabel(primaryRole)}
+              </span>
             </div>
 
-            {/* Profile Info */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  {fullName}
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100/80 text-primary border border-blue-200">
-                  ADMIN
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
-                <span className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-slate-400" />
-                  {email}
-                </span>
-                <span className="text-slate-300 hidden sm:inline">|</span>
-                <span className="flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                  {branch}
-                </span>
-              </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5 text-slate-400" />
+                {email || "—"}
+              </span>
+              <span className="text-slate-300 hidden sm:inline">|</span>
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                {selectedBranchName || "No branch assigned"}
+              </span>
             </div>
           </div>
 
-          {/* Far Right Account Status */}
           <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-            <div className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+            <div
+              className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-2xs ${
+                accountStatus === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-50 text-slate-600 border-slate-200"
+              }`}
+            >
               <Check className="h-3.5 w-3.5 stroke-[3]" />
-              <span>Account Verified</span>
+              <span>{accountStatus === "ACTIVE" ? "Active" : accountStatus}</span>
             </div>
             <span className="text-[11px] font-semibold text-slate-400 mt-0.5">
-              Administrator Account
+              {formatRoleLabel(primaryRole)} Account
             </span>
           </div>
         </div>
       </Card>
 
-      {/* ─── 4. MAIN CONTENT TWO-COLUMN LAYOUT ───────────────────────────── */}
       {activeTab === "personal" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Left Column (2/3 width): Personal Information Form Card */}
           <Card className="lg:col-span-2 border-slate-200/80 shadow-xs bg-white rounded-xl p-5 sm:p-6 space-y-6">
             <div className="flex items-start gap-3">
               <div className="p-2.5 rounded-xl bg-blue-50 text-primary shrink-0">
@@ -440,13 +443,12 @@ export const Settings: React.FC = () => {
                   Personal Information
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Update your personal details and administrative information.
+                  Update your name, contact details, and branch assignment.
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* Full Name */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
                   Full Name <span className="text-rose-500">*</span>
@@ -456,12 +458,12 @@ export const Settings: React.FC = () => {
                   <Input
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Your full name"
                     className="h-10 pl-9 bg-slate-50/70 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
                   />
                 </div>
               </div>
 
-              {/* Email Address */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
                   Email Address <span className="text-rose-500">*</span>
@@ -471,182 +473,103 @@ export const Settings: React.FC = () => {
                   <Input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
                     className="h-10 pl-9 bg-slate-50/70 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
                   />
                 </div>
               </div>
 
-              {/* Mobile Number */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
-                  Mobile Number <span className="text-rose-500">*</span>
+                  Mobile Number
                 </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
+                    onChange={(e) =>
+                      setMobileNumber(sanitizeMobileInput(e.target.value))
+                    }
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit mobile"
                     className="h-10 pl-9 bg-slate-50/70 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
                   />
                 </div>
               </div>
 
-              {/* Alternate Email */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
-                  Alternate Email
+                  Designation
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                   <Input
-                    value={alternateEmail}
-                    onChange={(e) => setAlternateEmail(e.target.value)}
-                    className="h-10 pl-9 bg-slate-50/70 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
+                    value={roleDesignation}
+                    readOnly
+                    disabled
+                    className="h-10 pl-9 bg-slate-100/80 border-slate-200 rounded-xl text-xs font-semibold cursor-not-allowed opacity-90"
                   />
                 </div>
+                <p className="text-[10px] text-slate-400">
+                  Taken from your assigned role — cannot be edited
+                </p>
               </div>
 
-              {/* Designation */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-bold text-slate-700">
-                  Designation <span className="text-rose-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
-                  <MasterSelect
-                    entityType="designation"
-                    value={designationMasterId}
-                    onChange={(id) => {
-                      setDesignationMasterId(id);
-                      setDesignation(getMasterLabel(designationOptions, id) || designation);
-                    }}
-                    placeholder="Select designation"
-                    className="mt-0 pl-9 rounded-xl h-10 text-xs font-semibold"
-                  />
-                </div>
-              </div>
-
-              {/* Department */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
                   Department
                 </Label>
                 <div className="relative">
                   <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select
+                  <Input
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="Administration">Administration</option>
-                    <option value="Academic Operations">Academic Operations</option>
-                    <option value="Student Affairs">Student Affairs</option>
-                    <option value="Finance & Accounts">Finance & Accounts</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                    ▼
-                  </div>
-                </div>
-              </div>
-
-              {/* Branch */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-bold text-slate-700">
-                  Branch <span className="text-rose-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="Aadya Central Branch">Aadya Central Branch</option>
-                    <option value="Aadya Mysore Branch">Aadya Mysore Branch</option>
-                    <option value="Aadya Davanagere Branch">Aadya Davanagere Branch</option>
-                    <option value="Aadya Hubli Branch">Aadya Hubli Branch</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                    ▼
-                  </div>
-                </div>
-              </div>
-
-              {/* Employee ID — system-assigned, not editable */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-bold text-slate-700">
-                  Employee ID
-                </Label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 pointer-events-none">
-                    <span className="text-[10px] font-bold tracking-widest uppercase border border-slate-300 rounded px-1 py-0.2">ID</span>
-                  </div>
-                  <Input
-                    value={employeeId}
-                    readOnly
-                    disabled
-                    className="h-10 pl-11 bg-slate-100/80 border-slate-200 text-slate-800 font-mono font-bold text-xs rounded-xl cursor-not-allowed opacity-90"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400">System-assigned — cannot be changed</p>
-              </div>
-
-              {/* Date of Birth */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-bold text-slate-700">
-                  Date of Birth
-                </Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    placeholder="e.g. Administration"
                     className="h-10 pl-9 bg-slate-50/70 border-slate-200 rounded-xl text-xs font-semibold focus:bg-white"
                   />
                 </div>
               </div>
 
-              {/* Gender */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-bold text-slate-700">
-                  Gender
+                  Branch
                 </Label>
                 <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                   <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer"
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                    disabled={isBranchLocked || branchesLoading}
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none appearance-none cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="">
+                      {branchesLoading ? "Loading branches..." : "Select branch"}
+                    </option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                    {!branchesLoading && branches.length === 0 && (
+                      <option value="" disabled>
+                        No branches found
+                      </option>
+                    )}
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
                     ▼
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Address (Full-width) */}
-            <div className="space-y-1.5 text-xs">
-              <Label className="text-[11px] font-bold text-slate-700">
-                Address
-              </Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <textarea
-                  rows={2}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full p-2.5 pl-9 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/30 outline-none"
-                />
+                {isBranchLocked && (
+                  <p className="text-[10px] text-slate-400">
+                    Assigned branch — cannot be changed here
+                  </p>
+                )}
               </div>
             </div>
           </Card>
 
-          {/* Right Column (1/3 width): Profile Summary */}
           <div className="space-y-5">
             <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-2">
@@ -657,32 +580,40 @@ export const Settings: React.FC = () => {
               </div>
 
               <div className="divide-y divide-slate-100 text-xs">
-                <div className="py-2.5 flex items-center justify-between">
+                <div className="py-2.5 flex items-center justify-between gap-3">
                   <span className="text-slate-500 font-medium">Account Type</span>
-                  <span className="font-bold text-slate-900">Administrator</span>
-                </div>
-
-                <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Member Since</span>
-                  <span className="font-bold text-slate-900">12 Jan 2023</span>
-                </div>
-
-                <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Last Login</span>
-                  <span className="font-bold text-slate-900">24 Aug 2026, 10:45 AM</span>
-                </div>
-
-                <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Account Status</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Active
+                  <span className="font-bold text-slate-900 text-right">
+                    {formatRoleLabel(primaryRole)}
                   </span>
                 </div>
 
-                <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Verification Status</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1">
-                    <Check className="h-3.5 w-3.5 stroke-[3]" /> Verified
+                <div className="py-2.5 flex items-center justify-between gap-3">
+                  <span className="text-slate-500 font-medium">Branch</span>
+                  <span className="font-bold text-slate-900 text-right truncate max-w-[160px]">
+                    {selectedBranchName || "—"}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between gap-3">
+                  <span className="text-slate-500 font-medium">Mobile</span>
+                  <span className="font-bold text-slate-900 text-right">
+                    {mobileNumber || "—"}
+                  </span>
+                </div>
+
+                <div className="py-2.5 flex items-center justify-between gap-3">
+                  <span className="text-slate-500 font-medium">Account Status</span>
+                  <span
+                    className={`font-bold flex items-center gap-1.5 ${
+                      accountStatus === "ACTIVE" ? "text-emerald-600" : "text-slate-600"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        accountStatus === "ACTIVE" ? "bg-emerald-500" : "bg-slate-400"
+                      }`}
+                    />
+                    {accountStatus === "ACTIVE" ? "Active" : accountStatus}
                   </span>
                 </div>
               </div>
@@ -691,7 +622,6 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* ─── TAB 2: SECURITY & PASSWORD ─────────────────────────────────── */}
       {activeTab === "security" && (
         <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
@@ -703,7 +633,7 @@ export const Settings: React.FC = () => {
                 Security & Authentication
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Update your administrator credentials and multi-factor security.
+                Update your login password.
               </p>
             </div>
           </div>
@@ -726,7 +656,7 @@ export const Settings: React.FC = () => {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password (min 8 characters)"
+                placeholder="Enter new password"
                 className="h-10 bg-slate-50 border-slate-200 rounded-xl"
               />
             </div>
@@ -753,7 +683,6 @@ export const Settings: React.FC = () => {
         </Card>
       )}
 
-      {/* ─── TAB 3: NOTIFICATION PREFERENCES ────────────────────────────── */}
       {activeTab === "notifications" && (
         <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
@@ -765,7 +694,7 @@ export const Settings: React.FC = () => {
                 Notification Preferences
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Configure administrative alerts, WhatsApp messages, and AI call notifications.
+                Configure alerts for admissions, fees, WhatsApp, and AI calling.
               </p>
             </div>
           </div>
@@ -773,21 +702,10 @@ export const Settings: React.FC = () => {
           <div className="space-y-3 divide-y divide-slate-100 text-xs">
             <div className="pt-3 flex items-center justify-between">
               <div>
-                <p className="font-bold text-slate-900">Email Alerts on New Admissions</p>
-                <p className="text-[11px] text-slate-500">Receive instant alerts when a student admission is submitted.</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={emailAdmissions}
-                onChange={(e) => setEmailAdmissions(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#2563EB] cursor-pointer"
-              />
-            </div>
-
-            <div className="pt-3 flex items-center justify-between">
-              <div>
                 <p className="font-bold text-slate-900">Fee Payment Receipts & Alerts</p>
-                <p className="text-[11px] text-slate-500">Get notified upon successful fee installments and transactions.</p>
+                <p className="text-[11px] text-slate-500">
+                  Get notified on fee installments and transactions.
+                </p>
               </div>
               <input
                 type="checkbox"
@@ -800,7 +718,9 @@ export const Settings: React.FC = () => {
             <div className="pt-3 flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-900">WhatsApp Automated Class Notifications</p>
-                <p className="text-[11px] text-slate-500">Enable 2-hour pre-class automated reminders to faculty and batches.</p>
+                <p className="text-[11px] text-slate-500">
+                  Enable automated class reminder messages.
+                </p>
               </div>
               <input
                 type="checkbox"
@@ -813,7 +733,9 @@ export const Settings: React.FC = () => {
             <div className="pt-3 flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-900">AI Voice Calling Updates</p>
-                <p className="text-[11px] text-slate-500">Receive summaries when AI voice calls finish lead qualification.</p>
+                <p className="text-[11px] text-slate-500">
+                  Receive summaries when AI voice calls complete.
+                </p>
               </div>
               <input
                 type="checkbox"
@@ -828,14 +750,22 @@ export const Settings: React.FC = () => {
             <Button
               onClick={() => {
                 updateNotificationsMutation.mutate(
-                  { emailAdmissions, emailFeeAlerts, emailAttendance, whatsappReminders, aiCallAlerts },
+                  {
+                    emailFeeAlerts,
+                    emailAttendance,
+                    whatsappReminders,
+                    aiCallAlerts,
+                  },
                   {
                     onSuccess: () => {
                       setToastMessage("✓ Notification preferences updated.");
                       setTimeout(() => setToastMessage(null), 3000);
                     },
-                    onError: () => {
-                      setToastMessage("✓ Notification preferences saved locally.");
+                    onError: (err: unknown) => {
+                      const msg =
+                        (err as { response?: { data?: { message?: string } } })?.response
+                          ?.data?.message || "Failed to save notification preferences.";
+                      setToastMessage(msg);
                       setTimeout(() => setToastMessage(null), 3000);
                     },
                   }
@@ -849,7 +779,6 @@ export const Settings: React.FC = () => {
         </Card>
       )}
 
-      {/* ─── TAB 4: SYSTEM PREFERENCES ─────────────────────────────────── */}
       {activeTab === "system" && (
         <Card className="border-slate-200/80 dark:border-border shadow-xs bg-white dark:bg-card rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
@@ -861,16 +790,19 @@ export const Settings: React.FC = () => {
                 System & Regional Preferences
               </h3>
               <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium mt-0.5">
-                Set appearance theme, portal language, default timezone, and system idle security.
+                Set appearance, language, timezone, and idle logout.
               </p>
             </div>
           </div>
 
-          {/* Theme Mode Selector */}
           <div className="space-y-2 p-4 rounded-xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/60 dark:border-border/60">
             <div>
-              <Label className="text-xs font-bold text-slate-800 dark:text-foreground">Portal Appearance (Dark / Light Mode)</Label>
-              <p className="text-[11px] text-slate-500 dark:text-muted-foreground mt-0.5">Choose your preferred visual theme across all Aadya portals.</p>
+              <Label className="text-xs font-bold text-slate-800 dark:text-foreground">
+                Portal Appearance
+              </Label>
+              <p className="text-[11px] text-slate-500 dark:text-muted-foreground mt-0.5">
+                Choose light or dark theme across portals.
+              </p>
             </div>
             <div className="pt-1 max-w-sm">
               <ThemeToggle variant="segmented" />
@@ -880,22 +812,54 @@ export const Settings: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="space-y-1.5">
               <Label className="text-[11px] font-bold text-slate-700">Language</Label>
-              <Input value={language} onChange={(e) => setLanguage(e.target.value)} className="h-10 bg-slate-50 rounded-xl" />
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="English (US)">English (US)</option>
+                <option value="English (IN)">English (IN)</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-[11px] font-bold text-slate-700">Timezone</Label>
-              <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} className="h-10 bg-slate-50 rounded-xl" />
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="(GMT+05:30) India Standard Time">
+                  (GMT+05:30) India Standard Time
+                </option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-[11px] font-bold text-slate-700">Currency Format</Label>
-              <Input value={currency} onChange={(e) => setCurrency(e.target.value)} className="h-10 bg-slate-50 rounded-xl" />
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="INR (₹)">INR (₹)</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-bold text-slate-700">Auto Logout Duration</Label>
-              <Input value={autoLogout} onChange={(e) => setAutoLogout(e.target.value)} className="h-10 bg-slate-50 rounded-xl" />
+              <Label className="text-[11px] font-bold text-slate-700">
+                Auto Logout (minutes)
+              </Label>
+              <select
+                value={String(autoLogoutMinutes)}
+                onChange={(e) => setAutoLogoutMinutes(Number(e.target.value))}
+                className="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="60">60</option>
+                <option value="120">120</option>
+              </select>
             </div>
           </div>
 
@@ -904,14 +868,29 @@ export const Settings: React.FC = () => {
               onClick={() => {
                 const currentTheme = useUIStore.getState().theme;
                 updateSystemMutation.mutate(
-                  { primaryBranch: branch, currencyFormat: currency, themeMode: currentTheme.toUpperCase(), autoLogoutMinutes: 30 },
+                  {
+                    primaryBranch: selectedBranchName || undefined,
+                    currencyFormat: currency,
+                    themeMode: currentTheme.toUpperCase(),
+                    autoLogoutMinutes,
+                  },
                   {
                     onSuccess: () => {
+                      updatePersonalMutation.mutate({
+                        name: fullName || authUser?.name || "",
+                        email: email || authUser?.email || "",
+                        phone: mobileNumber,
+                        language,
+                        timezone,
+                      });
                       setToastMessage("✓ System preferences updated.");
                       setTimeout(() => setToastMessage(null), 3000);
                     },
-                    onError: () => {
-                      setToastMessage("✓ System preferences saved locally.");
+                    onError: (err: unknown) => {
+                      const msg =
+                        (err as { response?: { data?: { message?: string } } })?.response
+                          ?.data?.message || "Failed to save system preferences.";
+                      setToastMessage(msg);
                       setTimeout(() => setToastMessage(null), 3000);
                     },
                   }
@@ -925,7 +904,6 @@ export const Settings: React.FC = () => {
         </Card>
       )}
 
-      {/* ─── TAB 5: ACTIVE SESSIONS ─────────────────────────────────────── */}
       {activeTab === "sessions" && (
         <Card className="border-slate-200/80 shadow-xs bg-white rounded-xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start justify-between gap-3">
@@ -938,7 +916,7 @@ export const Settings: React.FC = () => {
                   Active Devices & Sessions
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Devices currently signed into your account (from live refresh tokens).
+                  Devices currently signed into your account.
                 </p>
               </div>
             </div>
@@ -1002,14 +980,6 @@ export const Settings: React.FC = () => {
                             ? "This device"
                             : formatLastSeen(session.lastSeenAt, session.createdAt)}
                         </span>
-                        {session.userAgent ? (
-                          <span
-                            className="text-[10px] text-slate-400 block truncate max-w-[420px]"
-                            title={session.userAgent}
-                          >
-                            {session.userAgent}
-                          </span>
-                        ) : null}
                       </div>
                     </div>
                     {!session.isCurrent ? (
@@ -1048,26 +1018,16 @@ export const Settings: React.FC = () => {
         </Card>
       )}
 
-      {/* ─── 5. BOTTOM STICKY ACTION BAR ─────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleReset}
-          className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl gap-2 cursor-pointer"
-        >
-          <RotateCcw className="h-4 w-4 text-slate-400" />
-          <span>Reset Changes</span>
-        </Button>
-
-        <div className="flex items-center gap-3">
+      {activeTab === "personal" && (
+        <div className="flex items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
           <Button
             type="button"
             variant="outline"
             onClick={handleReset}
-            className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl cursor-pointer"
+            className="text-xs font-bold h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl gap-2 cursor-pointer"
           >
-            Cancel
+            <RotateCcw className="h-4 w-4 text-slate-400" />
+            <span>Reset Changes</span>
           </Button>
 
           <Button
@@ -1077,11 +1037,12 @@ export const Settings: React.FC = () => {
             className="text-xs font-bold h-10 px-5 bg-primary hover:bg-primary text-white rounded-xl gap-2 shadow-xs cursor-pointer"
           >
             <Save className="h-4 w-4" />
-            <span>Save Changes</span>
+            <span>
+              {updatePersonalMutation.isPending ? "Saving..." : "Save Changes"}
+            </span>
           </Button>
         </div>
-      </div>
+      )}
     </PageContainer>
   );
 };
-

@@ -140,6 +140,68 @@ export const AdmissionsService = {
     return `${prefix}-2026-${randomDigits}${timestamp}`;
   },
 
+  /**
+   * Lightweight staff list for "Admission taken by":
+   * institute Admins + Center Managers / Counsellors of the selected branch.
+   * Does not require user.read (admission.create/read is enough).
+   */
+  async listStaffOptions(currentUser: AuthUser, branchId: string) {
+    if (!hasBranchAccess(currentUser, branchId)) {
+      throw new AppError("Forbidden — branch access denied", 403);
+    }
+
+    const branch = await prisma.branch.findFirst({
+      where: { id: branchId, instituteId: currentUser.instituteId },
+      select: { id: true },
+    });
+    if (!branch) {
+      throw new AppError("Branch not found", 404);
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        instituteId: currentUser.instituteId,
+        status: "ACTIVE",
+        OR: [
+          {
+            userRoles: {
+              some: { role: { name: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+            },
+          },
+          {
+            AND: [
+              {
+                userRoles: {
+                  some: {
+                    role: { name: { in: ["CENTER_MANAGER", "COUNSELLOR"] } },
+                  },
+                },
+              },
+              {
+                OR: [
+                  { branchId },
+                  { branchAccesses: { some: { branchId } } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        userRoles: { select: { role: { select: { name: true } } } },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      roles: u.userRoles.map((ur) => ur.role.name),
+    }));
+  },
+
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async getApplications(instituteId: string, params: QueryApplicationsDTO) {
     return AdmissionsRepository.findApplications(instituteId, params);

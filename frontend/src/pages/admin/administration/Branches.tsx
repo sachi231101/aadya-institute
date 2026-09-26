@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { PageContainer, PageHeader } from "@/components/layout";
+import { sanitizeMobileInput } from "@/utils/validation";
 import {
   Dialog,
   DialogContent,
@@ -388,7 +389,15 @@ export const Branches: React.FC = () => {
                 <Input
                   id="branch-phone"
                   value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      phone: sanitizeMobileInput(e.target.value),
+                    }))
+                  }
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
                 />
               </div>
               <div className="space-y-2">

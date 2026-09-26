@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeMobileInput } from "@/utils/validation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -666,7 +667,9 @@ export const LeadDetails: React.FC = () => {
                         id,
                         data: {
                           name: String(form.get("name") || ""),
-                          phoneNumber: String(form.get("phoneNumber") || ""),
+                          phoneNumber: sanitizeMobileInput(
+                            String(form.get("phoneNumber") || "")
+                          ),
                           email: String(form.get("email") || "") || undefined,
                           interestedIn: String(form.get("interestedIn") || ""),
                           courseId: String(form.get("courseId") || "") || undefined,
@@ -711,9 +714,15 @@ export const LeadDetails: React.FC = () => {
                     <Label>Phone</Label>
                     <Input
                       name="phoneNumber"
-                      defaultValue={lead.phoneNumber}
+                      defaultValue={sanitizeMobileInput(lead.phoneNumber || "")}
                       className="mt-1"
+                      inputMode="numeric"
+                      maxLength={10}
                       required
+                      onInput={(e) => {
+                        const el = e.currentTarget;
+                        el.value = sanitizeMobileInput(el.value);
+                      }}
                     />
                   </div>
                   <div>

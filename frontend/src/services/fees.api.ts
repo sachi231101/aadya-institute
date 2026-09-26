@@ -35,8 +35,8 @@ export interface PaginatedApiResponse<T> {
 }
 
 export const feesApi = {
-  getStats: async (): Promise<ApiResponse<FeeStats>> => {
-    const response = await api.get<ApiResponse<FeeStats>>("/fees/stats");
+  getStats: async (params?: { branchId?: string }): Promise<ApiResponse<FeeStats>> => {
+    const response = await api.get<ApiResponse<FeeStats>>("/fees/stats", { params });
     return response.data;
   },
 

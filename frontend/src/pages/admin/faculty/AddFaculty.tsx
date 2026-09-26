@@ -13,6 +13,7 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 import {
   Form,
@@ -35,7 +36,11 @@ const buildFacultySchema = (
     employeeCode: z.string().max(20).optional().or(z.literal("")),
     name: z.string().min(2, "Full Name is required"),
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
-    phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
+    phone: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
     password: z
       .string()
       .min(1, "Password is required")
@@ -253,7 +258,15 @@ export const AddFaculty: React.FC = () => {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. +91 9876543201" {...field} />
+                        <Input
+                          placeholder="e.g. 9876543201"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

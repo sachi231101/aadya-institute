@@ -20,6 +20,7 @@ import {
   type ItemAccessState,
   type PermissionModuleDefinition,
 } from "@/utils/permission-utils";
+import { sanitizeMobileInput } from "@/utils/validation";
 import {
   CENTER_ITEM_READ_PERMISSIONS,
   CENTER_ITEM_WRITE_PERMISSIONS,
@@ -69,16 +70,9 @@ const editAdminSchema = z.object({
     .string()
     .optional()
     .or(z.literal(""))
-    .refine(
-      (val) => {
-        if (!val || val.trim() === "") return true;
-        const digits = val.replace(/\D/g, "");
-        return digits.length >= 7 && digits.length <= 15;
-      },
-      {
-        message: "Phone must be a valid phone number (7-15 digits)",
-      }
-    ),
+    .refine((val) => !val || /^\d{10}$/.test(val), {
+      message: "Phone must be a 10-digit mobile number",
+    }),
   branchId: z.string().min(1, "Assigned branch is required"),
 });
 
@@ -325,7 +319,15 @@ export const EditAdmin: React.FC = () => {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="9876543210" {...field} />
+                        <Input
+                          placeholder="9876543210"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

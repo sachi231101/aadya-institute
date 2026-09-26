@@ -12,14 +12,16 @@ import {
   DollarSign,
   Briefcase,
   AlertTriangle,
+  Users,
+  CreditCard,
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
 import { useBatches } from "@/hooks/useBatches";
 import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
-import { useLeadDashboard } from "@/hooks/useLeads";
-import { usePayments } from "@/hooks/useFees";
+import { useLeadDashboard, useFollowUpDashboard } from "@/hooks/useLeads";
+import { usePayments, useFeeStats } from "@/hooks/useFees";
 import { useAssignmentStats } from "@/hooks/useAssignments";
 import { useAdmissions } from "@/hooks/useAdmissions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { sanitizeMobileInput } from "@/utils/validation";
 import { PageContainer, PageHeader, PageSection, MetricGrid } from "@/components/layout";
 import { ROUTES } from "@/constants/routes";
 
@@ -56,6 +59,13 @@ export const AdminDashboard: React.FC = () => {
   const { data: studentReport, isLoading: isStudentLoading } = useStudentReport(activeBranchId);
   const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(activeBranchId);
   const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
+  const { data: followUpDashRes } = useFollowUpDashboard({
+    branchId: activeBranchId,
+    limit: 1,
+  });
+  const { data: feeStatsRes } = useFeeStats(
+    activeBranchId ? { branchId: activeBranchId } : undefined
+  );
   const { data: scheduleSummary } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
   const { data: assignmentStatsRes } = useAssignmentStats();
@@ -157,6 +167,20 @@ export const AdminDashboard: React.FC = () => {
   const formattedPendingFees = formatCompactCurrency(kpiPendingFees);
   const todayClasses = scheduleSummary?.todayClasses ?? 0;
 
+  const leadSummary = leadDashboardData?.data ?? leadDashboardData;
+  const followUpSummary =
+    followUpDashRes?.data?.summary ?? followUpDashRes?.summary ?? null;
+  const dueLeadsCount =
+    (followUpSummary?.overdue ?? 0) + (followUpSummary?.today ?? 0) ||
+    Number(leadSummary?.overdueFollowUps ?? 0);
+  const dueLeadsOverdue = Number(followUpSummary?.overdue ?? leadSummary?.overdueFollowUps ?? 0);
+  const dueLeadsToday = Number(followUpSummary?.today ?? 0);
+
+  const feeStats = feeStatsRes?.data;
+  const dueFeesCount = Number(feeStats?.overdueCount ?? 0);
+  const dueFeesAmount = Number(feeStats?.overdueDues ?? 0);
+  const formattedDueFees = formatCompactCurrency(dueFeesAmount);
+
   const topBranches = [...branchesData].sort((a, b) => b.collected - a.collected).slice(0, 3);
 
   // Real Monthly Trend from PostgreSQL
@@ -251,6 +275,71 @@ export const AdminDashboard: React.FC = () => {
       />
 
       <InstallDashboardBanner />
+
+      {/* Due attention strip — overdue/today leads + overdue fees */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(
+              `${ROUTES.ADMIN.LEADS.FOLLOW_UPS}?tab=${dueLeadsOverdue > 0 ? "overdue" : "today"}`
+            )
+          }
+          className="text-left rounded-xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/70 dark:bg-rose-950/30 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors shadow-xs p-4 cursor-pointer"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-200/70 dark:border-rose-900/40">
+                <Users className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-700/80 dark:text-rose-300/80">
+                  Due Leads
+                </p>
+                <p className="text-2xl font-semibold text-foreground mt-0.5">
+                  {dueLeadsCount.toLocaleString("en-IN")}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                  {dueLeadsOverdue > 0
+                    ? `${dueLeadsOverdue} overdue${dueLeadsToday > 0 ? ` · ${dueLeadsToday} today` : ""}`
+                    : dueLeadsToday > 0
+                      ? `${dueLeadsToday} due today`
+                      : "No follow-ups due"}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-rose-500/70 shrink-0 mt-1" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate(ROUTES.ADMIN.FEES.PENDING)}
+          className="text-left rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors shadow-xs p-4 cursor-pointer"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200/70 dark:border-amber-900/40">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800/80 dark:text-amber-300/80">
+                  Due Fees
+                </p>
+                <p className="text-2xl font-semibold text-foreground mt-0.5">
+                  {formattedDueFees}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                  {dueFeesCount > 0
+                    ? `${dueFeesCount.toLocaleString("en-IN")} overdue installment${dueFeesCount === 1 ? "" : "s"}`
+                    : "No overdue fee dues"}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-amber-600/70 shrink-0 mt-1" />
+          </div>
+        </button>
+      </div>
 
       {notificationMsg && (
         <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
@@ -659,7 +748,14 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold block text-foreground">Phone</label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +91 9876543210" className="bg-background text-foreground" />
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(sanitizeMobileInput(e.target.value))}
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
+                  className="bg-background text-foreground"
+                />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>

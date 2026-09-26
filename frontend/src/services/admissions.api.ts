@@ -72,6 +72,16 @@ export const admissionsApi = {
   },
 
   // ─── ADMISSIONS API ────────────────────────────────────────────────────────
+  /** Branch staff for "Admission taken by" (Admin + CM + Counsellor). */
+  getStaffOptions: async (
+    branchId: string
+  ): Promise<ApiResponse<Array<{ id: string; name: string; roles: string[] }>>> => {
+    const response = await api.get<
+      ApiResponse<Array<{ id: string; name: string; roles: string[] }>>
+    >("/admissions/staff-options", { params: { branchId } });
+    return response.data;
+  },
+
   getAdmissions: async (params?: {
     search?: string;
     courseId?: string;

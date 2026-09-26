@@ -18,6 +18,7 @@ import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { getMasterLabel } from "@/utils/master.utils";
 import { batchIncludesCourse } from "@/utils/batch.utils";
 import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 import {
   Form,
@@ -57,7 +58,6 @@ const buildStudentSchema = (
   studentCode: z.string().optional().or(z.literal("")),
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
   password: z
     .string()
     .min(1, "Password is required")
@@ -82,8 +82,20 @@ const buildStudentSchema = (
   sourceMasterId: z.string().optional().or(z.literal("")),
 
   // Contact (ZenoxERP-aligned)
-  alternativePhone: z.string().optional().or(z.literal("")),
-  whatsappNumber: z.string().optional().or(z.literal("")),
+  phone: z
+    .string()
+    .min(1, "Phone number is required")
+    .refine((v) => /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
+  alternativePhone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
+  whatsappNumber: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
 
   // Guardian / Emergency
   guardianName: z.string().optional().or(z.literal("")),
@@ -103,7 +115,11 @@ const buildStudentSchema = (
   fatherName: z.string().optional().or(z.literal("")),
   fatherOccupation: z.string().optional().or(z.literal("")),
   motherName: z.string().optional().or(z.literal("")),
-  motherPhone: z.string().optional().or(z.literal("")),
+  motherPhone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
 
   // Address
   address: z.string().optional().or(z.literal("")),
@@ -488,7 +504,12 @@ export const AddStudent: React.FC = () => {
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input
                             placeholder="e.g. 9876543210"
+                            inputMode="numeric"
+                            maxLength={10}
                             {...field}
+                            onChange={(e) =>
+                              field.onChange(sanitizeMobileInput(e.target.value))
+                            }
                             className="pl-9"
                           />
                         </div>
@@ -533,7 +554,15 @@ export const AddStudent: React.FC = () => {
                         Alternative Mobile
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="Parent / Secondary phone" {...field} />
+                        <Input
+                          placeholder="Parent / Secondary phone"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -550,7 +579,15 @@ export const AddStudent: React.FC = () => {
                         WhatsApp Number
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="If different from mobile" {...field} />
+                        <Input
+                          placeholder="If different from mobile"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -873,7 +910,7 @@ export const AddStudent: React.FC = () => {
                           placeholder="10-digit mobile number"
                           value={field.value}
                           onChange={(e) =>
-                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                            field.onChange(sanitizeMobileInput(e.target.value))
                           }
                           onBlur={field.onBlur}
                           name={field.name}
@@ -902,7 +939,7 @@ export const AddStudent: React.FC = () => {
                           placeholder="10-digit mobile number"
                           value={field.value}
                           onChange={(e) =>
-                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                            field.onChange(sanitizeMobileInput(e.target.value))
                           }
                           onBlur={field.onBlur}
                           name={field.name}
@@ -982,7 +1019,15 @@ export const AddStudent: React.FC = () => {
                         Mother's Mobile
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 9845098450" {...field} />
+                        <Input
+                          placeholder="e.g. 9845098450"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

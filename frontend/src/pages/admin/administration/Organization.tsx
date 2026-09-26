@@ -17,6 +17,7 @@ import {
 import { formatCurrency } from "@/utils/format";
 import { formatOrganizationDate } from "@/utils/date";
 import { PageContainer, PageHeader } from "@/components/layout";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
@@ -130,7 +131,18 @@ export const Organization: React.FC = () => {
               </div>
               <div>
                 <Label>Phone</Label>
-                <Input value={form.phone} onChange={setField("phone")} />
+                <Input
+                  value={form.phone}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...(prev ?? serverForm),
+                      phone: sanitizeMobileInput(e.target.value),
+                    }))
+                  }
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
+                />
               </div>
             </div>
             <div>

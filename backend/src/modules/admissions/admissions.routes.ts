@@ -2,11 +2,21 @@ import { Router } from "express";
 import { AdmissionsController } from "./admissions.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import {
+  requirePermission,
+  requireAnyPermission,
+} from "../../middlewares/permission.middleware";
 
 const router = Router();
 
 router.use(authMiddleware);
+
+// Staff picker for "Admission taken by" (must be before "/:id")
+router.get(
+  "/staff-options",
+  requireAnyPermission("admission.create", "admission.read"),
+  AdmissionsController.getStaffOptions
+);
 
 // ─── APPLICATIONS ROUTES ─────────────────────────────────────────────────────
 router.get(
