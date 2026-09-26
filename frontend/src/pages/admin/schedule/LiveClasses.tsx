@@ -20,6 +20,7 @@ import {
 import { ROUTES } from "@/constants/routes";
 import { toDateKey } from "@/constants/timetable-slots";
 import { getSessionHostPhase } from "@/utils/session-window";
+import { formatTimeRange12h } from "@/utils/format";
 
 type LiveSessionRow = {
   id: string;
@@ -171,7 +172,7 @@ export const LiveClasses: React.FC = () => {
                         </TableCell>
                         <TableCell>{s.faculty?.user?.name || "—"}</TableCell>
                         <TableCell>
-                          {s.startTime} – {s.endTime}
+                          {formatTimeRange12h(s.startTime, s.endTime)}
                         </TableCell>
                         <TableCell>
                           {showJoin ? (

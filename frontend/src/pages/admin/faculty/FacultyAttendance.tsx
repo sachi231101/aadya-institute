@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,8 +8,10 @@ import {
   Save,
   Loader2,
   Users,
+  ChevronDown,
+  CalendarDays,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +21,22 @@ import { useFacultyDailyAttendance, useSaveFacultyDailyAttendance } from "@/hook
 import type {
   FacultyDailyAttendanceDeskResponse,
   FacultyDailyAttendanceDeskRow,
-  FacultyDailyAttendanceStatus,
+  FacultyDailyAttendanceWritableStatus,
 } from "@/types/faculty.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { localTodayKey } from "@/constants/timetable-slots";
+import { useIstTodayKey } from "@/hooks/useIstTodayKey";
+import { AttendancePunchList } from "@/components/faculty/AttendancePunchList";
+import { formatDurationMinutes, formatTime12h } from "@/utils/format";
 
-export type AttendanceDeskStatus = FacultyDailyAttendanceStatus;
+/** Desk-selectable statuses only (WEEKLY_OFF is legacy / not offered). */
+export type AttendanceDeskStatus = FacultyDailyAttendanceWritableStatus;
+
+const WRITABLE_STATUSES: AttendanceDeskStatus[] = ["PRESENT", "ABSENT", "LEAVE"];
+
+const isWritableStatus = (status: string | null): status is AttendanceDeskStatus =>
+  status !== null && (WRITABLE_STATUSES as string[]).includes(status);
 
 /** null = Not marked (UI-only; never persisted). */
 interface AttendanceRowState {
@@ -88,6 +99,7 @@ export const FacultyAttendance: React.FC = () => {
       : undefined;
 
   // Date selection (IST / institute calendar day — not UTC via toISOString)
+  const todayKey = useIstTodayKey();
   const [selectedDate, setSelectedDate] = useState<string>(() => localTodayKey());
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const key = localTodayKey();
@@ -99,6 +111,63 @@ export const FacultyAttendance: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [hydratedDateKey, setHydratedDateKey] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const calendarPopoverRef = useRef<HTMLDivElement>(null);
+  const calendarCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Only today's IST date is editable; other dates are view-only. */
+  const isSelectedDateToday = selectedDate === todayKey;
+  const canEditDay = canEditAttendance && isSelectedDateToday;
+
+  const clearCalendarCloseTimer = useCallback(() => {
+    if (calendarCloseTimerRef.current) {
+      clearTimeout(calendarCloseTimerRef.current);
+      calendarCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const openCalendar = useCallback(() => {
+    clearCalendarCloseTimer();
+    setCalendarOpen(true);
+  }, [clearCalendarCloseTimer]);
+
+  const scheduleCloseCalendar = useCallback(() => {
+    clearCalendarCloseTimer();
+    calendarCloseTimerRef.current = setTimeout(() => {
+      setCalendarOpen(false);
+      calendarCloseTimerRef.current = null;
+    }, 150);
+  }, [clearCalendarCloseTimer]);
+
+  const closeCalendar = useCallback(() => {
+    clearCalendarCloseTimer();
+    setCalendarOpen(false);
+  }, [clearCalendarCloseTimer]);
+
+  useEffect(() => {
+    return () => clearCalendarCloseTimer();
+  }, [clearCalendarCloseTimer]);
+
+  // Close calendar when clicking outside (touch / click-opened)
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (calendarPopoverRef.current && !calendarPopoverRef.current.contains(target)) {
+        closeCalendar();
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [calendarOpen, closeCalendar]);
+
+  const toggleExpanded = (facultyId: string) =>
+    setExpandedRows((prev) => ({ ...prev, [facultyId]: !prev[facultyId] }));
 
   const { data: dailyAttendanceResponse, isLoading: isDailyLoading } =
     useFacultyDailyAttendance({
@@ -128,10 +197,12 @@ export const FacultyAttendance: React.FC = () => {
 
     for (const row of payload.records) {
       if (row.attendance) {
+        // Legacy WEEKLY_OFF is not desk-editable; treat as unmarked for new saves.
+        const status = isWritableStatus(row.attendance.status) ? row.attendance.status : null;
         dayMap[row.facultyId] = {
-          status: row.attendance.status,
-          inTime: row.attendance.inTime || "",
-          outTime: row.attendance.outTime || "",
+          status,
+          inTime: status === "PRESENT" ? row.attendance.inTime || "" : "",
+          outTime: status === "PRESENT" ? row.attendance.outTime || "" : "",
           comments: row.attendance.comments || "",
         };
       } else {
@@ -203,6 +274,7 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   const handleStatusChange = (facultyId: string, status: AttendanceDeskStatus | null) => {
+    if (!canEditDay) return;
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
       dayMap[facultyId] = applyStatus(getRowData(facultyId), status);
@@ -211,18 +283,19 @@ export const FacultyAttendance: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  const handleFieldChange = (facultyId: string, field: "inTime" | "outTime" | "comments", value: string) => {
+  const handleCommentsChange = (facultyId: string, value: string) => {
+    if (!canEditDay) return;
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
       const current = getRowData(facultyId);
-      dayMap[facultyId] = { ...current, [field]: value };
+      dayMap[facultyId] = { ...current, comments: value };
       return { ...prev, [selectedDate]: dayMap };
     });
     setHasUnsavedChanges(true);
   };
 
   const handleBulkSetStatus = (status: AttendanceDeskStatus | null) => {
-    if (filteredFaculty.length === 0) return;
+    if (!canEditDay || filteredFaculty.length === 0) return;
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
       filteredFaculty.forEach((f) => {
@@ -238,6 +311,10 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   const handleSaveAttendance = async () => {
+    if (!canEditDay) {
+      showToast("Only today's attendance can be edited", "error");
+      return;
+    }
     if (filteredFaculty.length === 0) {
       showToast("No faculty to save", "error");
       return;
@@ -245,7 +322,7 @@ export const FacultyAttendance: React.FC = () => {
 
     const marked = filteredFaculty
       .map((f) => ({ faculty: f, row: getRowData(f.facultyId) }))
-      .filter(({ row }) => row.status !== null);
+      .filter(({ row }) => isWritableStatus(row.status));
 
     if (marked.length === 0) {
       showToast("Mark at least one faculty before saving", "error");
@@ -254,33 +331,40 @@ export const FacultyAttendance: React.FC = () => {
 
     for (const { faculty, row } of marked) {
       if (row.status !== "PRESENT") continue;
-      const inTime = toTimeValue(row.inTime);
-      const outTime = toTimeValue(row.outTime);
-      if (!inTime || !outTime) {
+      const inTime = toTimeValue(row.inTime) || null;
+      const outTime = toTimeValue(row.outTime) || null;
+      if (outTime && !inTime) {
         showToast(
-          `${faculty.user?.name || faculty.employeeCode}: login and logout times are required for Present`,
+          `${faculty.user?.name || faculty.employeeCode}: in time is required when out time is set`,
           "error"
         );
         return;
       }
-      const inMins = timeToMinutes(inTime);
-      const outMins = timeToMinutes(outTime);
-      if (inMins == null || outMins == null || outMins <= inMins) {
-        showToast(
-          `${faculty.user?.name || faculty.employeeCode}: logout must be after login`,
-          "error"
-        );
-        return;
+      if (inTime && outTime) {
+        const inMins = timeToMinutes(inTime);
+        const outMins = timeToMinutes(outTime);
+        if (inMins == null || outMins == null || outMins <= inMins) {
+          showToast(
+            `${faculty.user?.name || faculty.employeeCode}: logout must be after login`,
+            "error"
+          );
+          return;
+        }
       }
     }
 
-    const records = marked.map(({ faculty, row }) => ({
-      facultyId: faculty.facultyId,
-      status: row.status as AttendanceDeskStatus,
-      inTime: row.status === "PRESENT" ? toTimeValue(row.inTime) : null,
-      outTime: row.status === "PRESENT" ? toTimeValue(row.outTime) : null,
-      comments: row.comments || null,
-    }));
+    const records = marked.map(({ faculty, row }) => {
+      const isPresent = row.status === "PRESENT";
+      const inTime = isPresent ? toTimeValue(row.inTime) || null : null;
+      const outTime = isPresent ? toTimeValue(row.outTime) || null : null;
+      return {
+        facultyId: faculty.facultyId,
+        status: row.status as AttendanceDeskStatus,
+        inTime,
+        outTime,
+        comments: row.comments || null,
+      };
+    });
 
     try {
       await saveDailyAttendance.mutateAsync({ date: selectedDate, records });
@@ -302,14 +386,36 @@ export const FacultyAttendance: React.FC = () => {
       setHydratedDateKey(null);
     }
     setSelectedDate(dateStr);
+    const [y, m] = dateStr.split("-").map(Number);
+    setCalendarMonth(new Date(y, m - 1, 1));
+    closeCalendar();
   };
 
   const handleToday = () => {
-    const today = localTodayKey();
-    setSelectedDate(today);
-    const [y, m] = today.split("-").map(Number);
+    setSelectedDate(todayKey);
+    const [y, m] = todayKey.split("-").map(Number);
     setCalendarMonth(new Date(y, m - 1, 1));
+    closeCalendar();
   };
+
+  const selectedDateLabel = useMemo(() => {
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    if (!y || !m || !d) return selectedDate;
+    return new Date(y, m - 1, d).toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [selectedDate]);
+
+  // Drop dirty edits if the IST day rolls over while a past/future date is selected,
+  // or if the user was editing "today" and midnight passes.
+  useEffect(() => {
+    if (selectedDate !== todayKey && hasUnsavedChanges) {
+      setHasUnsavedChanges(false);
+    }
+  }, [todayKey, selectedDate, hasUnsavedChanges]);
 
   const handleClear = () => {
     handleToday();
@@ -327,17 +433,17 @@ export const FacultyAttendance: React.FC = () => {
   }, [deskRows, searchTerm]);
 
   const markedCount = useMemo(
-    () => filteredFaculty.filter((f) => getRowData(f.facultyId).status !== null).length,
+    () => filteredFaculty.filter((f) => isWritableStatus(getRowData(f.facultyId).status)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getRowData depends on currentDayAttendance
     [filteredFaculty, currentDayAttendance]
   );
 
   const canSave =
-    canEditAttendance && hasUnsavedChanges && markedCount > 0 && !saveDailyAttendance.isPending;
+    canEditDay && hasUnsavedChanges && markedCount > 0 && !saveDailyAttendance.isPending;
 
   const allStatusCheck = useMemo(() => {
     if (filteredFaculty.length === 0) {
-      return { present: false, absent: false, leave: false, weeklyOff: false };
+      return { present: false, absent: false, leave: false };
     }
     const firstStatus = getRowData(filteredFaculty[0].facultyId).status;
     const allSame = filteredFaculty.every((f) => getRowData(f.facultyId).status === firstStatus);
@@ -345,7 +451,6 @@ export const FacultyAttendance: React.FC = () => {
       present: allSame && firstStatus === "PRESENT",
       absent: allSame && firstStatus === "ABSENT",
       leave: allSame && firstStatus === "LEAVE",
-      weeklyOff: allSame && firstStatus === "WEEKLY_OFF",
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredFaculty, currentDayAttendance]);
@@ -377,106 +482,143 @@ export const FacultyAttendance: React.FC = () => {
 
       <PageHeader title="Faculty Attendance" />
 
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Attendance Details (Calendar Card) */}
-        <div className="lg:col-span-3">
-          <Card className="border border-slate-200 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-none">
-            <CardHeader className="p-3.5 px-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
-              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Attendance Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 flex flex-col items-center">
-              {/* Calendar Month & Navigation */}
-              <div className="w-full flex items-center justify-between mb-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+      {/* Single-column: date controls on top, list full width below */}
+      <div className="space-y-5">
+        {/* Top bar: Attendance Details + selected date + calendar popover */}
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-none">
+          <div className="p-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40">
+            <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Attendance Details
+            </CardTitle>
+
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Selected date
+                </p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                  {selectedDateLabel}
+                </p>
+              </div>
+
+              <div
+                ref={calendarPopoverRef}
+                className="relative shrink-0"
+                onMouseEnter={openCalendar}
+                onMouseLeave={scheduleCloseCalendar}
+              >
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-slate-500 hover:text-slate-800"
-                  onClick={() => {
-                    const m = new Date(calendarMonth);
-                    m.setMonth(m.getMonth() - 1);
-                    setCalendarMonth(m);
-                  }}
+                  aria-label="Open calendar"
+                  aria-expanded={calendarOpen}
+                  aria-haspopup="dialog"
+                  className={`h-8 w-8 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 ${
+                    calendarOpen ? "bg-slate-100 dark:bg-slate-800" : ""
+                  }`}
+                  onClick={openCalendar}
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <CalendarDays className="w-4 h-4" />
                 </Button>
-                <span>
-                  {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-slate-500 hover:text-slate-800"
-                  onClick={() => {
-                    const m = new Date(calendarMonth);
-                    m.setMonth(m.getMonth() + 1);
-                    setCalendarMonth(m);
-                  }}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+
+                {calendarOpen ? (
+                  <div
+                    role="dialog"
+                    aria-label="Choose attendance date"
+                    className="absolute right-0 top-full z-30 mt-1.5 w-[240px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md p-3"
+                  >
+                    {/* Calendar Month & Navigation */}
+                    <div className="w-full flex items-center justify-between mb-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-slate-500 hover:text-slate-800"
+                        onClick={() => {
+                          const m = new Date(calendarMonth);
+                          m.setMonth(m.getMonth() - 1);
+                          setCalendarMonth(m);
+                        }}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span>
+                        {calendarMonth.toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-slate-500 hover:text-slate-800"
+                        onClick={() => {
+                          const m = new Date(calendarMonth);
+                          m.setMonth(m.getMonth() + 1);
+                          setCalendarMonth(m);
+                        }}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Day of Week Headers */}
+                    <div className="w-full grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                      <span>Su</span>
+                      <span>Mo</span>
+                      <span>Tu</span>
+                      <span>We</span>
+                      <span>Th</span>
+                      <span>Fr</span>
+                      <span>Sa</span>
+                    </div>
+
+                    {/* Day Numbers Grid */}
+                    <div className="w-full grid grid-cols-7 gap-1 text-center text-xs">
+                      {calendarDays.map((d, idx) => {
+                        const isSelected = d.dateStr === selectedDate;
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleSelectDate(d.dateStr)}
+                            className={`h-7 w-7 mx-auto flex items-center justify-center text-xs transition-colors rounded-none ${
+                              isSelected
+                                ? "bg-[#F3C279] text-slate-900 font-bold"
+                                : d.isCurrentMonth
+                                  ? "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  : "text-slate-300 dark:text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {d.dayNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Today & Clear Shortcuts */}
+                    <div className="mt-3 flex items-center justify-center gap-4 text-xs font-bold text-slate-900 dark:text-slate-100">
+                      <button type="button" onClick={handleToday} className="hover:underline">
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClear}
+                        className="hover:underline font-semibold text-slate-700 dark:text-slate-300"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
+            </div>
+          </div>
+        </Card>
 
-              {/* Day of Week Headers */}
-              <div className="w-full grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                <span>Su</span>
-                <span>Mo</span>
-                <span>Tu</span>
-                <span>We</span>
-                <span>Th</span>
-                <span>Fr</span>
-                <span>Sa</span>
-              </div>
-
-              {/* Day Numbers Grid */}
-              <div className="w-full grid grid-cols-7 gap-1 text-center text-xs">
-                {calendarDays.map((d, idx) => {
-                  const isSelected = d.dateStr === selectedDate;
-
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectDate(d.dateStr)}
-                      className={`h-7 w-7 mx-auto flex items-center justify-center text-xs transition-colors rounded-none ${
-                        isSelected
-                          ? "bg-[#F3C279] text-slate-900 font-bold" // Amber/yellow highlight matching reference
-                          : d.isCurrentMonth
-                          ? "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          : "text-slate-300 dark:text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {d.dayNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Today & Clear Shortcuts */}
-              <div className="mt-4 flex flex-col items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100">
-                <button
-                  type="button"
-                  onClick={handleToday}
-                  className="hover:underline"
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="hover:underline font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Clear
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column: Attendance List Table */}
-        <div className="lg:col-span-9 space-y-3">
+        {/* Attendance List — full width */}
+        <div className="space-y-3">
           <Card className="border border-slate-200 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-none overflow-hidden">
             {/* Table Header Bar */}
             <div className="p-3 px-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -558,11 +700,15 @@ export const FacultyAttendance: React.FC = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                {markedCount === 0 && (
+                {!isSelectedDateToday ? (
+                  <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-[11px] text-slate-600 dark:text-slate-300">
+                    Only today&apos;s attendance can be edited. This date is view-only.
+                  </div>
+                ) : markedCount === 0 ? (
                   <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-amber-50/80 dark:bg-amber-950/20 text-[11px] text-amber-800 dark:text-amber-200">
                     Select a status for each faculty you want to save — unmarked rows are skipped. Re-click a selected status to clear it.
                   </div>
-                )}
+                ) : null}
                 <table className="w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -576,9 +722,6 @@ export const FacultyAttendance: React.FC = () => {
                         </div>
                       </th>
                       <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-800">
-                        MOBILE NO
-                      </th>
-                      <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-800">
                         CODE
                       </th>
                       <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-800">
@@ -587,11 +730,11 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* PRESENT Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
+                        <label className={`flex flex-col items-center select-none ${canEditDay ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.present}
-                            disabled={!canEditAttendance}
+                            disabled={!canEditDay}
                             onChange={() => handleBulkSetStatus("PRESENT")}
                             className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
@@ -601,11 +744,11 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* ABSENT Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
+                        <label className={`flex flex-col items-center select-none ${canEditDay ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.absent}
-                            disabled={!canEditAttendance}
+                            disabled={!canEditDay}
                             onChange={() => handleBulkSetStatus("ABSENT")}
                             className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
@@ -615,11 +758,11 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* LEAVE Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
+                        <label className={`flex flex-col items-center select-none ${canEditDay ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.leave}
-                            disabled={!canEditAttendance}
+                            disabled={!canEditDay}
                             onChange={() => handleBulkSetStatus("LEAVE")}
                             className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
@@ -627,25 +770,27 @@ export const FacultyAttendance: React.FC = () => {
                         </label>
                       </th>
 
-                      {/* WEEKLY OFF Column with Select-All Checkbox */}
-                      <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-24">
-                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
-                          <input
-                            type="checkbox"
-                            checked={allStatusCheck.weeklyOff}
-                            disabled={!canEditAttendance}
-                            onChange={() => handleBulkSetStatus("WEEKLY_OFF")}
-                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                          />
-                          <span className="text-[10px] font-bold mt-0.5 leading-tight text-center">WEEKLY OFF</span>
-                        </label>
-                      </th>
-
                       <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-800 w-24 text-center">
-                        IN TIME
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span>FIRST IN</span>
+                          <span className="normal-case tracking-normal font-medium text-[9px] text-slate-400">
+                            From Check In
+                          </span>
+                        </div>
                       </th>
                       <th className="py-2.5 px-3 border-r border-slate-200 dark:border-slate-800 w-24 text-center">
-                        OUT TIME
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span>LAST OUT</span>
+                          <span className="normal-case tracking-normal font-medium text-[9px] text-slate-400">
+                            From Check Out
+                          </span>
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-2 border-r border-slate-200 dark:border-slate-800 w-20 text-center">
+                        SESSIONS
+                      </th>
+                      <th className="py-2.5 px-2 border-r border-slate-200 dark:border-slate-800 w-20 text-center">
+                        DURATION
                       </th>
                       <th className="py-2.5 px-3 min-w-[120px]">
                         COMMENTS
@@ -656,12 +801,24 @@ export const FacultyAttendance: React.FC = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {filteredFaculty.map((f, idx) => {
                       const row = getRowData(f.facultyId);
-                      const timesEnabled = row.status === "PRESENT";
+                      const summary = f.attendance;
+                      const punches = summary?.punches ?? [];
+                      const showTimes = row.status === "PRESENT";
+                      const displayInTime = showTimes
+                        ? formatTime12h(summary?.firstIn || toTimeValue(row.inTime))
+                        : "—";
+                      const displayOutTime = showTimes
+                        ? formatTime12h(summary?.lastOut || toTimeValue(row.outTime))
+                        : "—";
+                      const sessionCount = summary?.sessionCount ?? 0;
+                      const isExpanded = !!expandedRows[f.facultyId] && punches.length > 0;
 
                       return (
+                        <React.Fragment key={f.facultyId}>
                         <tr
-                          key={f.facultyId}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
+                            isExpanded ? "bg-slate-50/60 dark:bg-slate-800/30" : ""
+                          }`}
                         >
                           <td className="py-2 px-3 text-center text-slate-600 dark:text-slate-400 font-medium border-r border-slate-200 dark:border-slate-800">
                             {idx + 1}
@@ -669,10 +826,6 @@ export const FacultyAttendance: React.FC = () => {
 
                           <td className="py-2 px-3 font-semibold text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800">
                             {f.user?.name || "Faculty Member"}
-                          </td>
-
-                          <td className="py-2 px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
-                            {f.user?.phone || "—"}
                           </td>
 
                           <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
@@ -688,14 +841,14 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.facultyId}`}
                               checked={row.status === "PRESENT"}
-                              disabled={!canEditAttendance}
+                              disabled={!canEditDay}
                               onChange={() => handleStatusChange(f.facultyId, "PRESENT")}
                               onClick={() => {
-                                if (canEditAttendance && row.status === "PRESENT") {
+                                if (canEditDay && row.status === "PRESENT") {
                                   handleStatusChange(f.facultyId, null);
                                 }
                               }}
-                              title="Present (click again to clear)"
+                              title={canEditDay ? "Present (click again to clear)" : "View only — not today"}
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
@@ -705,14 +858,14 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.facultyId}`}
                               checked={row.status === "ABSENT"}
-                              disabled={!canEditAttendance}
+                              disabled={!canEditDay}
                               onChange={() => handleStatusChange(f.facultyId, "ABSENT")}
                               onClick={() => {
-                                if (canEditAttendance && row.status === "ABSENT") {
+                                if (canEditDay && row.status === "ABSENT") {
                                   handleStatusChange(f.facultyId, null);
                                 }
                               }}
-                              title="Absent (click again to clear)"
+                              title={canEditDay ? "Absent (click again to clear)" : "View only — not today"}
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
@@ -722,80 +875,82 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.facultyId}`}
                               checked={row.status === "LEAVE"}
-                              disabled={!canEditAttendance}
+                              disabled={!canEditDay}
                               onChange={() => handleStatusChange(f.facultyId, "LEAVE")}
                               onClick={() => {
-                                if (canEditAttendance && row.status === "LEAVE") {
+                                if (canEditDay && row.status === "LEAVE") {
                                   handleStatusChange(f.facultyId, null);
                                 }
                               }}
-                              title="Leave (click again to clear)"
+                              title={canEditDay ? "Leave (click again to clear)" : "View only — not today"}
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
-                          <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
-                            <input
-                              type="radio"
-                              name={`attendance-${f.facultyId}`}
-                              checked={row.status === "WEEKLY_OFF"}
-                              disabled={!canEditAttendance}
-                              onChange={() => handleStatusChange(f.facultyId, "WEEKLY_OFF")}
-                              onClick={() => {
-                                if (canEditAttendance && row.status === "WEEKLY_OFF") {
-                                  handleStatusChange(f.facultyId, null);
-                                }
-                              }}
-                              title="Weekly off (click again to clear)"
-                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
-                            />
+                          <td
+                            className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center font-mono text-slate-700 dark:text-slate-300 tabular-nums"
+                            title="Set by faculty Check In"
+                          >
+                            {displayInTime}
                           </td>
 
-                          <td className="py-1.5 px-2 border-r border-slate-200 dark:border-slate-800">
-                            <input
-                              type="time"
-                              value={toTimeValue(row.inTime)}
-                              disabled={!canEditAttendance || !timesEnabled}
-                              onChange={(e) => handleFieldChange(f.facultyId, "inTime", e.target.value)}
-                              onClick={(e) => {
-                                if (canEditAttendance && timesEnabled) e.currentTarget.showPicker?.();
-                              }}
-                              className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                !canEditAttendance || !timesEnabled
-                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                                  : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
-                              }`}
-                            />
+                          <td
+                            className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center font-mono text-slate-700 dark:text-slate-300 tabular-nums"
+                            title="Set by faculty Check Out"
+                          >
+                            {displayOutTime}
+                            {summary?.openSession ? (
+                              <span className="block font-sans text-[9px] font-semibold text-blue-600 dark:text-blue-400">
+                                Checked in
+                              </span>
+                            ) : null}
                           </td>
 
-                          <td className="py-1.5 px-2 border-r border-slate-200 dark:border-slate-800">
-                            <input
-                              type="time"
-                              value={toTimeValue(row.outTime)}
-                              disabled={!canEditAttendance || !timesEnabled}
-                              onChange={(e) => handleFieldChange(f.facultyId, "outTime", e.target.value)}
-                              onClick={(e) => {
-                                if (canEditAttendance && timesEnabled) e.currentTarget.showPicker?.();
-                              }}
-                              className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                !canEditAttendance || !timesEnabled
-                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                                  : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
-                              }`}
-                            />
+                          <td className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center">
+                            {punches.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpanded(f.facultyId)}
+                                aria-expanded={isExpanded}
+                                title={isExpanded ? "Hide punch history" : "Show punch history"}
+                                className="inline-flex items-center gap-0.5 font-semibold text-blue-700 dark:text-blue-400 hover:underline tabular-nums"
+                              >
+                                {sessionCount}
+                                <ChevronDown
+                                  className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                />
+                              </button>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+
+                          <td className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center font-mono text-slate-700 dark:text-slate-300 tabular-nums">
+                            {sessionCount > 0 ? formatDurationMinutes(summary?.totalMinutes) : "—"}
                           </td>
 
                           <td className="py-1.5 px-2">
                             <input
                               type="text"
                               value={row.comments}
-                              disabled={!canEditAttendance}
-                              onChange={(e) => handleFieldChange(f.facultyId, "comments", e.target.value)}
+                              disabled={!canEditDay}
+                              onChange={(e) => handleCommentsChange(f.facultyId, e.target.value)}
                               placeholder=""
                               className="w-full h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-blue-500 outline-none disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                             />
                           </td>
                         </tr>
+                        {isExpanded ? (
+                          <tr className="bg-slate-50/60 dark:bg-slate-800/30">
+                            <td colSpan={12} className="py-2 px-4 pl-16">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                Punch history
+                              </p>
+                              <AttendancePunchList punches={punches} openSession={summary?.openSession} />
+                            </td>
+                          </tr>
+                        ) : null}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>

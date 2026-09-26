@@ -30,6 +30,7 @@ import {
   splitTimeRange,
 } from "@/utils/session-window";
 import { toDateKey } from "@/constants/timetable-slots";
+import { formatTime12h, formatTimeRange12h } from "@/utils/format";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 type SessionWorkflowStep = "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
@@ -122,6 +123,8 @@ export const FacultyClassSession: React.FC = () => {
     }
     return splitTimeRange(scheduledTime);
   }, [apiClassSession?.startTime, apiClassSession?.endTime, scheduledTime]);
+
+  const scheduledTimeLabel = formatTimeRange12h(sessionTimes?.startTime, sessionTimes?.endTime, scheduledTime);
 
   const [hostClockTick, setHostClockTick] = useState(0);
   useEffect(() => {
@@ -469,10 +472,7 @@ export const FacultyClassSession: React.FC = () => {
         throw new Error("Cannot start live with a non-Google Meet URL.");
       }
 
-      const currentTimeStr = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const currentTimeStr = formatTime12h(new Date());
 
       await classSessionsApi.startLive(sessionId, meetUrl);
 
@@ -489,7 +489,7 @@ export const FacultyClassSession: React.FC = () => {
         moduleName: subjectName,
         facultyName,
         date: scheduledDate,
-        time: scheduledTime,
+        time: scheduledTimeLabel,
         meetUrl,
         meetId: meetUrl.split("/").pop() || "",
         startedAt: currentTimeStr,
@@ -523,7 +523,7 @@ export const FacultyClassSession: React.FC = () => {
   const handleConfirmEndClass = async () => {
     setShowEndConfirmModal(false);
 
-    const endTimeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const endTimeStr = formatTime12h(new Date());
     const recDuration = Math.max(1, Math.round(secondsElapsed / 60));
     const meetUrl = isRealGoogleMeetUrl(customMeetUrl) ? customMeetUrl.trim() : "";
     const meetId = meetUrl ? meetUrl.split("/").pop() || "" : "";
@@ -590,7 +590,7 @@ export const FacultyClassSession: React.FC = () => {
       facultyName,
       date: scheduledDate,
       rawDate: new Date().toISOString().split("T")[0],
-      time: scheduledTime,
+      time: scheduledTimeLabel,
       duration: recDurationMins.trim() ? `${recDurationMins} min` : "—",
       studentsCount: attendanceCounts.present || students.length,
       thumbnailBg: "bg-gradient-to-br from-[#0A2540] via-slate-900 to-blue-950",
@@ -1253,7 +1253,7 @@ export const FacultyClassSession: React.FC = () => {
                     <div key={hist.id} className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="font-semibold text-slate-900">{hist.course} — {hist.module}</span>
-                        <span className="text-slate-500 font-mono text-[11px] font-semibold">{hist.date} • {hist.startTime} - {hist.endTime}</span>
+                        <span className="text-slate-500 font-mono text-[11px] font-semibold">{hist.date} • {formatTimeRange12h(hist.startTime, hist.endTime)}</span>
                       </div>
                       <div className="flex items-center justify-between text-slate-600 text-[11px] pt-1">
                         <span>Faculty: <strong>{hist.facultyName}</strong></span>
@@ -1319,7 +1319,7 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-slate-400" /> Time
                 </span>
-                <span className="font-semibold text-slate-800 text-right">{scheduledTime}</span>
+                <span className="font-semibold text-slate-800 text-right">{scheduledTimeLabel}</span>
               </div>
 
               <div className="flex items-start justify-between gap-2">
@@ -1440,7 +1440,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Scheduled Time:</span>
-              <span className="font-medium text-slate-800">{scheduledDate} ({scheduledTime})</span>
+              <span className="font-medium text-slate-800">{scheduledDate} ({scheduledTimeLabel})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Number of Students:</span>

@@ -54,6 +54,7 @@ import {
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getApiErrorMessage } from "@/utils/api-error";
+import { formatTimeRange12h } from "@/utils/format";
 import {
   getSessionHostPhase,
   resolveDisplaySessionStatus,
@@ -808,7 +809,7 @@ export const Classes: React.FC = () => {
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                         <Clock className="h-3 w-3 shrink-0" />
                         <span>
-                          {item.startTime} – {item.endTime}
+                          {formatTimeRange12h(item.startTime, item.endTime)}
                         </span>
                       </div>
                     </td>

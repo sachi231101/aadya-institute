@@ -38,22 +38,31 @@ WHERE r."name" = 'FACULTY'
   );
 
 -- Backfill CM/Counsellor (and any staff) who already have batch write access
-INSERT INTO "UserPermission" ("id", "userId", "permissionId", "grantedAt")
-SELECT
-  'up_bcm_' || up."userId",
-  up."userId",
-  mark_perm."id",
-  CURRENT_TIMESTAMP
-FROM "UserPermission" up
-JOIN "Permission" existing
-  ON existing."id" = up."permissionId"
- AND existing."name" IN ('batch.create', 'batch.update')
-CROSS JOIN "Permission" mark_perm
-WHERE mark_perm."name" = 'batch_curriculum.mark'
-  AND NOT EXISTS (
-    SELECT 1
-    FROM "UserPermission" existing_up
-    WHERE existing_up."userId" = up."userId"
-      AND existing_up."permissionId" = mark_perm."id"
-  )
-GROUP BY up."userId", mark_perm."id";
+-- Guard: only run when UserPermission table exists (may be absent in shadow DB)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'UserPermission'
+  ) THEN
+    INSERT INTO "UserPermission" ("id", "userId", "permissionId", "grantedAt")
+    SELECT
+      'up_bcm_' || up."userId",
+      up."userId",
+      mark_perm."id",
+      CURRENT_TIMESTAMP
+    FROM "UserPermission" up
+    JOIN "Permission" existing
+      ON existing."id" = up."permissionId"
+     AND existing."name" IN ('batch.create', 'batch.update')
+    CROSS JOIN "Permission" mark_perm
+    WHERE mark_perm."name" = 'batch_curriculum.mark'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "UserPermission" existing_up
+        WHERE existing_up."userId" = up."userId"
+          AND existing_up."permissionId" = mark_perm."id"
+      )
+    GROUP BY up."userId", mark_perm."id";
+  END IF;
+END $$;

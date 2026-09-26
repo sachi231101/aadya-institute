@@ -1117,7 +1117,7 @@ export const ExamDetails: React.FC = () => {
                   <p className="text-xs font-semibold text-muted-foreground uppercase">Schedule Window</p>
                   <p className="text-foreground">
                     {exam.startAt && exam.endAt ? (
-                      `${new Date(exam.startAt).toLocaleString()} to ${new Date(exam.endAt).toLocaleString()}`
+                      `${new Date(exam.startAt).toLocaleString([], { hour12: true })} to ${new Date(exam.endAt).toLocaleString([], { hour12: true })}`
                     ) : (
                       <span className="italic text-muted-foreground">Not scheduled (On-demand)</span>
                     )}

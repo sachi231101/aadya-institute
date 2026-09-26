@@ -11,6 +11,17 @@ export const createFacultySchema = z.object({
   designationMasterId: z.string().optional(),
   qualificationMasterId: z.string().optional(),
   branchId: z.string().min(1, "Branch ID is required"),
+  workLatitude: z.number().min(-90).max(90).optional().nullable(),
+  workLongitude: z.number().min(-180).max(180).optional().nullable(),
+}).superRefine((data, ctx) => {
+  const hasLat = data.workLatitude != null;
+  const hasLng = data.workLongitude != null;
+  if (hasLat && !hasLng) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "workLongitude is required when workLatitude is set", path: ["workLongitude"] });
+  }
+  if (hasLng && !hasLat) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "workLatitude is required when workLongitude is set", path: ["workLatitude"] });
+  }
 });
 
 export const updateFacultySchema = z.object({
@@ -22,7 +33,47 @@ export const updateFacultySchema = z.object({
   designationMasterId: z.string().optional().nullable(),
   qualificationMasterId: z.string().optional().nullable(),
   status: z.enum(["ACTIVE", "INACTIVE", "ON_LEAVE"]).optional(),
+  workLatitude: z.number().min(-90).max(90).optional().nullable(),
+  workLongitude: z.number().min(-180).max(180).optional().nullable(),
+}).superRefine((data, ctx) => {
+  const hasLat = data.workLatitude != null;
+  const hasLng = data.workLongitude != null;
+  if (hasLat && !hasLng) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "workLongitude is required when workLatitude is set", path: ["workLongitude"] });
+  }
+  if (hasLng && !hasLat) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "workLatitude is required when workLongitude is set", path: ["workLatitude"] });
+  }
 });
+
+export const facultySelfAttendanceGeoSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+
+export const facultyCheckOutSchema = z
+  .object({
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    source: z.enum(["MANUAL", "AUTO_GEOFENCE"]).default("MANUAL"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.source !== "AUTO_GEOFENCE") return;
+    if (data.latitude == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "latitude is required for auto check-out",
+        path: ["latitude"],
+      });
+    }
+    if (data.longitude == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "longitude is required for auto check-out",
+        path: ["longitude"],
+      });
+    }
+  });
 
 export const listFacultyQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -68,7 +119,6 @@ export const facultyDailyAttendanceStatusEnum = z.enum([
   "PRESENT",
   "ABSENT",
   "LEAVE",
-  "WEEKLY_OFF",
 ]);
 
 const timeHmmSchema = z
@@ -100,18 +150,13 @@ export const bulkDailyAttendanceSchema = z.object({
         .superRefine((row, ctx) => {
           if (row.status !== "PRESENT") return;
 
-          if (!row.inTime) {
+          // Times are optional (admin status-only Present, or mid-day check-in).
+          // Reject outTime without inTime; when both set, require outTime > inTime.
+          if (row.outTime && !row.inTime) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
-              message: "inTime is required when status is PRESENT",
+              message: "inTime is required when outTime is set",
               path: ["inTime"],
-            });
-          }
-          if (!row.outTime) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "outTime is required when status is PRESENT",
-              path: ["outTime"],
             });
           }
           if (row.inTime && row.outTime && row.outTime <= row.inTime) {
@@ -129,6 +174,8 @@ export const bulkDailyAttendanceSchema = z.object({
 
 export type CreateFacultyDto = z.infer<typeof createFacultySchema>;
 export type UpdateFacultyDto = z.infer<typeof updateFacultySchema>;
+export type FacultySelfAttendanceGeoDto = z.infer<typeof facultySelfAttendanceGeoSchema>;
+export type FacultyCheckOutDto = z.infer<typeof facultyCheckOutSchema>;
 export type ListFacultyQuery = z.infer<typeof listFacultyQuerySchema>;
 export type MyStudentsQuery = z.infer<typeof myStudentsQuerySchema>;
 export type MyStudentAttendanceQuery = z.infer<typeof myStudentAttendanceQuerySchema>;

@@ -149,7 +149,7 @@ export const CounsellorOverview: React.FC = () => {
       const dateObj = new Date(lead.updatedAt || lead.createdAt);
       const isToday = new Date().toDateString() === dateObj.toDateString();
       const timeStr = isToday
-        ? `Today, ${dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        ? `Today, ${dateObj.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}`
         : dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 
       return {

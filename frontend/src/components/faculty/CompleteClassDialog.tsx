@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Users, BookOpen, AlertCircle, Loader2 } from "lucide-react";
+import { formatTimeRange12h } from "@/utils/format";
 
 export interface CompleteClassDialogProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-xs">
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>{classDetails.startTime} – {classDetails.endTime}</span>
+              <span>{formatTimeRange12h(classDetails.startTime, classDetails.endTime)}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
               <BookOpen className="w-3.5 h-3.5 text-slate-400" />

@@ -1,27 +1,9 @@
 import type { MasterDropdownOption } from "@/hooks/useMasterDropdown";
+import { formatTime12h } from "@/utils/format";
 
 /** Convert `09:00` / `9:00 AM` → display `9:00 AM`. */
-export const formatTimeToAmPm = (time: string | null | undefined): string => {
-  if (!time?.trim()) return "";
-  const raw = time.trim();
-
-  const ampmMatch = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (ampmMatch) {
-    const h = Number(ampmMatch[1]);
-    const min = ampmMatch[2];
-    const ap = ampmMatch[3].toUpperCase();
-    return `${h}:${min} ${ap}`;
-  }
-
-  const hhmm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (!hhmm) return raw;
-
-  let h = Number(hhmm[1]);
-  const min = hhmm[2];
-  const ap = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${h}:${min} ${ap}`;
-};
+export const formatTimeToAmPm = (time: string | null | undefined): string =>
+  formatTime12h(time, "");
 
 /** Convert display/AM-PM times back to `HH:mm` for `<input type="time">`. */
 export const parseAmPmToTimeInput = (time: string | null | undefined): string => {

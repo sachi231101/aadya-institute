@@ -33,7 +33,9 @@ import {
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getApiErrorMessage } from "@/utils/api-error";
+import { formatTimeRange12h } from "@/utils/format";
 import type { FacultyDailyAttendanceHistoryResponse, FacultyDailyAttendanceStatus } from "@/types/faculty.types";
+import { AttendanceDaySummary, AttendancePunchList } from "@/components/faculty/AttendancePunchList";
 import {
   ResponsiveContainer,
   LineChart,
@@ -132,7 +134,7 @@ const formatScheduleLines = (
 ): Array<{ days: string; time: string }> => {
   const byTime = new Map<string, number[]>();
   for (const slot of slots) {
-    const key = `${slot.startTime}–${slot.endTime}`;
+    const key = formatTimeRange12h(slot.startTime, slot.endTime);
     const days = byTime.get(key) ?? [];
     days.push(slot.dayOfWeek);
     byTime.set(key, days);
@@ -153,7 +155,9 @@ const getWorkloadState = (hrs: number) => {
 export const FacultyDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, roleScope, canEditItem } = usePermissions();
+  const canDeleteFaculty =
+    isAdmin || (roleScope === "CENTER_MANAGER" && canEditItem("faculty.all"));
   const deleteFaculty = useDeleteFaculty();
 
   const [activeTab, setActiveTab] = useState<
@@ -165,7 +169,7 @@ export const FacultyDetails: React.FC = () => {
   // Fetch from backend
   const { data: facultyResponse, isLoading, isError } = useFacultyMember(id);
   const { data: coursesResponse } = useFacultyCourses({ facultyId: id, limit: 50 });
-  const { data: dailyAttendanceResponse } = useFacultyDailyAttendance(
+  const { data: dailyAttendanceResponse, isLoading: isDailyAttendanceLoading } = useFacultyDailyAttendance(
     { facultyId: id },
     !!id
   );
@@ -284,7 +288,7 @@ export const FacultyDetails: React.FC = () => {
       const label = assignment.course?.name
         ? `${assignment.name} · ${assignment.course.name}`
         : assignment.name;
-      const time = `${slot.startTime}–${slot.endTime}`;
+      const time = formatTimeRange12h(slot.startTime, slot.endTime);
       const key = `${day}|${label}|${time}`;
       if (scheduleKeys.has(key)) continue;
       scheduleKeys.add(key);
@@ -411,7 +415,7 @@ export const FacultyDetails: React.FC = () => {
                   Edit Profile
                 </Button>
               </PermissionGate>
-              {isAdmin && String(faculty.status).toUpperCase() !== "INACTIVE" && (
+              {canDeleteFaculty && (
                 <Button
                   variant="destructive"
                   size="sm"
@@ -438,7 +442,7 @@ export const FacultyDetails: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete faculty</DialogTitle>
             <DialogDescription>
-              This deactivates the faculty account and cannot be undone from this screen.
+              This permanently deletes the faculty record from the database. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm rounded-lg border border-border bg-muted/40 p-3">
@@ -610,9 +614,18 @@ export const FacultyDetails: React.FC = () => {
                   <span className="text-muted-foreground">Qualification</span>
                   <span className="font-medium text-foreground">{faculty.qualification || "—"}</span>
                 </div>
-                <div className="flex justify-between py-1.5">
+                <div className="flex justify-between py-1.5 border-b border-border">
                   <span className="text-muted-foreground">Joined</span>
                   <span className="font-medium text-foreground">{faculty.joinDate}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">Work Location</span>
+                  <span className="font-mono text-foreground text-[11px]">
+                    {backendFaculty.workLatitude != null && backendFaculty.workLongitude != null
+                      ? `${backendFaculty.workLatitude.toFixed(6)}, ${backendFaculty.workLongitude.toFixed(6)}`
+                      : <span className="text-amber-600 font-normal">Not set</span>
+                    }
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -983,32 +996,58 @@ export const FacultyDetails: React.FC = () => {
         {activeTab === "attendance" && (
           <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
             <CardContent className="p-0">
-              {facultyDailyAttendance.length > 0 ? (
+              {isDailyAttendanceLoading ? (
+                <div className="p-8 flex items-center justify-center gap-2 text-muted-foreground text-xs">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading attendance...
+                </div>
+              ) : facultyDailyAttendance.length > 0 ? (
                 <div className="divide-y divide-border">
                   {facultyDailyAttendance.map((record) => {
                     const statusLabel = record.status.replace("_", " ");
-                    const detail =
-                      record.status === "PRESENT"
-                        ? `In: ${record.inTime || "—"} — Out: ${record.outTime || "—"}`
-                        : record.comments?.trim() &&
-                            record.comments.trim().toUpperCase() !== statusLabel
-                          ? record.comments.trim()
-                          : null;
+                    const punches = record.punches ?? [];
+                    const hasSummary = record.status === "PRESENT" || punches.length > 0;
+                    const note =
+                      record.comments?.trim() && record.comments.trim().toUpperCase() !== statusLabel
+                        ? record.comments.trim()
+                        : null;
 
                     return (
                       <div
                         key={record.id}
-                        className="p-4 flex justify-between items-center gap-3 text-xs hover:bg-muted/30 transition-colors"
+                        className="p-4 space-y-2 text-xs hover:bg-muted/30 transition-colors"
                       >
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground">{formatDate(record.date)}</p>
-                          {detail ? (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>
-                          ) : null}
+                        <div className="flex justify-between items-center gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground">{formatDate(record.date)}</p>
+                            {note ? (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{note}</p>
+                            ) : null}
+                          </div>
+                          <Badge className={statusBadgeClass(record.status)}>
+                            {statusLabel}
+                          </Badge>
                         </div>
-                        <Badge className={statusBadgeClass(record.status)}>
-                          {statusLabel}
-                        </Badge>
+                        {hasSummary ? (
+                          <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 space-y-2">
+                            <AttendanceDaySummary
+                              summary={{
+                                firstIn: record.firstIn ?? record.inTime,
+                                lastOut: record.lastOut ?? record.outTime,
+                                sessionCount: record.sessionCount ?? 0,
+                                totalMinutes: record.totalMinutes ?? 0,
+                                openSession: !!record.openSession,
+                              }}
+                              className="max-w-md"
+                            />
+                            {punches.length > 0 ? (
+                              <AttendancePunchList
+                                punches={punches}
+                                openSession={record.openSession}
+                                className="pt-2 border-t border-border/40"
+                              />
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

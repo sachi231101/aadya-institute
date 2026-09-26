@@ -33,6 +33,7 @@ import { PageContainer, PageHeader, MetricGrid } from "@/components/layout";
 import { useRecordingAccess, useRecordings } from "@/hooks/useRecordings";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { StudentAskLeaveCard } from "@/components/leave/StudentAskLeaveCard";
+import { formatTimeRange12h } from "@/utils/format";
 import { useAnnouncements, useMarkAnnouncementRead, useMarkAllAnnouncementsRead } from "@/hooks/useAnnouncements";
 import {
   canStudentJoinSession,
@@ -350,7 +351,7 @@ export const StudentDashboard: React.FC = () => {
       facultyName: live.facultyName || activeCourse.facultyName || "Faculty01",
       batchName: live.batch?.name || activeCourse.batchCode || "B001",
       batchId: live.batchId || live.batch?.id || undefined,
-      time: live.startTime && live.endTime ? `${live.startTime} – ${live.endTime}` : "",
+      time: live.startTime && live.endTime ? formatTimeRange12h(live.startTime, live.endTime) : "",
       meetUrl: live.meetingUrl,
       startTime: live.startTime || undefined,
       endTime: live.endTime || undefined,

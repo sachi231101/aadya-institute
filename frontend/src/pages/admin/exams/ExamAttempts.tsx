@@ -272,12 +272,12 @@ export const ExamAttempts: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-[11px] text-slate-600">
-                        <div>{attempt.startedAt ? new Date(attempt.startedAt).toLocaleTimeString() : '—'}</div>
+                        <div>{attempt.startedAt ? new Date(attempt.startedAt).toLocaleTimeString([], { hour12: true }) : '—'}</div>
                         <div className="text-slate-400">
                           {attempt.submittedAt
-                            ? new Date(attempt.submittedAt).toLocaleTimeString()
+                            ? new Date(attempt.submittedAt).toLocaleTimeString([], { hour12: true })
                             : attempt.terminatedAt
-                            ? `Terminated: ${new Date(attempt.terminatedAt).toLocaleTimeString()}`
+                            ? `Terminated: ${new Date(attempt.terminatedAt).toLocaleTimeString([], { hour12: true })}`
                             : 'Active session'}
                         </div>
                       </TableCell>

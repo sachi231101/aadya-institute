@@ -338,8 +338,9 @@ export const CounselorDashboard: React.FC = () => {
             month: "short",
             day: "numeric",
             year: "numeric",
-            hour: "2-digit",
+            hour: "numeric",
             minute: "2-digit",
+            hour12: true,
           })
         : "—",
       callStatus: (latestCall?.status as any) || "PENDING",
@@ -355,7 +356,7 @@ export const CounselorDashboard: React.FC = () => {
         : [`Source: ${l.source || "Direct"}`],
       callDuration: formattedDuration,
       callTimestamp: latestCall?.createdAt
-        ? new Date(latestCall.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        ? new Date(latestCall.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })
         : "—",
       aiScore: aiScoreValue,
       starRating: starRatingValue,

@@ -27,6 +27,18 @@ router.get(
   controller.getMyDashboard
 );
 
+router.post(
+  "/me/attendance/check-in",
+  requireRole("ADMIN", "FACULTY"),
+  controller.checkInMe
+);
+
+router.post(
+  "/me/attendance/check-out",
+  requireRole("ADMIN", "FACULTY"),
+  controller.checkOutMe
+);
+
 router.get(
   "/me/students",
   requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
@@ -110,7 +122,7 @@ router.patch(
 
 router.delete(
   "/:id",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER"),
   controller.remove
 );
 

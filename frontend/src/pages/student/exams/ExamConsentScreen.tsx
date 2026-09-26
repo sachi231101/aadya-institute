@@ -210,7 +210,7 @@ export const ExamConsentScreen: React.FC = () => {
               <p className="text-xs text-blue-700">
                 {windowState.message ||
                   (windowState.startAt
-                    ? `This examination opens at ${new Date(windowState.startAt).toLocaleString()}.`
+                    ? `This examination opens at ${new Date(windowState.startAt).toLocaleString([], { hour12: true })}.`
                     : 'Please wait until the scheduled start time.')}
               </p>
             </div>
@@ -220,7 +220,7 @@ export const ExamConsentScreen: React.FC = () => {
               <p className="text-xs text-slate-500">
                 {windowState.message ||
                   (windowState.endAt
-                    ? `This examination ended at ${new Date(windowState.endAt).toLocaleString()}.`
+                    ? `This examination ended at ${new Date(windowState.endAt).toLocaleString([], { hour12: true })}.`
                     : 'The scheduled exam window has ended.')}
               </p>
             </div>
@@ -239,7 +239,7 @@ export const ExamConsentScreen: React.FC = () => {
                 <div>
                   <span className="text-slate-400">Starts:</span>{' '}
                   <span className="font-semibold text-slate-800">
-                    {new Date(exam.startAt || windowState?.startAt).toLocaleString()}
+                    {new Date(exam.startAt || windowState?.startAt).toLocaleString([], { hour12: true })}
                   </span>
                 </div>
               )}
@@ -247,7 +247,7 @@ export const ExamConsentScreen: React.FC = () => {
                 <div>
                   <span className="text-slate-400">Ends:</span>{' '}
                   <span className="font-semibold text-slate-800">
-                    {new Date(exam.endAt || windowState?.endAt).toLocaleString()}
+                    {new Date(exam.endAt || windowState?.endAt).toLocaleString([], { hour12: true })}
                   </span>
                 </div>
               )}

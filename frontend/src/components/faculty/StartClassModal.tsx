@@ -37,6 +37,7 @@ import { classSessionsApi } from "@/services/class-sessions.api";
 import { facultyApi } from "@/services/faculty.api";
 import { batchesApi } from "@/services/batches.api";
 import { getApiErrorMessage } from "@/utils/api-error";
+import { formatTime12h, formatTimeRange12h } from "@/utils/format";
 import {
   canHostClassSession,
   getSessionHostPhase,
@@ -310,7 +311,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     );
 
     if (sessionIsLive) {
-      setStartedAtTime(activeLiveClass?.startedAt || new Date().toLocaleTimeString());
+      setStartedAtTime(activeLiveClass?.startedAt || formatTime12h(new Date()));
       if (statusOverride !== "COMPLETED") {
         setRecordingSyncNotice(null);
       }
@@ -537,7 +538,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       setFinalElapsedSeconds(null);
       setIsLive(true);
       setIsCompleted(false);
-      setStartedAtTime(new Date().toLocaleTimeString());
+      setStartedAtTime(formatTime12h(new Date()));
       setElapsedSeconds(0);
       setActiveLiveClass({
         id: `live-${session.id}`,
@@ -548,10 +549,10 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
         moduleName: session.subjectName || session.title,
         facultyName: user?.name || "Faculty",
         date: session.date,
-        time: `${session.startTime} – ${session.endTime}`,
+        time: formatTimeRange12h(session.startTime, session.endTime),
         meetUrl: resolvedMeetUrl || "",
         meetId: resolvedMeetUrl?.split("/").pop() || "",
-        startedAt: new Date().toLocaleTimeString(),
+        startedAt: formatTime12h(new Date()),
         studentCount: totalStudents || session.enrolledStudentsCount || 0,
         status: "LIVE",
       });
@@ -769,7 +770,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
               <div>
                 <span className="text-slate-400 block text-[11px]">Time Slot</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-200 block mt-0.5">
-                  {session.startTime} – {session.endTime}
+                  {formatTimeRange12h(session.startTime, session.endTime)}
                 </span>
               </div>
               <div>

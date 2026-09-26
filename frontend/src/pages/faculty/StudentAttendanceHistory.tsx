@@ -40,6 +40,7 @@ import { useBatches } from "@/hooks/useBatches";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import { useAuthStore } from "@/store/auth.store";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { formatTime12h, formatTimeRange12h } from "@/utils/format";
 import { toDateKey } from "@/constants/timetable-slots";
 import type { BackendClassSession } from "@/services/class-sessions.api";
 import { ROUTES } from "@/constants/routes";
@@ -451,7 +452,7 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                           <td className="py-3 px-3 whitespace-nowrap font-medium">{dateLabel}</td>
                           <td className="py-3 px-3 whitespace-nowrap">{dayLabel}</td>
                           <td className="py-3 px-3 whitespace-nowrap">
-                            {s.startTime} – {s.endTime}
+                            {formatTimeRange12h(s.startTime, s.endTime)}
                           </td>
                           <td className="py-3 px-3">{s.roomNo || "—"}</td>
                           <td className="py-3 px-3">
@@ -708,7 +709,7 @@ export const FacultyStudentAttendanceHistory: React.FC = () => {
                     <div className="text-sm font-medium">{r.date}</div>
                     <div className="text-xs text-slate-500 truncate">
                       {r.courseName || "Class"} · {r.batchCode || r.batchName}
-                      {r.startTime ? ` · ${r.startTime}` : ""}
+                      {r.startTime ? ` · ${formatTime12h(r.startTime)}` : ""}
                     </div>
                   </div>
                   {statusBadge(r.status)}
