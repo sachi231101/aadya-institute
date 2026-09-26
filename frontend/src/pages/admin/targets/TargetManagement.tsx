@@ -207,8 +207,8 @@ export const TargetManagement: React.FC = () => {
 
   // Form State: Incentive Rule Builder
   const [enableIncentive, setEnableIncentive] = useState(true);
-  const [incentiveType, setIncentiveType] = useState<IncentiveType>("SLAB");
-  const [fixedAmount, setFixedAmount] = useState<number>(5000);
+  const [incentiveType, setIncentiveType] = useState<IncentiveType>("FIXED");
+  const [fixedAmount, setFixedAmount] = useState<number>(500);
   const [slabs, setSlabs] = useState<IncentiveSlab[]>(() => buildDefaultValueSlabs(20));
   const [percentages, setPercentages] = useState<IncentivePercentageTier[]>([
     { minPercent: 0, maxPercent: 79, ratePercent: 0 },
@@ -232,8 +232,8 @@ export const TargetManagement: React.FC = () => {
     setTargetEndDate(defaultMonthEndDate());
     setDailyDayCount(1);
     setEnableIncentive(true);
-    setIncentiveType("SLAB");
-    setFixedAmount(5000);
+    setIncentiveType("FIXED");
+    setFixedAmount(500);
     setSlabs(buildDefaultValueSlabs(20));
   };
 
@@ -314,13 +314,37 @@ export const TargetManagement: React.FC = () => {
     }
 
     const ruleInput = enableIncentive
-      ? {
-          incentiveType,
-          fixedAmount: incentiveType === "FIXED" ? fixedAmount : undefined,
-          slabs: incentiveType === "SLAB" ? slabs : undefined,
-          percentages: incentiveType === "PERCENTAGE" ? percentages : undefined,
-        }
+      ? incentiveType === "FIXED"
+        ? {
+            incentiveType: "FIXED" as const,
+            fixedAmount: Math.max(0, fixedAmount),
+          }
+        : incentiveType === "SLAB"
+        ? {
+            incentiveType: "SLAB" as const,
+            slabs:
+              slabs.length > 0
+                ? slabs.map((s) => ({
+                    minValue: Number(s.minValue ?? 0),
+                    maxValue: Number(s.maxValue ?? 0),
+                    amount: Number(s.amount ?? 0),
+                  }))
+                : buildDefaultValueSlabs(targetValue),
+          }
+        : {
+            incentiveType: "PERCENTAGE" as const,
+            percentages,
+          }
       : undefined;
+
+    if (enableIncentive && !ruleInput) {
+      alert("Enable Incentive is on — please set a Fixed reward amount or slab rules.");
+      return;
+    }
+    if (enableIncentive && incentiveType === "FIXED" && fixedAmount <= 0) {
+      alert("Enter a Fixed reward amount (₹) greater than 0, or turn off Enable Incentive.");
+      return;
+    }
 
     try {
       if (editingTarget) {
@@ -605,14 +629,18 @@ export const TargetManagement: React.FC = () => {
           {t.incentiveRule ? (
             <div className="text-xs">
               <span className="font-semibold text-amber-600 dark:text-amber-400">
-                {t.incentiveRule.incentiveType}
+                {t.incentiveRule.incentiveType === "FIXED"
+                  ? `Fixed ₹${Number(t.incentiveRule.fixedAmount || 0).toLocaleString()}`
+                  : t.incentiveRule.incentiveType}
               </span>
               <span className="block text-[11px] text-muted-foreground">
-                Reward: {formatCurrency(potentialIncentive)}
+                {potentialIncentive > 0
+                  ? `Earned: ${formatCurrency(potentialIncentive)}`
+                  : "Reward if target met"}
               </span>
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground">None</span>
+            <span className="text-xs text-muted-foreground">No reward rule</span>
           )}
         </td>
 
@@ -977,14 +1005,18 @@ export const TargetManagement: React.FC = () => {
                               {first.incentiveRule ? (
                                 <div className="text-xs">
                                   <span className="font-semibold text-amber-600 dark:text-amber-400">
-                                    {first.incentiveRule.incentiveType}
+                                    {first.incentiveRule.incentiveType === "FIXED"
+                                      ? `Fixed ₹${Number(first.incentiveRule.fixedAmount || 0).toLocaleString()}/day`
+                                      : first.incentiveRule.incentiveType}
                                   </span>
                                   <span className="block text-[11px] text-muted-foreground">
-                                    Potential: {formatCurrency(totalIncentive)}
+                                    {totalIncentive > 0
+                                      ? `Potential: ${formatCurrency(totalIncentive)}`
+                                      : "Reward if each day target met"}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">None</span>
+                                <span className="text-xs text-muted-foreground">No reward rule</span>
                               )}
                             </td>
 
@@ -1275,8 +1307,8 @@ export const TargetManagement: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Award className="w-5 h-5 text-amber-400" />
-                    <span className="font-bold text-white text-sm">
-                      Configure Incentive Reward Rules
+                    <span className="font-bold text-foreground text-sm">
+                      Incentive Reward
                     </span>
                   </div>
                   <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
@@ -1286,18 +1318,22 @@ export const TargetManagement: React.FC = () => {
                       onChange={(e) => setEnableIncentive(e.target.checked)}
                       className="rounded border-border text-indigo-600 focus:ring-indigo-500"
                     />
-                    Enable Incentive
+                    Enable reward
                   </label>
                 </div>
 
                 {enableIncentive && (
                   <div className="bg-muted/40 border border-border p-4 rounded-xl space-y-4">
+                    <p className="text-[11px] text-muted-foreground">
+                      Simple option: use <strong>Fixed Reward</strong> (e.g. ₹500 when the day
+                      target is met). Amount Slabs are optional advanced tiers.
+                    </p>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                        Incentive Calculation Type
+                        Reward type
                       </label>
                       <div className="grid grid-cols-3 gap-2">
-                        {(["SLAB", "PERCENTAGE", "FIXED"] as IncentiveType[]).map((t) => (
+                        {(["FIXED", "SLAB", "PERCENTAGE"] as IncentiveType[]).map((t) => (
                           <button
                             key={t}
                             type="button"
@@ -1308,25 +1344,25 @@ export const TargetManagement: React.FC = () => {
                                 : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                             }`}
                           >
-                            {t === "SLAB"
+                            {t === "FIXED"
+                              ? "Fixed Reward"
+                              : t === "SLAB"
                               ? "Amount Slabs"
-                              : t === "PERCENTAGE"
-                              ? "% of Revenue"
-                              : "Fixed Reward"}
+                              : "% of Revenue"}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* FIXED REWARD BUILDER */}
                     {incentiveType === "FIXED" && (
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                          Fixed Incentive Amount (₹ upon 100%+ completion)
+                          Fixed reward amount (₹) when target is met
                         </label>
                         <Input
                           type="number"
-                          min={0}
+                          min={1}
+                          required={enableIncentive && incentiveType === "FIXED"}
                           value={fixedAmount}
                           onChange={(e) => setFixedAmount(Number(e.target.value))}
                           className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary"

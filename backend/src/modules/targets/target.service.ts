@@ -579,6 +579,60 @@ export const TargetService = {
 
   // ─── Incentives & Approvals ────────────────────────────────────────────────
 
+  /**
+   * Recalculate completed counsellor targets and open PENDING_APPROVAL incentive
+   * rows for admin/manager approval when a reward was earned.
+   */
+  async settleDueIncentives(currentUser: AuthUser) {
+    const allowedBranchId = scopedBranchId(currentUser);
+
+    const completedTargets = await prisma.target.findMany({
+      where: {
+        instituteId: currentUser.instituteId,
+        status: "COMPLETED",
+        userId: { not: null },
+        incentiveRule: { isNot: null },
+        ...(allowedBranchId ? { branchId: allowedBranchId } : {}),
+      },
+      include: { incentiveRule: true },
+      take: 500,
+    });
+
+    let settled = 0;
+    let skipped = 0;
+
+    for (const target of completedTargets) {
+      try {
+        const progress = await TargetCalculationService.computeTargetProgress(target);
+        await TargetRepository.saveTargetProgress(progress);
+
+        if (!target.userId || progress.potentialIncentive <= 0) {
+          skipped++;
+          continue;
+        }
+
+        await TargetRepository.upsertCalculatedIncentive({
+          instituteId: target.instituteId,
+          branchId: target.branchId,
+          targetId: target.id,
+          targetPlanId: target.targetPlanId,
+          userId: target.userId,
+          periodStart: target.startDate,
+          periodEnd: target.endDate,
+          targetValue: progress.targetValue,
+          achievedValue: progress.achievedValue,
+          achievementPercentage: progress.achievementPercentage,
+          calculatedAmount: progress.potentialIncentive,
+        });
+        settled++;
+      } catch (err) {
+        skipped++;
+      }
+    }
+
+    return { settled, skipped, scanned: completedTargets.length };
+  },
+
   async getIncentives(currentUser: AuthUser, query: QueryIncentivesDTO) {
     const allowedBranchId = scopedBranchId(currentUser);
 

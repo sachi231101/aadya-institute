@@ -246,7 +246,11 @@ export const TargetCalculationService = {
     switch (rule.incentiveType) {
       case "FIXED": {
         const fixed = Number(rule.fixedAmount ?? 0);
-        return achievementPercentage >= 100 ? fixed : 0;
+        // Pay fixed reward when target is met or exceeded (by % or absolute)
+        if (achievementPercentage >= 100 || achievedValue >= targetValue) {
+          return fixed;
+        }
+        return 0;
       }
 
       case "SLAB": {

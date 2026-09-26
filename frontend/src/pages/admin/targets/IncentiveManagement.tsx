@@ -18,6 +18,7 @@ import {
   useIncentives,
   useApproveIncentive,
   useRejectIncentive,
+  useSettleDueIncentives,
 } from "../../../hooks/useTargets";
 import { useAuthStore } from "../../../store/auth.store";
 import type { Incentive, IncentiveStatus } from "../../../types/target.types";
@@ -38,10 +39,12 @@ export const IncentiveManagement: React.FC = () => {
   const { data: incentivesData, isLoading, refetch } = useIncentives({
     status: statusFilter !== "ALL" ? (statusFilter as IncentiveStatus) : undefined,
     userId: isCounselor ? (user?.id || (user as any)?.userId) : undefined,
+    limit: 200,
   });
 
   const approveMutation = useApproveIncentive();
   const rejectMutation = useRejectIncentive();
+  const settleMutation = useSettleDueIncentives();
 
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -158,13 +161,41 @@ export const IncentiveManagement: React.FC = () => {
             : "Review automatically calculated counselor rewards, apply administrative adjustments, and authorize payouts."
         }
         actions={
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold rounded-xl border border-border transition cursor-pointer"
-          >
-            <RefreshCw className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {!isCounselor && (
+              <PermissionGate itemKey="targets.incentives" mode="write">
+                <button
+                  type="button"
+                  disabled={settleMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      const res = await settleMutation.mutateAsync();
+                      const d = res.data;
+                      showToast(
+                        `✓ Generated ${d.settled} pending reward(s) from ${d.scanned} completed target(s)`
+                      );
+                      refetch();
+                    } catch (err: any) {
+                      showToast(
+                        `❌ ${err?.response?.data?.message || "Failed to generate pending rewards"}`
+                      );
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-sm transition cursor-pointer disabled:opacity-50"
+                >
+                  <Award className="w-4 h-4" />
+                  {settleMutation.isPending ? "Generating..." : "Generate Pending Rewards"}
+                </button>
+              </PermissionGate>
+            )}
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold rounded-xl border border-border transition cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+              Refresh
+            </button>
+          </div>
         }
       />
 

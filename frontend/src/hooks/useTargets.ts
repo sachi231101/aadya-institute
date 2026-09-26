@@ -282,6 +282,17 @@ export const useApproveIncentive = () => {
   });
 };
 
+export const useSettleDueIncentives = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => targetsApi.settleDueIncentives(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allIncentives });
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allTargets });
+    },
+  });
+};
+
 export const useRejectIncentive = () => {
   const queryClient = useQueryClient();
   return useMutation({
