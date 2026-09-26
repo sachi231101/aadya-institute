@@ -197,10 +197,13 @@ export const AddAdmin: React.FC = () => {
 
   const createFacultyMutation = useMutation({
     mutationFn: facultyApi.create,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["users"] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      void queryClient.invalidateQueries({ queryKey: ["faculty"] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+        queryClient.invalidateQueries({ queryKey: ["faculty"], refetchType: "all" }),
+        queryClient.invalidateQueries({ queryKey: ["reports", "faculty"], refetchType: "all" }),
+      ]);
     },
   });
 

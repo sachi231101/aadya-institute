@@ -720,7 +720,9 @@ export const StudentSchedule: React.FC = () => {
       comments: comment,
     });
 
-    setSuccessToast(`Feedback submitted for ${activeFeedbackModalSession.title}! Thank you for your feedback.`);
+    setSuccessToast(
+      `Feedback submitted for ${activeFeedbackModalSession.title}! Your feedback is anonymous to faculty.`
+    );
     setActiveFeedbackModalSession(null);
     setTimeout(() => setSuccessToast(null), 4000);
   };

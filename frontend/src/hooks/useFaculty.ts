@@ -16,7 +16,7 @@ import type {
 import { useAuthStore } from "@/store/auth.store";
 import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
-const FACULTY_KEY = "faculty";
+export const FACULTY_KEY = "faculty";
 const FACULTY_COURSES_KEY = "faculty-courses";
 const FACULTY_ATTENDANCE_KEY = "faculty-attendance";
 const FACULTY_DAILY_ATTENDANCE_KEY = "faculty-daily-attendance";
@@ -24,15 +24,44 @@ const FACULTY_DASHBOARD_KEY = "faculty-dashboard";
 const FACULTY_MY_STUDENTS_KEY = "faculty-my-students";
 const FACULTY_MY_STUDENT_ATTENDANCE_KEY = "faculty-my-student-attendance";
 
+/** Drop undefined keys so list query keys stay stable across renders. */
+const normalizeFacultyListParams = (
+  params?: FacultyListParams
+): FacultyListParams | undefined => {
+  if (!params) return undefined;
+  const normalized: FacultyListParams = {};
+  if (params.page != null) normalized.page = params.page;
+  if (params.limit != null) normalized.limit = params.limit;
+  if (params.search) normalized.search = params.search;
+  if (params.branchId) normalized.branchId = params.branchId;
+  if (params.status) normalized.status = params.status;
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
+const invalidateFacultyDirectoryQueries = (
+  queryClient: ReturnType<typeof useQueryClient>
+) =>
+  Promise.all([
+    // refetchType "all" refreshes inactive directory queries before navigate remounts them
+    queryClient.invalidateQueries({ queryKey: [FACULTY_KEY], refetchType: "all" }),
+    queryClient.invalidateQueries({
+      queryKey: ["reports", "faculty"],
+      refetchType: "all",
+    }),
+    queryClient.invalidateQueries({ queryKey: ["masters", "preview"] }),
+  ]);
+
 export const useFacultyList = (
   params?: FacultyListParams,
   options?: { enabled?: boolean }
 ) => {
   const { user } = useAuthStore();
-  const mergedParams = mergeBranchScopedParams(user, params);
+  const mergedParams = normalizeFacultyListParams(
+    mergeBranchScopedParams(user, params)
+  );
 
   return useQuery({
-    queryKey: [FACULTY_KEY, mergedParams],
+    queryKey: [FACULTY_KEY, "list", mergedParams],
     queryFn: () => facultyApi.getAll(mergedParams),
     enabled: options?.enabled !== false,
   });
@@ -78,10 +107,9 @@ export const useCreateFaculty = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateFacultyPayload) => facultyApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
-      queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
-      queryClient.invalidateQueries({ queryKey: ["masters", "preview"] });
+    onSuccess: async () => {
+      // Await so mutateAsync resolves only after directory caches are refreshed
+      await invalidateFacultyDirectoryQueries(queryClient);
     },
   });
 };
@@ -91,9 +119,11 @@ export const useUpdateFaculty = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateFacultyPayload }) =>
       facultyApi.update(id, data),
-    onSuccess: (_res, vars) => {
-      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY, vars.id] });
+    onSuccess: async (_res, vars) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [FACULTY_KEY], refetchType: "all" }),
+        queryClient.invalidateQueries({ queryKey: [FACULTY_KEY, vars.id] }),
+      ]);
     },
   });
 };
@@ -102,8 +132,8 @@ export const useDeleteFaculty = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => facultyApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
+    onSuccess: async () => {
+      await invalidateFacultyDirectoryQueries(queryClient);
     },
   });
 };
@@ -162,6 +192,7 @@ export const useSaveFacultyDailyAttendance = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] });
       queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DASHBOARD_KEY] });
     },
   });
 };

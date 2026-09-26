@@ -65,8 +65,14 @@ export interface FacultyCourseAssignment {
     user: { id: string; name: string; email: string | null };
   } | null;
   branch: { id: string; name: string; code: string };
-  schedules: { dayOfWeek: number; startTime: string; endTime: string; facultyId?: string | null }[];
-  classSessions?: { sessionStatus: string }[];
+  schedules: {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    facultyId?: string | null;
+    batchCourseId?: string | null;
+  }[];
+  classSessions?: { sessionStatus: string; facultyId?: string }[];
   _count: { enrollments: number };
 }
 
@@ -143,6 +149,16 @@ export interface FacultyDashboardData {
     pendingSubmissions: number;
     avgRating: number | null;
     totalRatings: number;
+  };
+  /** Own daily attendance summary for the faculty dashboard. */
+  dailyAttendance?: {
+    today: {
+      status: FacultyDailyAttendanceStatus;
+      inTime: string | null;
+      outTime: string | null;
+      comments: string | null;
+    } | null;
+    monthPct: number;
   };
   todaySessions: FacultyDashboardSession[];
   upcomingSessions: FacultyDashboardSession[];

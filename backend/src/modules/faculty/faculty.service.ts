@@ -144,6 +144,7 @@ export const getAllFaculty = async (currentUser: AuthUser, query: ListFacultyQue
   const params: repo.FindAllFacultyParams = {
     instituteId: scope.instituteId,
     branchId: scope.branchId,
+    branchIds: scope.branchIds,
     search: query.search || undefined,
     status: query.status || undefined,
     skip,
@@ -155,6 +156,7 @@ export const getAllFaculty = async (currentUser: AuthUser, query: ListFacultyQue
     repo.countFaculty({
       instituteId: params.instituteId,
       branchId: params.branchId,
+      branchIds: params.branchIds,
       search: params.search,
       status: params.status,
     }),
@@ -469,10 +471,16 @@ const normalizeDailyRecord = (
   comments?: string | null
 ) => {
   if (status === "PRESENT") {
+    if (!inTime || !outTime) {
+      throw new AppError("Login and logout times are required when status is PRESENT", 400);
+    }
+    if (outTime <= inTime) {
+      throw new AppError("Logout time must be after login time", 400);
+    }
     return {
       status,
-      inTime: inTime || "09:30",
-      outTime: outTime || "17:30",
+      inTime,
+      outTime,
       comments: comments ?? null,
     };
   }
@@ -611,11 +619,16 @@ export const saveDailyAttendance = async (
       instituteId: currentUser.instituteId,
       ...(scope.branchId ? { branchId: scope.branchId } : {}),
     },
-    select: { id: true, branchId: true },
+    select: { id: true, branchId: true, status: true },
   });
 
   if (facultyRows.length !== facultyIds.length) {
     throw new AppError("One or more faculty members were not found or are out of scope", 400);
+  }
+
+  const inactive = facultyRows.filter((f) => f.status === "INACTIVE");
+  if (inactive.length > 0) {
+    throw new AppError("Cannot mark attendance for inactive faculty", 400);
   }
 
   const normalized = dto.records.map((r) => {
@@ -677,6 +690,10 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
   const weekStartKey = addDaysToDateKey(todayKey, -daysSinceMonday);
   const weekEndKey = addDaysToDateKey(weekStartKey, 6);
 
+  const monthStartKey = `${ty}-${String(tm).padStart(2, "0")}-01`;
+  const monthLastDay = new Date(Date.UTC(ty, tm, 0)).getUTCDate();
+  const monthEndKey = `${ty}-${String(tm).padStart(2, "0")}-${String(monthLastDay).padStart(2, "0")}`;
+
   // One continuous window: current week start → next 14 days (covers admin-assigned week + upcoming)
   const scheduleFrom = dateKeyToUtcDayStart(weekStartKey);
   const scheduleTo = dateKeyToUtcDayEnd(
@@ -691,6 +708,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     pendingGrading,
     pendingSubmissions,
     ratingStats,
+    monthAttendanceRows,
   ] = await Promise.all([
     repo.findFacultySessionsInRange(facultyId, scheduleFrom, scheduleTo),
     repo.countFacultySessionsByStatus(
@@ -703,6 +721,11 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     repo.findPendingGrading(facultyId, 10),
     repo.countPendingSubmissions(facultyId),
     repo.getFacultyAvgRating(facultyId),
+    repo.findDailyAttendanceForFaculty({
+      facultyId,
+      from: repo.parseDateOnly(monthStartKey),
+      to: repo.parseDateOnly(monthEndKey),
+    }),
   ]);
 
   const allScheduled = scheduledRaw.map(mapSessionCard);
@@ -715,6 +738,15 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
   );
 
   const liveFromToday = todaySessions.filter((s) => s.sessionStatus === "LIVE").length;
+
+  const todayAttendanceRow = monthAttendanceRows.find(
+    (r) => toCalendarDateKey(r.date) === todayKey
+  );
+  const monthPresent = monthAttendanceRows.filter((r) => r.status === "PRESENT").length;
+  const monthCounted = monthAttendanceRows.filter(
+    (r) => r.status === "PRESENT" || r.status === "ABSENT" || r.status === "LEAVE"
+  ).length;
+  const monthPct = monthCounted > 0 ? Math.round((monthPresent / monthCounted) * 100) : 0;
 
   return {
     profile: {
@@ -739,6 +771,17 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
       avgRating: ratingStats.avgRating,
       totalRatings: ratingStats.totalRatings,
     },
+    dailyAttendance: {
+      today: todayAttendanceRow
+        ? {
+            status: todayAttendanceRow.status,
+            inTime: todayAttendanceRow.inTime,
+            outTime: todayAttendanceRow.outTime,
+            comments: todayAttendanceRow.comments,
+          }
+        : null,
+      monthPct,
+    },
     todaySessions,
     upcomingSessions,
     weekSessions,
@@ -758,7 +801,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
       rating: f.rating,
       comment: f.comment,
       submittedAt: f.submittedAt,
-      studentName: f.student?.user?.name ?? f.student?.studentCode ?? "Student",
+      studentName: "Anonymous student",
       batchName: f.classSession?.batch?.name ?? null,
       sessionTitle: f.classSession?.title ?? null,
     })),

@@ -89,13 +89,39 @@ export const bulkDailyAttendanceSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
   records: z
     .array(
-      z.object({
-        facultyId: z.string().min(1, "Faculty ID is required"),
-        status: facultyDailyAttendanceStatusEnum,
-        inTime: timeHmmSchema,
-        outTime: timeHmmSchema,
-        comments: z.string().max(500).optional().nullable(),
-      })
+      z
+        .object({
+          facultyId: z.string().min(1, "Faculty ID is required"),
+          status: facultyDailyAttendanceStatusEnum,
+          inTime: timeHmmSchema,
+          outTime: timeHmmSchema,
+          comments: z.string().max(500).optional().nullable(),
+        })
+        .superRefine((row, ctx) => {
+          if (row.status !== "PRESENT") return;
+
+          if (!row.inTime) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "inTime is required when status is PRESENT",
+              path: ["inTime"],
+            });
+          }
+          if (!row.outTime) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "outTime is required when status is PRESENT",
+              path: ["outTime"],
+            });
+          }
+          if (row.inTime && row.outTime && row.outTime <= row.inTime) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "outTime must be after inTime",
+              path: ["outTime"],
+            });
+          }
+        })
     )
     .min(1, "At least one attendance record is required")
     .max(500),

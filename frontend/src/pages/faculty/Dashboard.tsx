@@ -31,6 +31,7 @@ import {
   canHostClassSession,
   resolveDisplaySessionStatus,
 } from "@/utils/session-window";
+import { ROUTES } from "@/constants/routes";
 
 type SessionCard = FacultyDashboardSession & {
   isToday: boolean;
@@ -345,74 +346,147 @@ export const FacultyDashboard: React.FC = () => {
         </Card>
       </MetricGrid>
 
+      <Card
+        size="compact"
+        className="bg-card border-border shadow-2xs rounded-xl cursor-pointer hover:border-primary/40 transition-colors"
+        onClick={() => navigate(ROUTES.FACULTY.MY_ATTENDANCE)}
+        role="link"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate(ROUTES.FACULTY.MY_ATTENDANCE);
+          }
+        }}
+      >
+        <CardContent size="compact" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground">My attendance</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Today:{" "}
+              <span className="font-semibold text-foreground">
+                {dashboard.dailyAttendance?.today
+                  ? dashboard.dailyAttendance.today.status.replace("_", " ")
+                  : "Not marked"}
+              </span>
+              {dashboard.dailyAttendance?.today?.status === "PRESENT" &&
+              (dashboard.dailyAttendance.today.inTime || dashboard.dailyAttendance.today.outTime)
+                ? ` · ${dashboard.dailyAttendance.today.inTime || "—"}–${dashboard.dailyAttendance.today.outTime || "—"}`
+                : ""}
+              {" · "}
+              This month:{" "}
+              <span className="font-semibold text-foreground">
+                {dashboard.dailyAttendance?.monthPct != null
+                  ? `${dashboard.dailyAttendance.monthPct}%`
+                  : "—"}
+              </span>
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs shrink-0 gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(ROUTES.FACULTY.MY_ATTENDANCE);
+            }}
+          >
+            View history
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </CardContent>
+      </Card>
+
       <LeaveRequestReviewPanel />
 
-      {(dashboard.pendingGrading?.length > 0 || dashboard.recentFeedback?.length > 0) && (
-        <div
-          className={`grid gap-4 ${
-            dashboard.pendingGrading?.length > 0 && dashboard.recentFeedback?.length > 0
-              ? "grid-cols-1 lg:grid-cols-2"
-              : "grid-cols-1"
-          }`}
-        >
-          {dashboard.pendingGrading?.length > 0 && (
-            <Card size="compact" className="rounded-xl border-amber-200 bg-amber-50/40 shadow-2xs">
-              <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <h3 className="text-sm font-semibold text-amber-900">Pending grading</h3>
-                </div>
-                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[11px] font-semibold">
-                  {dashboard.pendingGrading.length} {dashboard.pendingGrading.length === 1 ? "batch" : "batches"}
-                </Badge>
-              </CardHeader>
-              <CardContent size="compact" className="px-4 pb-3 space-y-2">
-                {dashboard.pendingGrading.slice(0, 3).map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => navigate("/faculty/assignments/reviews")}
-                    className="w-full flex items-center justify-between text-left text-xs font-medium p-3 rounded-lg bg-white border border-amber-200/80 hover:border-amber-400 hover:shadow-xs transition-all group"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-semibold text-slate-900 block truncate">{a.title}</span>
-                      <span className="text-slate-500 text-[11px]">
-                        {a.batchName ? `Batch: ${a.batchName}` : ""}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <Badge className="bg-amber-100 hover:bg-amber-100 text-amber-800 border-amber-200 text-[11px] font-semibold">
-                        {a.pendingCount} {a.pendingCount === 1 ? "submission" : "submissions"}
-                      </Badge>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-600 transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-          {dashboard.recentFeedback?.length > 0 && (
-            <Card size="compact" className="rounded-xl border-slate-200 shadow-2xs">
-              <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Recent feedback</h3>
-                <Button variant="ghost" size="sm" className="text-xs h-7 px-2" onClick={() => navigate("/faculty/feedback")}>
-                  View all
-                </Button>
-              </CardHeader>
-              <CardContent size="compact" className="px-4 pb-3 space-y-2">
-                {dashboard.recentFeedback.slice(0, 3).map((f) => (
-                  <div key={f.id} className="text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-1 font-semibold text-amber-600">
-                      <Star className="w-3 h-3 fill-current" /> {f.rating}/5 · {f.studentName}
-                    </div>
-                    {f.comment && <p className="text-slate-600 mt-1 line-clamp-2">{f.comment}</p>}
+      <div
+        className={`grid gap-4 ${
+          dashboard.pendingGrading?.length > 0 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
+        }`}
+      >
+        {dashboard.pendingGrading?.length > 0 && (
+          <Card size="compact" className="rounded-xl border-amber-200 bg-amber-50/40 shadow-2xs">
+            <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <h3 className="text-sm font-semibold text-amber-900">Pending grading</h3>
+              </div>
+              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[11px] font-semibold">
+                {dashboard.pendingGrading.length} {dashboard.pendingGrading.length === 1 ? "batch" : "batches"}
+              </Badge>
+            </CardHeader>
+            <CardContent size="compact" className="px-4 pb-3 space-y-2">
+              {dashboard.pendingGrading.slice(0, 3).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => navigate("/faculty/assignments/reviews")}
+                  className="w-full flex items-center justify-between text-left text-xs font-medium p-3 rounded-lg bg-white border border-amber-200/80 hover:border-amber-400 hover:shadow-xs transition-all group"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-slate-900 block truncate">{a.title}</span>
+                    <span className="text-slate-500 text-[11px]">
+                      {a.batchName ? `Batch: ${a.batchName}` : ""}
+                    </span>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <Badge className="bg-amber-100 hover:bg-amber-100 text-amber-800 border-amber-200 text-[11px] font-semibold">
+                      {a.pendingCount} {a.pendingCount === 1 ? "submission" : "submissions"}
+                    </Badge>
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-600 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+        <Card size="compact" className="rounded-xl border-border shadow-2xs">
+          <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground">Student feedback</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {counts?.avgRating != null ? (
+                  <>
+                    <span className="font-semibold text-amber-600">{counts.avgRating.toFixed(1)}</span>
+                    <span>/5 avg</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {counts.totalRatings} {counts.totalRatings === 1 ? "review" : "reviews"}
+                    </span>
+                  </>
+                ) : (
+                  <>0 reviews yet</>
+                )}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7 px-2 shrink-0"
+              onClick={() => navigate("/faculty/feedback")}
+            >
+              View all
+            </Button>
+          </CardHeader>
+          <CardContent size="compact" className="px-4 pb-3 space-y-2">
+            {(dashboard.recentFeedback?.length ?? 0) === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center rounded-lg bg-muted/30 border border-border/60">
+                No student feedback yet
+              </p>
+            ) : (
+              dashboard.recentFeedback.slice(0, 3).map((f) => (
+                <div key={f.id} className="text-xs p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                  <div className="flex items-center gap-1 font-semibold text-amber-600">
+                    <Star className="w-3 h-3 fill-current" /> {f.rating}/5 · Anonymous student
+                  </div>
+                  {f.comment && <p className="text-muted-foreground mt-1 line-clamp-2">{f.comment}</p>}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <PageSection
         title="My Assigned Classes"

@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useFacultyDailyAttendance } from "@/hooks/useFaculty";
 import type { FacultyDailyAttendanceHistoryResponse } from "@/types/faculty.types";
+import { localTodayKey } from "@/constants/timetable-slots";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE" | "HALF_DAY" | "HOLIDAY" | "WEEKEND" | "WEEKLY_OFF" | "NOT_MARKED";
 
@@ -159,7 +160,7 @@ export const FacultyAttendance: React.FC = () => {
     return attendanceRecords.filter((item) => {
       // Time filter
       if (timeFilter === "TODAY") {
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = localTodayKey();
         if (item.date !== todayStr) return false;
       } else if (timeFilter === "THIS_WEEK") {
         const itemDate = new Date(item.date + "T00:00:00");
@@ -281,7 +282,7 @@ export const FacultyAttendance: React.FC = () => {
   const getCalendarDayColor = (dayNum: number) => {
     const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
     const record = attendanceRecords.find((r) => r.date === dateStr);
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = localTodayKey();
     if (!record) return { bg: "bg-slate-50 dark:bg-slate-900/40 text-slate-400", dot: "bg-slate-300", label: "—" };
 
     if (dateStr === todayStr) {
@@ -444,7 +445,7 @@ export const FacultyAttendance: React.FC = () => {
               {(() => {
                 const firstDayIndex = new Date(selectedYear, selectedMonth, 1).getDay(); // 0=Sun
                 const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-                const todayStr = new Date().toISOString().split("T")[0];
+                const todayStr = localTodayKey();
                 return (
                   <div className="grid grid-cols-7 gap-1.5 text-center">
                     {/* Leading blank cells */}
@@ -623,7 +624,7 @@ export const FacultyAttendance: React.FC = () => {
                     </tr>
                   ) : (
                     filteredRecords.map((rec, index) => {
-                      const isToday = rec.date === new Date().toISOString().split("T")[0];
+                      const isToday = rec.date === localTodayKey();
                       return (
                         <tr
                           key={rec.id}

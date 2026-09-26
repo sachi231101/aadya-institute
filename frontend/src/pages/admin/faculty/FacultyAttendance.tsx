@@ -15,21 +15,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBranches } from "@/hooks/useBranches";
 import { useBranchStore } from "@/store/branch.store";
-import { useFacultyList, useFacultyDailyAttendance, useSaveFacultyDailyAttendance } from "@/hooks/useFaculty";
-import type { FacultyDailyAttendanceDeskResponse } from "@/types/faculty.types";
+import { useFacultyDailyAttendance, useSaveFacultyDailyAttendance } from "@/hooks/useFaculty";
+import type {
+  FacultyDailyAttendanceDeskResponse,
+  FacultyDailyAttendanceDeskRow,
+  FacultyDailyAttendanceStatus,
+} from "@/types/faculty.types";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { localTodayKey } from "@/constants/timetable-slots";
 
-export type AttendanceDeskStatus = "PRESENT" | "ABSENT" | "LEAVE" | "WEEKLY_OFF";
+export type AttendanceDeskStatus = FacultyDailyAttendanceStatus;
 
+/** null = Not marked (UI-only; never persisted). */
 interface AttendanceRowState {
-  status: AttendanceDeskStatus;
+  status: AttendanceDeskStatus | null;
   inTime: string;
   outTime: string;
   comments: string;
 }
 
-// Helper to normalize time strings to HH:mm for type="time" input
+const unmarkedRow = (): AttendanceRowState => ({
+  status: null,
+  inTime: "",
+  outTime: "",
+  comments: "",
+});
+
+/** Local calendar YYYY-MM-DD without UTC drift from toISOString(). */
+const formatYmd = (year: number, monthIndex: number, day: number): string =>
+  `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
 const toTimeValue = (val: string): string => {
   if (!val) return "";
   if (/^\d{2}:\d{2}$/.test(val)) return val;
@@ -43,6 +59,13 @@ const toTimeValue = (val: string): string => {
     return `${String(h).padStart(2, "0")}:${m}`;
   }
   return val;
+};
+
+const timeToMinutes = (hhmm: string): number | null => {
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
 };
 
 export const FacultyAttendance: React.FC = () => {
@@ -64,24 +87,14 @@ export const FacultyAttendance: React.FC = () => {
       ? selectedBranchId
       : undefined;
 
-  // Live faculty from database
-  const { data: facultyListResponse, isLoading: isFacultyLoading } = useFacultyList({
-    branchId: activeBranchId,
-    limit: 100,
+  // Date selection (IST / institute calendar day — not UTC via toISOString)
+  const [selectedDate, setSelectedDate] = useState<string>(() => localTodayKey());
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const key = localTodayKey();
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1, 1);
   });
-  const facultyMembers = facultyListResponse?.data || [];
-
-  // Date selection state (YYYY-MM-DD)
-  const getTodayStr = () => new Date().toISOString().split("T")[0];
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayStr);
-
-  // Calendar month view date
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
-
-  // Search filter
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Attendance storage by Date -> Faculty ID -> AttendanceRowState
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, AttendanceRowState>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
@@ -93,6 +106,10 @@ export const FacultyAttendance: React.FC = () => {
       branchId: activeBranchId,
     });
   const saveDailyAttendance = useSaveFacultyDailyAttendance();
+
+  const deskPayload = dailyAttendanceResponse?.data as FacultyDailyAttendanceDeskResponse | undefined;
+  const deskRows: FacultyDailyAttendanceDeskRow[] =
+    deskPayload?.mode === "desk" && deskPayload.date === selectedDate ? deskPayload.records : [];
 
   const showToast = (text: string, type: "success" | "error" | "info" = "success") => {
     setToastMessage({ text, type });
@@ -118,12 +135,7 @@ export const FacultyAttendance: React.FC = () => {
           comments: row.attendance.comments || "",
         };
       } else {
-        dayMap[row.facultyId] = {
-          status: "PRESENT",
-          inTime: "09:30",
-          outTime: "17:30",
-          comments: "",
-        };
+        dayMap[row.facultyId] = unmarkedRow();
       }
     }
 
@@ -132,44 +144,37 @@ export const FacultyAttendance: React.FC = () => {
     setHasUnsavedChanges(false);
   }, [dailyAttendanceResponse, selectedDate, activeBranchId, hasUnsavedChanges, hydratedDateKey]);
 
-  // Calendar month grid calculation
   const calendarDays = useMemo(() => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
-
-    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sunday
+    const firstDayIndex = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-
     const days: { dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = [];
 
-    // Previous month padding
     const prevMonthDays = new Date(year, month, 0).getDate();
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       const d = prevMonthDays - i;
       const prevDate = new Date(year, month - 1, d);
       days.push({
-        dateStr: prevDate.toISOString().split("T")[0],
+        dateStr: formatYmd(prevDate.getFullYear(), prevDate.getMonth(), prevDate.getDate()),
         dayNum: d,
         isCurrentMonth: false,
       });
     }
 
-    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
-      const curDate = new Date(Date.UTC(year, month, i));
       days.push({
-        dateStr: curDate.toISOString().split("T")[0],
+        dateStr: formatYmd(year, month, i),
         dayNum: i,
         isCurrentMonth: true,
       });
     }
 
-    // Next month padding to fill multiple of 7
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const nextDate = new Date(year, month + 1, i);
       days.push({
-        dateStr: nextDate.toISOString().split("T")[0],
+        dateStr: formatYmd(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()),
         dayNum: i,
         isCurrentMonth: false,
       });
@@ -178,39 +183,34 @@ export const FacultyAttendance: React.FC = () => {
     return days;
   }, [calendarMonth]);
 
-  // Current day attendance map
   const currentDayAttendance = attendanceRecords[selectedDate] || {};
 
-  // Row helper
   const getRowData = (facultyId: string): AttendanceRowState => {
-    if (currentDayAttendance[facultyId]) {
-      return currentDayAttendance[facultyId];
-    }
-    return {
-      status: "PRESENT",
-      inTime: "09:30",
-      outTime: "17:30",
-      comments: "",
-    };
+    return currentDayAttendance[facultyId] || unmarkedRow();
   };
 
-  // Update status for single faculty
-  const handleStatusChange = (facultyId: string, status: AttendanceDeskStatus) => {
+  const applyStatus = (
+    current: AttendanceRowState,
+    status: AttendanceDeskStatus | null
+  ): AttendanceRowState => {
+    if (status === null) {
+      return { ...current, status: null, inTime: "", outTime: "" };
+    }
+    if (status === "PRESENT") {
+      return { ...current, status, inTime: current.inTime || "", outTime: current.outTime || "" };
+    }
+    return { ...current, status, inTime: "", outTime: "" };
+  };
+
+  const handleStatusChange = (facultyId: string, status: AttendanceDeskStatus | null) => {
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
-      const current = getRowData(facultyId);
-      dayMap[facultyId] = {
-        ...current,
-        status,
-        inTime: status === "PRESENT" ? (current.inTime || "09:30") : "",
-        outTime: status === "PRESENT" ? (current.outTime || "17:30") : "",
-      };
+      dayMap[facultyId] = applyStatus(getRowData(facultyId), status);
       return { ...prev, [selectedDate]: dayMap };
     });
     setHasUnsavedChanges(true);
   };
 
-  // Update text field
   const handleFieldChange = (facultyId: string, field: "inTime" | "outTime" | "comments", value: string) => {
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
@@ -221,55 +221,81 @@ export const FacultyAttendance: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  // Bulk set all visible faculty to status
-  const handleBulkSetStatus = (status: AttendanceDeskStatus) => {
+  const handleBulkSetStatus = (status: AttendanceDeskStatus | null) => {
     if (filteredFaculty.length === 0) return;
     setAttendanceRecords((prev) => {
       const dayMap = { ...(prev[selectedDate] || {}) };
       filteredFaculty.forEach((f) => {
-        const current = getRowData(f.id);
-        dayMap[f.id] = {
-          ...current,
-          status,
-          inTime: status === "PRESENT" ? (current.inTime || "09:30") : "",
-          outTime: status === "PRESENT" ? (current.outTime || "17:30") : "",
-        };
+        dayMap[f.facultyId] = applyStatus(getRowData(f.facultyId), status);
       });
       return { ...prev, [selectedDate]: dayMap };
     });
     setHasUnsavedChanges(true);
-    showToast(`Marked all as ${status.replace("_", " ")}`, "info");
+    showToast(
+      status === null ? "Cleared marks for visible faculty" : `Marked all as ${status.replace("_", " ")}`,
+      "info"
+    );
   };
 
-  // Save changes
   const handleSaveAttendance = async () => {
     if (filteredFaculty.length === 0) {
       showToast("No faculty to save", "error");
       return;
     }
 
-    const records = filteredFaculty.map((f) => {
-      const row = getRowData(f.id);
-      return {
-        facultyId: f.id,
-        status: row.status,
-        inTime: row.status === "PRESENT" ? row.inTime || "09:30" : null,
-        outTime: row.status === "PRESENT" ? row.outTime || "17:30" : null,
-        comments: row.comments || null,
-      };
-    });
+    const marked = filteredFaculty
+      .map((f) => ({ faculty: f, row: getRowData(f.facultyId) }))
+      .filter(({ row }) => row.status !== null);
+
+    if (marked.length === 0) {
+      showToast("Mark at least one faculty before saving", "error");
+      return;
+    }
+
+    for (const { faculty, row } of marked) {
+      if (row.status !== "PRESENT") continue;
+      const inTime = toTimeValue(row.inTime);
+      const outTime = toTimeValue(row.outTime);
+      if (!inTime || !outTime) {
+        showToast(
+          `${faculty.user?.name || faculty.employeeCode}: login and logout times are required for Present`,
+          "error"
+        );
+        return;
+      }
+      const inMins = timeToMinutes(inTime);
+      const outMins = timeToMinutes(outTime);
+      if (inMins == null || outMins == null || outMins <= inMins) {
+        showToast(
+          `${faculty.user?.name || faculty.employeeCode}: logout must be after login`,
+          "error"
+        );
+        return;
+      }
+    }
+
+    const records = marked.map(({ faculty, row }) => ({
+      facultyId: faculty.facultyId,
+      status: row.status as AttendanceDeskStatus,
+      inTime: row.status === "PRESENT" ? toTimeValue(row.inTime) : null,
+      outTime: row.status === "PRESENT" ? toTimeValue(row.outTime) : null,
+      comments: row.comments || null,
+    }));
 
     try {
       await saveDailyAttendance.mutateAsync({ date: selectedDate, records });
       setHasUnsavedChanges(false);
-      showToast(`Attendance saved successfully for ${selectedDate}!`, "success");
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || "Failed to save attendance";
+      showToast(`Saved attendance for ${records.length} faculty on ${selectedDate}`, "success");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Failed to save attendance";
       showToast(message, "error");
     }
   };
 
-  // Calendar jump
   const handleSelectDate = (dateStr: string) => {
     if (dateStr !== selectedDate) {
       setHasUnsavedChanges(false);
@@ -279,42 +305,49 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   const handleToday = () => {
-    const today = getTodayStr();
+    const today = localTodayKey();
     setSelectedDate(today);
-    setCalendarMonth(new Date());
+    const [y, m] = today.split("-").map(Number);
+    setCalendarMonth(new Date(y, m - 1, 1));
   };
 
   const handleClear = () => {
-    const today = getTodayStr();
-    setSelectedDate(today);
-    setCalendarMonth(new Date());
+    handleToday();
   };
 
-  // Filtered faculty
   const filteredFaculty = useMemo(() => {
-    return facultyMembers.filter((f) => {
+    return deskRows.filter((f) => {
       const name = f.user?.name?.toLowerCase() || "";
       const code = f.employeeCode?.toLowerCase() || "";
       const phone = f.user?.phone?.toLowerCase() || "";
       const spec = f.specialization?.toLowerCase() || "";
       const query = searchTerm.toLowerCase();
-
       return name.includes(query) || code.includes(query) || phone.includes(query) || spec.includes(query);
     });
-  }, [facultyMembers, searchTerm]);
+  }, [deskRows, searchTerm]);
 
-  // Header checkbox checked states
+  const markedCount = useMemo(
+    () => filteredFaculty.filter((f) => getRowData(f.facultyId).status !== null).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getRowData depends on currentDayAttendance
+    [filteredFaculty, currentDayAttendance]
+  );
+
+  const canSave =
+    canEditAttendance && hasUnsavedChanges && markedCount > 0 && !saveDailyAttendance.isPending;
+
   const allStatusCheck = useMemo(() => {
-    if (filteredFaculty.length === 0) return { present: false, absent: false, leave: false, weeklyOff: false };
-    const firstStatus = getRowData(filteredFaculty[0].id).status;
-    const allSame = filteredFaculty.every((f) => getRowData(f.id).status === firstStatus);
-
+    if (filteredFaculty.length === 0) {
+      return { present: false, absent: false, leave: false, weeklyOff: false };
+    }
+    const firstStatus = getRowData(filteredFaculty[0].facultyId).status;
+    const allSame = filteredFaculty.every((f) => getRowData(f.facultyId).status === firstStatus);
     return {
       present: allSame && firstStatus === "PRESENT",
       absent: allSame && firstStatus === "ABSENT",
       leave: allSame && firstStatus === "LEAVE",
       weeklyOff: allSame && firstStatus === "WEEKLY_OFF",
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredFaculty, currentDayAttendance]);
 
   return (
@@ -477,9 +510,9 @@ export const FacultyAttendance: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={handleSaveAttendance}
-                  disabled={saveDailyAttendance.isPending || filteredFaculty.length === 0}
+                  disabled={!canSave}
                   className={`h-8 text-xs font-semibold px-3 rounded-none ${
-                    hasUnsavedChanges
+                    canSave
                       ? "bg-blue-600 hover:bg-blue-700 text-white"
                       : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                   }`}
@@ -491,8 +524,8 @@ export const FacultyAttendance: React.FC = () => {
                   )}
                   {saveDailyAttendance.isPending
                     ? "Saving..."
-                    : hasUnsavedChanges
-                      ? "Save *"
+                    : hasUnsavedChanges && markedCount > 0
+                      ? `Save * (${markedCount})`
                       : "Save"}
                 </Button>
                 </PermissionGate>
@@ -512,7 +545,7 @@ export const FacultyAttendance: React.FC = () => {
             </div>
 
             {/* Table Content */}
-            {isFacultyLoading || (isDailyLoading && !attendanceRecords[selectedDate]) ? (
+            {isDailyLoading && !attendanceRecords[selectedDate] ? (
               <div className="p-10 flex flex-col items-center justify-center text-slate-500 gap-2">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                 <p className="text-xs">Loading faculty attendance list...</p>
@@ -521,9 +554,15 @@ export const FacultyAttendance: React.FC = () => {
               <div className="p-10 text-center text-slate-500">
                 <Users className="w-8 h-8 mx-auto text-slate-300 mb-1.5" />
                 <p className="text-xs font-semibold">No faculty found.</p>
+                <p className="text-[11px] text-slate-400 mt-1">Active and on-leave faculty for this branch will appear here.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
+                {markedCount === 0 && (
+                  <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-amber-50/80 dark:bg-amber-950/20 text-[11px] text-amber-800 dark:text-amber-200">
+                    Select a status for each faculty you want to save — unmarked rows are skipped. Re-click a selected status to clear it.
+                  </div>
+                )}
                 <table className="w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -616,130 +655,142 @@ export const FacultyAttendance: React.FC = () => {
 
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {filteredFaculty.map((f, idx) => {
-                      const row = getRowData(f.id);
-                      const isInactiveTime = row.status === "WEEKLY_OFF" || row.status === "ABSENT" || row.status === "LEAVE";
+                      const row = getRowData(f.facultyId);
+                      const timesEnabled = row.status === "PRESENT";
 
                       return (
                         <tr
-                          key={f.id}
+                          key={f.facultyId}
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                         >
-                          {/* SR. NO. */}
                           <td className="py-2 px-3 text-center text-slate-600 dark:text-slate-400 font-medium border-r border-slate-200 dark:border-slate-800">
                             {idx + 1}
                           </td>
 
-                          {/* NAME */}
                           <td className="py-2 px-3 font-semibold text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800">
                             {f.user?.name || "Faculty Member"}
                           </td>
 
-                          {/* MOBILE NO */}
                           <td className="py-2 px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
                             {f.user?.phone || "—"}
                           </td>
 
-                          {/* CODE */}
                           <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
                             {f.employeeCode || "—"}
                           </td>
 
-                          {/* DESIGNATION */}
                           <td className="py-2 px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">
                             {f.designation || f.specialization || "Faculty"}
                           </td>
 
-                          {/* PRESENT Radio */}
                           <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="radio"
-                              name={`attendance-${f.id}`}
+                              name={`attendance-${f.facultyId}`}
                               checked={row.status === "PRESENT"}
                               disabled={!canEditAttendance}
-                              onChange={() => handleStatusChange(f.id, "PRESENT")}
+                              onChange={() => handleStatusChange(f.facultyId, "PRESENT")}
+                              onClick={() => {
+                                if (canEditAttendance && row.status === "PRESENT") {
+                                  handleStatusChange(f.facultyId, null);
+                                }
+                              }}
+                              title="Present (click again to clear)"
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
-                          {/* ABSENT Radio */}
                           <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="radio"
-                              name={`attendance-${f.id}`}
+                              name={`attendance-${f.facultyId}`}
                               checked={row.status === "ABSENT"}
                               disabled={!canEditAttendance}
-                              onChange={() => handleStatusChange(f.id, "ABSENT")}
+                              onChange={() => handleStatusChange(f.facultyId, "ABSENT")}
+                              onClick={() => {
+                                if (canEditAttendance && row.status === "ABSENT") {
+                                  handleStatusChange(f.facultyId, null);
+                                }
+                              }}
+                              title="Absent (click again to clear)"
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
-                          {/* LEAVE Radio */}
                           <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="radio"
-                              name={`attendance-${f.id}`}
+                              name={`attendance-${f.facultyId}`}
                               checked={row.status === "LEAVE"}
                               disabled={!canEditAttendance}
-                              onChange={() => handleStatusChange(f.id, "LEAVE")}
+                              onChange={() => handleStatusChange(f.facultyId, "LEAVE")}
+                              onClick={() => {
+                                if (canEditAttendance && row.status === "LEAVE") {
+                                  handleStatusChange(f.facultyId, null);
+                                }
+                              }}
+                              title="Leave (click again to clear)"
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
-                          {/* WEEKLY OFF Radio */}
                           <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="radio"
-                              name={`attendance-${f.id}`}
+                              name={`attendance-${f.facultyId}`}
                               checked={row.status === "WEEKLY_OFF"}
                               disabled={!canEditAttendance}
-                              onChange={() => handleStatusChange(f.id, "WEEKLY_OFF")}
+                              onChange={() => handleStatusChange(f.facultyId, "WEEKLY_OFF")}
+                              onClick={() => {
+                                if (canEditAttendance && row.status === "WEEKLY_OFF") {
+                                  handleStatusChange(f.facultyId, null);
+                                }
+                              }}
+                              title="Weekly off (click again to clear)"
                               className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
-                          {/* IN TIME */}
                           <td className="py-1.5 px-2 border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="time"
                               value={toTimeValue(row.inTime)}
-                              disabled={!canEditAttendance || isInactiveTime}
-                              onChange={(e) => handleFieldChange(f.id, "inTime", e.target.value)}
+                              disabled={!canEditAttendance || !timesEnabled}
+                              onChange={(e) => handleFieldChange(f.facultyId, "inTime", e.target.value)}
                               onClick={(e) => {
-                                if (canEditAttendance && !isInactiveTime) e.currentTarget.showPicker?.();
+                                if (canEditAttendance && timesEnabled) e.currentTarget.showPicker?.();
                               }}
                               className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                !canEditAttendance || isInactiveTime
+                                !canEditAttendance || !timesEnabled
                                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                                   : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
                               }`}
                             />
                           </td>
 
-                          {/* OUT TIME */}
                           <td className="py-1.5 px-2 border-r border-slate-200 dark:border-slate-800">
                             <input
                               type="time"
                               value={toTimeValue(row.outTime)}
-                              disabled={!canEditAttendance || isInactiveTime}
-                              onChange={(e) => handleFieldChange(f.id, "outTime", e.target.value)}
+                              disabled={!canEditAttendance || !timesEnabled}
+                              onChange={(e) => handleFieldChange(f.facultyId, "outTime", e.target.value)}
                               onClick={(e) => {
-                                if (canEditAttendance && !isInactiveTime) e.currentTarget.showPicker?.();
+                                if (canEditAttendance && timesEnabled) e.currentTarget.showPicker?.();
                               }}
                               className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                !canEditAttendance || isInactiveTime
+                                !canEditAttendance || !timesEnabled
                                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                                   : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
                               }`}
                             />
                           </td>
 
-                          {/* COMMENTS */}
                           <td className="py-1.5 px-2">
                             <input
                               type="text"
                               value={row.comments}
                               disabled={!canEditAttendance}
-                              onChange={(e) => handleFieldChange(f.id, "comments", e.target.value)}
+                              onChange={(e) => handleFieldChange(f.facultyId, "comments", e.target.value)}
                               placeholder=""
                               className="w-full h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-blue-500 outline-none disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                             />

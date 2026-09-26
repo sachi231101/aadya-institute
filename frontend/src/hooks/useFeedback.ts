@@ -40,7 +40,9 @@ export const useSubmitFeedback = () => {
     mutationFn: feedbackApi.submitFeedback,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feedback"] });
+      queryClient.invalidateQueries({ queryKey: ["feedback", "ratings"] });
       queryClient.invalidateQueries({ queryKey: ["faculty-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
     },
   });
 };
