@@ -118,8 +118,8 @@ export const CreateTargetSchema = z
   });
 
 export const UpdateTargetSchema = z.object({
-  branchId: z.string().optional(),
-  userId: z.string().optional(),
+  branchId: z.string().nullable().optional(),
+  userId: z.string().nullable().optional(),
   title: z.string().min(2).max(120).optional(),
   targetType: TargetTypeEnum.optional(),
   metric: TargetMetricEnum.optional(),
@@ -128,7 +128,18 @@ export const UpdateTargetSchema = z.object({
   startDate: z.string().or(z.date()).optional(),
   endDate: z.string().or(z.date()).optional(),
   status: TargetStatusEnum.optional(),
-  incentiveRule: IncentiveRuleInputSchema.optional(),
+  incentiveRule: IncentiveRuleInputSchema.nullable().optional(),
+});
+
+/** Apply shared fields to every target under a plan (daily series bulk edit). */
+export const BulkUpdatePlanTargetsSchema = z.object({
+  title: z.string().min(2).max(120).optional(),
+  userId: z.string().nullable().optional(),
+  targetType: TargetTypeEnum.optional(),
+  metric: TargetMetricEnum.optional(),
+  targetValue: z.number().positive().optional(),
+  unit: z.string().optional(),
+  incentiveRule: IncentiveRuleInputSchema.nullable().optional(),
 });
 
 export const QueryTargetsSchema = z.object({

@@ -8,6 +8,7 @@ import type {
   UpdateTargetPlanDTO,
   CreateTargetDTO,
   UpdateTargetDTO,
+  BulkUpdatePlanTargetsDTO,
   QueryTargetsDTO,
   QueryIncentivesDTO,
   ApproveIncentiveDTO,
@@ -61,6 +62,19 @@ export const TargetController = {
         req.body as UpdateTargetPlanDTO
       );
       sendSuccess(res, plan, 200, "Target plan updated successfully");
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async bulkUpdatePlanTargets(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await TargetService.bulkUpdatePlanTargets(
+        req.user as unknown as AuthUser,
+        req.params.id as string,
+        req.body as BulkUpdatePlanTargetsDTO
+      );
+      sendSuccess(res, result, 200, "Series targets updated successfully");
     } catch (err) {
       next(err);
     }

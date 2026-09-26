@@ -56,8 +56,8 @@ export interface CreateTargetInput {
 }
 
 export interface UpdateTargetInput {
-  branchId?: string;
-  userId?: string;
+  branchId?: string | null;
+  userId?: string | null;
   title?: string;
   targetType?: TargetType;
   metric?: TargetMetric;
@@ -66,7 +66,17 @@ export interface UpdateTargetInput {
   startDate?: string;
   endDate?: string;
   status?: TargetStatus;
-  incentiveRule?: CreateIncentiveRuleInput;
+  incentiveRule?: CreateIncentiveRuleInput | null;
+}
+
+export interface BulkUpdatePlanTargetsInput {
+  title?: string;
+  userId?: string | null;
+  targetType?: TargetType;
+  metric?: TargetMetric;
+  targetValue?: number;
+  unit?: string;
+  incentiveRule?: CreateIncentiveRuleInput | null;
 }
 
 export interface QueryTargetsParams {
@@ -113,6 +123,14 @@ export const targetsApi = {
     data: UpdateTargetPlanInput
   ): Promise<{ data: TargetPlan }> => {
     const response = await api.patch(`/targets/plans/${id}`, data);
+    return response.data;
+  },
+
+  bulkUpdatePlanTargets: async (
+    planId: string,
+    data: BulkUpdatePlanTargetsInput
+  ): Promise<{ data: { updatedCount: number; targets: Target[] } }> => {
+    const response = await api.patch(`/targets/plans/${planId}/targets`, data);
     return response.data;
   },
 

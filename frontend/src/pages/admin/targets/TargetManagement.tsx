@@ -17,6 +17,7 @@ import {
   useCreateTargetPlan,
   useCreateTarget,
   useUpdateTarget,
+  useBulkUpdatePlanTargets,
   useDeleteTarget,
   useRecalculateTarget,
 } from "../../../hooks/useTargets";
@@ -84,6 +85,13 @@ function formatDayLabel(dateStr: string): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/** Strip day suffix / "(N days)" plan suffix to recover the editable base title. */
+function seriesBaseTitle(t: Target): string {
+  const fromDay = t.title.replace(/\s—\s.*$/, "").trim();
+  const fromPlan = t.targetPlan?.name?.replace(/\s*\(\d+\s*days\)\s*$/i, "").trim();
+  return fromDay || fromPlan || t.title;
 }
 
 const MAX_DAILY_SERIES_DAYS = 90;
@@ -167,12 +175,11 @@ export const TargetManagement: React.FC = () => {
   const [dailyDayCount, setDailyDayCount] = useState(1);
   const [isCreatingSeries, setIsCreatingSeries] = useState(false);
 
-  // API Hooks
+  // API Hooks — counsellor list includes own targets + branch team goals (backend OR)
   const { data: targetsData, isLoading: targetsLoading } = useTargets({
     search: search || undefined,
     status: statusFilter !== "ALL" ? (statusFilter as any) : undefined,
     metric: metricFilter !== "ALL" ? (metricFilter as any) : undefined,
-    userId: isCounselor ? (user?.id || (user as any)?.userId) : undefined,
     limit: 200,
   });
   const { data: branchesResponse } = useBranches({ limit: 100, status: "ACTIVE" });
@@ -189,6 +196,7 @@ export const TargetManagement: React.FC = () => {
   const createPlanMutation = useCreateTargetPlan();
   const createTargetMutation = useCreateTarget();
   const updateTargetMutation = useUpdateTarget();
+  const bulkUpdateSeriesMutation = useBulkUpdatePlanTargets();
   const deleteTargetMutation = useDeleteTarget();
   const recalculateMutation = useRecalculateTarget();
 
@@ -202,6 +210,9 @@ export const TargetManagement: React.FC = () => {
   // Modals
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [editingTarget, setEditingTarget] = useState<Target | null>(null);
+  /** When set, form applies changes to every day in this plan series. */
+  const [editingSeriesPlanId, setEditingSeriesPlanId] = useState<string | null>(null);
+  const [editingSeriesDayCount, setEditingSeriesDayCount] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Record<string, boolean>>({});
 
@@ -220,6 +231,8 @@ export const TargetManagement: React.FC = () => {
 
   const resetTargetForm = () => {
     setEditingTarget(null);
+    setEditingSeriesPlanId(null);
+    setEditingSeriesDayCount(0);
     setTargetTitle("");
     setTargetPeriod("MONTHLY");
     setTargetBranchId(isCenterManager && user?.branchId ? user.branchId : "");
@@ -264,18 +277,7 @@ export const TargetManagement: React.FC = () => {
       ? addDaysToDateStr(targetStartDate, dailyDayCount - 1)
       : targetStartDate;
 
-  const handleOpenEditTarget = (t: Target) => {
-    setEditingTarget(t);
-    setTargetTitle(t.title);
-    setTargetPeriod(t.targetPlan?.periodType ?? "CUSTOM");
-    setTargetBranchId(t.branchId || "");
-    setTargetUserId(t.userId || "");
-    setTargetMetric(t.metric);
-    setTargetValue(Number(t.targetValue));
-    setTargetUnit(t.unit);
-    setTargetStartDate(new Date(t.startDate).toISOString().split("T")[0]);
-    setTargetEndDate(new Date(t.endDate).toISOString().split("T")[0]);
-
+  const applyIncentiveFormFromTarget = (t: Target) => {
     if (t.incentiveRule) {
       setEnableIncentive(true);
       setIncentiveType(t.incentiveRule.incentiveType);
@@ -291,7 +293,47 @@ export const TargetManagement: React.FC = () => {
     } else {
       setEnableIncentive(false);
     }
+  };
 
+  const handleOpenEditTarget = (t: Target) => {
+    setEditingSeriesPlanId(null);
+    setEditingSeriesDayCount(0);
+    setEditingTarget(t);
+    setTargetTitle(t.title);
+    setTargetPeriod(t.targetPlan?.periodType ?? "CUSTOM");
+    setTargetBranchId(t.branchId || "");
+    setTargetUserId(t.userId || "");
+    setTargetMetric(t.metric);
+    setTargetValue(Number(t.targetValue));
+    setTargetUnit(t.unit);
+    setTargetStartDate(new Date(t.startDate).toISOString().split("T")[0]);
+    setTargetEndDate(new Date(t.endDate).toISOString().split("T")[0]);
+    applyIncentiveFormFromTarget(t);
+    setShowTargetModal(true);
+  };
+
+  const handleOpenEditSeries = (items: Target[]) => {
+    const first = items[0];
+    if (!first?.targetPlanId) return;
+    setEditingTarget(null);
+    setEditingSeriesPlanId(first.targetPlanId);
+    setEditingSeriesDayCount(items.length);
+    setTargetTitle(seriesBaseTitle(first));
+    setTargetPeriod("DAILY");
+    setTargetBranchId(first.branchId || "");
+    setTargetUserId(first.userId || "");
+    setTargetMetric(first.metric);
+    setTargetValue(Number(first.targetValue));
+    setTargetUnit(first.unit);
+    const sorted = [...items].sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+    setTargetStartDate(new Date(sorted[0].startDate).toISOString().split("T")[0]);
+    setTargetEndDate(
+      new Date(sorted[sorted.length - 1].endDate).toISOString().split("T")[0]
+    );
+    setDailyDayCount(items.length);
+    applyIncentiveFormFromTarget(first);
     setShowTargetModal(true);
   };
 
@@ -335,7 +377,7 @@ export const TargetManagement: React.FC = () => {
             incentiveType: "PERCENTAGE" as const,
             percentages,
           }
-      : undefined;
+      : null;
 
     if (enableIncentive && !ruleInput) {
       alert("Enable Incentive is on — please set a Fixed reward amount or slab rules.");
@@ -347,7 +389,25 @@ export const TargetManagement: React.FC = () => {
     }
 
     try {
-      if (editingTarget) {
+      if (editingSeriesPlanId) {
+        await bulkUpdateSeriesMutation.mutateAsync({
+          planId: editingSeriesPlanId,
+          data: {
+            title: targetTitle.trim(),
+            userId: targetUserId || null,
+            targetType: targetUserId ? "INDIVIDUAL" : "BRANCH",
+            metric: targetMetric,
+            targetValue,
+            unit: targetUnit,
+            incentiveRule: ruleInput,
+          },
+        });
+        showToast(
+          `✓ Updated all ${editingSeriesDayCount} days in this series${
+            !targetUserId ? " (visible to branch counsellors & center manager)" : ""
+          }`
+        );
+      } else if (editingTarget) {
         const endDate =
           targetPeriod === "DAILY" ? targetStartDate : targetEndDate;
         await updateTargetMutation.mutateAsync({
@@ -355,7 +415,7 @@ export const TargetManagement: React.FC = () => {
           data: {
             title: targetTitle.trim(),
             branchId: resolvedBranchId,
-            userId: targetUserId || undefined,
+            userId: targetUserId || null,
             targetType: targetUserId ? "INDIVIDUAL" : "BRANCH",
             metric: targetMetric,
             targetValue,
@@ -398,11 +458,15 @@ export const TargetManagement: React.FC = () => {
                 unit: targetUnit,
                 startDate: dayDate,
                 endDate: dayDate,
-                incentiveRule: ruleInput,
+                incentiveRule: ruleInput || undefined,
               });
             }
             showToast(
-              `✓ Created ${dailyDayCount} daily targets (${targetValue} ${targetUnit}/day)`
+              `✓ Created ${dailyDayCount}-day series${
+                !targetUserId
+                  ? " — Entire Branch Team Goal (counsellors & center manager)"
+                  : ""
+              }`
             );
           } finally {
             setIsCreatingSeries(false);
@@ -428,7 +492,7 @@ export const TargetManagement: React.FC = () => {
             unit: targetUnit,
             startDate: targetStartDate,
             endDate,
-            incentiveRule: ruleInput,
+            incentiveRule: ruleInput || undefined,
           });
           showToast("✓ Target created successfully!");
         }
@@ -437,7 +501,7 @@ export const TargetManagement: React.FC = () => {
       setShowTargetModal(false);
       resetTargetForm();
     } catch (err: any) {
-      showToast(`❌ ${err?.response?.data?.message || "Failed to save target"}`);
+      alert(err?.response?.data?.message || err?.message || "Failed to save target");
     }
   };
 
@@ -1041,13 +1105,26 @@ export const TargetManagement: React.FC = () => {
                             </td>
 
                             <td className="py-4 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => toggleSeries(key)}
-                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border bg-background hover:bg-muted text-foreground cursor-pointer"
-                              >
-                                {expanded ? "Collapse" : "View days"}
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <PermissionGate itemKey="targets.all" mode="write">
+                                  <button
+                                    type="button"
+                                    title="Edit entire series"
+                                    onClick={() => handleOpenEditSeries(items)}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border bg-background hover:bg-muted text-foreground cursor-pointer inline-flex items-center gap-1.5"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                    Edit series
+                                  </button>
+                                </PermissionGate>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSeries(key)}
+                                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border bg-background hover:bg-muted text-foreground cursor-pointer"
+                                >
+                                  {expanded ? "Collapse" : "View days"}
+                                </button>
+                              </div>
                             </td>
                           </tr>
 
@@ -1078,7 +1155,11 @@ export const TargetManagement: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <TargetIcon className="w-5 h-5 text-indigo-400" />
                 <h3 className="font-bold text-lg">
-                  {editingTarget ? "Edit Target" : "Create Target"}
+                  {editingSeriesPlanId
+                    ? `Edit Series (${editingSeriesDayCount} days)`
+                    : editingTarget
+                    ? "Edit Target"
+                    : "Create Target"}
                 </h3>
               </div>
               <button
@@ -1120,7 +1201,7 @@ export const TargetManagement: React.FC = () => {
                       setTargetBranchId(e.target.value);
                       setTargetUserId("");
                     }}
-                    disabled={isCenterManager || !!editingTarget}
+                    disabled={isCenterManager || !!editingTarget || !!editingSeriesPlanId}
                     className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="">Select branch</option>
@@ -1145,7 +1226,7 @@ export const TargetManagement: React.FC = () => {
                   <select
                     value={targetPeriod}
                     onChange={(e) => handlePeriodChange(e.target.value as TargetPeriod)}
-                    disabled={!!editingTarget}
+                    disabled={!!editingTarget || !!editingSeriesPlanId}
                     className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="DAILY">Daily</option>
@@ -1155,9 +1236,11 @@ export const TargetManagement: React.FC = () => {
                     <option value="YEARLY">Yearly</option>
                     <option value="CUSTOM">Custom</option>
                   </select>
-                  {editingTarget && (
+                  {(editingTarget || editingSeriesPlanId) && (
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      Period is tied to the existing plan and cannot be changed here.
+                      {editingSeriesPlanId
+                        ? "Dates stay per day — this updates title, assignee, metric, value & reward on all days."
+                        : "Period is tied to the existing plan and cannot be changed here."}
                     </p>
                   )}
                 </div>
@@ -1179,6 +1262,11 @@ export const TargetManagement: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {!targetUserId && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Visible to center managers and counsellors in this branch — not faculty or students.
+                    </p>
+                  )}
                   {!targetBranchId && isAdmin && (
                     <p className="text-[11px] text-muted-foreground mt-1">
                       Select a branch to load counsellors.
@@ -1247,11 +1335,12 @@ export const TargetManagement: React.FC = () => {
                     required
                     value={targetStartDate}
                     onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary"
+                    disabled={!!editingSeriesPlanId}
+                    className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
-                {targetPeriod === "DAILY" && !editingTarget ? (
+                {targetPeriod === "DAILY" && !editingTarget && !editingSeriesPlanId ? (
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
                       Number of Days *
@@ -1562,17 +1651,21 @@ export const TargetManagement: React.FC = () => {
                     isCreatingSeries ||
                     createPlanMutation.isPending ||
                     createTargetMutation.isPending ||
-                    updateTargetMutation.isPending
+                    updateTargetMutation.isPending ||
+                    bulkUpdateSeriesMutation.isPending
                   }
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition cursor-pointer disabled:opacity-50"
                 >
                   {isCreatingSeries ||
                   createPlanMutation.isPending ||
                   createTargetMutation.isPending ||
-                  updateTargetMutation.isPending
+                  updateTargetMutation.isPending ||
+                  bulkUpdateSeriesMutation.isPending
                     ? isCreatingSeries
                       ? `Creating ${dailyDayCount} daily targets...`
                       : "Saving..."
+                    : editingSeriesPlanId
+                    ? `Update all ${editingSeriesDayCount} days`
                     : editingTarget
                     ? "Save Changes"
                     : targetPeriod === "DAILY" && dailyDayCount > 1

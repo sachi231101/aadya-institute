@@ -6,6 +6,7 @@ import type {
   UpdateTargetPlanDTO,
   CreateTargetDTO,
   UpdateTargetDTO,
+  BulkUpdatePlanTargetsDTO,
   QueryTargetsDTO,
   QueryIncentivesDTO,
   CalculationResult,
@@ -143,27 +144,48 @@ export const TargetRepository = {
       search,
       page = 1,
       limit = 50,
+      staffViewer,
     } = params;
+
+    const andFilters: Prisma.TargetWhereInput[] = [];
+
+    if (allowedBranchId) {
+      andFilters.push({
+        OR: [{ branchId: allowedBranchId }, { branchId: null }],
+      });
+    } else if (branchId) {
+      andFilters.push({ branchId });
+    }
+
+    if (staffViewer) {
+      const viewerOr: Prisma.TargetWhereInput[] = [{ userId: staffViewer.userId }];
+      if (staffViewer.branchId) {
+        viewerOr.push({
+          targetType: "BRANCH",
+          branchId: staffViewer.branchId,
+          userId: null,
+        });
+      }
+      andFilters.push({ OR: viewerOr });
+    } else if (userId) {
+      andFilters.push({ userId });
+    }
+
+    if (targetPlanId) andFilters.push({ targetPlanId });
+    if (metric) andFilters.push({ metric });
+    if (status) andFilters.push({ status });
+    if (search) {
+      andFilters.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { user: { name: { contains: search, mode: "insensitive" } } },
+        ],
+      });
+    }
 
     const where: Prisma.TargetWhereInput = {
       instituteId,
-      ...(allowedBranchId
-        ? { OR: [{ branchId: allowedBranchId }, { branchId: null }] }
-        : branchId
-        ? { branchId }
-        : {}),
-      ...(targetPlanId ? { targetPlanId } : {}),
-      ...(userId ? { userId } : {}),
-      ...(metric ? { metric } : {}),
-      ...(status ? { status } : {}),
-      ...(search
-        ? {
-            OR: [
-              { title: { contains: search, mode: "insensitive" } },
-              { user: { name: { contains: search, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
+      ...(andFilters.length ? { AND: andFilters } : {}),
     };
 
     const [total, data] = await Promise.all([
@@ -317,7 +339,9 @@ export const TargetRepository = {
         },
       });
 
-      if (dto.incentiveRule) {
+      if (dto.incentiveRule === null) {
+        await tx.incentiveRule.deleteMany({ where: { targetId: id } });
+      } else if (dto.incentiveRule) {
         await tx.incentiveRule.upsert({
           where: { targetId: id },
           update: {
@@ -384,15 +408,21 @@ export const TargetRepository = {
     });
   },
 
-  async findMyActiveTargets(instituteId: string, userId: string, branchId?: string | null) {
+  async findMyActiveTargets(
+    instituteId: string,
+    userId: string,
+    branchId?: string | null,
+    /** Entire Branch Team Goals — only for counsellor / CM / admin viewers */
+    includeBranchTeamGoals = false
+  ) {
     const where: Prisma.TargetWhereInput = {
       instituteId,
       status: { in: ["UPCOMING", "ACTIVE", "PUBLISHED", "COMPLETED"] },
-      ...(branchId
+      ...(includeBranchTeamGoals && branchId
         ? {
             OR: [
               { userId },
-              { targetType: "BRANCH", branchId },
+              { targetType: "BRANCH", branchId, userId: null },
             ],
           }
         : { userId }),
@@ -410,6 +440,129 @@ export const TargetRepository = {
         },
       },
       orderBy: { endDate: "asc" },
+    });
+  },
+
+  /**
+   * Apply shared fields to every target under a plan (daily series bulk edit).
+   * Per-day start/end dates are preserved; titles get a fresh day label when base title changes.
+   */
+  async bulkUpdatePlanTargets(
+    planId: string,
+    instituteId: string,
+    dto: BulkUpdatePlanTargetsDTO
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const plan = await tx.targetPlan.findFirst({
+        where: { id: planId, instituteId },
+        include: {
+          targets: {
+            orderBy: { startDate: "asc" },
+            include: { incentiveRule: true },
+          },
+        },
+      });
+      if (!plan) return null;
+
+      const targets = plan.targets;
+      if (targets.length === 0) {
+        return { plan, updatedCount: 0, targets: [] };
+      }
+
+      const formatDayLabel = (d: Date) =>
+        d.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+
+      if (dto.title) {
+        await tx.targetPlan.update({
+          where: { id: planId },
+          data: {
+            name: `${dto.title} (${targets.length} days)`,
+            description: plan.description,
+          },
+        });
+      }
+
+      for (const t of targets) {
+        if (t.status === "LOCKED") continue;
+
+        const nextTitle = dto.title
+          ? `${dto.title} — ${formatDayLabel(t.startDate)}`
+          : undefined;
+
+        await tx.target.update({
+          where: { id: t.id },
+          data: {
+            ...(nextTitle ? { title: nextTitle } : {}),
+            ...(dto.userId !== undefined ? { userId: dto.userId || null } : {}),
+            ...(dto.targetType ? { targetType: dto.targetType } : {}),
+            ...(dto.metric ? { metric: dto.metric } : {}),
+            ...(dto.targetValue !== undefined
+              ? { targetValue: new Prisma.Decimal(dto.targetValue) }
+              : {}),
+            ...(dto.unit ? { unit: dto.unit } : {}),
+          },
+        });
+
+        if (dto.incentiveRule === null) {
+          await tx.incentiveRule.deleteMany({ where: { targetId: t.id } });
+        } else if (dto.incentiveRule) {
+          await tx.incentiveRule.upsert({
+            where: { targetId: t.id },
+            update: {
+              incentiveType: dto.incentiveRule.incentiveType,
+              fixedAmount:
+                dto.incentiveRule.fixedAmount !== undefined
+                  ? new Prisma.Decimal(dto.incentiveRule.fixedAmount)
+                  : null,
+              slabs: dto.incentiveRule.slabs
+                ? JSON.parse(JSON.stringify(dto.incentiveRule.slabs))
+                : null,
+              percentages: dto.incentiveRule.percentages
+                ? JSON.parse(JSON.stringify(dto.incentiveRule.percentages))
+                : null,
+            },
+            create: {
+              targetId: t.id,
+              incentiveType: dto.incentiveRule.incentiveType,
+              fixedAmount:
+                dto.incentiveRule.fixedAmount !== undefined
+                  ? new Prisma.Decimal(dto.incentiveRule.fixedAmount)
+                  : null,
+              slabs: dto.incentiveRule.slabs
+                ? JSON.parse(JSON.stringify(dto.incentiveRule.slabs))
+                : null,
+              percentages: dto.incentiveRule.percentages
+                ? JSON.parse(JSON.stringify(dto.incentiveRule.percentages))
+                : null,
+            },
+          });
+        }
+      }
+
+      const updated = await tx.target.findMany({
+        where: { targetPlanId: planId, instituteId },
+        include: {
+          branch: true,
+          user: { select: { id: true, name: true, email: true } },
+          incentiveRule: true,
+          targetPlan: { select: { id: true, name: true, periodType: true } },
+          targetProgress: {
+            orderBy: { calculatedAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      return {
+        plan: await tx.targetPlan.findFirst({ where: { id: planId, instituteId } }),
+        updatedCount: updated.length,
+        targets: updated,
+      };
     });
   },
 

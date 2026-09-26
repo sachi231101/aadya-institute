@@ -64,8 +64,8 @@ export interface CreateTargetDTO {
 }
 
 export interface UpdateTargetDTO {
-  branchId?: string;
-  userId?: string;
+  branchId?: string | null;
+  userId?: string | null;
   title?: string;
   targetType?: TargetType;
   metric?: TargetMetric;
@@ -74,7 +74,18 @@ export interface UpdateTargetDTO {
   startDate?: string | Date;
   endDate?: string | Date;
   status?: TargetStatus;
-  incentiveRule?: CreateIncentiveRuleInput;
+  incentiveRule?: CreateIncentiveRuleInput | null;
+}
+
+/** Shared fields applied to every day in a target plan series. */
+export interface BulkUpdatePlanTargetsDTO {
+  title?: string;
+  userId?: string | null;
+  targetType?: TargetType;
+  metric?: TargetMetric;
+  targetValue?: number;
+  unit?: string;
+  incentiveRule?: CreateIncentiveRuleInput | null;
 }
 
 export interface QueryTargetsDTO {
@@ -86,6 +97,14 @@ export interface QueryTargetsDTO {
   search?: string;
   page?: number;
   limit?: number;
+  /**
+   * Counsellor/CM viewer: own individual targets OR Entire Branch Team Goals
+   * for their branch (never faculty/student).
+   */
+  staffViewer?: {
+    userId: string;
+    branchId?: string | null;
+  };
 }
 
 export interface QueryIncentivesDTO {

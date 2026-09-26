@@ -5,6 +5,7 @@ import {
   type UpdateTargetPlanInput,
   type CreateTargetInput,
   type UpdateTargetInput,
+  type BulkUpdatePlanTargetsInput,
   type QueryTargetsParams,
   type QueryIncentivesParams,
 } from "../services/targets.api";
@@ -166,6 +167,26 @@ export const useUpdateTarget = () => {
       queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allPlans });
       queryClient.invalidateQueries({ queryKey: ["targets", "performanceSummary"] });
       queryClient.invalidateQueries({ queryKey: ["targets", "leaderboard"] });
+    },
+  });
+};
+
+export const useBulkUpdatePlanTargets = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      planId,
+      data,
+    }: {
+      planId: string;
+      data: BulkUpdatePlanTargetsInput;
+    }) => targetsApi.bulkUpdatePlanTargets(planId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allTargets });
+      queryClient.invalidateQueries({ queryKey: TARGET_KEYS.allPlans });
+      queryClient.invalidateQueries({ queryKey: ["targets", "performanceSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["targets", "leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["targets", "myCurrent"] });
     },
   });
 };
