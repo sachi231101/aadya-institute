@@ -14,10 +14,14 @@ const invalidateBlockRelatedQueries = (queryClient: ReturnType<typeof useQueryCl
   queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
 };
 
-export const useFacultyScheduleBlocks = (params?: FacultyScheduleBlockListParams) => {
+export const useFacultyScheduleBlocks = (
+  params?: FacultyScheduleBlockListParams,
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: [BLOCKS_KEY, params],
     queryFn: () => facultyScheduleBlocksApi.getAll(params),
+    enabled: options?.enabled !== false,
   });
 };
 

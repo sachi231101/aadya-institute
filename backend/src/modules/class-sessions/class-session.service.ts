@@ -7,7 +7,8 @@ import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
 import { getRecordingRetentionMs } from "../recordings/recording-retention.service";
 import { googleRecordingQueue } from "../../queues/google-recording.queue";
-import { hasBranchAccess } from "../../utils/branch-isolation.util";
+import { assertBranchRecordAccess, hasBranchAccess } from "../../utils/branch-isolation.util";
+import type { AuthUser } from "../auth/auth.types";
 import {
   assertCanStartLiveSession,
   canExposeMeetingJoinUrl,
@@ -117,7 +118,7 @@ export const classSessionService = {
     return session;
   },
 
-  createSession: async (instituteId: string, data: CreateClassSessionDto) => {
+  createSession: async (instituteId: string, data: CreateClassSessionDto, actor?: AuthUser) => {
     const batch = await prisma.batch.findFirst({
       where: { id: data.batchId, instituteId },
       select: { id: true, branchId: true, facultyId: true },
@@ -138,6 +139,12 @@ export const classSessionService = {
     if (!branchId) {
       throw new AppError("Branch is required to schedule a class", 400);
     }
+    if (actor) {
+      assertBranchRecordAccess(actor, branchId, "Batch not found");
+      if (batch.branchId && batch.branchId !== branchId) {
+        assertBranchRecordAccess(actor, batch.branchId, "Batch not found");
+      }
+    }
 
     await assertNoFacultyConflict({
       instituteId,
@@ -151,11 +158,17 @@ export const classSessionService = {
     return classSessionRepository.create(instituteId, enriched);
   },
 
-  updateSession: async (id: string, instituteId: string, data: UpdateClassSessionDto) => {
+  updateSession: async (
+    id: string,
+    instituteId: string,
+    data: UpdateClassSessionDto,
+    actor?: AuthUser
+  ) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
       throw new AppError("Class session not found", 404);
     }
+    if (actor) assertBranchRecordAccess(actor, existing.branchId, "Class session not found");
 
     const facultyId = data.facultyId || existing.facultyId;
     const scheduledDate =
@@ -487,11 +500,12 @@ export const classSessionService = {
     });
   },
 
-  cancelSession: async (id: string, instituteId: string) => {
+  cancelSession: async (id: string, instituteId: string, actor?: AuthUser) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
       throw new AppError("Class session not found", 404);
     }
+    if (actor) assertBranchRecordAccess(actor, existing.branchId, "Class session not found");
     const updated = await classSessionRepository.update(id, instituteId, { status: "CANCELLED" });
 
     try {
@@ -541,11 +555,12 @@ export const classSessionService = {
     return updated;
   },
 
-  deleteSession: async (id: string, instituteId: string) => {
+  deleteSession: async (id: string, instituteId: string, actor?: AuthUser) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
       throw new AppError("Class session not found", 404);
     }
+    if (actor) assertBranchRecordAccess(actor, existing.branchId, "Class session not found");
     return classSessionRepository.delete(id);
   },
 

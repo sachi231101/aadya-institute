@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Save,
   Edit3,
+  Pencil,
+  Loader2,
   Lock,
   Plus,
   MoreVertical,
@@ -38,6 +40,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
@@ -142,6 +152,18 @@ type OverallClassChip = {
   facultyName: string;
 };
 
+type OverallClassListRow = OverallClassChip & { period: number };
+
+const CLASS_STATUS_BADGE: Record<
+  NonNullable<TimetableCellItem["status"]>,
+  { label: string; variant: "secondary" | "success" | "warning" | "destructive" }
+> = {
+  UPCOMING: { label: "Upcoming", variant: "secondary" },
+  ONGOING: { label: "Live", variant: "warning" },
+  COMPLETED: { label: "Completed", variant: "success" },
+  CANCELLED: { label: "Cancelled", variant: "destructive" },
+};
+
 const todayDayKey = (): DayKey => DAY_KEYS[(new Date().getDay() + 6) % 7];
 
 const dayKeyForDateKey = (mondayKey: string, dateKey: string): DayKey | null => {
@@ -244,8 +266,10 @@ import {
 
 export const Timetable: React.FC = () => {
   const { user } = useAuthStore();
-  const { canEditItem } = usePermissions();
+  const { canEditItem, hasPermission } = usePermissions();
   const canEditTimetable = canEditItem("schedule.timetable");
+  // DELETE /class-sessions/:id requires schedule.delete, which Timetable write alone doesn't grant CMs.
+  const canDeleteTimetableClass = canEditTimetable && hasPermission("schedule.delete");
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
   const { data: facultyResponse } = useFacultyList({ limit: 100 });
@@ -287,6 +311,15 @@ export const Timetable: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<string>(isAdmin ? "ALL" : userCenterId);
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const isAdminBranchResolved =
+    !isAdmin || branches.some((b: { id: string }) => b.id === selectedBranch);
+
+  useEffect(() => {
+    if (!isAdmin || isAdminBranchResolved || branches.length === 0) return;
+    const ownBranch = branches.find((b: { id: string }) => b.id === user?.branchId);
+    setSelectedBranch(ownBranch?.id ?? branches[0].id);
+  }, [isAdmin, isAdminBranchResolved, branches, user?.branchId]);
   /** Admin/Center: Overall week (default) or one faculty's Mon–Sun week */
   const [viewMode, setViewMode] = useState<TimetableViewMode>("OVERALL_WEEK");
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
@@ -327,10 +360,15 @@ export const Timetable: React.FC = () => {
     return params;
   }, [weekRange.from, weekRange.to, isAdmin, selectedBranch, userCenterId]);
 
-  const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
+  const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(
+    sessionQueryParams,
+    { enabled: isAdminBranchResolved }
+  );
   const classSessions = sessionsResponse?.data ?? [];
 
-  const { data: blocksResponse } = useFacultyScheduleBlocks(sessionQueryParams);
+  const { data: blocksResponse } = useFacultyScheduleBlocks(sessionQueryParams, {
+    enabled: isAdminBranchResolved,
+  });
   const scheduleBlocks = blocksResponse?.data ?? [];
 
   // Day config from master holidays (all weekdays working unless marked holiday)
@@ -525,6 +563,19 @@ export const Timetable: React.FC = () => {
       setSelectedBranch(userCenterId);
     }
   }, [isAdmin, userCenterId]);
+
+  const courseFilterBranchId = isAdmin ? selectedBranch : userCenterId;
+  const branchCourses = useMemo(() => {
+    if (!courseFilterBranchId || courseFilterBranchId === "ALL") return allCourses;
+    return allCourses.filter((c) => c.branchIds?.includes(courseFilterBranchId));
+  }, [allCourses, courseFilterBranchId]);
+
+  useEffect(() => {
+    if (selectedCourse === "ALL" || allCourses.length === 0) return;
+    if (!branchCourses.some((c) => c.id === selectedCourse)) {
+      setSelectedCourse("ALL");
+    }
+  }, [selectedCourse, branchCourses, allCourses.length]);
 
   // Week Date Label
   const weekDateLabel = weekRange.label;
@@ -809,6 +860,41 @@ export const Timetable: React.FC = () => {
     return n;
   }, [overallWeekGrid, timeSlotColumns]);
 
+  /** Overall week: day label → full-day list; crowded cell → that slot's list. */
+  const [dayListKey, setDayListKey] = useState<DayKey | null>(null);
+  const [slotListTarget, setSlotListTarget] = useState<{ dayKey: DayKey; period: number } | null>(
+    null
+  );
+  const [listDeleteTarget, setListDeleteTarget] = useState<{
+    dayKey: DayKey;
+    row: OverallClassListRow;
+  } | null>(null);
+  const [isDeletingFromList, setIsDeletingFromList] = useState(false);
+
+  const dayListConfig = dayListKey ? daysConfig.find((d) => d.key === dayListKey) : undefined;
+  const dayListRows = useMemo<OverallClassListRow[]>(() => {
+    if (!dayListKey) return [];
+    const dayGrid = overallWeekGrid[dayListKey];
+    if (!dayGrid) return [];
+    return timeSlotColumns.flatMap((col) =>
+      (dayGrid[col.period] ?? []).map((chip) => ({ ...chip, period: col.period }))
+    );
+  }, [dayListKey, overallWeekGrid, timeSlotColumns]);
+
+  const slotListConfig = slotListTarget
+    ? daysConfig.find((d) => d.key === slotListTarget.dayKey)
+    : undefined;
+  const slotListColumn = slotListTarget
+    ? timeSlotColumns.find((c) => c.period === slotListTarget.period)
+    : undefined;
+  const slotListRows = useMemo<OverallClassListRow[]>(() => {
+    if (!slotListTarget) return [];
+    return (overallWeekGrid[slotListTarget.dayKey]?.[slotListTarget.period] ?? []).map((chip) => ({
+      ...chip,
+      period: slotListTarget.period,
+    }));
+  }, [slotListTarget, overallWeekGrid]);
+
   // ─── ACTIONS: OPEN ADD/EDIT MODAL ──────────────────────────────────────────
 
   const handleOpenAddOrEditModal = (
@@ -864,6 +950,120 @@ export const Timetable: React.FC = () => {
     setModalFormErrors({});
     setIsEditModalOpen(true);
   };
+
+  const getListRowLockReason = (dayKey: DayKey, row: OverallClassListRow): string | null => {
+    const dayConfig = daysConfig.find((d) => d.key === dayKey);
+    if (dayConfig && !dayConfig.isWorking) {
+      return `${dayConfig.note || "Holiday"} — scheduling is closed for this day.`;
+    }
+    if (row.cell.status === "COMPLETED") return "Completed classes can't be edited or deleted.";
+    if (row.cell.status === "CANCELLED") return "Cancelled classes can't be edited or deleted.";
+    return null;
+  };
+
+  const handleOpenClassFromList = (dayKey: DayKey, row: OverallClassListRow) => {
+    if (!canEditTimetable || getListRowLockReason(dayKey, row)) return;
+    setDayListKey(null);
+    setSlotListTarget(null);
+    handleOpenAddOrEditModal(row.facultyId, dayKey, row.period, row.cell);
+  };
+
+  const renderClassListRows = (
+    dayKey: DayKey,
+    rows: OverallClassListRow[],
+    options: { showTime: boolean }
+  ) => (
+    <ul className="divide-y divide-border rounded-lg border border-border">
+      {rows.map((row) => {
+        const col = timeSlotColumns.find((c) => c.period === row.period);
+        const status = row.cell.status ? CLASS_STATUS_BADGE[row.cell.status] : undefined;
+        const courseLabel = row.cell.courseName || row.cell.title || "Class";
+        const lockReason = getListRowLockReason(dayKey, row);
+        const canActOnRow = canEditTimetable && !lockReason;
+        const isDeletingRow =
+          isDeletingFromList && listDeleteTarget?.row.cell.sessionId === row.cell.sessionId;
+        return (
+          <li key={row.cell.sessionId || row.cell.id} className="flex items-stretch">
+            <button
+              type="button"
+              disabled={!canActOnRow}
+              onClick={() => handleOpenClassFromList(dayKey, row)}
+              className={`min-w-0 flex-1 text-left px-3 py-2.5 flex items-start gap-3 transition-colors ${
+                canActOnRow
+                  ? "hover:bg-muted/50 cursor-pointer focus-visible:outline-none focus-visible:bg-muted/50"
+                  : "cursor-default"
+              }`}
+            >
+              {options.showTime && (
+                <div className="w-[88px] shrink-0 text-[11px] font-semibold text-foreground leading-tight">
+                  {col?.timeTitle || row.cell.timeRange}
+                  {col?.subTitle ? (
+                    <div className="text-[10px] font-medium text-muted-foreground">{col.subTitle}</div>
+                  ) : null}
+                </div>
+              )}
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground truncate">{courseLabel}</span>
+                  {status && (
+                    <Badge variant={status.variant} className="shrink-0 px-1.5 py-0 text-[10px]">
+                      {status.label}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {[row.cell.batchCode, row.cell.roomNo ? `Room ${row.cell.roomNo}` : null]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">{row.facultyName}</div>
+              </div>
+            </button>
+            {canEditTimetable && (
+              <span
+                className="flex shrink-0 flex-col justify-center gap-1 pr-2 py-2"
+                title={lockReason ?? undefined}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canActOnRow || isDeletingFromList}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenClassFromList(dayKey, row);
+                  }}
+                  className="h-7 gap-1 px-2 text-xs"
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </Button>
+                {canDeleteTimetableClass && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canActOnRow || isDeletingFromList}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setListDeleteTarget({ dayKey, row });
+                    }}
+                    className="h-7 gap-1 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                  >
+                    {isDeletingRow ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                    Delete
+                  </Button>
+                )}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   const handleSaveSlot = async () => {
     if (!modalFacultyId) {
@@ -1047,8 +1247,6 @@ export const Timetable: React.FC = () => {
   const handleDeleteSlot = async (facultyId: string, dayKey: DayKey, period: number) => {
     const fac = facultyRoster.find((f) => f.id === facultyId);
     const cell = fac?.weeklySchedule[dayKey]?.[period];
-    const { start } = periodToTimes(period, timeSlotColumns);
-    const scheduledDate = getDateForDayKey(dayKey);
 
     if (!cell?.sessionId && !cell?.blockId) {
       setNotificationMsg("No class or block to remove for this slot.");
@@ -1064,6 +1262,19 @@ export const Timetable: React.FC = () => {
     const confirmed = window.confirm(`Remove ${label} from this slot?`);
     if (!confirmed) return;
 
+    await clearSlotItems(facultyId, dayKey, period, cell);
+  };
+
+  /** Deletes the class session and/or faculty block backing a slot. Returns true on success. */
+  const clearSlotItems = async (
+    facultyId: string,
+    dayKey: DayKey,
+    period: number,
+    cell: TimetableCellItem
+  ): Promise<boolean> => {
+    const { start } = periodToTimes(period, timeSlotColumns);
+    const scheduledDate = getDateForDayKey(dayKey);
+    let ok = false;
     try {
       if (cell.sessionId) {
         await deleteSession.mutateAsync(cell.sessionId);
@@ -1076,10 +1287,21 @@ export const Timetable: React.FC = () => {
         });
       }
       setNotificationMsg(`✓ Slot cleared for period ${period}.`);
+      ok = true;
     } catch (err: unknown) {
       setNotificationMsg(getApiErrorMessage(err, "Failed to clear slot. Please try again."));
     }
     setTimeout(() => setNotificationMsg(null), 3000);
+    return ok;
+  };
+
+  const handleConfirmDeleteFromList = async () => {
+    if (!listDeleteTarget) return;
+    const { dayKey, row } = listDeleteTarget;
+    setIsDeletingFromList(true);
+    const ok = await clearSlotItems(row.facultyId, dayKey, row.period, row.cell);
+    setIsDeletingFromList(false);
+    if (ok) setListDeleteTarget(null);
   };
 
   const handleOpenMoveModal = (facultyId: string, dayKey: DayKey, period: number) => {
@@ -1211,13 +1433,17 @@ export const Timetable: React.FC = () => {
                     >
                       <MoveHorizontal className="h-3 w-3 text-indigo-400" /> Move
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-border" />
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteSlot(facultyId, dayKey, col.period)}
-                      className="gap-2 text-rose-500 cursor-pointer text-xs py-1.5"
-                    >
-                      <Trash2 className="h-3 w-3" /> Remove
-                    </DropdownMenuItem>
+                    {canDeleteTimetableClass && (
+                      <>
+                        <DropdownMenuSeparator className="bg-border" />
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteSlot(facultyId, dayKey, col.period)}
+                          className="gap-2 text-rose-500 cursor-pointer text-xs py-1.5"
+                        >
+                          <Trash2 className="h-3 w-3" /> Remove
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -1477,7 +1703,6 @@ export const Timetable: React.FC = () => {
               className="h-9 min-w-[140px] px-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               aria-label="Branch"
             >
-              <option value="ALL">All branches</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -1497,19 +1722,16 @@ export const Timetable: React.FC = () => {
             aria-label="Course"
           >
             <option value="ALL">All courses</option>
-            {allCourses.map((c) => (
+            {branchCourses.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
 
-          {((isAdmin && selectedBranch !== "ALL") ||
-            selectedCourse !== "ALL" ||
-            searchQuery.trim().length > 0) && (
+          {(selectedCourse !== "ALL" || searchQuery.trim().length > 0) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                if (isAdmin) setSelectedBranch("ALL");
                 setSelectedCourse("ALL");
                 setSearchQuery("");
               }}
@@ -1690,6 +1912,10 @@ export const Timetable: React.FC = () => {
                 daysConfig.map((d, dayIdx) => {
                   const dayOff = !d.isWorking;
                   const bandBg = dayIdx % 2 === 0 ? "bg-muted/15" : "bg-card";
+                  const dayClassCount = timeSlotColumns.reduce(
+                    (n, col) => n + (overallWeekGrid[d.key]?.[col.period]?.length ?? 0),
+                    0
+                  );
                   return (
                     <tr
                       key={d.key}
@@ -1698,11 +1924,16 @@ export const Timetable: React.FC = () => {
                       }`}
                     >
                       <td
-                        className={`py-1.5 px-3 pl-4 border-r border-border align-middle sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] ${
+                        className={`p-1 border-r border-border align-middle sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] ${
                           dayOff ? "bg-rose-50/60 dark:bg-rose-950/20" : bandBg
                         }`}
                       >
-                        <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setDayListKey(d.key)}
+                          title={`View all classes on ${d.fullDay}`}
+                          className="w-full min-w-0 text-left rounded-md py-0.5 px-2 pl-3 cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                        >
                           <h4
                             className={`font-semibold text-[11px] truncate leading-tight ${
                               dayOff ? "text-rose-700 dark:text-rose-300" : "text-foreground"
@@ -1712,13 +1943,16 @@ export const Timetable: React.FC = () => {
                           </h4>
                           <p className="text-[9px] text-muted-foreground truncate leading-tight">
                             {d.dateStr}
+                            {dayClassCount > 0
+                              ? ` · ${dayClassCount} ${dayClassCount === 1 ? "class" : "classes"}`
+                              : ""}
                           </p>
                           {dayOff && (
                             <p className="text-[8px] font-medium text-rose-600 dark:text-rose-400 mt-0.5 truncate">
                               {d.note || "Holiday"}
                             </p>
                           )}
-                        </div>
+                        </button>
                       </td>
                       {timeSlotColumns.map((col, colIdx) => {
                         const chips = overallWeekGrid[d.key]?.[col.period] ?? [];
@@ -1749,7 +1983,31 @@ export const Timetable: React.FC = () => {
                             className="p-1 border-r border-border last:border-r-0 align-top"
                           >
                             <div className="flex flex-col gap-1 min-h-[52px]">
-                              {chips.map((chip) => (
+                              {chips.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSlotListTarget({ dayKey: d.key, period: col.period })
+                                  }
+                                  className="min-h-[52px] w-full text-left px-1.5 py-1 rounded-md border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 hover:border-blue-500/60 cursor-pointer transition-all flex flex-col justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  title={chips
+                                    .map(
+                                      (chip) =>
+                                        `${chip.cell.courseName || chip.cell.title || "Class"} · ${chip.cell.batchCode || ""} · ${chip.facultyName}`
+                                    )
+                                    .join("\n")}
+                                >
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-900 dark:text-blue-200 leading-tight">
+                                    <Users className="h-2.5 w-2.5 shrink-0" />
+                                    {chips.length} classes
+                                  </span>
+                                  <span className="text-[8px] text-muted-foreground truncate leading-tight mt-0.5">
+                                    {chips[0].cell.courseName || chips[0].cell.title || "Class"}
+                                    {` +${chips.length - 1}`}
+                                  </span>
+                                </button>
+                              )}
+                              {chips.length === 1 && chips.map((chip) => (
                                 <button
                                   key={chip.cell.sessionId || chip.cell.id}
                                   type="button"
@@ -1957,6 +2215,108 @@ export const Timetable: React.FC = () => {
           )}
         </div>
       </Card>
+
+      {/* ─── OVERALL WEEK: ALL CLASSES FOR A DAY ─────────────────────────── */}
+      <Sheet open={dayListKey !== null} onOpenChange={(open) => !open && setDayListKey(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-4 overflow-hidden">
+          <SheetHeader className="pr-6">
+            <SheetTitle>
+              {dayListConfig ? `${dayListConfig.fullDay} · ${dayListConfig.dateStr}` : "Classes"}
+            </SheetTitle>
+            <SheetDescription>
+              {dayListConfig && !dayListConfig.isWorking
+                ? `${dayListConfig.note || "Holiday"} — scheduling is closed for this day.`
+                : `${dayListRows.length} ${dayListRows.length === 1 ? "class" : "classes"} · ${branchLabel}${
+                    canEditTimetable ? " · Edit or delete a class" : ""
+                  }`}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto -mx-1 px-1">
+            {dayListKey && dayListRows.length > 0 ? (
+              renderClassListRows(dayListKey, dayListRows, { showTime: true })
+            ) : (
+              <div className="py-12 text-center space-y-1">
+                <Calendar className="h-6 w-6 mx-auto text-muted-foreground" />
+                <p className="text-sm font-semibold text-foreground">No classes scheduled</p>
+                <p className="text-xs text-muted-foreground">
+                  Nothing matches the current filters for this day.
+                </p>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── OVERALL WEEK: CLASSES IN ONE SLOT ──────────────────────────── */}
+      <Dialog open={slotListTarget !== null} onOpenChange={(open) => !open && setSlotListTarget(null)}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {slotListConfig ? `${slotListConfig.fullDay} · ${slotListConfig.dateStr}` : "Classes"}
+            </DialogTitle>
+            <DialogDescription>
+              {slotListColumn
+                ? `${slotListColumn.timeTitle}${slotListColumn.subTitle ? ` (${slotListColumn.subTitle})` : ""}`
+                : ""}
+              {` · ${slotListRows.length} ${slotListRows.length === 1 ? "class" : "classes"}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            {slotListTarget && slotListRows.length > 0 ? (
+              renderClassListRows(slotListTarget.dayKey, slotListRows, { showTime: false })
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No classes in this time slot.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── OVERALL WEEK: CONFIRM DELETE FROM LIST ─────────────────────── */}
+      <Dialog
+        open={listDeleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingFromList) setListDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete class?</DialogTitle>
+            <DialogDescription>
+              {listDeleteTarget
+                ? `"${
+                    listDeleteTarget.row.cell.courseName || listDeleteTarget.row.cell.title || "Class"
+                  }"${
+                    listDeleteTarget.row.cell.batchCode ? ` (${listDeleteTarget.row.cell.batchCode})` : ""
+                  } with ${listDeleteTarget.row.facultyName} will be removed from the timetable. This can't be undone.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              disabled={isDeletingFromList}
+              onClick={() => setListDeleteTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isDeletingFromList}
+              onClick={handleConfirmDeleteFromList}
+              className="gap-1.5"
+            >
+              {isDeletingFromList ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── MODAL 1: ADD / EDIT CLASS SCHEDULE ─────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
