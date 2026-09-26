@@ -10,6 +10,7 @@ import type {
   QueryIncentivesDTO,
   CalculationResult,
 } from "./target.types";
+import { toDayStart, toDayEnd, resolveTargetLifecycleStatus } from "./target.dates";
 
 export const TargetRepository = {
   // ─── Target Plans ──────────────────────────────────────────────────────────
@@ -89,8 +90,8 @@ export const TargetRepository = {
         name: dto.name,
         description: dto.description || null,
         periodType: dto.periodType,
-        startDate: new Date(dto.startDate),
-        endDate: new Date(dto.endDate),
+        startDate: toDayStart(dto.startDate),
+        endDate: toDayEnd(dto.endDate),
         status: "DRAFT",
         createdById,
       },
@@ -113,8 +114,8 @@ export const TargetRepository = {
         ...(dto.name ? { name: dto.name } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.periodType ? { periodType: dto.periodType } : {}),
-        ...(dto.startDate ? { startDate: new Date(dto.startDate) } : {}),
-        ...(dto.endDate ? { endDate: new Date(dto.endDate) } : {}),
+        ...(dto.startDate ? { startDate: toDayStart(dto.startDate) } : {}),
+        ...(dto.endDate ? { endDate: toDayEnd(dto.endDate) } : {}),
         ...(dto.status ? { status: dto.status } : {}),
       },
     });
@@ -229,6 +230,10 @@ export const TargetRepository = {
     dto: CreateTargetDTO
   ) {
     return prisma.$transaction(async (tx) => {
+      const startDate = toDayStart(dto.startDate);
+      const endDate = toDayEnd(dto.endDate);
+      const status = resolveTargetLifecycleStatus(startDate, endDate);
+
       const target = await tx.target.create({
         data: {
           instituteId,
@@ -240,9 +245,9 @@ export const TargetRepository = {
           metric: dto.metric,
           targetValue: new Prisma.Decimal(dto.targetValue),
           unit: dto.unit || "COUNT",
-          startDate: new Date(dto.startDate),
-          endDate: new Date(dto.endDate),
-          status: "ACTIVE",
+          startDate,
+          endDate,
+          status,
           createdById,
         },
         include: {
@@ -285,6 +290,17 @@ export const TargetRepository = {
     dto: UpdateTargetDTO
   ) {
     return prisma.$transaction(async (tx) => {
+      const existing = await tx.target.findFirst({ where: { id, instituteId } });
+      if (!existing) return null;
+
+      const nextStart = dto.startDate ? toDayStart(dto.startDate) : existing.startDate;
+      const nextEnd = dto.endDate ? toDayEnd(dto.endDate) : existing.endDate;
+      const nextStatus =
+        dto.status ??
+        (dto.startDate || dto.endDate
+          ? resolveTargetLifecycleStatus(nextStart, nextEnd)
+          : undefined);
+
       await tx.target.updateMany({
         where: { id, instituteId },
         data: {
@@ -295,9 +311,9 @@ export const TargetRepository = {
           ...(dto.metric ? { metric: dto.metric } : {}),
           ...(dto.targetValue !== undefined ? { targetValue: new Prisma.Decimal(dto.targetValue) } : {}),
           ...(dto.unit ? { unit: dto.unit } : {}),
-          ...(dto.startDate ? { startDate: new Date(dto.startDate) } : {}),
-          ...(dto.endDate ? { endDate: new Date(dto.endDate) } : {}),
-          ...(dto.status ? { status: dto.status } : {}),
+          ...(dto.startDate ? { startDate: nextStart } : {}),
+          ...(dto.endDate ? { endDate: nextEnd } : {}),
+          ...(nextStatus ? { status: nextStatus } : {}),
         },
       });
 
@@ -371,7 +387,7 @@ export const TargetRepository = {
   async findMyActiveTargets(instituteId: string, userId: string, branchId?: string | null) {
     const where: Prisma.TargetWhereInput = {
       instituteId,
-      status: { in: ["ACTIVE", "PUBLISHED", "COMPLETED"] },
+      status: { in: ["UPCOMING", "ACTIVE", "PUBLISHED", "COMPLETED"] },
       ...(branchId
         ? {
             OR: [

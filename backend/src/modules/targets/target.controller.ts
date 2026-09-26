@@ -251,6 +251,22 @@ export const TargetController = {
 
   // ─── Incentives & Approvals ────────────────────────────────────────────────
 
+  async settleDueIncentives(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await TargetService.settleDueIncentives(
+        req.user as unknown as AuthUser
+      );
+      sendSuccess(
+        res,
+        result,
+        200,
+        `Settled ${result.settled} incentive(s) for approval`
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getIncentives(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const result = await TargetService.getIncentives(

@@ -5,7 +5,6 @@ import type {
   IncentivePercentageTier,
   CalculationResult,
 } from "./target.types";
-import { logger } from "../../config/logger";
 
 export const TargetCalculationService = {
   /**
@@ -148,8 +147,26 @@ export const TargetCalculationService = {
         return count;
       }
 
-      case "ADMISSION_REVENUE":
-      case "FEE_COLLECTION": {
+      case "ADMISSION_REVENUE": {
+        // Total New Fees: SUCCESS payments in period on admissions created in the same period
+        const counsellorAttribution = userId
+          ? {
+              OR: [
+                { recordedById: userId },
+                {
+                  admission: {
+                    convertedFromLeads: { some: { assignedCounsellorId: userId } },
+                  },
+                },
+                {
+                  admission: {
+                    application: { lead: { assignedCounsellorId: userId } },
+                  },
+                },
+              ],
+            }
+          : {};
+
         const agg = await prisma.payment.aggregate({
           _sum: { amount: true },
           where: {
@@ -157,15 +174,54 @@ export const TargetCalculationService = {
             ...branchFilter,
             status: "SUCCESS",
             date: { gte: startDate, lte: endDate },
-            ...(userId
-              ? {
-                  OR: [
-                    { recordedById: userId },
-                    { admission: { convertedFromLeads: { some: { assignedCounsellorId: userId } } } },
-                    { admission: { application: { lead: { assignedCounsellorId: userId } } } },
-                  ],
-                }
-              : {}),
+            admission: {
+              createdAt: { gte: startDate, lte: endDate },
+            },
+            ...counsellorAttribution,
+          },
+        });
+        return Number(agg._sum.amount ?? 0);
+      }
+
+      case "FEE_COLLECTION": {
+        // Total Due Collection: SUCCESS payments in period linked to OVERDUE pending fees only
+        const counsellorAttribution = userId
+          ? {
+              OR: [
+                { recordedById: userId },
+                {
+                  admission: {
+                    convertedFromLeads: { some: { assignedCounsellorId: userId } },
+                  },
+                },
+                {
+                  admission: {
+                    application: { lead: { assignedCounsellorId: userId } },
+                  },
+                },
+              ],
+            }
+          : {};
+
+        const overduePendingFeeFilter = {
+          OR: [
+            { pendingFee: { status: "OVERDUE" as const } },
+            {
+              allocations: {
+                some: { pendingFee: { status: "OVERDUE" as const } },
+              },
+            },
+          ],
+        };
+
+        const agg = await prisma.payment.aggregate({
+          _sum: { amount: true },
+          where: {
+            instituteId,
+            ...branchFilter,
+            status: "SUCCESS",
+            date: { gte: startDate, lte: endDate },
+            AND: [overduePendingFeeFilter, ...(userId ? [counsellorAttribution] : [])],
           },
         });
         return Number(agg._sum.amount ?? 0);
@@ -190,19 +246,34 @@ export const TargetCalculationService = {
     switch (rule.incentiveType) {
       case "FIXED": {
         const fixed = Number(rule.fixedAmount ?? 0);
-        return achievementPercentage >= 100 ? fixed : 0;
+        // Pay fixed reward when target is met or exceeded (by % or absolute)
+        if (achievementPercentage >= 100 || achievedValue >= targetValue) {
+          return fixed;
+        }
+        return 0;
       }
 
       case "SLAB": {
         const slabs = (rule.slabs as unknown as IncentiveSlab[]) || [];
         if (!Array.isArray(slabs) || slabs.length === 0) return 0;
 
-        // Find the matching slab
-        const matched = slabs.find(
-          (s) =>
-            achievementPercentage >= s.minPercent &&
-            achievementPercentage <= s.maxPercent
-        );
+        const matched = slabs.find((s) => {
+          // Prefer absolute collection/count brackets (numbers, not %)
+          if (s.minValue !== undefined && s.maxValue !== undefined) {
+            return (
+              achievedValue >= Number(s.minValue) &&
+              achievedValue <= Number(s.maxValue)
+            );
+          }
+          // Legacy percent-of-target brackets
+          if (s.minPercent !== undefined && s.maxPercent !== undefined) {
+            return (
+              achievementPercentage >= Number(s.minPercent) &&
+              achievementPercentage <= Number(s.maxPercent)
+            );
+          }
+          return false;
+        });
 
         return matched ? Number(matched.amount) : 0;
       }

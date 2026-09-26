@@ -12,6 +12,7 @@ export const TargetPeriodEnum = z.enum([
 export const TargetStatusEnum = z.enum([
   "DRAFT",
   "PUBLISHED",
+  "UPCOMING",
   "ACTIVE",
   "COMPLETED",
   "LOCKED",
@@ -45,11 +46,20 @@ export const IncentiveStatusEnum = z.enum([
   "CANCELLED",
 ]);
 
-const IncentiveSlabSchema = z.object({
-  minPercent: z.number().min(0, "Minimum percent must be at least 0"),
-  maxPercent: z.number().min(0, "Maximum percent must be at least 0"),
-  amount: z.number().min(0, "Amount must be at least 0"),
-});
+const IncentiveSlabSchema = z
+  .object({
+    minValue: z.number().min(0).optional(),
+    maxValue: z.number().min(0).optional(),
+    minPercent: z.number().min(0).optional(),
+    maxPercent: z.number().min(0).optional(),
+    amount: z.number().min(0, "Amount must be at least 0"),
+  })
+  .refine(
+    (s) =>
+      (s.minValue !== undefined && s.maxValue !== undefined) ||
+      (s.minPercent !== undefined && s.maxPercent !== undefined),
+    { message: "Slab must include min/max value or min/max percent" }
+  );
 
 const IncentivePercentageTierSchema = z.object({
   minPercent: z.number().min(0, "Minimum percent must be at least 0"),
@@ -129,7 +139,7 @@ export const QueryTargetsSchema = z.object({
   status: TargetStatusEnum.optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(200).default(20),
 });
 
 export const QueryIncentivesSchema = z.object({
@@ -139,7 +149,7 @@ export const QueryIncentivesSchema = z.object({
   targetPlanId: z.string().optional(),
   status: IncentiveStatusEnum.optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(200).default(20),
 });
 
 export const ApproveIncentiveSchema = z.object({

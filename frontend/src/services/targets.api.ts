@@ -246,6 +246,13 @@ export const targetsApi = {
     return response.data;
   },
 
+  settleDueIncentives: async (): Promise<{
+    data: { settled: number; skipped: number; scanned: number };
+  }> => {
+    const response = await api.post("/targets/incentives/settle-due");
+    return response.data;
+  },
+
   rejectIncentive: async (
     id: string,
     data: { reason: string }

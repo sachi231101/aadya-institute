@@ -106,6 +106,12 @@ router.get(
   TargetController.getIncentives
 );
 
+router.post(
+  "/incentives/settle-due",
+  requirePermission("incentive.approve"),
+  TargetController.settleDueIncentives
+);
+
 router.get(
   "/incentives/:id",
   requirePermission("incentive.read"),

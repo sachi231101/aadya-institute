@@ -17,6 +17,7 @@ import type {
   PerformanceSummary,
   LeaderboardEntry,
 } from "./target.types";
+import { toDayEnd } from "./target.dates";
 
 const scopedBranchId = (user: AuthUser): string | undefined =>
   isBranchLockedRole(user.roles) ? (user.branchId ?? undefined) : undefined;
@@ -359,8 +360,12 @@ export const TargetService = {
     const progress = await TargetCalculationService.computeTargetProgress(target);
     await TargetRepository.saveTargetProgress(progress);
 
-    // If target has passed its end date, record incentive in PENDING_APPROVAL status
-    if (new Date() >= new Date(target.endDate) && target.userId && progress.potentialIncentive > 0) {
+    // Settle only after the target calendar day has fully ended (IST end-of-day)
+    if (
+      new Date() > toDayEnd(target.endDate) &&
+      target.userId &&
+      progress.potentialIncentive > 0
+    ) {
       await TargetRepository.upsertCalculatedIncentive({
         instituteId: target.instituteId,
         branchId: target.branchId,
@@ -573,6 +578,60 @@ export const TargetService = {
   },
 
   // ─── Incentives & Approvals ────────────────────────────────────────────────
+
+  /**
+   * Recalculate completed counsellor targets and open PENDING_APPROVAL incentive
+   * rows for admin/manager approval when a reward was earned.
+   */
+  async settleDueIncentives(currentUser: AuthUser) {
+    const allowedBranchId = scopedBranchId(currentUser);
+
+    const completedTargets = await prisma.target.findMany({
+      where: {
+        instituteId: currentUser.instituteId,
+        status: "COMPLETED",
+        userId: { not: null },
+        incentiveRule: { isNot: null },
+        ...(allowedBranchId ? { branchId: allowedBranchId } : {}),
+      },
+      include: { incentiveRule: true },
+      take: 500,
+    });
+
+    let settled = 0;
+    let skipped = 0;
+
+    for (const target of completedTargets) {
+      try {
+        const progress = await TargetCalculationService.computeTargetProgress(target);
+        await TargetRepository.saveTargetProgress(progress);
+
+        if (!target.userId || progress.potentialIncentive <= 0) {
+          skipped++;
+          continue;
+        }
+
+        await TargetRepository.upsertCalculatedIncentive({
+          instituteId: target.instituteId,
+          branchId: target.branchId,
+          targetId: target.id,
+          targetPlanId: target.targetPlanId,
+          userId: target.userId,
+          periodStart: target.startDate,
+          periodEnd: target.endDate,
+          targetValue: progress.targetValue,
+          achievedValue: progress.achievedValue,
+          achievementPercentage: progress.achievementPercentage,
+          calculatedAmount: progress.potentialIncentive,
+        });
+        settled++;
+      } catch (err) {
+        skipped++;
+      }
+    }
+
+    return { settled, skipped, scanned: completedTargets.length };
+  },
 
   async getIncentives(currentUser: AuthUser, query: QueryIncentivesDTO) {
     const allowedBranchId = scopedBranchId(currentUser);
