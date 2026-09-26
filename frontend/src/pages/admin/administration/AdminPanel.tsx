@@ -17,6 +17,7 @@ import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
 import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -705,7 +706,15 @@ export const AdminPanel: React.FC = () => {
               <Label>Phone (optional)</Label>
               <Input
                 value={inviteForm.phone}
-                onChange={(e) => setInviteForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(e) =>
+                  setInviteForm((f) => ({
+                    ...f,
+                    phone: sanitizeMobileInput(e.target.value),
+                  }))
+                }
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit mobile"
                 className="rounded-xl"
               />
             </div>

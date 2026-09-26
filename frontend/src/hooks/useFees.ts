@@ -24,10 +24,10 @@ export const FEES_KEYS = {
   studentStatement: (studentId?: string) => ["fees", "student-statement", studentId] as const,
 };
 
-export const useFeeStats = () =>
+export const useFeeStats = (params?: { branchId?: string }) =>
   useQuery({
-    queryKey: FEES_KEYS.stats,
-    queryFn: () => feesApi.getStats(),
+    queryKey: [...FEES_KEYS.stats, params?.branchId ?? "all"],
+    queryFn: () => feesApi.getStats(params),
   });
 
 export const useFeeReports = () =>

@@ -11,10 +11,26 @@ import {
   createAdmissionSchema,
   updateAdmissionSchema,
   queryAdmissionsSchema,
+  admissionStaffOptionsQuerySchema,
 } from "./admissions.validation";
 import type { ApplicationStatus, FeeStatus, AdmissionStatus } from "./admissions.types";
 
 export const AdmissionsController = {
+  async getStaffOptions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const user = toAuthUser(req);
+      const { branchId } = admissionStaffOptionsQuerySchema.parse(req.query);
+      const data = await AdmissionsService.listStaffOptions(user, branchId);
+      res.json({
+        success: true,
+        message: "Admission staff options fetched successfully",
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async getApplications(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {

@@ -66,7 +66,9 @@ import {
   type PackageCourseRef,
 } from "@/utils/admission-package.utils";
 import { useBatches } from "@/hooks/useBatches";
-import { batchIncludesCourse } from "@/utils/batch.utils";// ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
+import { batchIncludesCourse } from "@/utils/batch.utils";
+import { sanitizeMobileInput } from "@/utils/validation";
+// ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
 
 export type AdmissionRecordStatus = "Confirmed" | "Provisional" | "Admission Pending" | "Cancelled";
 export type BatchType = "Morning Batch" | "Evening Batch" | "Weekend Batch";
@@ -1351,9 +1353,11 @@ export const AllAdmissions: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-foreground mb-1">Phone Number *</label>
                     <Input
-                      placeholder="+91 98765 43210"
+                      placeholder="10-digit mobile"
                       value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
+                      onChange={(e) => setFormPhone(sanitizeMobileInput(e.target.value))}
+                      inputMode="numeric"
+                      maxLength={10}
                       required
                       className="bg-background border-border text-foreground text-xs h-9.5"
                     />

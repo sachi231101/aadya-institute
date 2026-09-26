@@ -6,6 +6,7 @@ import * as z from "zod";
 import { useFacultyMember, useUpdateFaculty } from "../../../hooks/useFaculty";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { usePermissions } from "@/hooks/usePermissions";
+import { sanitizeMobileInput } from "@/utils/validation";
 import {
   formatLatLngDisplay,
   handleLatLngChange,
@@ -40,7 +41,11 @@ const WORK_LAT_LNG_FIELDS = {
 const editFacultySchema = z.object({
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
   specialization: z.string().optional().or(z.literal("")),
   designationMasterId: z.string().optional().or(z.literal("")),
   qualificationMasterId: z.string().optional().or(z.literal("")),
@@ -253,7 +258,14 @@ export const EditFaculty: React.FC = () => {
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

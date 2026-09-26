@@ -29,6 +29,7 @@ import {
 import {
   validatePasswordAgainstPolicy,
 } from "@/utils/password-policy";
+import { sanitizeMobileInput } from "@/utils/validation";
 import {
   ArrowLeft,
   Loader2,
@@ -444,7 +445,7 @@ export const AddAdmin: React.FC = () => {
                           maxLength={10}
                           {...field}
                           onChange={(e) =>
-                            field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                            field.onChange(sanitizeMobileInput(e.target.value))
                           }
                         />
                       </FormControl>

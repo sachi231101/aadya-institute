@@ -28,6 +28,7 @@ import {
   applicationCreateSchema,
   type ApplicationCreateFormValues,
 } from "../application-create.schema";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 type CourseOption = { id: string; name: string };
 type BranchOption = { id: string; name: string };
@@ -154,7 +155,16 @@ export function ApplicationCreateDialog({
                   <FormItem>
                     <FormLabel>Mobile Number *</FormLabel>
                     <FormControl>
-                      <Input placeholder="9876543210" {...field} className="h-10 text-xs" />
+                      <Input
+                        placeholder="9876543210"
+                        inputMode="numeric"
+                        maxLength={10}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(sanitizeMobileInput(e.target.value))
+                        }
+                        className="h-10 text-xs"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -36,6 +36,7 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import type { ApplicationListItem } from "@/utils/map-application";
 import type { ApplicationActivity } from "@/types/admission.types";
 import { renderApplicationStatusBadge } from "./application-status-badges";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 type CourseOption = { id: string; name: string };
 
@@ -375,7 +376,12 @@ export function ApplicationDetailsSheet({
                           <label className="text-[11px] text-muted-foreground">Mobile</label>
                           <Input
                             value={editPhone}
-                            onChange={(e) => setEditPhone(e.target.value)}
+                            onChange={(e) =>
+                              setEditPhone(sanitizeMobileInput(e.target.value))
+                            }
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder="10-digit mobile"
                             className="h-9 text-xs mt-1"
                           />
                         </div>

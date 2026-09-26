@@ -22,6 +22,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
+import { sanitizeMobileInput } from "@/utils/validation";
 import {
   buildPermissionsFromAccess,
   permissionsToAccessState,
@@ -704,7 +705,9 @@ export const AllCounsellors: React.FC = () => {
                     type="text"
                     placeholder="10-digit phone"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(sanitizeMobileInput(e.target.value))}
+                    inputMode="numeric"
+                    maxLength={10}
                     required
                   />
                 </div>
@@ -897,7 +900,10 @@ export const AllCounsellors: React.FC = () => {
                   <Input
                     type="text"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
+                    onChange={(e) => setEditPhone(sanitizeMobileInput(e.target.value))}
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="10-digit phone"
                     required
                   />
                 </div>

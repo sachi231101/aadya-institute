@@ -142,3 +142,8 @@ export const queryAdmissionsSchema = z.object({
   page: z.coerce.number().optional().default(1),
   limit: z.coerce.number().optional().default(20),
 });
+
+/** Staff picker for "Admission taken by" — scoped to a branch. */
+export const admissionStaffOptionsQuerySchema = z.object({
+  branchId: z.string().min(1, "branchId is required"),
+});

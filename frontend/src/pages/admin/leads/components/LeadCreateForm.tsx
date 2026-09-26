@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
+import { sanitizeMobileInput } from "@/utils/validation";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { SearchableSelect } from "@/components/common/SearchableSelect";
 
@@ -175,7 +176,7 @@ export const LeadCreateForm: React.FC<LeadCreateFormProps> = ({
                     maxLength={10}
                     {...field}
                     onChange={(e) =>
-                      field.onChange(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      field.onChange(sanitizeMobileInput(e.target.value))
                     }
                   />
                 </FormControl>

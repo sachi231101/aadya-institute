@@ -12,6 +12,7 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { usePermissions } from "@/hooks/usePermissions";
 import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
+import { sanitizeMobileInput } from "@/utils/validation";
 
 import {
   Form,
@@ -44,7 +45,11 @@ import {
 const studentSchema = z.object({
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
   qualificationMasterId: z.string().optional().or(z.literal("")),
   areaMasterId: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
@@ -53,7 +58,11 @@ const studentSchema = z.object({
   gender: z.string().optional().or(z.literal("")),
   bloodGroup: z.string().optional().or(z.literal("")),
   guardianName: z.string().optional().or(z.literal("")),
-  guardianPhone: z.string().optional().or(z.literal("")),
+  guardianPhone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d{10}$/.test(v), "Must be a 10-digit mobile number"),
   guardianRelationMasterId: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
@@ -701,7 +710,16 @@ export const EditStudent: React.FC = () => {
                       <FormControl>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input placeholder="9876543210" {...field} className="pl-9" />
+                          <Input
+                            placeholder="9876543210"
+                            inputMode="numeric"
+                            maxLength={10}
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(sanitizeMobileInput(e.target.value))
+                            }
+                            className="pl-9"
+                          />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -881,7 +899,15 @@ export const EditStudent: React.FC = () => {
                         Guardian Phone Number
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 9845012345" {...field} />
+                        <Input
+                          placeholder="e.g. 9845012345"
+                          inputMode="numeric"
+                          maxLength={10}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(sanitizeMobileInput(e.target.value))
+                          }
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

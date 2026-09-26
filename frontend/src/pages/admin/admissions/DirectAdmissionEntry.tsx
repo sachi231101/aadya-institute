@@ -75,13 +75,13 @@ import { studentsApi } from "@/services/students.api";
 import { admissionsApi } from "@/services/admissions.api";
 import { feesApi } from "@/services/fees.api";
 import { branchesApi } from "@/services/branches.api";
-import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useNumberingSeriesPreview, useActiveMasterRecords, useCreateMasterRecord } from "@/hooks/useMasters";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
+import { sanitizeMobileInput } from "@/utils/validation";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
@@ -496,10 +496,10 @@ export const DirectAdmissionEntry: React.FC = () => {
       setLastName(parts.slice(1).join(" ") || "");
     }
     if (rawData.phone || rawData.phoneNumber) {
-      setPhone(String(rawData.phone || rawData.phoneNumber).replace(/[^0-9+]/g, ""));
+      setPhone(sanitizeMobileInput(String(rawData.phone || rawData.phoneNumber)));
     }
     if (rawData.altPhone || rawData.alternatePhone) {
-      setAltPhone(String(rawData.altPhone || rawData.alternatePhone).replace(/[^0-9+]/g, ""));
+      setAltPhone(sanitizeMobileInput(String(rawData.altPhone || rawData.alternatePhone)));
     }
     if (rawData.email) {
       setEmail(String(rawData.email));
@@ -532,7 +532,9 @@ export const DirectAdmissionEntry: React.FC = () => {
       setGuardianName(rawData.guardianName || rawData.parentName || rawData.fatherName || rawData.motherName);
     }
     if (rawData.parentPhone || rawData.emergencyContact) {
-      setGuardianPhone(rawData.parentPhone || rawData.emergencyContact);
+      setGuardianPhone(
+        sanitizeMobileInput(String(rawData.parentPhone || rawData.emergencyContact))
+      );
     }
     if (rawData.gender) {
       setGender(rawData.gender);
@@ -581,12 +583,6 @@ export const DirectAdmissionEntry: React.FC = () => {
     retry: false,
   });
 
-  const { data: counselorsRes } = useQuery({
-    queryKey: ["users", "counsellors"],
-    queryFn: () => usersApi.getUsers({ role: "COUNSELLOR", limit: 50, status: "ACTIVE" }),
-    retry: false,
-  });
-
   const branches = useMemo(() => {
     const list = branchesRes?.data || [];
     if (list.length > 0) return list;
@@ -596,13 +592,31 @@ export const DirectAdmissionEntry: React.FC = () => {
     return [];
   }, [branchesRes, user]);
   const allDbBatches = useMemo(() => (batchesRes?.data || []) as BatchData[], [batchesRes]);
+
+  // Admission staff for selected branch: Admins + Center Managers + Counsellors
+  // Uses admissions staff-options (admission.create/read) — counsellors lack user.read.
+  const { data: admissionStaffRes, isLoading: admissionStaffLoading } = useQuery({
+    queryKey: ["admissions", "staff-options", branchId],
+    enabled: Boolean(branchId),
+    queryFn: async () => {
+      const res = await admissionsApi.getStaffOptions(branchId);
+      return (res.data || []).map((u) => ({
+        id: u.id,
+        name: u.name,
+        roles: u.roles || [],
+      }));
+    },
+    retry: false,
+  });
+
   const counselors = useMemo(() => {
-    const list = counselorsRes?.data || [];
-    if (user?.name && !list.some((c) => c.name === user.name)) {
-      return [{ id: user.id, name: user.name }, ...list];
+    const list = admissionStaffRes || [];
+    // Keep current user selectable even if not returned (e.g. role/scope edge cases)
+    if (user?.id && user?.name && !list.some((c) => c.id === user.id)) {
+      return [{ id: user.id, name: user.name, roles: user.roles || [] }, ...list];
     }
     return list;
-  }, [counselorsRes, user]);
+  }, [admissionStaffRes, user]);
 
   const selectedBranch = useMemo(
     () => branches.find((b) => b.id === branchId),
@@ -1258,8 +1272,13 @@ export const DirectAdmissionEntry: React.FC = () => {
       return false;
     }
     const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
+    if (phoneDigits.length !== 10) {
       notifyError("Please enter a valid 10-digit mobile number.");
+      return false;
+    }
+    const altPhoneDigits = altPhone.replace(/\D/g, "");
+    if (altPhone.trim() && altPhoneDigits.length !== 10) {
+      notifyError("Alternate mobile must be a 10-digit number.");
       return false;
     }
     const guardianDigits = guardianPhone.replace(/\D/g, "");
@@ -1288,7 +1307,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       return false;
     }
     if (!counsellorName) {
-      notifyError("Please select a counsellor.");
+      notifyError("Please select who took this admission.");
       return false;
     }
     if (selectedCoursesList.length === 0) {
@@ -1879,12 +1898,31 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <label className="text-xs font-semibold text-foreground block mb-1">
                       Mobile Number <span className="text-red-500">*</span>
                     </label>
-                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" required className="bg-background border-border text-foreground" />
+                    <Input
+                      value={phone}
+                      onChange={(e) =>
+                        setPhone(sanitizeMobileInput(e.target.value))
+                      }
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="10-digit mobile"
+                      required
+                      className="bg-background border-border text-foreground"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Alternate Mobile</label>
-                    <Input value={altPhone} onChange={(e) => setAltPhone(e.target.value)} placeholder="Alternate number" className="bg-background border-border text-foreground" />
+                    <Input
+                      value={altPhone}
+                      onChange={(e) =>
+                        setAltPhone(sanitizeMobileInput(e.target.value))
+                      }
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="Alternate number"
+                      className="bg-background border-border text-foreground"
+                    />
                   </div>
 
                   <div>
@@ -2011,7 +2049,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                       maxLength={10}
                       value={guardianPhone}
                       onChange={(e) =>
-                        setGuardianPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                        setGuardianPhone(sanitizeMobileInput(e.target.value))
                       }
                       placeholder="10-digit mobile number"
                       className="bg-background border-border text-foreground"
@@ -2173,24 +2211,42 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">
-                      Counsellor <span className="text-red-500">*</span>
+                      Admission taken by <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={counsellorName}
                       onChange={(e) => setCounsellorName(e.target.value)}
+                      disabled={!branchId || admissionStaffLoading}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
+                      {!branchId && <option value="">Select branch first</option>}
+                      {branchId && admissionStaffLoading && (
+                        <option value="">Loading staff...</option>
+                      )}
                       {counsellorName && !counselors.some((c) => c.name === counsellorName) && (
                         <option value={counsellorName}>{counsellorName}</option>
                       )}
-                      {counselors.map((counselor) => (
-                        <option key={counselor.id} value={counselor.name}>
-                          {counselor.name}
-                        </option>
-                      ))}
-                      {counselors.length === 0 && !counsellorName && (
-                        <option value="">No counsellors found</option>
-                      )}
+                      {counselors.map((staff) => {
+                        const roles = (staff.roles || []).map((r) => String(r).toUpperCase());
+                        const roleLabel = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")
+                          ? "Admin"
+                          : roles.includes("CENTER_MANAGER")
+                            ? "Center Manager"
+                            : roles.includes("COUNSELLOR")
+                              ? "Counsellor"
+                              : "";
+                        return (
+                          <option key={staff.id} value={staff.name}>
+                            {roleLabel ? `${staff.name} (${roleLabel})` : staff.name}
+                          </option>
+                        );
+                      })}
+                      {branchId &&
+                        !admissionStaffLoading &&
+                        counselors.length === 0 &&
+                        !counsellorName && (
+                          <option value="">No staff found for this branch</option>
+                        )}
                     </select>
                   </div>
 
