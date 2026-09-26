@@ -6,6 +6,11 @@ import * as z from "zod";
 import { useFacultyMember, useUpdateFaculty } from "../../../hooks/useFaculty";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { usePermissions } from "@/hooks/usePermissions";
+import {
+  formatLatLngDisplay,
+  handleLatLngChange,
+  handleLatLngPaste,
+} from "@/utils/lat-lng-input";
 
 import {
   Form,
@@ -20,7 +25,17 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PageContainer, PageHeader } from "@/components/layout";
-import { ArrowLeft, Save, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Pencil, MapPin } from "lucide-react";
+
+const googleMapsUrl = (lat: number | null | undefined, lng: number | null | undefined) =>
+  typeof lat === "number" && !Number.isNaN(lat) && typeof lng === "number" && !Number.isNaN(lng)
+    ? `https://www.google.com/maps?q=${lat},${lng}`
+    : "https://www.google.com/maps";
+
+const WORK_LAT_LNG_FIELDS = {
+  latitude: "workLatitude" as const,
+  longitude: "workLongitude" as const,
+};
 
 const editFacultySchema = z.object({
   name: z.string().min(2, "Full Name is required"),
@@ -30,6 +45,8 @@ const editFacultySchema = z.object({
   designationMasterId: z.string().optional().or(z.literal("")),
   qualificationMasterId: z.string().optional().or(z.literal("")),
   status: z.enum(["ACTIVE", "INACTIVE", "ON_LEAVE"]),
+  workLatitude: z.number().min(-90).max(90).optional().nullable(),
+  workLongitude: z.number().min(-180).max(180).optional().nullable(),
 });
 
 type EditFacultyFormValues = z.infer<typeof editFacultySchema>;
@@ -68,8 +85,14 @@ export const EditFaculty: React.FC = () => {
       designationMasterId: "",
       qualificationMasterId: "",
       status: "ACTIVE",
+      workLatitude: null,
+      workLongitude: null,
     },
   });
+
+  const workLatitude = form.watch("workLatitude");
+  const workLongitude = form.watch("workLongitude");
+  const mapsUrl = googleMapsUrl(workLatitude, workLongitude);
 
   useEffect(() => {
     if (!faculty) return;
@@ -81,6 +104,8 @@ export const EditFaculty: React.FC = () => {
       designationMasterId: faculty.designationMasterId || "",
       qualificationMasterId: faculty.qualificationMasterId || "",
       status: faculty.status || "ACTIVE",
+      workLatitude: faculty.workLatitude ?? null,
+      workLongitude: faculty.workLongitude ?? null,
     });
   }, [faculty, form]);
 
@@ -97,6 +122,8 @@ export const EditFaculty: React.FC = () => {
           designationMasterId: data.designationMasterId || null,
           qualificationMasterId: data.qualificationMasterId || null,
           status: data.status,
+          workLatitude: data.workLatitude ?? null,
+          workLongitude: data.workLongitude ?? null,
         },
       });
       navigate(`${basePath}/faculty/${id}`);
@@ -286,6 +313,78 @@ export const EditFaculty: React.FC = () => {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Work Location (for attendance geofencing)</h3>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    Open in Google Maps
+                  </a>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="workLatitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            placeholder="e.g. 12.9716"
+                            value={formatLatLngDisplay(field.value)}
+                            onPaste={(e) => handleLatLngPaste(e, form.setValue, WORK_LAT_LNG_FIELDS)}
+                            onChange={(e) =>
+                              handleLatLngChange(e, form.setValue, WORK_LAT_LNG_FIELDS, "latitude")
+                            }
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="workLongitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            placeholder="e.g. 77.5946"
+                            value={formatLatLngDisplay(field.value)}
+                            onPaste={(e) => handleLatLngPaste(e, form.setValue, WORK_LAT_LNG_FIELDS)}
+                            onChange={(e) =>
+                              handleLatLngChange(e, form.setValue, WORK_LAT_LNG_FIELDS, "longitude")
+                            }
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Paste both coords at once (lat, lng) from Google Maps. Both fields required for geofencing.
+                </p>
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t">

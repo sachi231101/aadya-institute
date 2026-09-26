@@ -2,6 +2,7 @@ import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { toAuthUser } from "../../utils/auth-user.util";
+import { facultyCheckOutSchema, facultySelfAttendanceGeoSchema } from "./faculty.validation";
 import * as service from "./faculty.service";
 
 export const getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -36,7 +37,7 @@ export const update = async (req: AuthenticatedRequest, res: Response, next: Nex
 export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     await service.deleteFaculty(toAuthUser(req), req.params.id as string);
-    sendSuccess(res, null, 200, "Faculty deleted successfully");
+    sendSuccess(res, null, 200, "Faculty permanently deleted");
   } catch (err) { next(err); }
 };
 
@@ -113,6 +114,41 @@ export const getMyStudentAttendance = async (
       data,
       meta,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const checkInMe = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const body = facultySelfAttendanceGeoSchema.parse(req.body);
+    const result = await service.checkInMe(toAuthUser(req), body);
+    sendSuccess(res, result, 200, "Checked in successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const checkOutMe = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const body = facultyCheckOutSchema.parse(req.body);
+    const result = await service.checkOutMe(toAuthUser(req), body);
+    sendSuccess(
+      res,
+      result,
+      200,
+      body.source === "AUTO_GEOFENCE"
+        ? "Auto checked out — outside work location"
+        : "Checked out successfully"
+    );
   } catch (err) {
     next(err);
   }

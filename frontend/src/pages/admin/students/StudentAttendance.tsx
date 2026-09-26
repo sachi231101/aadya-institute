@@ -63,6 +63,7 @@ import { useClassSessions } from "@/hooks/useClassSessions";
 import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { classSessionsApi, type BackendClassSession } from "@/services/class-sessions.api";
 import { localTodayKey, toDateKey } from "@/constants/timetable-slots";
+import { formatTimeRange12h } from "@/utils/format";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -146,7 +147,7 @@ function filterCheckInSuggestions(
 
 function sessionOptionLabel(session: BackendClassSession): string {
   const time =
-    session.startTime && session.endTime ? `${session.startTime}–${session.endTime}` : "";
+    session.startTime && session.endTime ? formatTimeRange12h(session.startTime, session.endTime) : "";
   const batch = session.batch?.code || session.batch?.name || "";
   return [time, session.title || "Class", batch].filter(Boolean).join(" · ");
 }

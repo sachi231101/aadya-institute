@@ -23,6 +23,7 @@ import {
   getSessionSubjectLabel,
 } from "@/utils/batch.utils";
 import { getPortalBasePath } from "@/utils/portal-path";
+import { formatTimeRange12h } from "@/utils/format";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import type { BackendClassSession } from "@/services/class-sessions.api";
 import {
@@ -73,8 +74,9 @@ const formatDateTime = (value?: string | null) => {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 };
 
@@ -403,7 +405,7 @@ export const BatchDetails: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-3 py-2.5 font-mono whitespace-nowrap text-muted-foreground border-r border-border">
-                            {s.timeslotMaster?.name || (s.startTime ? `${s.startTime} - ${s.endTime}` : "—")}
+                            {s.timeslotMaster?.name || formatTimeRange12h(s.startTime, s.endTime)}
                           </td>
                           <td className="px-3 py-2.5 whitespace-nowrap border-r border-border">
                             {s.classroomMaster?.name || "—"}
@@ -501,8 +503,7 @@ export const BatchDetails: React.FC = () => {
                           {formatLongDate(session.scheduledDate)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
-                          {session.startTime || "—"}
-                          {session.endTime ? ` – ${session.endTime}` : ""}
+                          {formatTimeRange12h(session.startTime, session.endTime)}
                         </TableCell>
                         <TableCell className="text-sm font-medium">
                           {getSessionSubjectLabel({

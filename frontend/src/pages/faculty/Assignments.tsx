@@ -390,8 +390,9 @@ export const FacultyAssignments: React.FC = () => {
                       </span>
                       <span className="text-[10.5px] text-slate-400 font-mono block">
                         {new Date(assignment.dueDate).toLocaleTimeString([], {
-                          hour: "2-digit",
+                          hour: "numeric",
                           minute: "2-digit",
+                          hour12: true,
                         })}
                       </span>
                     </TableCell>

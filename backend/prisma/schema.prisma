@@ -47,6 +47,16 @@ enum FacultyDailyAttendanceStatus {
   WEEKLY_OFF
 }
 
+enum FacultyAttendancePunchType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum FacultyAttendancePunchSource {
+  MANUAL
+  AUTO_GEOFENCE
+}
+
 enum AdmissionStatus {
   CONFIRMED
   PROVISIONAL
@@ -526,6 +536,8 @@ model Faculty {
   qualification         String?
   qualificationMasterId String?
   status                FacultyStatus @default(ACTIVE)
+  workLatitude          Float?
+  workLongitude         Float?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -542,6 +554,7 @@ model Faculty {
   facultyScheduleBlocks  FacultyScheduleBlock[]
   facultyAttendance      FacultyAttendance[]
   facultyDailyAttendance FacultyDailyAttendance[]
+  attendancePunches      FacultyAttendancePunch[]
   assignments            Assignment[]
   feedbacks              Feedback[]
   studyMaterials         StudyMaterial[]
@@ -896,7 +909,8 @@ model ClassSession {
   batchId           String
   batchCourseId     String?
   batchModuleId     String?
-  facultyId         String
+  /// Nullable so faculty hard-delete can SetNull without wiping student attendance history.
+  facultyId         String?
   branchId          String
   title             String?            @default("Class Session")
   scheduledDate     DateTime
@@ -919,7 +933,7 @@ model ClassSession {
   batch           Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
   batchCourse     BatchCourse?  @relation(fields: [batchCourseId], references: [id], onDelete: SetNull)
   batchModule     BatchModule?  @relation(fields: [batchModuleId], references: [id], onDelete: SetNull)
-  faculty         Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  faculty         Faculty?      @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   classroomMaster MasterRecord? @relation("ClassSessionClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
   timeslotMaster  MasterRecord? @relation("ClassSessionTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
 
@@ -1037,6 +1051,27 @@ model FacultyDailyAttendance {
   @@unique([facultyId, date])
   @@index([date])
   @@index([facultyId, date])
+}
+
+/// Every geo check-in / check-out; FacultyDailyAttendance keeps the day summary.
+model FacultyAttendancePunch {
+  id        String                       @id @default(cuid())
+  facultyId String
+  /// IST calendar day of the punch
+  date      DateTime                     @db.Date
+  type      FacultyAttendancePunchType
+  punchedAt DateTime
+  /// IST wall-clock HH:mm
+  timeHmm   String
+  latitude  Float?
+  longitude Float?
+  source    FacultyAttendancePunchSource @default(MANUAL)
+  createdAt DateTime                     @default(now())
+
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId, date])
+  @@index([facultyId, punchedAt])
 }
 
 model Recording {

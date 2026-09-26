@@ -881,7 +881,7 @@ export const generateClassSessionsFromSchedule = async (
     startTime: string;
     batchCourseId: string | null;
     batchCourse?: { courseId: string } | null;
-    facultyId: string;
+    facultyId: string | null;
   }) => {
     const coursePart =
       s.batchCourse?.courseId || s.batchCourseId || s.facultyId || "none";

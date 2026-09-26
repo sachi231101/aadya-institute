@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
+import { formatTimeRange12h } from "@/utils/format";
 
 export const FacultyBatchClasses: React.FC = () => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export const FacultyBatchClasses: React.FC = () => {
                   <div>
                     <p className="font-semibold text-sm">{session.title || "Class Session"}</p>
                     <p className="text-xs text-muted-foreground">
-                      {session.startTime} - {session.endTime} • {session.batch?.name}
+                      {formatTimeRange12h(session.startTime, session.endTime)} • {session.batch?.name}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -85,7 +86,7 @@ export const FacultyBatchClasses: React.FC = () => {
                     <div>
                       <p className="font-medium text-sm">{session.title || "Session"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {session.batch?.name} • {session.startTime} - {session.endTime}
+                        {session.batch?.name} • {formatTimeRange12h(session.startTime, session.endTime)}
                       </p>
                     </div>
                   </div>

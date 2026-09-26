@@ -135,16 +135,16 @@ export const AttemptProctoringDetails: React.FC = () => {
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
               <span className="text-slate-400 font-semibold uppercase text-[10px]">Started At</span>
               <p className="text-xs font-semibold text-slate-800 mt-1">
-                {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : '—'}
+                {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString([], { hour12: true }) : '—'}
               </p>
             </div>
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
               <span className="text-slate-400 font-semibold uppercase text-[10px]">Submitted / Ended</span>
               <p className="text-xs font-semibold text-slate-800 mt-1">
                 {attempt.submittedAt
-                  ? new Date(attempt.submittedAt).toLocaleString()
+                  ? new Date(attempt.submittedAt).toLocaleString([], { hour12: true })
                   : attempt.terminatedAt
-                  ? `Terminated: ${new Date(attempt.terminatedAt).toLocaleString()}`
+                  ? `Terminated: ${new Date(attempt.terminatedAt).toLocaleString([], { hour12: true })}`
                   : 'Active'}
               </p>
             </div>
@@ -209,7 +209,7 @@ export const AttemptProctoringDetails: React.FC = () => {
                         )}
                       </div>
                       <span className="text-[11px] text-slate-400 font-mono">
-                        {new Date(evt.occurredAt).toLocaleTimeString()}
+                        {new Date(evt.occurredAt).toLocaleTimeString([], { hour12: true })}
                       </span>
                     </div>
 

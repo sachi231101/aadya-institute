@@ -232,7 +232,7 @@ export const MyExams: React.FC = () => {
                           <div>
                             <span className="text-slate-400">Starts:</span>{' '}
                             <span className="font-semibold text-slate-800">
-                              {new Date(exam.startAt).toLocaleString()}
+                              {new Date(exam.startAt).toLocaleString([], { hour12: true })}
                             </span>
                           </div>
                         )}
@@ -240,7 +240,7 @@ export const MyExams: React.FC = () => {
                           <div>
                             <span className="text-slate-400">Ends:</span>{' '}
                             <span className="font-semibold text-slate-800">
-                              {new Date(exam.endAt).toLocaleString()}
+                              {new Date(exam.endAt).toLocaleString([], { hour12: true })}
                             </span>
                           </div>
                         )}
@@ -250,7 +250,7 @@ export const MyExams: React.FC = () => {
                     {isUpcoming && (
                       <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-blue-800 font-medium">
                         <Calendar className="h-4 w-4 shrink-0 text-blue-500" />
-                        <span>Opens at {new Date(exam.startAt).toLocaleString()}</span>
+                        <span>Opens at {new Date(exam.startAt).toLocaleString([], { hour12: true })}</span>
                       </div>
                     )}
 
@@ -345,7 +345,7 @@ export const MyExams: React.FC = () => {
                     </Button>
                   ) : isUpcoming ? (
                     <Button disabled variant="outline" className="w-full text-xs text-blue-700 border-blue-200">
-                      Opens {exam.startAt ? new Date(exam.startAt).toLocaleString() : 'soon'}
+                      Opens {exam.startAt ? new Date(exam.startAt).toLocaleString([], { hour12: true }) : 'soon'}
                     </Button>
                   ) : isWindowEnded ? (
                     <Button disabled variant="outline" className="w-full text-xs text-slate-400">

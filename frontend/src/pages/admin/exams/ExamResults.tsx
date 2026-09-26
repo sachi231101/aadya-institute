@@ -282,9 +282,9 @@ export const ExamResults: React.FC = () => {
                       <TableCell>{getStatusBadge(row.status, row.passed)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {row.submittedAt
-                          ? new Date(row.submittedAt).toLocaleString()
+                          ? new Date(row.submittedAt).toLocaleString([], { hour12: true })
                           : row.startedAt
-                            ? new Date(row.startedAt).toLocaleString()
+                            ? new Date(row.startedAt).toLocaleString([], { hour12: true })
                             : "—"}
                       </TableCell>
                       <TableCell className="text-right">

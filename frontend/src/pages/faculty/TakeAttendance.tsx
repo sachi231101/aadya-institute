@@ -23,6 +23,7 @@ import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type { BackendClassSession } from "@/services/class-sessions.api";
 import { ROUTES } from "@/constants/routes";
 import { localTodayKey } from "@/constants/timetable-slots";
+import { formatTimeRange12h } from "@/utils/format";
 
 export const FacultyTakeAttendance: React.FC = () => {
   const navigate = useNavigate();
@@ -159,7 +160,7 @@ export const FacultyTakeAttendance: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xs text-slate-500">
-                        Batch {batch} · {session.startTime} – {session.endTime}
+                        Batch {batch} · {formatTimeRange12h(session.startTime, session.endTime)}
                         {session.roomNo ? ` · ${session.roomNo}` : ""}
                       </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1">

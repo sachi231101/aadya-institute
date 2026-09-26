@@ -36,6 +36,7 @@ import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { formatTimeRange12h } from "@/utils/format";
 import {
   periodFromStartTime as mapPeriodFromStartTime,
   isMasterHolidayDate,
@@ -192,7 +193,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
         slots[period] = {
           id: raw.id,
           period,
-          timeRange: `${raw.startTime} – ${raw.endTime}`,
+          timeRange: formatTimeRange12h(raw.startTime, raw.endTime),
           type: "CLASS",
           courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }),
           batchCode: raw.batch?.code || raw.batch?.name || "",

@@ -12,7 +12,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser
   const formatTime = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
     } catch {
       return "";
     }

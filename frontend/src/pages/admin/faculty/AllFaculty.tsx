@@ -50,7 +50,9 @@ type FacultyDeleteTarget = {
 export const AllFaculty: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, roleScope, canEditItem } = usePermissions();
+  const canDeleteFaculty =
+    isAdmin || (roleScope === "CENTER_MANAGER" && canEditItem("faculty.all"));
   const deleteFaculty = useDeleteFaculty();
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -324,7 +326,15 @@ export const AllFaculty: React.FC = () => {
                             >
                               View Details
                             </DropdownMenuItem>
-                            {isAdmin && String(fac.status).toUpperCase() !== "INACTIVE" && (
+                            <PermissionGate itemKey="faculty.all" mode="write">
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => navigate(`${basePath}/faculty/${fac.id}/edit`)}
+                              >
+                                Edit
+                              </DropdownMenuItem>
+                            </PermissionGate>
+                            {canDeleteFaculty && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-destructive focus:text-destructive"
                                 onClick={() => {
@@ -369,7 +379,7 @@ export const AllFaculty: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete faculty</DialogTitle>
             <DialogDescription>
-              This deactivates the faculty account and cannot be undone from this screen.
+              This permanently deletes the faculty record from the database. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {facultyToDelete && (
