@@ -8,6 +8,7 @@ import {
   UpdateTargetPlanSchema,
   CreateTargetSchema,
   UpdateTargetSchema,
+  BulkUpdatePlanTargetsSchema,
   QueryTargetsSchema,
   QueryIncentivesSchema,
   ApproveIncentiveSchema,
@@ -45,6 +46,13 @@ router.patch(
   requirePermission("target.manage"),
   validate(UpdateTargetPlanSchema, "body"),
   TargetController.updateTargetPlan
+);
+
+router.patch(
+  "/plans/:id/targets",
+  requirePermission("target.manage"),
+  validate(BulkUpdatePlanTargetsSchema, "body"),
+  TargetController.bulkUpdatePlanTargets
 );
 
 router.delete(

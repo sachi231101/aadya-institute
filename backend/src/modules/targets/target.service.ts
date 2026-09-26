@@ -10,6 +10,7 @@ import type {
   UpdateTargetPlanDTO,
   CreateTargetDTO,
   UpdateTargetDTO,
+  BulkUpdatePlanTargetsDTO,
   QueryTargetsDTO,
   QueryIncentivesDTO,
   ApproveIncentiveDTO,
@@ -21,6 +22,17 @@ import { toDayEnd } from "./target.dates";
 
 const scopedBranchId = (user: AuthUser): string | undefined =>
   isBranchLockedRole(user.roles) ? (user.branchId ?? undefined) : undefined;
+
+/** Roles that may see Entire Branch Team Goals (not faculty / students). */
+const canViewBranchTeamGoals = (roles: string[]) =>
+  roles.some((r) =>
+    ["ADMIN", "CENTER_MANAGER", "COUNSELLOR"].includes(r)
+  );
+
+const isCounsellorOnly = (roles: string[]) =>
+  roles.includes("COUNSELLOR") &&
+  !roles.includes("ADMIN") &&
+  !roles.includes("CENTER_MANAGER");
 
 export const TargetService = {
   // ─── Target Plans ──────────────────────────────────────────────────────────
@@ -219,19 +231,27 @@ export const TargetService = {
   async getTargets(currentUser: AuthUser, query: QueryTargetsDTO) {
     const allowedBranchId = scopedBranchId(currentUser);
 
-    let userId = query.userId;
-    if (
-      currentUser.roles.includes("COUNSELLOR") &&
-      !currentUser.roles.includes("ADMIN") &&
-      !currentUser.roles.includes("CENTER_MANAGER")
-    ) {
-      userId = currentUser.userId || currentUser.id;
+    // Counsellors see their own targets + Entire Branch Team Goals for their branch.
+    // Faculty / students never get staffViewer BRANCH visibility.
+    if (isCounsellorOnly(currentUser.roles)) {
+      return TargetRepository.findTargets(
+        currentUser.instituteId,
+        allowedBranchId,
+        {
+          ...query,
+          userId: undefined,
+          staffViewer: {
+            userId: currentUser.userId || currentUser.id,
+            branchId: currentUser.branchId,
+          },
+        }
+      );
     }
 
     return TargetRepository.findTargets(
       currentUser.instituteId,
       allowedBranchId,
-      { ...query, userId }
+      query
     );
   },
 
@@ -307,6 +327,15 @@ export const TargetService = {
       throw new AppError("Cannot modify a LOCKED target", 400);
     }
 
+    if (dto.userId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: dto.userId, instituteId: currentUser.instituteId },
+      });
+      if (!targetUser) {
+        throw new AppError("Assigned user not found in this institute", 400);
+      }
+    }
+
     const updated = await TargetRepository.updateTarget(
       id,
       currentUser.instituteId,
@@ -332,6 +361,73 @@ export const TargetService = {
     });
 
     return updated;
+  },
+
+  async bulkUpdatePlanTargets(
+    currentUser: AuthUser,
+    planId: string,
+    dto: BulkUpdatePlanTargetsDTO
+  ) {
+    const allowedBranchId = scopedBranchId(currentUser);
+    const plan = await TargetRepository.findTargetPlanById(
+      planId,
+      currentUser.instituteId,
+      allowedBranchId
+    );
+    if (!plan) {
+      throw new AppError("Target plan not found or access denied", 404);
+    }
+    if (plan.status === "LOCKED") {
+      throw new AppError("Cannot modify targets under a LOCKED plan", 400);
+    }
+
+    if (dto.userId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: dto.userId, instituteId: currentUser.instituteId },
+      });
+      if (!targetUser) {
+        throw new AppError("Assigned user not found in this institute", 400);
+      }
+    }
+
+    // Clearing assignee ⇒ Entire Branch Team Goal
+    const payload: BulkUpdatePlanTargetsDTO = {
+      ...dto,
+      ...(dto.userId !== undefined
+        ? {
+            userId: dto.userId || null,
+            targetType: dto.userId ? "INDIVIDUAL" : "BRANCH",
+          }
+        : {}),
+    };
+
+    const result = await TargetRepository.bulkUpdatePlanTargets(
+      planId,
+      currentUser.instituteId,
+      payload
+    );
+
+    if (!result) {
+      throw new AppError("Target plan not found", 404);
+    }
+
+    // Recalculate each updated day
+    for (const t of result.targets) {
+      if (t.status === "LOCKED") continue;
+      const progress = await TargetCalculationService.computeTargetProgress(t);
+      await TargetRepository.saveTargetProgress(progress);
+    }
+
+    await createAuditLog({
+      userId: currentUser.userId || currentUser.id,
+      instituteId: currentUser.instituteId,
+      action: "TARGET_SERIES_BULK_UPDATED",
+      entityType: "TargetPlan",
+      entityId: planId,
+      newData: { updatedCount: result.updatedCount, dto: payload },
+    });
+
+    return result;
   },
 
   async deleteTarget(currentUser: AuthUser, id: string) {
@@ -388,10 +484,12 @@ export const TargetService = {
 
   async getMyCurrentTargets(currentUser: AuthUser) {
     const userId = currentUser.userId || currentUser.id;
+    const includeBranchTeamGoals = canViewBranchTeamGoals(currentUser.roles);
     const rawTargets = await TargetRepository.findMyActiveTargets(
       currentUser.instituteId,
       userId,
-      currentUser.branchId
+      currentUser.branchId,
+      includeBranchTeamGoals
     );
 
     // Calculate real-time live progress for each active target
@@ -428,10 +526,18 @@ export const TargetService = {
 
   async getMyPerformanceHistory(currentUser: AuthUser) {
     const userId = currentUser.userId || currentUser.id;
+    const includeBranch = canViewBranchTeamGoals(currentUser.roles);
 
     const [targets, incentives] = await Promise.all([
-      TargetRepository.findTargets(currentUser.instituteId, undefined, {
-        userId,
+      TargetRepository.findTargets(currentUser.instituteId, currentUser.branchId, {
+        ...(includeBranch
+          ? {
+              staffViewer: {
+                userId,
+                branchId: currentUser.branchId,
+              },
+            }
+          : { userId }),
         limit: 50,
       }),
       TargetRepository.findIncentives(currentUser.instituteId, undefined, {
