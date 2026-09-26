@@ -96,16 +96,18 @@ const mapApiAnnouncement = (
       day: "2-digit",
       month: "short",
       year: "numeric",
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     }),
     publishedAt: a.publishedAt
       ? new Date(a.publishedAt).toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric",
-          hour: "2-digit",
+          hour: "numeric",
           minute: "2-digit",
+          hour12: true,
         })
       : undefined,
     sentCount: a.sentCount ?? 0,

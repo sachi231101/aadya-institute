@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/auth.store";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FacultySidebar } from "@/components/layout/faculty-sidebar";
 import { UserNav } from "@/components/layout/UserNav";
+import { FacultyCheckInOutNav } from "@/components/faculty/FacultyCheckInOutNav";
 
 export const FacultyLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -39,6 +40,7 @@ export const FacultyLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <FacultyCheckInOutNav />
               <UserNav />
             </div>
           </header>

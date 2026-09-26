@@ -241,13 +241,13 @@ export const ExamResultScreen: React.FC = () => {
               <div>
                 <span className="text-slate-400">Started At:</span>{' '}
                 <span className="font-semibold text-slate-800">
-                  {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : 'N/A'}
+                  {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString([], { hour12: true }) : 'N/A'}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400">Submitted At:</span>{' '}
                 <span className="font-semibold text-slate-800">
-                  {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : 'N/A'}
+                  {attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString([], { hour12: true }) : 'N/A'}
                 </span>
               </div>
             </div>

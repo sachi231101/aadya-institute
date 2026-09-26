@@ -283,7 +283,7 @@ export const AllAdmissions: React.FC = () => {
       status: adm.status === "CONFIRMED" ? "Confirmed" : "Provisional",
       workflowStep: adm.status === "CONFIRMED" ? 4 : 3,
       admissionDate: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-      admissionTime: new Date(adm.admissionDate || adm.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      admissionTime: new Date(adm.admissionDate || adm.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }),
       _sortAt: new Date(adm.admissionDate || adm.createdAt || 0).getTime(),
       sortAt: new Date(adm.admissionDate || adm.createdAt || 0).getTime(),
       paymentCount: (adm.payments || []).length,
@@ -446,7 +446,7 @@ export const AllAdmissions: React.FC = () => {
       status: detail.status === "CONFIRMED" ? "Confirmed" : detail.status === "PENDING" ? "Admission Pending" : "Provisional",
       workflowStep: detail.status === "CONFIRMED" ? 4 : 2,
       admissionDate: new Date(detail.admissionDate || detail.createdAt || Date.now()).toLocaleDateString("en-IN"),
-      admissionTime: new Date(detail.admissionDate || detail.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      admissionTime: new Date(detail.admissionDate || detail.createdAt || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }),
       documents: (detail.documents || []).map((d) => ({
         id: d.id,
         title: d.name,

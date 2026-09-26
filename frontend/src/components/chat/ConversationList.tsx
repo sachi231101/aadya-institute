@@ -71,7 +71,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     if (isToday) {
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
     }
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
   };

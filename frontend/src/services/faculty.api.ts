@@ -18,6 +18,9 @@ import type {
   DailyAttendanceParams,
   BulkDailyAttendancePayload,
   FacultyDailyAttendanceResponse,
+  FacultyGeoCheckPayload,
+  FacultyGeoCheckOutPayload,
+  FacultyCheckInOutResult,
   PaginatedResponse,
   SingleResponse,
 } from "../types/faculty.types";
@@ -103,6 +106,26 @@ export const facultyApi = {
     const response = await api.put<SingleResponse<{ date: string; savedCount: number; records: unknown[] }>>(
       "/faculty/daily-attendance",
       data
+    );
+    return response.data;
+  },
+
+  checkIn: async (
+    coords: FacultyGeoCheckPayload
+  ): Promise<SingleResponse<FacultyCheckInOutResult>> => {
+    const response = await api.post<SingleResponse<FacultyCheckInOutResult>>(
+      "/faculty/me/attendance/check-in",
+      coords
+    );
+    return response.data;
+  },
+
+  checkOut: async (
+    payload: FacultyGeoCheckOutPayload
+  ): Promise<SingleResponse<FacultyCheckInOutResult>> => {
+    const response = await api.post<SingleResponse<FacultyCheckInOutResult>>(
+      "/faculty/me/attendance/check-out",
+      payload
     );
     return response.data;
   },

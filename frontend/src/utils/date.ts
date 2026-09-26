@@ -1,3 +1,5 @@
+import { formatTime12h } from "@/utils/format";
+
 export type OrganizationDateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
 
 /** Format a Date/ISO string for `<input type="datetime-local">` in the browser's local timezone. */
@@ -76,10 +78,7 @@ export const formatDate = (dateString?: string): string => {
   });
 };
 
-export const formatTime = (timeString?: string): string => {
-  if (!timeString) return "N/A";
-  return timeString;
-};
+export const formatTime = (timeString?: string): string => formatTime12h(timeString, "N/A");
 
 /**
  * Formats a date for display using organization date format and timezone.

@@ -166,7 +166,10 @@ export const classSessionService = {
     const startTime = data.startTime || existing.startTime;
     const endTime = data.endTime || existing.endTime;
 
-    if (data.facultyId || data.scheduledDate || data.startTime || data.endTime) {
+    if (
+      facultyId &&
+      (data.facultyId || data.scheduledDate || data.startTime || data.endTime)
+    ) {
       await assertNoFacultyConflict({
         instituteId,
         facultyId,

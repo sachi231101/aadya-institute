@@ -31,6 +31,7 @@ import {
   hostWindowDisabledReason,
 } from "@/utils/session-window";
 import { localTodayKey, toDateKey } from "@/constants/timetable-slots";
+import { formatTimeRange12h } from "@/utils/format";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
@@ -89,7 +90,7 @@ export const FacultyMarkAttendance: React.FC = () => {
     : "";
   const timeLabel =
     classMeta?.startTime && classMeta?.endTime
-      ? `${classMeta.startTime} – ${classMeta.endTime}`
+      ? formatTimeRange12h(classMeta.startTime, classMeta.endTime)
       : "";
 
   const enrolledCount = Number(attendancePayload?.enrolledStudentsCount ?? 0);

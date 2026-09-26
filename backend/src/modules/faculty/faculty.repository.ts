@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { formatBatchSubjectNames } from "../../utils/batch-course.util";
 
@@ -117,6 +118,8 @@ export const createFacultyWithUser = async (data: {
   designationMasterId?: string;
   qualification?: string;
   qualificationMasterId?: string;
+  workLatitude?: number | null;
+  workLongitude?: number | null;
 }) => {
   return prisma.$transaction(async (tx) => {
     // 1. Create the User record
@@ -143,6 +146,8 @@ export const createFacultyWithUser = async (data: {
         designationMasterId: data.designationMasterId || null,
         qualification: data.qualification || null,
         qualificationMasterId: data.qualificationMasterId || null,
+        workLatitude: data.workLatitude ?? null,
+        workLongitude: data.workLongitude ?? null,
       },
       include: facultyInclude,
     });
@@ -194,6 +199,8 @@ export const updateFaculty = async (
     qualification?: string | null;
     qualificationMasterId?: string | null;
     status?: "ACTIVE" | "INACTIVE" | "ON_LEAVE";
+    workLatitude?: number | null;
+    workLongitude?: number | null;
   }
 ) => {
   const {
@@ -206,6 +213,8 @@ export const updateFaculty = async (
     qualification,
     qualificationMasterId,
     status,
+    workLatitude,
+    workLongitude,
   } = data;
 
   const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined;
@@ -217,6 +226,8 @@ export const updateFaculty = async (
   if (qualification !== undefined) facultyUpdate.qualification = qualification;
   if (qualificationMasterId !== undefined) facultyUpdate.qualificationMasterId = qualificationMasterId;
   if (status !== undefined) facultyUpdate.status = status;
+  if (workLatitude !== undefined) facultyUpdate.workLatitude = workLatitude;
+  if (workLongitude !== undefined) facultyUpdate.workLongitude = workLongitude;
 
   if (hasUserUpdates) {
     const existing = await prisma.faculty.findUnique({ where: { id } });
@@ -249,23 +260,55 @@ export const updateFaculty = async (
 };
 
 /**
- * Soft-delete: sets Faculty status to INACTIVE and User status to INACTIVE.
+ * Hard-delete Faculty (and linked User when faculty-only).
+ *
+ * Relation strategy:
+ * - Cascade (DB): FacultyScheduleBlock, FacultyAttendance, FacultyDailyAttendance,
+ *   FacultyAttendancePunch, StudyMaterial, Announcement
+ * - SetNull (DB): Batch, BatchCourse, BatchSchedule, ClassSession
+ * - Delete in txn (Restrict): Assignment (+ submissions/targets/recipients), Feedback
+ * - User: delete if only FACULTY role and no Student profile; otherwise remove FACULTY role
  */
-export const softDeleteFaculty = async (id: string) => {
-  const existing = await prisma.faculty.findUnique({ where: { id } });
+export const hardDeleteFaculty = async (id: string) => {
+  const existing = await prisma.faculty.findUnique({
+    where: { id },
+    include: {
+      user: {
+        include: {
+          userRoles: { include: { role: { select: { id: true, name: true } } } },
+          student: { select: { id: true } },
+        },
+      },
+    },
+  });
   if (!existing) return null;
 
-  return prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: existing.userId },
-      data: { status: "INACTIVE" },
-    });
+  const userId = existing.userId;
 
-    return tx.faculty.update({
-      where: { id },
-      data: { status: "INACTIVE" },
-      include: facultyInclude,
-    });
+  return prisma.$transaction(async (tx) => {
+    // Restrict FKs — remove before Faculty row delete
+    await tx.feedback.deleteMany({ where: { facultyId: id } });
+    await tx.assignment.deleteMany({ where: { facultyId: id } });
+
+    await tx.faculty.delete({ where: { id } });
+
+    const roleNames = existing.user.userRoles.map((ur) => ur.role.name);
+    const hasNonFacultyRole = roleNames.some((name) => name !== "FACULTY");
+    const hasStudentProfile = Boolean(existing.user.student);
+    const isFacultyOnly = !hasNonFacultyRole && !hasStudentProfile;
+
+    if (isFacultyOnly) {
+      await tx.user.delete({ where: { id: userId } });
+    } else {
+      const facultyRole = existing.user.userRoles.find((ur) => ur.role.name === "FACULTY");
+      if (facultyRole) {
+        await tx.userRole.deleteMany({
+          where: { userId, roleId: facultyRole.role.id },
+        });
+      }
+    }
+
+    return { id, userId, deletedUser: isFacultyOnly };
   });
 };
 
@@ -646,7 +689,7 @@ export type FacultyDailyAttendanceStatus =
   | "PRESENT"
   | "ABSENT"
   | "LEAVE"
-  | "WEEKLY_OFF";
+  | "WEEKLY_OFF"; // Legacy: retained for historical rows; not accepted on desk save
 
 export interface FindDailyAttendanceParams {
   instituteId: string;
@@ -982,6 +1025,140 @@ export const countPendingSubmissions = (facultyId: string) =>
     },
   });
 
+// ─── Geofenced Self Check-In / Check-Out helpers ─────────────────────────
+
+export const findFacultyByUserId = (userId: string) =>
+  prisma.faculty.findFirst({
+    where: { userId },
+    select: {
+      id: true,
+      workLatitude: true,
+      workLongitude: true,
+      status: true,
+    },
+  });
+
+export const upsertDailyAttendanceSingle = async (data: {
+  facultyId: string;
+  date: string; // YYYY-MM-DD IST
+  status: string;
+  inTime?: string;
+  outTime?: string;
+}) => {
+  const dateVal = parseDateOnly(data.date);
+  return prisma.facultyDailyAttendance.upsert({
+    where: { facultyId_date: { facultyId: data.facultyId, date: dateVal } },
+    create: {
+      facultyId: data.facultyId,
+      date: dateVal,
+      status: data.status as any,
+      inTime: data.inTime ?? null,
+      outTime: data.outTime ?? null,
+    },
+    update: {
+      ...(data.status ? { status: data.status as any } : {}),
+      ...(data.inTime !== undefined ? { inTime: data.inTime } : {}),
+      ...(data.outTime !== undefined ? { outTime: data.outTime } : {}),
+    },
+  });
+};
+
+export const findDailyAttendanceSingle = (facultyId: string, date: string) => {
+  const dateVal = parseDateOnly(date);
+  return prisma.facultyDailyAttendance.findUnique({
+    where: { facultyId_date: { facultyId, date: dateVal } },
+  });
+};
+
+// ─── Attendance punches (multi-session check-in / check-out) ────────────
+
+const punchSelect = {
+  id: true,
+  facultyId: true,
+  date: true,
+  type: true,
+  timeHmm: true,
+  punchedAt: true,
+  source: true,
+  latitude: true,
+  longitude: true,
+} satisfies Prisma.FacultyAttendancePunchSelect;
+
+export const findPunchesForFacultyRange = (params: {
+  facultyId: string;
+  from?: Date;
+  to?: Date;
+}) => {
+  const dateFilter: { gte?: Date; lte?: Date } = {};
+  if (params.from) dateFilter.gte = params.from;
+  if (params.to) dateFilter.lte = params.to;
+
+  return prisma.facultyAttendancePunch.findMany({
+    where: {
+      facultyId: params.facultyId,
+      ...(params.from || params.to ? { date: dateFilter } : {}),
+    },
+    select: punchSelect,
+    orderBy: { punchedAt: "asc" },
+  });
+};
+
+export const findPunchesForFacultiesOnDate = (facultyIds: string[], date: Date) => {
+  if (facultyIds.length === 0) return Promise.resolve([]);
+  return prisma.facultyAttendancePunch.findMany({
+    where: { facultyId: { in: facultyIds }, date },
+    select: punchSelect,
+    orderBy: { punchedAt: "asc" },
+  });
+};
+
+/** Run `fn` in a transaction holding a row lock on the Faculty, serialising that faculty's punches. */
+export const withFacultyPunchLock = <T>(
+  facultyId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> =>
+  prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Faculty" WHERE "id" = ${facultyId} FOR UPDATE`;
+    return fn(tx);
+  });
+
+export const findDayPunchesTx = (tx: Prisma.TransactionClient, facultyId: string, date: Date) =>
+  tx.facultyAttendancePunch.findMany({
+    where: { facultyId, date },
+    select: punchSelect,
+    orderBy: { punchedAt: "asc" },
+  });
+
+export const findDayRowTx = (tx: Prisma.TransactionClient, facultyId: string, date: Date) =>
+  tx.facultyDailyAttendance.findUnique({
+    where: { facultyId_date: { facultyId, date } },
+  });
+
+export type CreatePunchData = Prisma.FacultyAttendancePunchUncheckedCreateInput;
+
+export const createPunchesTx = (tx: Prisma.TransactionClient, rows: CreatePunchData[]) =>
+  tx.facultyAttendancePunch.createMany({ data: rows });
+
+export const createPunchTx = (tx: Prisma.TransactionClient, data: CreatePunchData) =>
+  tx.facultyAttendancePunch.create({ data, select: punchSelect });
+
+/** Mark the day PRESENT and sync summary inTime/outTime from punches. */
+export const upsertPresentDaySummaryTx = (
+  tx: Prisma.TransactionClient,
+  data: { facultyId: string; date: Date; inTime: string | null; outTime: string | null }
+) =>
+  tx.facultyDailyAttendance.upsert({
+    where: { facultyId_date: { facultyId: data.facultyId, date: data.date } },
+    create: {
+      facultyId: data.facultyId,
+      date: data.date,
+      status: "PRESENT",
+      inTime: data.inTime,
+      outTime: data.outTime,
+    },
+    update: { status: "PRESENT", inTime: data.inTime, outTime: data.outTime },
+  });
+
 export const findMyStudents = async (params: {
   facultyId: string;
   instituteId: string;
@@ -1110,6 +1287,72 @@ export const findMyStudents = async (params: {
  * Teaching-desk student class attendance history (records + calendar + per-student %).
  * Scoped to sessions in teaching-desk batches hosted by this faculty when facultyId is set on sessions.
  */
+// ─── Geo check-in / check-out ───────────────────────────────────────────
+
+/**
+ * Find a faculty record with work location for geo check-in validation.
+ */
+export const findFacultyWithGeoById = (facultyId: string) =>
+  prisma.faculty.findUnique({
+    where: { id: facultyId },
+    select: {
+      id: true,
+      status: true,
+      workLatitude: true,
+      workLongitude: true,
+    },
+  });
+
+/**
+ * Upsert today's FacultyDailyAttendance for check-in:
+ * - Sets status PRESENT
+ * - Sets inTime only if not already set (idempotent first check-in)
+ */
+export const upsertCheckIn = async (facultyId: string, date: Date, inTime: string) => {
+  const existing = await prisma.facultyDailyAttendance.findUnique({
+    where: { facultyId_date: { facultyId, date } },
+  });
+
+  if (existing) {
+    // Only update if not already PRESENT (status change) but keep existing inTime
+    return prisma.facultyDailyAttendance.update({
+      where: { facultyId_date: { facultyId, date } },
+      data: {
+        status: "PRESENT",
+        inTime: existing.inTime ?? inTime, // keep first check-in time
+      },
+    });
+  }
+
+  return prisma.facultyDailyAttendance.create({
+    data: {
+      facultyId,
+      date,
+      status: "PRESENT",
+      inTime,
+    },
+  });
+};
+
+/**
+ * Set outTime on today's FacultyDailyAttendance for check-out.
+ * Returns null if no PRESENT row exists for today.
+ */
+export const upsertCheckOut = async (facultyId: string, date: Date, outTime: string) => {
+  const existing = await prisma.facultyDailyAttendance.findUnique({
+    where: { facultyId_date: { facultyId, date } },
+  });
+
+  if (!existing || existing.status !== "PRESENT" || !existing.inTime) {
+    return null;
+  }
+
+  return prisma.facultyDailyAttendance.update({
+    where: { facultyId_date: { facultyId, date } },
+    data: { outTime },
+  });
+};
+
 export const findMyStudentAttendance = async (params: {
   facultyId: string;
   instituteId: string;

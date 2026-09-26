@@ -446,8 +446,9 @@ export const CounselorPerformance: React.FC = () => {
                         Last calculated:{" "}
                         {p?.calculatedAt
                           ? new Date(p.calculatedAt).toLocaleTimeString([], {
-                              hour: "2-digit",
+                              hour: "numeric",
                               minute: "2-digit",
+                              hour12: true,
                             })
                           : "Recently"}
                       </span>

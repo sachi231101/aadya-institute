@@ -7,7 +7,6 @@ import {
   Users,
   Video,
   BookOpen,
-  CheckCircle2,
   ArrowRight,
   Search,
   Star,
@@ -32,6 +31,7 @@ import {
   resolveDisplaySessionStatus,
 } from "@/utils/session-window";
 import { ROUTES } from "@/constants/routes";
+import { formatTime12h, formatTimeRange12h } from "@/utils/format";
 
 type SessionCard = FacultyDashboardSession & {
   isToday: boolean;
@@ -113,7 +113,7 @@ export const FacultyDashboard: React.FC = () => {
         sessionStatus: status,
         isToday,
         dateLabel: formatSessionDate(dateKey, isToday),
-        timeRange: `${s.startTime} – ${s.endTime}`,
+        timeRange: formatTimeRange12h(s.startTime, s.endTime),
       };
     };
 
@@ -255,9 +255,9 @@ export const FacultyDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-28">
-        <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-        <span className="ml-3 text-sm text-slate-500 font-medium">Loading your teaching desk...</span>
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        <span className="ml-3 text-sm text-muted-foreground">Loading dashboard…</span>
       </div>
     );
   }
@@ -265,12 +265,10 @@ export const FacultyDashboard: React.FC = () => {
   if (isError || !dashboard) {
     return (
       <div className="p-12 text-center max-w-md mx-auto space-y-4">
-        <AlertCircle className="mx-auto h-12 w-12 text-rose-500 opacity-70" />
-        <h2 className="text-xl font-bold">Unable to load dashboard</h2>
+        <AlertCircle className="mx-auto h-10 w-10 text-rose-500 opacity-70" />
+        <h2 className="text-lg font-semibold">Unable to load dashboard</h2>
         <p className="text-sm text-muted-foreground">Your faculty profile or schedule could not be loaded.</p>
-        <Button onClick={() => refetch()} className="bg-[#2563EB] text-white">
-          Retry
-        </Button>
+        <Button onClick={() => refetch()}>Retry</Button>
         <div className="text-left pt-2">
           <LeaveRequestReviewPanel />
         </div>
@@ -279,19 +277,19 @@ export const FacultyDashboard: React.FC = () => {
   }
 
   return (
-    <PageContainer className="animate-in fade-in duration-300">
+    <PageContainer>
       <PageHeader
         title={`Welcome back, ${facultyName}`}
-        description={`Your live schedule from assigned batches at ${branchName}.`}
+        description={branchName}
         actions={
           todayClasses[0] ? (
             <Button
               onClick={() => handleOpenClass(todayClasses[0])}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs sm:text-sm h-9 px-4 rounded-xl gap-2"
+              className="h-9 gap-2 px-3.5 text-xs sm:text-sm font-medium"
             >
               <Clock className="w-4 h-4" />
-              <span>
-                Next: {todayClasses[0].courseName || todayClasses[0].title} ({todayClasses[0].startTime})
+              <span className="truncate max-w-[14rem] sm:max-w-none">
+                Next: {todayClasses[0].courseName || todayClasses[0].title} ({formatTime12h(todayClasses[0].startTime)})
               </span>
             </Button>
           ) : undefined
@@ -299,45 +297,52 @@ export const FacultyDashboard: React.FC = () => {
       />
 
       <MetricGrid density="compact">
-        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+        <Card size="compact" className="border border-border/60 shadow-xs bg-card">
           <CardContent size="compact">
-            <div className="text-2xl font-semibold text-foreground leading-tight">{counts?.todayClasses ?? todayClasses.length}</div>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">Today's Classes</p>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Today</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5 tabular-nums">
+              {counts?.todayClasses ?? todayClasses.length}
+            </p>
           </CardContent>
         </Card>
 
-        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+        <Card size="compact" className="border border-border/60 shadow-xs bg-card">
           <CardContent size="compact">
-            <div className="text-2xl font-semibold text-foreground leading-tight">{upcomingCount}</div>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">Upcoming (7 days)</p>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Upcoming</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5 tabular-nums">{upcomingCount}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Next 7 days</p>
           </CardContent>
         </Card>
 
         <Card
           size="compact"
-          className={`shadow-2xs rounded-xl border ${
+          className={`border shadow-xs ${
             liveCount > 0
-              ? "bg-rose-50/60 border-rose-300 ring-1 ring-rose-400/50"
-              : "bg-card border-border"
+              ? "border-rose-200 bg-rose-50/50 dark:border-rose-900 dark:bg-rose-950/30"
+              : "border-border/60 bg-card"
           }`}
         >
           <CardContent size="compact">
-            <div className={`text-2xl font-semibold leading-tight ${liveCount > 0 ? "text-rose-600" : "text-foreground"}`}>
-              {liveCount > 0 ? `${liveCount} LIVE` : "0"}
-            </div>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              {liveCount > 0
-                ? `${liveCount === 1 ? "Session" : "Sessions"} in progress`
-                : "No live session"}
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Live</p>
+            <p
+              className={`text-xl font-semibold mt-0.5 tabular-nums ${
+                liveCount > 0 ? "text-rose-600" : "text-foreground"
+              }`}
+            >
+              {liveCount}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {liveCount > 0 ? "In progress" : "None now"}
             </p>
           </CardContent>
         </Card>
 
-        <Card size="compact" className="bg-card border-border shadow-2xs rounded-xl">
+        <Card size="compact" className="border border-border/60 shadow-xs bg-card">
           <CardContent size="compact">
-            <div className="text-2xl font-semibold text-foreground leading-tight">{completedCount}</div>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5 truncate">
-              Completed this week
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Completed</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5 tabular-nums">{completedCount}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              This week
               {counts?.pendingSubmissions != null && counts.pendingSubmissions > 0
                 ? ` · ${counts.pendingSubmissions} to grade`
                 : ""}
@@ -346,102 +351,109 @@ export const FacultyDashboard: React.FC = () => {
         </Card>
       </MetricGrid>
 
-      <Card
-        size="compact"
-        className="bg-card border-border shadow-2xs rounded-xl cursor-pointer hover:border-primary/40 transition-colors"
-        onClick={() => navigate(ROUTES.FACULTY.MY_ATTENDANCE)}
-        role="link"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            navigate(ROUTES.FACULTY.MY_ATTENDANCE);
-          }
-        }}
-      >
-        <CardContent size="compact" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground">My attendance</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Today:{" "}
-              <span className="font-semibold text-foreground">
-                {dashboard.dailyAttendance?.today
-                  ? dashboard.dailyAttendance.today.status.replace("_", " ")
-                  : "Not marked"}
-              </span>
-              {dashboard.dailyAttendance?.today?.status === "PRESENT" &&
-              (dashboard.dailyAttendance.today.inTime || dashboard.dailyAttendance.today.outTime)
-                ? ` · ${dashboard.dailyAttendance.today.inTime || "—"}–${dashboard.dailyAttendance.today.outTime || "—"}`
-                : ""}
-              {" · "}
-              This month:{" "}
-              <span className="font-semibold text-foreground">
-                {dashboard.dailyAttendance?.monthPct != null
-                  ? `${dashboard.dailyAttendance.monthPct}%`
-                  : "—"}
-              </span>
-            </p>
+      <Card size="compact" className="border border-border/60 shadow-xs bg-card">
+        <CardContent size="compact">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                My attendance
+              </p>
+              <p className="text-sm text-foreground mt-0.5">
+                <span className="font-medium">
+                  {dashboard.dailyAttendance?.today
+                    ? dashboard.dailyAttendance.today.status.replace("_", " ")
+                    : "Not marked"}
+                </span>
+                {(() => {
+                  const today = dashboard.dailyAttendance?.today;
+                  if (!today || today.status !== "PRESENT") return null;
+                  const first = today.firstIn ?? today.inTime;
+                  const last = today.lastOut ?? today.outTime;
+                  if (!first && !last && !today.openSession) return null;
+                  const sessions = today.sessionCount > 1 ? ` · ${today.sessionCount} sessions` : "";
+                  const range = today.openSession
+                    ? `from ${formatTime12h(first)}`
+                    : `${formatTime12h(first)} – ${formatTime12h(last)}`;
+                  return (
+                    <span className="text-muted-foreground font-normal">
+                      {" "}
+                      · {range}
+                      {sessions}
+                    </span>
+                  );
+                })()}
+                {dashboard.dailyAttendance?.today?.openSession ? (
+                  <span className="text-blue-600 dark:text-blue-400 font-medium"> · Checked in</span>
+                ) : null}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · Month{" "}
+                  <span className="font-medium text-foreground">
+                    {dashboard.dailyAttendance?.monthPct != null
+                      ? `${dashboard.dailyAttendance.monthPct}%`
+                      : "—"}
+                  </span>
+                </span>
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs shrink-0 gap-1"
+              onClick={() => navigate(ROUTES.FACULTY.MY_ATTENDANCE)}
+            >
+              View history
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs shrink-0 gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(ROUTES.FACULTY.MY_ATTENDANCE);
-            }}
-          >
-            View history
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Button>
         </CardContent>
       </Card>
 
       <LeaveRequestReviewPanel />
 
       <div
-        className={`grid gap-4 ${
+        className={`grid gap-3 ${
           dashboard.pendingGrading?.length > 0 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
         }`}
       >
         {dashboard.pendingGrading?.length > 0 && (
-          <Card size="compact" className="rounded-xl border-amber-200 bg-amber-50/40 shadow-2xs">
+          <Card size="compact" className="border border-amber-200/80 bg-amber-50/30 shadow-xs dark:border-amber-900/60 dark:bg-amber-950/20">
             <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <h3 className="text-sm font-semibold text-amber-900">Pending grading</h3>
+                <h3 className="text-sm font-semibold text-foreground">Pending grading</h3>
               </div>
-              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[11px] font-semibold">
+              <Badge variant="outline" className="text-[11px] font-medium border-amber-200 text-amber-800 bg-amber-50/80">
                 {dashboard.pendingGrading.length} {dashboard.pendingGrading.length === 1 ? "batch" : "batches"}
               </Badge>
             </CardHeader>
-            <CardContent size="compact" className="px-4 pb-3 space-y-2">
+            <CardContent size="compact" className="px-4 pb-3 space-y-1.5">
               {dashboard.pendingGrading.slice(0, 3).map((a) => (
                 <button
                   key={a.id}
                   type="button"
                   onClick={() => navigate("/faculty/assignments/reviews")}
-                  className="w-full flex items-center justify-between text-left text-xs font-medium p-3 rounded-lg bg-white border border-amber-200/80 hover:border-amber-400 hover:shadow-xs transition-all group"
+                  className="w-full flex items-center justify-between text-left text-xs p-2.5 rounded-lg bg-background/80 hover:bg-background border border-transparent hover:border-border transition-colors group"
                 >
                   <div className="min-w-0 flex-1">
-                    <span className="font-semibold text-slate-900 block truncate">{a.title}</span>
-                    <span className="text-slate-500 text-[11px]">
-                      {a.batchName ? `Batch: ${a.batchName}` : ""}
-                    </span>
+                    <span className="font-medium text-foreground block truncate">{a.title}</span>
+                    {a.batchName ? (
+                      <span className="text-muted-foreground text-[11px]">{a.batchName}</span>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <Badge className="bg-amber-100 hover:bg-amber-100 text-amber-800 border-amber-200 text-[11px] font-semibold">
+                    <span className="text-[11px] font-medium text-amber-800 dark:text-amber-300">
                       {a.pendingCount} {a.pendingCount === 1 ? "submission" : "submissions"}
-                    </Badge>
-                    <ArrowRight className="w-3.5 h-3.5 text-amber-600 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </button>
               ))}
             </CardContent>
           </Card>
         )}
-        <Card size="compact" className="rounded-xl border-border shadow-2xs">
+        <Card size="compact" className="border border-border/60 shadow-xs bg-card">
           <CardHeader size="compact" className="pb-2 pt-3 px-4 flex flex-row items-center justify-between gap-2">
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-foreground">Student feedback</h3>
@@ -449,14 +461,10 @@ export const FacultyDashboard: React.FC = () => {
                 {counts?.avgRating != null ? (
                   <>
                     <span className="font-semibold text-amber-600">{counts.avgRating.toFixed(1)}</span>
-                    <span>/5 avg</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {counts.totalRatings} {counts.totalRatings === 1 ? "review" : "reviews"}
-                    </span>
+                    /5 · {counts.totalRatings} {counts.totalRatings === 1 ? "review" : "reviews"}
                   </>
                 ) : (
-                  <>0 reviews yet</>
+                  <>No reviews yet</>
                 )}
               </p>
             </div>
@@ -469,16 +477,15 @@ export const FacultyDashboard: React.FC = () => {
               View all
             </Button>
           </CardHeader>
-          <CardContent size="compact" className="px-4 pb-3 space-y-2">
+          <CardContent size="compact" className="px-4 pb-3 space-y-1.5">
             {(dashboard.recentFeedback?.length ?? 0) === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center rounded-lg bg-muted/30 border border-border/60">
-                No student feedback yet
-              </p>
+              <p className="text-xs text-muted-foreground py-3 text-center">No student feedback yet</p>
             ) : (
               dashboard.recentFeedback.slice(0, 3).map((f) => (
-                <div key={f.id} className="text-xs p-2.5 rounded-lg bg-muted/40 border border-border/60">
-                  <div className="flex items-center gap-1 font-semibold text-amber-600">
-                    <Star className="w-3 h-3 fill-current" /> {f.rating}/5 · Anonymous student
+                <div key={f.id} className="text-xs py-2 px-2.5 rounded-lg bg-muted/40">
+                  <div className="flex items-center gap-1 font-medium text-amber-600">
+                    <Star className="w-3 h-3 fill-current" /> {f.rating}/5
+                    <span className="text-muted-foreground font-normal">· Anonymous</span>
                   </div>
                   {f.comment && <p className="text-muted-foreground mt-1 line-clamp-2">{f.comment}</p>}
                 </div>
@@ -489,18 +496,19 @@ export const FacultyDashboard: React.FC = () => {
       </div>
 
       <PageSection
-        title="My Assigned Classes"
-        description={`Schedule for ${facultyName} (${branchName}).`}
+        title="My classes"
         density="compact"
         actions={
-          <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl self-start overflow-x-auto">
+          <div className="flex items-center gap-0.5 p-0.5 bg-muted rounded-lg self-start overflow-x-auto">
             {(["TODAY", "ALL", "UPCOMING", "COMPLETED"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap h-9 ${
-                  activeTab === tab ? "bg-card text-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap h-8 ${
+                  activeTab === tab
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {tab === "TODAY"
@@ -516,32 +524,32 @@ export const FacultyDashboard: React.FC = () => {
         }
       >
         <FilterToolbar>
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search courses, batches, or rooms..."
+              placeholder="Search courses, batches, or rooms…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-9 rounded-xl border-border bg-background text-xs font-medium"
+              className="pl-9 h-9 border-border/60 bg-background text-xs"
             />
           </div>
         </FilterToolbar>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {displayedClasses.length === 0 ? (
-            <div className="py-12 text-center space-y-3 rounded-xl border border-border bg-card">
-              <div className="w-14 h-14 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
-                <BookOpen className="w-7 h-7" />
+            <div className="py-10 text-center space-y-2 rounded-xl border border-border/60 bg-card">
+              <div className="w-11 h-11 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
+                <BookOpen className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-foreground">No classes found</h3>
+              <h3 className="text-sm font-semibold text-foreground">No classes found</h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 {searchQuery
                   ? "No teaching slots matched your search."
-                  : "No scheduled classes yet. When admin assigns you on Timetable, they appear here and under My Classes."}
+                  : "No scheduled classes yet. Assignments from the timetable appear here."}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {displayedClasses.map((cls) => {
                 const isLive = cls.sessionStatus === "LIVE";
                 const dateKey = String(cls.scheduledDate || todayIso).slice(0, 10);
@@ -554,121 +562,120 @@ export const FacultyDashboard: React.FC = () => {
                 return (
                   <div
                     key={cls.id}
-                    className={`rounded-xl p-5 flex flex-col justify-between gap-4 relative overflow-hidden group ${
+                    className={`rounded-xl p-4 flex flex-col justify-between gap-3 relative overflow-hidden group border ${
                       isLive
-                        ? "bg-rose-50/70 border border-rose-400 ring-1 ring-rose-400/40 shadow-sm"
-                        : "bg-card hover:bg-muted/30 border border-border hover:border-primary/30 hover:shadow-xs"
+                        ? "bg-rose-50/50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900"
+                        : "bg-card border-border/60 hover:border-border"
                     }`}
                   >
                     {isLive && (
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-rose-600 animate-pulse" />
+                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-rose-500" />
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <Badge
                             variant="outline"
-                            className="bg-blue-50 text-[#2563EB] border-blue-200 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-lg"
+                            className="text-[10px] font-mono font-medium px-2 py-0.5 shrink-0"
                           >
                             {cls.batchCode || "BATCH"}
                           </Badge>
-                          <span className="text-xs font-semibold text-slate-600">{cls.batchName}</span>
+                          {cls.batchName ? (
+                            <span className="text-xs text-muted-foreground truncate">{cls.batchName}</span>
+                          ) : null}
                         </div>
                         {isLive ? (
-                          <Badge className="bg-rose-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full animate-pulse">
-                            LIVE NOW
+                          <Badge className="bg-rose-600 text-white font-medium text-[11px] px-2 py-0.5">
+                            LIVE
                           </Badge>
                         ) : cls.sessionStatus === "COMPLETED" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 font-semibold text-xs px-2.5 py-0.5 rounded-full">
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium text-[11px] px-2 py-0.5"
+                          >
                             Ended
                           </Badge>
                         ) : (
-                          <Badge className="bg-emerald-50 text-emerald-700 font-semibold text-xs px-2.5 py-0.5 rounded-full">
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground font-medium text-[11px] px-2 py-0.5"
+                          >
                             Upcoming
                           </Badge>
                         )}
                       </div>
 
                       <div>
-                        <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight group-hover:text-primary transition-colors">
+                        <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
                           {cls.courseName || cls.title || "Class Session"}
                         </h3>
                         {cls.subjectName &&
                           cls.subjectName !== cls.courseName &&
                           cls.subjectName !== cls.title && (
-                          <p className="text-xs font-medium text-slate-600 mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {cls.subjectName}
                           </p>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70 sm:col-span-2">
-                          <Calendar className="w-4 h-4 text-primary shrink-0" />
-                          <span className="font-semibold">
-                            {cls.dateLabel}
-                            <span className="text-slate-500 font-normal"> · {cls.timeRange}</span>
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70">
-                          <Users className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>
-                            <strong className="font-semibold text-slate-900">{cls.assignedStudents}</strong>{" "}
-                            {cls.assignedStudents === 1 ? "Student" : "Students"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/90 p-2.5 rounded-xl border border-slate-200/70">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5 text-foreground">
+                          <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          {cls.dateLabel}
+                          <span className="text-muted-foreground">· {cls.timeRange}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 shrink-0" />
+                          {cls.assignedStudents}{" "}
+                          {cls.assignedStudents === 1 ? "student" : "students"}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
                           {isLive || cls.mode === "ONLINE" ? (
                             <>
-                              <Video className="w-4 h-4 text-rose-600 shrink-0" />
-                              <span className="font-semibold text-rose-700">Online / Meet</span>
+                              <Video className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                              <span className="text-rose-700 dark:text-rose-400">Online</span>
                             </>
                           ) : (
                             <>
-                              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                              <span>{cls.roomNo || "Room TBD"}</span>
+                              <MapPin className="w-3.5 h-3.5 shrink-0" />
+                              {cls.roomNo || "Room TBD"}
                             </>
                           )}
-                        </div>
+                        </span>
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium text-slate-500">
-                        {isLive ? "Session in progress" : cls.sessionStatus === "COMPLETED" ? "Class completed" : "Scheduled"}
-                      </span>
-                      <div className="flex items-center gap-2 ml-auto">
-                        {(showJoinMeet) && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={(e) => handleJoinGoogleMeet(cls, e)}
-                            className="font-semibold text-xs h-9 px-3.5 rounded-xl gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50"
-                          >
-                            <Video className="w-3.5 h-3.5" /> Join Meet
-                          </Button>
-                        )}
+                    <div className="pt-2.5 border-t border-border/50 flex flex-wrap items-center justify-end gap-2">
+                      {showJoinMeet && (
                         <Button
                           type="button"
-                          onClick={() => handleOpenClass(cls)}
-                          className={`font-semibold text-xs h-9 px-4 rounded-xl gap-1.5 ${
-                            isLive
-                              ? "bg-rose-600 hover:bg-rose-700 text-white"
-                              : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                          }`}
+                          variant="outline"
+                          onClick={(e) => handleJoinGoogleMeet(cls, e)}
+                          className="font-medium text-xs h-8 px-3 gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50"
                         >
-                          {isLive ? (
-                            <>
-                              <Video className="w-3.5 h-3.5" /> Manage Live Class
-                            </>
-                          ) : (
-                            <>
-                              Open Session <ArrowRight className="w-3.5 h-3.5" />
-                            </>
-                          )}
+                          <Video className="w-3.5 h-3.5" /> Join Meet
                         </Button>
-                      </div>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() => handleOpenClass(cls)}
+                        className={`font-medium text-xs h-8 px-3.5 gap-1.5 ${
+                          isLive
+                            ? "bg-rose-600 hover:bg-rose-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        {isLive ? (
+                          <>
+                            <Video className="w-3.5 h-3.5" /> Manage Live Class
+                          </>
+                        ) : (
+                          <>
+                            Open Session <ArrowRight className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 );

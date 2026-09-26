@@ -34,6 +34,8 @@ export interface Faculty {
   qualification: string | null;
   qualificationMasterId: string | null;
   status: FacultyStatus;
+  workLatitude?: number | null;
+  workLongitude?: number | null;
   createdAt: string;
   updatedAt: string;
   user: FacultyUser;
@@ -139,6 +141,8 @@ export interface FacultyDashboardData {
     qualification: string | null;
     status: FacultyStatus;
     branch: FacultyBranch | null;
+    workLatitude?: number | null;
+    workLongitude?: number | null;
   };
   counts: {
     todayClasses: number;
@@ -152,12 +156,12 @@ export interface FacultyDashboardData {
   };
   /** Own daily attendance summary for the faculty dashboard. */
   dailyAttendance?: {
-    today: {
+    today: ({
       status: FacultyDailyAttendanceStatus;
       inTime: string | null;
       outTime: string | null;
       comments: string | null;
-    } | null;
+    } & FacultyDaySessionSummary) | null;
     monthPct: number;
   };
   todaySessions: FacultyDashboardSession[];
@@ -219,6 +223,8 @@ export interface CreateFacultyPayload {
   branchId: string;
   designationMasterId?: string;
   qualificationMasterId?: string;
+  workLatitude?: number | null;
+  workLongitude?: number | null;
 }
 
 export interface UpdateFacultyPayload {
@@ -230,6 +236,8 @@ export interface UpdateFacultyPayload {
   designationMasterId?: string | null;
   qualificationMasterId?: string | null;
   status?: FacultyStatus;
+  workLatitude?: number | null;
+  workLongitude?: number | null;
 }
 
 export interface FacultyListParams {
@@ -343,12 +351,46 @@ export interface MarkAttendancePayload {
 
 export type FacultyDailyAttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE" | "WEEKLY_OFF";
 
-export interface FacultyDailyAttendanceRecord {
+/** Statuses accepted on desk bulk save (WEEKLY_OFF is legacy / not writable). */
+export type FacultyDailyAttendanceWritableStatus = "PRESENT" | "ABSENT" | "LEAVE";
+
+export type FacultyPunchType = "CHECK_IN" | "CHECK_OUT";
+export type FacultyPunchSource = "MANUAL" | "AUTO_GEOFENCE";
+
+export interface FacultyAttendancePunch {
+  id: string;
+  type: FacultyPunchType;
+  /** IST HH:mm */
+  timeHmm: string;
+  /** ISO timestamp */
+  punchedAt: string;
+  source: FacultyPunchSource;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Derived per-day session summary (sessions = CHECK_IN → next CHECK_OUT). */
+export interface FacultyDaySessionSummary {
+  /** Sorted by punchedAt ascending. */
+  punches: FacultyAttendancePunch[];
+  /** True when the last punch of the day is CHECK_IN. */
+  openSession: boolean;
+  firstIn: string | null;
+  lastOut: string | null;
+  /** Sessions started (including the open one). */
+  sessionCount: number;
+  /** Sum of completed sessions only. */
+  totalMinutes: number;
+}
+
+export interface FacultyDailyAttendanceRecord extends FacultyDaySessionSummary {
   id: string;
   facultyId: string;
   date: string;
   status: FacultyDailyAttendanceStatus;
+  /** Day summary: first CHECK_IN (or admin-entered time). */
   inTime: string | null;
+  /** Day summary: last CHECK_OUT; null while a session is open. */
   outTime: string | null;
   comments: string | null;
   markedBy?: string | null;
@@ -395,11 +437,40 @@ export interface BulkDailyAttendancePayload {
   date: string;
   records: Array<{
     facultyId: string;
-    status: FacultyDailyAttendanceStatus;
+    status: FacultyDailyAttendanceWritableStatus;
     inTime?: string | null;
     outTime?: string | null;
     comments?: string | null;
   }>;
+}
+
+// ─── Geo Check-In / Check-Out ───────────────────────────────────────────
+
+export interface FacultyGeoCheckPayload {
+  latitude: number;
+  longitude: number;
+}
+
+export interface FacultyGeoCheckOutPayload {
+  /** Required for AUTO_GEOFENCE; omitted for MANUAL (no GPS / geofence). */
+  latitude?: number;
+  longitude?: number;
+  /** AUTO_GEOFENCE requires coords and >100 m; MANUAL skips location entirely. */
+  source?: FacultyPunchSource;
+}
+
+export interface FacultyCheckInOutResult extends FacultyDaySessionSummary {
+  id: string;
+  facultyId: string;
+  /** YYYY-MM-DD (IST) */
+  date: string;
+  status: FacultyDailyAttendanceStatus;
+  inTime: string | null;
+  outTime: string | null;
+  comments: string | null;
+  distanceMeters: number;
+  /** The punch just recorded. */
+  punch: FacultyAttendancePunch;
 }
 
 // ─── Paginated Response ─────────────────────────────────────────────────

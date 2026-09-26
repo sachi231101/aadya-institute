@@ -27,6 +27,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { formatTime12h, formatTimeRange12h } from "@/utils/format";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import { useFacultyScheduleBlocks } from "@/hooks/useFacultyScheduleBlocks";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
@@ -315,7 +316,7 @@ export const FacultyMySchedule: React.FC = () => {
         date: scheduledDate,
         startTime,
         endTime,
-        timeRange: `${startTime} – ${endTime}`,
+        timeRange: formatTimeRange12h(startTime, endTime),
         roomNo: s.roomNo || "Room No 1",
         mode: (s.mode as FormattedTimetableClass["mode"]) || "OFFLINE",
         meetingUrl: s.meetingUrl || undefined,
@@ -520,10 +521,7 @@ export const FacultyMySchedule: React.FC = () => {
 
       await classSessionsApi.startLive(cls.id, meetingUrl);
 
-      const startedAt = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const startedAt = formatTime12h(new Date());
 
       setActiveLiveClass({
         id: cls.id,
@@ -1144,7 +1142,7 @@ export const FacultyMySchedule: React.FC = () => {
                           <div className="space-y-0.5 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[11px] font-semibold text-foreground tabular-nums">
-                                {cls.startTime} – {cls.endTime}
+                                {formatTimeRange12h(cls.startTime, cls.endTime)}
                               </span>
                               <Badge
                                 className={`text-[9px] font-semibold px-1.5 py-0 h-5 rounded-md ${

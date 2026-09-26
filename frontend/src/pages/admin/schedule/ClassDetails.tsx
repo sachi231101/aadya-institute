@@ -51,6 +51,7 @@ import { classSessionsApi } from "@/services/class-sessions.api";
 import { batchesApi } from "@/services/batches.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
+import { formatTimeRange12h } from "@/utils/format";
 import {
   findPeriodByTimes,
   findSlotByMasterId,
@@ -1118,8 +1119,9 @@ export const ClassDetails: React.FC = () => {
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>
                       This time slot is already assigned (
-                      {editSlotConflict.title || "Class"} at {editSlotConflict.startTime}–
-                      {editSlotConflict.endTime}). Choose another slot or faculty.
+                      {editSlotConflict.title || "Class"} at{" "}
+                      {formatTimeRange12h(editSlotConflict.startTime, editSlotConflict.endTime)}). Choose another
+                      slot or faculty.
                     </span>
                   </p>
                 )}

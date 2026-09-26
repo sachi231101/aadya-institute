@@ -70,6 +70,7 @@ import {
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getApiErrorMessage } from "@/utils/api-error";
+import { formatTimeRange12h } from "@/utils/format";
 
 // ─── TYPES & SCHEDULE DATA STRUCTURES ──────────────────────────────────────
 
@@ -353,7 +354,7 @@ export const Timetable: React.FC = () => {
       id: raw.id,
       sessionId: raw.id,
       period,
-      timeRange: col?.label || `${raw.startTime} – ${raw.endTime}`,
+      timeRange: col?.label || formatTimeRange12h(raw.startTime, raw.endTime),
       type: "CLASS",
       title: raw.title || undefined,
       courseName,
@@ -397,7 +398,7 @@ export const Timetable: React.FC = () => {
       blockId: raw.id,
       sessionId: undefined,
       period,
-      timeRange: col?.label || `${raw.startTime} – ${raw.endTime}`,
+      timeRange: col?.label || formatTimeRange12h(raw.startTime, raw.endTime),
       type: raw.blockType === "LUNCH" ? "LUNCH" : "BREAK",
       title: undefined,
       courseName: undefined,

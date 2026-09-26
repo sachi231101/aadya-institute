@@ -33,6 +33,7 @@ import { useAssignments, useSubmitAssignment, useUploadSubmissionFile } from "@/
 import { useAuthStore } from "@/store/auth.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { formatTime12h } from "@/utils/format";
 import {
   canStudentSubmit,
   formatMarks,
@@ -520,10 +521,7 @@ export const StudentAssignments: React.FC = () => {
                               year: "numeric",
                             })}{" "}
                             •{" "}
-                            {new Date(submission?.submittedAt || "").toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatTime12h(submission?.submittedAt ? new Date(submission.submittedAt) : null)}
                           </span>
                         </span>
                       ) : (
@@ -544,10 +542,7 @@ export const StudentAssignments: React.FC = () => {
                                 year: "numeric",
                               })}{" "}
                               •{" "}
-                              {new Date(assignment.dueDate).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatTime12h(new Date(assignment.dueDate))}
                             </strong>
                           </span>
                         </span>
@@ -722,10 +717,7 @@ export const StudentAssignments: React.FC = () => {
                         year: "numeric",
                       })}{" "}
                       at{" "}
-                      {new Date(selectedAssignment.dueDate).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatTime12h(new Date(selectedAssignment.dueDate))}
                     </strong>
                   </span>
                 </div>
@@ -754,10 +746,7 @@ export const StudentAssignments: React.FC = () => {
                         year: "numeric",
                       })}{" "}
                       •{" "}
-                      {currentSubmission.submittedAt && new Date(currentSubmission.submittedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {currentSubmission.submittedAt && formatTime12h(new Date(currentSubmission.submittedAt))}
                     </span>
                   </div>
 

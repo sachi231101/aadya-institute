@@ -12,6 +12,8 @@ import type {
   MarkAttendancePayload,
   DailyAttendanceParams,
   BulkDailyAttendancePayload,
+  FacultyGeoCheckPayload,
+  FacultyGeoCheckOutPayload,
 } from "@/types/faculty.types";
 import { useAuthStore } from "@/store/auth.store";
 import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
@@ -132,8 +134,14 @@ export const useDeleteFaculty = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => facultyApi.delete(id),
-    onSuccess: async () => {
+    onSuccess: async (_res, id) => {
+      queryClient.removeQueries({ queryKey: [FACULTY_KEY, id] });
       await invalidateFacultyDirectoryQueries(queryClient);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [FACULTY_COURSES_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [FACULTY_ATTENDANCE_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] }),
+      ]);
     },
   });
 };
@@ -193,6 +201,34 @@ export const useSaveFacultyDailyAttendance = () => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] });
       queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
       queryClient.invalidateQueries({ queryKey: [FACULTY_DASHBOARD_KEY] });
+    },
+  });
+};
+
+export const useFacultyCheckIn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (coords: FacultyGeoCheckPayload) => facultyApi.checkIn(coords),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DASHBOARD_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY, "list"] });
+      // Invalidate faculty reports so attendance % reflects new check-in
+      queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
+    },
+  });
+};
+
+export const useFacultyCheckOut = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FacultyGeoCheckOutPayload) => facultyApi.checkOut(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DASHBOARD_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY, "list"] });
+      // Invalidate faculty reports so attendance % reflects new check-out
+      queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
     },
   });
 };

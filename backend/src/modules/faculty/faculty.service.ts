@@ -39,7 +39,46 @@ import type {
   BulkDailyAttendanceDto,
   DailyAttendanceQuery,
   FacultyDailyAttendanceStatus,
+  FacultySelfAttendanceGeoDto,
+  FacultyCheckOutDto,
 } from "./faculty.validation";
+import {
+  facultyDayKey,
+  groupPunchesByFacultyDay,
+  istWallTimeToDate,
+  summarizeDayPunches,
+  toPunchDto,
+  type FacultyPunchRow,
+  type FacultyPunchSource,
+  type FacultyPunchType,
+} from "./faculty-attendance-punch.util";
+
+// ─── Geofencing constants & helpers ─────────────────────────────────────
+
+const FACULTY_GEOFENCE_RADIUS_M = 100;
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function getISTDateString(now: Date = new Date()): string {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset);
+  return ist.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function getISTTimeString(now: Date = new Date()): string {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset);
+  return ist.toISOString().slice(11, 16); // HH:mm
+}
 
 const toCalendarDateKey = (value: Date | string): string => {
   if (typeof value === "string") {
@@ -272,6 +311,8 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
     designationMasterId,
     qualification,
     qualificationMasterId,
+    workLatitude: dto.workLatitude ?? null,
+    workLongitude: dto.workLongitude ?? null,
   });
 };
 
@@ -330,15 +371,19 @@ export const updateFaculty = async (
     qualificationMasterId:
       qualificationMasterId === undefined ? undefined : qualificationMasterId,
     status: dto.status,
+    workLatitude: dto.workLatitude !== undefined ? dto.workLatitude : undefined,
+    workLongitude: dto.workLongitude !== undefined ? dto.workLongitude : undefined,
   });
 };
 
 /**
- * Soft-delete a faculty member.
+ * Permanently delete a faculty member (hard delete).
  */
 export const deleteFaculty = async (currentUser: AuthUser, id: string) => {
   await getFacultyById(currentUser, id);
-  return repo.softDeleteFaculty(id);
+  const result = await repo.hardDeleteFaculty(id);
+  if (!result) throw new AppError("Faculty not found", 404);
+  return result;
 };
 
 // ─── Faculty Course Assignments ─────────────────────────────────────────
@@ -471,16 +516,18 @@ const normalizeDailyRecord = (
   comments?: string | null
 ) => {
   if (status === "PRESENT") {
-    if (!inTime || !outTime) {
-      throw new AppError("Login and logout times are required when status is PRESENT", 400);
+    const normalizedIn = inTime || null;
+    const normalizedOut = outTime || null;
+    if (normalizedOut && !normalizedIn) {
+      throw new AppError("inTime is required when outTime is set", 400);
     }
-    if (outTime <= inTime) {
+    if (normalizedIn && normalizedOut && normalizedOut <= normalizedIn) {
       throw new AppError("Logout time must be after login time", 400);
     }
     return {
       status,
-      inTime,
-      outTime,
+      inTime: normalizedIn,
+      outTime: normalizedOut,
       comments: comments ?? null,
     };
   }
@@ -523,7 +570,11 @@ export const getDailyAttendance = async (
       throw new AppError("Faculty not found", 404);
     }
 
-    const records = await repo.findDailyAttendanceForFaculty({ facultyId, from, to });
+    const [records, punchRows] = await Promise.all([
+      repo.findDailyAttendanceForFaculty({ facultyId, from, to }),
+      repo.findPunchesForFacultyRange({ facultyId, from, to }),
+    ]);
+    const punchesByDay = groupPunchesByFacultyDay(punchRows);
     const present = records.filter((r) => r.status === "PRESENT").length;
     const counted = records.filter((r) =>
       r.status === "PRESENT" || r.status === "ABSENT" || r.status === "LEAVE"
@@ -534,17 +585,21 @@ export const getDailyAttendance = async (
       mode: "history" as const,
       facultyId,
       attendancePct,
-      records: records.map((r) => ({
-        id: r.id,
-        facultyId: r.facultyId,
-        date: r.date.toISOString().slice(0, 10),
-        status: r.status,
-        inTime: r.inTime,
-        outTime: r.outTime,
-        comments: r.comments,
-        markedBy: r.markedBy,
-        updatedAt: r.updatedAt.toISOString(),
-      })),
+      records: records.map((r) => {
+        const dateKey = r.date.toISOString().slice(0, 10);
+        return {
+          id: r.id,
+          facultyId: r.facultyId,
+          date: dateKey,
+          status: r.status,
+          inTime: r.inTime,
+          outTime: r.outTime,
+          comments: r.comments,
+          markedBy: r.markedBy,
+          updatedAt: r.updatedAt.toISOString(),
+          ...summarizeDayPunches(punchesByDay.get(facultyDayKey(r.facultyId, dateKey)) ?? [], r),
+        };
+      }),
     };
   }
 
@@ -568,6 +623,11 @@ export const getDailyAttendance = async (
   ]);
 
   const attendanceByFaculty = new Map(attendanceRows.map((r) => [r.facultyId, r]));
+  const punchRows = await repo.findPunchesForFacultiesOnDate(
+    attendanceRows.map((r) => r.facultyId),
+    date
+  );
+  const punchesByDay = groupPunchesByFacultyDay(punchRows);
 
   const records = facultyList.map((f) => {
     const att = attendanceByFaculty.get(f.id);
@@ -589,6 +649,7 @@ export const getDailyAttendance = async (
             comments: att.comments,
             markedBy: att.markedBy,
             updatedAt: att.updatedAt.toISOString(),
+            ...summarizeDayPunches(punchesByDay.get(facultyDayKey(f.id, query.date!)) ?? [], att),
           }
         : null,
     };
@@ -631,8 +692,27 @@ export const saveDailyAttendance = async (
     throw new AppError("Cannot mark attendance for inactive faculty", 400);
   }
 
+  // Preserve existing geo check-in/out times when admin re-saves Present without times.
+  const existingRows = await prisma.facultyDailyAttendance.findMany({
+    where: {
+      date,
+      facultyId: { in: facultyIds },
+    },
+    select: { facultyId: true, inTime: true, outTime: true },
+  });
+  const existingByFaculty = new Map(existingRows.map((r) => [r.facultyId, r]));
+
   const normalized = dto.records.map((r) => {
-    const n = normalizeDailyRecord(r.status, r.inTime, r.outTime, r.comments);
+    let inTime = r.inTime ?? null;
+    let outTime = r.outTime ?? null;
+
+    if (r.status === "PRESENT") {
+      const existing = existingByFaculty.get(r.facultyId);
+      if (!inTime && existing?.inTime) inTime = existing.inTime;
+      if (!outTime && existing?.outTime) outTime = existing.outTime;
+    }
+
+    const n = normalizeDailyRecord(r.status, inTime, outTime, r.comments);
     return {
       facultyId: r.facultyId,
       status: n.status,
@@ -709,6 +789,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     pendingSubmissions,
     ratingStats,
     monthAttendanceRows,
+    todayPunches,
   ] = await Promise.all([
     repo.findFacultySessionsInRange(facultyId, scheduleFrom, scheduleTo),
     repo.countFacultySessionsByStatus(
@@ -726,6 +807,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
       from: repo.parseDateOnly(monthStartKey),
       to: repo.parseDateOnly(monthEndKey),
     }),
+    repo.findPunchesForFacultiesOnDate([facultyId], repo.parseDateOnly(todayKey)),
   ]);
 
   const allScheduled = scheduledRaw.map(mapSessionCard);
@@ -760,6 +842,8 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
       qualification: faculty.qualification,
       status: faculty.status,
       branch: faculty.branch,
+      workLatitude: faculty.workLatitude,
+      workLongitude: faculty.workLongitude,
     },
     counts: {
       todayClasses: todaySessions.length,
@@ -778,6 +862,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
             inTime: todayAttendanceRow.inTime,
             outTime: todayAttendanceRow.outTime,
             comments: todayAttendanceRow.comments,
+            ...summarizeDayPunches(todayPunches, todayAttendanceRow),
           }
         : null,
       monthPct,
@@ -1125,4 +1210,174 @@ export const getMyStudentAttendance = async (
     },
     meta: buildMeta(total, page, limit),
   };
+};
+
+// ─── Geofenced Self Check-In / Check-Out ────────────────────────────────
+
+const findActiveGeoFaculty = async (user: AuthUser) => {
+  const faculty = await repo.findFacultyByUserId(user.id);
+  if (!faculty || faculty.status !== "ACTIVE") {
+    throw new AppError("Faculty not found or inactive", 404);
+  }
+  if (faculty.workLatitude == null || faculty.workLongitude == null) {
+    throw new AppError("Work location not set. Contact admin.", 400);
+  }
+  return {
+    id: faculty.id,
+    workLatitude: faculty.workLatitude,
+    workLongitude: faculty.workLongitude,
+  };
+};
+
+/** Days recorded before punches existed only have summary times; convert them so session pairing stays consistent. */
+const legacyBackfillPunches = (
+  facultyId: string,
+  date: Date,
+  dateKey: string,
+  row: { status: string; inTime: string | null; outTime: string | null } | null
+): repo.CreatePunchData[] => {
+  if (!row || row.status !== "PRESENT" || !row.inTime) return [];
+  const make = (type: FacultyPunchType, timeHmm: string): repo.CreatePunchData => ({
+    facultyId,
+    date,
+    type,
+    timeHmm,
+    punchedAt: istWallTimeToDate(dateKey, timeHmm),
+    source: "MANUAL",
+  });
+  return row.outTime
+    ? [make("CHECK_IN", row.inTime), make("CHECK_OUT", row.outTime)]
+    : [make("CHECK_IN", row.inTime)];
+};
+
+/**
+ * Append a punch for today (IST) and sync the day summary:
+ * status PRESENT, inTime = first CHECK_IN, outTime = last CHECK_OUT (null while a session is open).
+ */
+const recordGeoPunch = async (params: {
+  facultyId: string;
+  type: FacultyPunchType;
+  source: FacultyPunchSource;
+  latitude: number | null;
+  longitude: number | null;
+  distanceMeters: number;
+}) => {
+  const now = new Date();
+  const dateKey = getISTDateString(now);
+  const date = repo.parseDateOnly(dateKey);
+
+  return repo.withFacultyPunchLock(params.facultyId, async (tx) => {
+    const row = await repo.findDayRowTx(tx, params.facultyId, date);
+    const existing: FacultyPunchRow[] = await repo.findDayPunchesTx(tx, params.facultyId, date);
+    const before = summarizeDayPunches(existing, row);
+
+    if (params.type === "CHECK_IN" && before.openSession) {
+      throw new AppError("You are already checked in. Check out before checking in again.", 409);
+    }
+    if (params.type === "CHECK_OUT" && !before.openSession) {
+      throw new AppError("You are not checked in.", 400);
+    }
+
+    if (existing.length === 0) {
+      const backfill = legacyBackfillPunches(params.facultyId, date, dateKey, row);
+      if (backfill.length > 0) await repo.createPunchesTx(tx, backfill);
+    }
+
+    const punch = await repo.createPunchTx(tx, {
+      facultyId: params.facultyId,
+      date,
+      type: params.type,
+      punchedAt: now,
+      timeHmm: getISTTimeString(now),
+      source: params.source,
+      latitude: params.latitude,
+      longitude: params.longitude,
+    });
+
+    const summary = summarizeDayPunches(await repo.findDayPunchesTx(tx, params.facultyId, date));
+    const record = await repo.upsertPresentDaySummaryTx(tx, {
+      facultyId: params.facultyId,
+      date,
+      inTime: summary.firstIn,
+      outTime: summary.openSession ? null : summary.lastOut,
+    });
+
+    return {
+      ...record,
+      date: dateKey,
+      distanceMeters: Math.round(params.distanceMeters),
+      punch: toPunchDto(punch),
+      ...summary,
+    };
+  });
+};
+
+export const checkInMe = async (
+  user: AuthUser,
+  body: FacultySelfAttendanceGeoDto
+) => {
+  const faculty = await findActiveGeoFaculty(user);
+  const dist = haversineMeters(
+    body.latitude,
+    body.longitude,
+    faculty.workLatitude,
+    faculty.workLongitude
+  );
+  if (dist > FACULTY_GEOFENCE_RADIUS_M) {
+    throw new AppError(
+      `You must be within 100 m of your assigned location to check in. Current distance: ${Math.round(dist)} m.`,
+      403
+    );
+  }
+  return recordGeoPunch({
+    facultyId: faculty.id,
+    type: "CHECK_IN",
+    source: "MANUAL",
+    latitude: body.latitude,
+    longitude: body.longitude,
+    distanceMeters: dist,
+  });
+};
+
+export const checkOutMe = async (
+  user: AuthUser,
+  body: FacultyCheckOutDto
+) => {
+  const faculty = await findActiveGeoFaculty(user);
+  const source = body.source ?? "MANUAL";
+
+  if (source === "AUTO_GEOFENCE") {
+    const latitude = body.latitude!;
+    const longitude = body.longitude!;
+    const dist = haversineMeters(
+      latitude,
+      longitude,
+      faculty.workLatitude,
+      faculty.workLongitude
+    );
+    if (dist <= FACULTY_GEOFENCE_RADIUS_M) {
+      throw new AppError(
+        `Auto check-out applies only outside 100 m of your assigned location. Current distance: ${Math.round(dist)} m.`,
+        400
+      );
+    }
+    return recordGeoPunch({
+      facultyId: faculty.id,
+      type: "CHECK_OUT",
+      source: "AUTO_GEOFENCE",
+      latitude,
+      longitude,
+      distanceMeters: dist,
+    });
+  }
+
+  // MANUAL: no GPS / geofence — open session only
+  return recordGeoPunch({
+    facultyId: faculty.id,
+    type: "CHECK_OUT",
+    source: "MANUAL",
+    latitude: body.latitude ?? null,
+    longitude: body.longitude ?? null,
+    distanceMeters: 0,
+  });
 };
