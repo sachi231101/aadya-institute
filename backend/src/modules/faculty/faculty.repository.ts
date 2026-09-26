@@ -4,6 +4,8 @@ import { formatBatchSubjectNames } from "../../utils/batch-course.util";
 export interface FindAllFacultyParams {
   instituteId: string;
   branchId?: string;
+  /** Multi-branch scope (UserBranchAccess); used when branchId is unset. */
+  branchIds?: string[];
   search?: string;
   status?: string;
   skip: number;
@@ -49,6 +51,8 @@ const buildWhereClause = (params: Omit<FindAllFacultyParams, "skip" | "take">) =
 
   if (params.branchId) {
     where.branchId = params.branchId;
+  } else if (params.branchIds && params.branchIds.length > 0) {
+    where.branchId = { in: params.branchIds };
   }
 
   if (params.status) {
@@ -303,9 +307,15 @@ export const findFacultyCourses = async (params: FindFacultyCoursesParams) => {
           branch: { select: { id: true, name: true, code: true } },
           schedules: {
             where: { status: "ACTIVE" },
-            select: { dayOfWeek: true, startTime: true, endTime: true, facultyId: true },
+            select: {
+              dayOfWeek: true,
+              startTime: true,
+              endTime: true,
+              facultyId: true,
+              batchCourseId: true,
+            },
           },
-          classSessions: { select: { sessionStatus: true } },
+          classSessions: { select: { sessionStatus: true, facultyId: true } },
           _count: { select: { enrollments: true } },
         },
       },
@@ -317,26 +327,41 @@ export const findFacultyCourses = async (params: FindFacultyCoursesParams) => {
 
   return rows
     .filter((bc) => bc.facultyId && bc.faculty)
-    .map((bc) => ({
-      id: bc.id,
-      batchId: bc.batchId,
-      instituteId: bc.batch.instituteId,
-      branchId: bc.batch.branchId,
-      courseId: bc.courseId,
-      facultyId: bc.facultyId!,
-      name: bc.batch.name,
-      code: bc.batch.code,
-      startDate: bc.batch.startDate,
-      expectedEndDate: bc.batch.expectedEndDate,
-      status: bc.batch.status,
-      createdAt: bc.batch.createdAt,
-      course: bc.course,
-      faculty: bc.faculty,
-      branch: bc.batch.branch,
-      schedules: bc.batch.schedules,
-      classSessions: bc.batch.classSessions,
-      _count: bc.batch._count,
-    }));
+    .map((bc) => {
+      const schedules = bc.batch.schedules.filter((slot) => {
+        // Subject-linked slot → only this BatchCourse assignment
+        if (slot.batchCourseId) return slot.batchCourseId === bc.id;
+        // Faculty-linked slot → only this faculty
+        if (slot.facultyId) return slot.facultyId === bc.facultyId;
+        // Legacy unscoped slot → attach only to the batch primary course (or sole subject)
+        return bc.courseId === bc.batch.courseId;
+      });
+
+      const classSessions = bc.batch.classSessions.filter(
+        (session) => session.facultyId === bc.facultyId
+      );
+
+      return {
+        id: bc.id,
+        batchId: bc.batchId,
+        instituteId: bc.batch.instituteId,
+        branchId: bc.batch.branchId,
+        courseId: bc.courseId,
+        facultyId: bc.facultyId!,
+        name: bc.batch.name,
+        code: bc.batch.code,
+        startDate: bc.batch.startDate,
+        expectedEndDate: bc.batch.expectedEndDate,
+        status: bc.batch.status,
+        createdAt: bc.batch.createdAt,
+        course: bc.course,
+        faculty: bc.faculty,
+        branch: bc.batch.branch,
+        schedules,
+        classSessions,
+        _count: bc.batch._count,
+      };
+    });
 };
 
 export const countFacultyCourses = (params: Omit<FindFacultyCoursesParams, "skip" | "take">) => {

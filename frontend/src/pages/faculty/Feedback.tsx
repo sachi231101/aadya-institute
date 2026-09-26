@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore, type ClassFeedbackItem } from "@/store/feedback.store";
 import { useFeedbackByFaculty, useFacultyRatings } from "@/hooks/useFeedback";
@@ -42,8 +42,8 @@ export const FacultyFeedback: React.FC = () => {
         ? new Date(f.classSession.scheduledDate).toISOString().split("T")[0]
         : "Today",
       classTime: "Class Slot",
-      studentId: f.studentId || f.student?.id || "std",
-      studentName: f.student?.user?.name || "Enrolled Student",
+      studentId: "",
+      studentName: "Anonymous student",
       rating: f.rating || 5.0,
       ratingLabel: f.rating >= 4.5 ? "Excellent" : f.rating >= 3.5 ? "Very Good" : "Good",
       teachingRating: f.teachingRating || f.rating || 5,
@@ -60,12 +60,18 @@ export const FacultyFeedback: React.FC = () => {
     }));
 
     // Filter local feedbacks matching current faculty name
-    const matchingLocal = localFeedbacks.filter((f) => {
-      if (!f.facultyName) return true;
-      const fn = f.facultyName.toLowerCase();
-      const currentFn = facultyName.toLowerCase();
-      return fn.includes(currentFn) || currentFn.includes(fn);
-    });
+    const matchingLocal = localFeedbacks
+      .filter((f) => {
+        if (!f.facultyName) return true;
+        const fn = f.facultyName.toLowerCase();
+        const currentFn = facultyName.toLowerCase();
+        return fn.includes(currentFn) || currentFn.includes(fn);
+      })
+      .map((f) => ({
+        ...f,
+        studentId: "",
+        studentName: "Anonymous student",
+      }));
 
     const combined = [...matchingLocal];
     for (const af of apiFeedbacks) {
@@ -123,14 +129,13 @@ export const FacultyFeedback: React.FC = () => {
         if (String(star) !== ratingFilter) return false;
       }
 
-      // Search filter
+      // Search by comment / class only (student identity is anonymous to faculty)
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchesName = f.studentName.toLowerCase().includes(q);
         const matchesCourse = f.courseName.toLowerCase().includes(q);
         const matchesBatch = f.batchCode.toLowerCase().includes(q);
         const matchesComment = (f.comments || "").toLowerCase().includes(q);
-        return matchesName || matchesCourse || matchesBatch || matchesComment;
+        return matchesCourse || matchesBatch || matchesComment;
       }
 
       return true;
@@ -194,7 +199,7 @@ export const FacultyFeedback: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by student, course, or batch..."
+            placeholder="Search by course, batch, or comment..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-9 pl-9 pr-3 text-xs font-medium bg-muted/30 border border-border rounded-lg focus:outline-none focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -239,19 +244,13 @@ export const FacultyFeedback: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 border border-slate-200 shadow-2xs">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fb.studentName)}`} />
-                      <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                        {fb.studentName.slice(0, 2).toUpperCase()}
+                      <AvatarFallback className="bg-slate-500 text-white font-bold text-xs">
+                        AN
                       </AvatarFallback>
                     </Avatar>
 
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-semibold text-slate-900">{fb.studentName}</h4>
-                        <Badge variant="outline" className="text-[10px] font-bold border-slate-200 bg-slate-50 text-slate-600 px-1.5 py-0">
-                          {fb.studentId}
-                        </Badge>
-                      </div>
+                      <h4 className="text-sm font-semibold text-slate-900">Anonymous student</h4>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">
                         {fb.courseName} • <span className="font-bold text-slate-700">{fb.batchCode}</span>
                       </p>

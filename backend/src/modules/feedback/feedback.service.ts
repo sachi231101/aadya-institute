@@ -66,7 +66,28 @@ export const listFeedback = async (currentUser: AuthUser, query: ListFeedbackQue
     take: limit,
   });
 
-  return { data: records, meta: buildMeta(total, page, limit) };
+  const isFacultyOnly =
+    currentUser.roles.includes("FACULTY") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("COUNSELLOR");
+
+  const data = isFacultyOnly
+    ? records.map((record) => ({
+        ...record,
+        studentId: null as unknown as string,
+        student: {
+          id: null as unknown as string,
+          studentCode: null as unknown as string,
+          user: {
+            id: null as unknown as string,
+            name: "Anonymous student",
+          },
+        },
+      }))
+    : records;
+
+  return { data, meta: buildMeta(total, page, limit) };
 };
 
 export const submitFeedback = async (currentUser: AuthUser, dto: SubmitFeedbackDto) => {
@@ -104,7 +125,8 @@ export const submitFeedback = async (currentUser: AuthUser, dto: SubmitFeedbackD
     throw new AppError("You are not enrolled in this class session's batch", 403);
   }
 
-  const facultyId = dto.facultyId || session.facultyId;
+  // Prefer session faculty as source of truth; only use client facultyId when session has none
+  const facultyId = session.facultyId || dto.facultyId;
   if (!facultyId) {
     throw new AppError("This class session has no faculty assigned", 400);
   }

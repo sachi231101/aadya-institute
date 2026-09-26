@@ -3,7 +3,6 @@ import {
   Star,
   Search,
   Loader2,
-  Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
@@ -65,7 +64,7 @@ export const FacultyRatings: React.FC = () => {
     const totalFacultyCount = rawRatings.length;
     const totalReviews = rawRatings.reduce((sum: number, r: any) => sum + (r.totalFeedbacks || 0), 0);
     const sumAvg = rawRatings.reduce((sum: number, r: any) => sum + (r.averageRating || 0), 0);
-    const overallAvg = totalFacultyCount > 0 ? (sumAvg / totalFacultyCount).toFixed(1) : "5.0";
+    const overallAvg = totalFacultyCount > 0 ? (sumAvg / totalFacultyCount).toFixed(1) : "—";
     const topRatedCount = rawRatings.filter((r: any) => (r.averageRating || 0) >= 4.5).length;
 
     return {
@@ -171,27 +170,26 @@ export const FacultyRatings: React.FC = () => {
                 <th className="px-4 py-2.5 border-r border-border/80">Faculty Instructor</th>
                 <th className="px-3 py-2.5 border-r border-border/80">Average Rating</th>
                 <th className="px-3 py-2.5 border-r border-border/80">Total Feedbacks</th>
-                <th className="px-3 py-2.5 border-r border-border/80">Star Distribution</th>
                 <th className="px-4 py-2.5 text-center">Reviews</th>
               </tr>
             </thead>
             <tbody className="bg-card">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-muted-foreground text-xs font-medium">
+                  <td colSpan={4} className="text-center py-10 text-muted-foreground text-xs font-medium">
                     <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto mb-2" />
                     Loading ratings...
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-rose-500 text-xs font-medium">
+                  <td colSpan={4} className="text-center py-10 text-rose-500 text-xs font-medium">
                     Failed to load ratings.
                   </td>
                 </tr>
               ) : filteredRatings.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 px-4 text-muted-foreground text-xs font-medium">
+                  <td colSpan={4} className="text-center py-10 px-4 text-muted-foreground text-xs font-medium">
                     No feedback data found.
                   </td>
                 </tr>
@@ -228,19 +226,6 @@ export const FacultyRatings: React.FC = () => {
                         >
                           {total} {total === 1 ? "review" : "reviews"}
                         </Badge>
-                      </td>
-
-                      <td className="px-3 py-2.5 border-r border-border/70">
-                        <div className="flex flex-wrap gap-1.5">
-                          {(r.ratings || []).map((rd: any) => (
-                            <span
-                              key={rd.rating}
-                              className="text-[10px] font-mono text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border"
-                            >
-                              {rd.rating}★ <strong className="text-foreground">({rd.count})</strong>
-                            </span>
-                          ))}
-                        </div>
                       </td>
 
                       <td className="px-4 py-2.5 text-center">

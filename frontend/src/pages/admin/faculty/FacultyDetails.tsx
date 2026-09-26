@@ -10,14 +10,29 @@ import {
   TrendingUp,
   Users
 } from "lucide-react";
-import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "../../../hooks/useFaculty";
+import {
+  useFacultyMember,
+  useFacultyCourses,
+  useFacultyDailyAttendance,
+  useDeleteFaculty,
+} from "../../../hooks/useFaculty";
 import { feedbackApi, type Feedback } from "@/services/feedback.api";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageContainer, PageHeader } from "@/components/layout";
+import { MetricGrid, PageContainer, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
+import { getApiErrorMessage } from "@/utils/api-error";
 import type { FacultyDailyAttendanceHistoryResponse, FacultyDailyAttendanceStatus } from "@/types/faculty.types";
 import {
   ResponsiveContainer,
@@ -73,6 +88,7 @@ const buildAttendanceTrend = (
   return months.map((m) => ({
     name: m.name,
     val: m.counted > 0 ? Math.round((m.present / m.counted) * 100) : 0,
+    counted: m.counted,
   }));
 };
 
@@ -99,6 +115,34 @@ const hoursBetween = (start?: string, end?: string) => {
   return (endMinutes - startMinutes) / 60;
 };
 
+const formatDayLabels = (dayIndexes: number[]) => {
+  const sorted = [...new Set(dayIndexes)].sort((a, b) => a - b);
+  if (sorted.length === 0) return "";
+  const labels = sorted.map((d) => DAY_NAMES[d] || "Day");
+  const isConsecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
+  if (sorted.length >= 3 && isConsecutive) {
+    return `${labels[0]}–${labels[labels.length - 1]}`;
+  }
+  return labels.join(", ");
+};
+
+/** Group schedule slots by time window for a clear summary (e.g. Mon–Sat · 9:00 AM–10:00 AM). */
+const formatScheduleLines = (
+  slots: Array<{ dayOfWeek: number; startTime: string; endTime: string }>
+): Array<{ days: string; time: string }> => {
+  const byTime = new Map<string, number[]>();
+  for (const slot of slots) {
+    const key = `${slot.startTime}–${slot.endTime}`;
+    const days = byTime.get(key) ?? [];
+    days.push(slot.dayOfWeek);
+    byTime.set(key, days);
+  }
+  return Array.from(byTime.entries()).map(([time, days]) => ({
+    days: formatDayLabels(days),
+    time,
+  }));
+};
+
 const getWorkloadState = (hrs: number) => {
   if (hrs <= 0) return { label: "Not scheduled", color: "bg-slate-300", text: "text-muted-foreground", pct: 0 };
   if (hrs > 30) return { label: "High", color: "bg-rose-500", text: "text-rose-500", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
@@ -109,10 +153,14 @@ const getWorkloadState = (hrs: number) => {
 export const FacultyDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = usePermissions();
+  const deleteFaculty = useDeleteFaculty();
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "batches" | "performance" | "schedule" | "feedback" | "attendance"
   >("overview");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Fetch from backend
   const { data: facultyResponse, isLoading, isError } = useFacultyMember(id);
@@ -121,12 +169,19 @@ export const FacultyDetails: React.FC = () => {
     { facultyId: id },
     !!id
   );
-  const { data: facultyReviewsRes, isLoading: isReviewsLoading } = useQuery({
+  const {
+    data: facultyReviewsRes,
+    isLoading: isReviewsLoading,
+    isError: isReviewsError,
+    refetch: refetchReviews,
+  } = useQuery({
     queryKey: ["faculty-reviews", id],
     queryFn: () => feedbackApi.getFeedbackByFaculty(id!),
     enabled: Boolean(id),
   });
-  const facultyReviews: Feedback[] = facultyReviewsRes?.data || [];
+  const facultyReviews: Feedback[] = Array.isArray(facultyReviewsRes?.data)
+    ? facultyReviewsRes.data
+    : [];
 
   const backendFaculty = facultyResponse?.data;
   const facultyAssignments = coursesResponse?.data ?? [];
@@ -135,6 +190,24 @@ export const FacultyDetails: React.FC = () => {
     dailyHistory?.mode === "history" ? dailyHistory.records : [];
   const attendanceRate =
     dailyHistory?.mode === "history" ? dailyHistory.attendancePct : 0;
+
+  const closeDeleteDialog = () => {
+    if (deleteFaculty.isPending) return;
+    setDeleteDialogOpen(false);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!backendFaculty?.id) return;
+    setDeleteError(null);
+    try {
+      await deleteFaculty.mutateAsync(backendFaculty.id);
+      setDeleteDialogOpen(false);
+      navigate("/admin/faculty/all");
+    } catch (err) {
+      setDeleteError(getApiErrorMessage(err, "Failed to delete faculty."));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -170,12 +243,17 @@ export const FacultyDetails: React.FC = () => {
     (sum, assignment) => sum + (assignment._count?.enrollments ?? 0),
     0
   );
+  // Weekly hours / timetable: use every BatchCourse assignment (not deduped by batch)
+  // so multi-course batches keep correct subject labels and faculty-scoped slots.
   const weeklyHours = Math.round(
-    assignedBatches.reduce((sum, assignment) => {
-      const slots = (assignment.schedules || []).filter(
-        (slot) => !slot.facultyId || slot.facultyId === assignment.facultyId
+    facultyAssignments.reduce((sum, assignment) => {
+      return (
+        sum +
+        (assignment.schedules || []).reduce(
+          (hours, slot) => hours + hoursBetween(slot.startTime, slot.endTime),
+          0
+        )
       );
-      return sum + slots.reduce((hours, slot) => hours + hoursBetween(slot.startTime, slot.endTime), 0);
     }, 0) * 10
   ) / 10;
   const sessionStats = assignedBatches.reduce(
@@ -196,17 +274,29 @@ export const FacultyDetails: React.FC = () => {
   const schedule: Record<string, Array<{ batch: string; time: string }>> = {
     MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [],
   };
-  for (const assignment of assignedBatches) {
-    for (const slot of (assignment.schedules || []).filter(
-      (item) => !item.facultyId || item.facultyId === assignment.facultyId
-    )) {
+  const scheduleKeys = new Set<string>();
+  for (const assignment of facultyAssignments) {
+    for (const slot of assignment.schedules || []) {
+      // Backend already faculty-scopes; keep a guard for explicit other-faculty slots.
+      if (slot.facultyId && slot.facultyId !== assignment.facultyId) continue;
       const day = DAY_NAMES[slot.dayOfWeek]?.slice(0, 3).toUpperCase();
       if (!day || !schedule[day]) continue;
-      schedule[day].push({
-        batch: assignment.course?.name ? `${assignment.name} · ${assignment.course.name}` : assignment.name,
-        time: `${slot.startTime}–${slot.endTime}`,
-      });
+      const label = assignment.course?.name
+        ? `${assignment.name} · ${assignment.course.name}`
+        : assignment.name;
+      const time = `${slot.startTime}–${slot.endTime}`;
+      const key = `${day}|${label}|${time}`;
+      if (scheduleKeys.has(key)) continue;
+      scheduleKeys.add(key);
+      schedule[day].push({ batch: label, time });
     }
+  }
+  for (const day of SCHEDULE_DAYS) {
+    schedule[day].sort((a, b) => {
+      const aMin = minutesFromClock(a.time.split("–")[0]) ?? 0;
+      const bMin = minutesFromClock(b.time.split("–")[0]) ?? 0;
+      return aMin - bMin;
+    });
   }
 
   const faculty = {
@@ -229,17 +319,17 @@ export const FacultyDetails: React.FC = () => {
     workloadHrs: weeklyHours,
     attendance: attendanceRate,
     batches: assignedBatches.map((assignment) => {
-      const timing = (assignment.schedules || [])
-        .filter((slot) => !slot.facultyId || slot.facultyId === assignment.facultyId)
-        .map((slot) => `${DAY_NAMES[slot.dayOfWeek] || "Day"} ${slot.startTime}–${slot.endTime}`)
-        .join(", ");
+      // Merge schedule lines from all course assignments on this batch for this faculty
+      const batchSlots = facultyAssignments
+        .filter((a) => (a.batchId || a.id) === (assignment.batchId || assignment.id))
+        .flatMap((a) => a.schedules || []);
       return {
         id: assignment.code || assignment.id,
         name: assignment.course?.name || assignment.name,
         batchName: assignment.name,
         students: assignment._count?.enrollments || 0,
         status: assignment.status,
-        time: timing || null,
+        scheduleLines: formatScheduleLines(batchSlots),
       };
     }),
     schedule,
@@ -276,7 +366,7 @@ export const FacultyDetails: React.FC = () => {
 
   const workloadState = getWorkloadState(faculty.workloadHrs);
   const attendanceTrend = buildAttendanceTrend(facultyDailyAttendance);
-  const hasTrendData = attendanceTrend.some((m) => m.val > 0);
+  const hasTrendData = attendanceTrend.some((m) => m.counted > 0);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00").toLocaleDateString("en-IN", {
@@ -286,176 +376,192 @@ export const FacultyDetails: React.FC = () => {
     });
   };
 
+  const headerMeta = [
+    faculty.employeeCode,
+    faculty.specialization,
+    faculty.designation,
+    faculty.branch,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <PageContainer className="animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate("/admin/faculty/all")}
-            className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <PageHeader
-            className="flex-1 min-w-0"
-            title={
-              <span className="flex flex-wrap items-center gap-2">
-                {faculty.name}
-                <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                  {faculty.employeeCode}
-                </span>
-              </span>
-            }
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <PermissionGate itemKey="faculty.all" mode="write">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/faculty/${faculty.id}/edit`)}
-            className="rounded-xl shadow-2xs text-xs font-semibold h-9 cursor-pointer"
-          >
-            Edit Profile
-          </Button>
-          </PermissionGate>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setActiveTab("batches")}
-            className="rounded-xl shadow-2xs text-xs font-semibold h-9 cursor-pointer"
-          >
-            Course Allocations
-          </Button>
-          {faculty.email && (
-            <Button
-              size="sm"
-              asChild
-              className="bg-primary hover:bg-primary/90 text-white text-xs font-semibold h-9 rounded-xl shadow-xs cursor-pointer"
-            >
-              <a href={`mailto:${faculty.email}`}>Message Faculty</a>
-            </Button>
-          )}
-        </div>
+      <div className="flex items-start gap-3">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate("/admin/faculty/all")}
+          className="h-9 w-9 shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <PageHeader
+          className="flex-1 min-w-0"
+          title={faculty.name}
+          description={headerMeta || undefined}
+          actions={
+            <div className="flex items-center gap-2">
+              <PermissionGate itemKey="faculty.all" mode="write">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/admin/faculty/${faculty.id}/edit`)}
+                >
+                  Edit Profile
+                </Button>
+              </PermissionGate>
+              {isAdmin && String(faculty.status).toUpperCase() !== "INACTIVE" && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          }
+        />
       </div>
 
-      {/* ─── 2. HERO PROFILE BANNER ───────────────────────────────────── */}
-      <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
-        <CardContent className="p-5">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-            <div className="min-w-0">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h2 className="text-lg font-bold text-foreground">{faculty.name}</h2>
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      String(faculty.status).toUpperCase() === "ACTIVE"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    }`}
-                  >
-                    {faculty.status}
-                  </span>
-                  {faculty.rating !== null && (
-                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                      ★ {faculty.rating} / 5.0
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-muted-foreground font-medium flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="font-mono text-foreground">{faculty.employeeCode}</span>
-                  {faculty.specialization && (
-                    <>
-                      <span>•</span>
-                      <span className="text-primary font-semibold">{faculty.specialization}</span>
-                    </>
-                  )}
-                  {faculty.designation && (
-                    <>
-                      <span>•</span>
-                      <span>{faculty.designation}</span>
-                    </>
-                  )}
-                  {faculty.branch && (
-                    <>
-                      <span>•</span>
-                      <span>{faculty.branch}</span>
-                    </>
-                  )}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  {faculty.email ? (
-                    <a href={`mailto:${faculty.email}`} className="hover:text-primary transition-colors">
-                      {faculty.email}
-                    </a>
-                  ) : (
-                    <span>No email on record</span>
-                  )}
-                  {faculty.phone && (
-                    <>
-                      <span>•</span>
-                      <span>{faculty.phone}</span>
-                    </>
-                  )}
-                  {faculty.qualification && (
-                    <>
-                      <span>•</span>
-                      <span>{faculty.qualification}</span>
-                    </>
-                  )}
-                </div>
-              </div>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete faculty</DialogTitle>
+            <DialogDescription>
+              This deactivates the faculty account and cannot be undone from this screen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm rounded-lg border border-border bg-muted/40 p-3">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Faculty</span>
+              <span className="font-medium text-foreground">{faculty.name}</span>
             </div>
-
-            <div className="text-right shrink-0 bg-muted/30 p-3 rounded-lg border border-border/80 hidden lg:block">
-              <p className="text-xs font-semibold text-foreground">Joined {faculty.joinDate}</p>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Employee code</span>
+              <span className="font-mono text-foreground">{faculty.employeeCode}</span>
             </div>
           </div>
+          {deleteError && (
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteFaculty.isPending}
+              onClick={closeDeleteDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteFaculty.isPending}
+              onClick={() => void handleConfirmDelete()}
+            >
+              {deleteFaculty.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="border border-border shadow-xs">
+        <CardContent className="p-4 sm:p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <Badge
+                variant={String(faculty.status).toUpperCase() === "ACTIVE" ? "success" : "warning"}
+                className="mt-1 text-[10px] font-semibold"
+              >
+                {faculty.status}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Email</p>
+              <p className="text-sm font-medium text-foreground mt-1 truncate">
+                {faculty.email ? (
+                  <a href={`mailto:${faculty.email}`} className="hover:text-primary transition-colors">
+                    {faculty.email}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Phone</p>
+              <p className="text-sm font-medium text-foreground mt-1">{faculty.phone || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Qualification</p>
+              <p className="text-sm font-medium text-foreground mt-1">{faculty.qualification || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Joined</p>
+              <p className="text-sm font-medium text-foreground mt-1">{faculty.joinDate}</p>
+            </div>
+          </div>
+          {faculty.rating !== null && (
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+              Rating · <span className="font-semibold text-foreground">{faculty.rating} / 5.0</span>
+              {facultyReviews.length > 0 ? ` · ${facultyReviews.length} reviews` : ""}
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* ─── 3. TOP KPI SNAPSHOT CARDS ────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5 text-center">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned Batches</p>
-            <h4 className="text-xl font-bold text-foreground mt-0.5">{faculty.batchesCount}</h4>
-          </CardContent>
-        </Card>
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5 text-center">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Students Taught</p>
-            <h4 className="text-xl font-bold text-foreground mt-0.5">{faculty.studentsCount}</h4>
-          </CardContent>
-        </Card>
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5 text-center">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weekly Workload</p>
-            <h4 className="text-xl font-bold text-primary mt-0.5">
-              {faculty.workloadHrs > 0 ? faculty.workloadHrs : "—"}
-              {faculty.workloadHrs > 0 && <span className="text-xs font-normal text-muted-foreground">h /wk</span>}
-            </h4>
-          </CardContent>
-        </Card>
-        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
-          <CardContent className="p-3.5 text-center">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Rate</p>
-            <h4 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {facultyDailyAttendance.length > 0 ? `${faculty.attendance}%` : "—"}
-            </h4>
-          </CardContent>
-        </Card>
-      </div>
+      <MetricGrid columns="grid-cols-2 sm:grid-cols-4" density="compact">
+        {[
+          { label: "Assigned Batches", value: faculty.batchesCount },
+          { label: "Students Taught", value: faculty.studentsCount },
+          {
+            label: "Weekly Workload",
+            value: faculty.workloadHrs > 0 ? `${faculty.workloadHrs}h` : "—",
+          },
+          {
+            label: "Attendance Rate",
+            value: facultyDailyAttendance.length > 0 ? `${faculty.attendance}%` : "—",
+          },
+        ].map((kpi) => (
+          <Card
+            key={kpi.label}
+            size="compact"
+            className="border border-border bg-card shadow-none rounded-lg"
+          >
+            <CardContent size="compact">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                {kpi.label}
+              </p>
+              <h3 className="text-xl font-semibold text-foreground mt-0.5 tabular-nums">
+                {kpi.value}
+              </h3>
+            </CardContent>
+          </Card>
+        ))}
+      </MetricGrid>
 
-      {/* ─── 4. TAB NAVIGATION & CONTENT ──────────────────────────────── */}
       <div className="space-y-4">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-muted/20 border border-border/80 rounded-xl overflow-x-auto">
+        <div className="flex gap-1 border-b border-border overflow-x-auto">
           {[
             { id: "overview", label: "Overview" },
             { id: "batches", label: `Batches (${faculty.batches.length})` },
@@ -466,11 +572,12 @@ export const FacultyDetails: React.FC = () => {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              type="button"
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`px-3.5 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "bg-primary text-white shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -478,67 +585,66 @@ export const FacultyDetails: React.FC = () => {
           ))}
         </div>
 
-        {/* ─── TAB 1: OVERVIEW & CREDENTIALS ──────────────────────────── */}
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
-              <CardHeader className="bg-muted/40 border-b border-border/80 py-3 px-5">
-                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+            <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
+              <CardHeader className="border-b border-border py-3 px-5">
+                <CardTitle className="text-xs font-semibold text-foreground">
                   Credentials
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-5 space-y-2.5 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-border/70">
-                  <span className="text-muted-foreground font-medium">Employee ID</span>
-                  <span className="font-mono font-semibold text-foreground">{faculty.employeeCode}</span>
+                <div className="flex justify-between py-1.5 border-b border-border">
+                  <span className="text-muted-foreground">Employee ID</span>
+                  <span className="font-mono font-medium text-foreground">{faculty.employeeCode}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-border/70">
-                  <span className="text-muted-foreground font-medium">Branch</span>
-                  <span className="font-semibold text-foreground">{faculty.branch || "—"}</span>
+                <div className="flex justify-between py-1.5 border-b border-border">
+                  <span className="text-muted-foreground">Branch</span>
+                  <span className="font-medium text-foreground">{faculty.branch || "—"}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-border/70">
-                  <span className="text-muted-foreground font-medium">Specialization</span>
-                  <span className="font-semibold text-primary">{faculty.specialization || "—"}</span>
+                <div className="flex justify-between py-1.5 border-b border-border">
+                  <span className="text-muted-foreground">Specialization</span>
+                  <span className="font-medium text-foreground">{faculty.specialization || "—"}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-border/70">
-                  <span className="text-muted-foreground font-medium">Qualification</span>
-                  <span className="font-semibold text-foreground">{faculty.qualification || "—"}</span>
+                <div className="flex justify-between py-1.5 border-b border-border">
+                  <span className="text-muted-foreground">Qualification</span>
+                  <span className="font-medium text-foreground">{faculty.qualification || "—"}</span>
                 </div>
                 <div className="flex justify-between py-1.5">
-                  <span className="text-muted-foreground font-medium">Joined</span>
-                  <span className="font-semibold text-foreground">{faculty.joinDate}</span>
+                  <span className="text-muted-foreground">Joined</span>
+                  <span className="font-medium text-foreground">{faculty.joinDate}</span>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-              {/* Teaching Capacity Card */}
-              <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
-                <CardHeader className="bg-muted/40 border-b border-border/80 py-3 px-5">
-                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Workload Capacity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-medium">Weekly Hours</span>
-                    <span className={`font-semibold ${workloadState.text}`}>
-                      {faculty.workloadHrs > 0 ? `${faculty.workloadHrs} Hours (${workloadState.label})` : workloadState.label}
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                    <div className={`h-full ${workloadState.color} rounded-full`} style={{ width: `${workloadState.pct}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
-                    <span>0h</span>
-                    <span>Optimal (20h)</span>
-                    <span>Max (35h)</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Alerts & Insights */}
-            </div>
+            <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
+              <CardHeader className="border-b border-border py-3 px-5">
+                <CardTitle className="text-xs font-semibold text-foreground">
+                  Workload Capacity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 space-y-3 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Weekly Hours</span>
+                  <span className={`font-medium ${workloadState.text}`}>
+                    {faculty.workloadHrs > 0
+                      ? `${faculty.workloadHrs} Hours (${workloadState.label})`
+                      : workloadState.label}
+                  </span>
+                </div>
+                <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${workloadState.color} rounded-full`}
+                    style={{ width: `${workloadState.pct}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0h</span>
+                  <span>Optimal (20h)</span>
+                  <span>Max (35h)</span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -554,27 +660,38 @@ export const FacultyDetails: React.FC = () => {
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {faculty.batches.map((b) => (
-                <Card key={b.id} className="border border-border shadow-xs bg-card rounded-xl hover:border-primary/40 transition-all overflow-hidden">
-                  <CardContent className="p-5 space-y-3">
+                <Card key={b.id} className="border border-border shadow-xs rounded-xl overflow-hidden">
+                  <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                          {b.id}
-                        </span>
-                        <h4 className="text-sm font-bold text-foreground mt-1.5">{b.name}</h4>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{b.batchName}</p>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-mono text-muted-foreground">{b.id}</p>
+                        <h4 className="text-sm font-semibold text-foreground mt-0.5">{b.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">{b.batchName}</p>
                       </div>
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-muted text-foreground border border-border">
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
                         {b.status}
-                      </span>
+                      </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
+                    <div className="space-y-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" /> {b.students} Students Enrolled
+                        <Users className="h-3.5 w-3.5 shrink-0" />
+                        {b.students} Students Enrolled
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" /> {b.time || "No schedule set"}
+                      <div className="flex items-start gap-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        {b.scheduleLines.length === 0 ? (
+                          <span>No schedule set</span>
+                        ) : (
+                          <div className="space-y-1 min-w-0">
+                            {b.scheduleLines.map((line) => (
+                              <p key={`${line.days}-${line.time}`} className="text-foreground">
+                                <span className="font-medium">{line.days}</span>
+                                <span className="text-muted-foreground"> · {line.time}</span>
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -590,8 +707,8 @@ export const FacultyDetails: React.FC = () => {
           <div className="space-y-6">
             {/* Curriculum progress — this faculty's own marks across assignments */}
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-              <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <CardHeader className="border-b border-border py-3 px-5">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" /> Curriculum Progress
                 </CardTitle>
               </CardHeader>
@@ -677,8 +794,8 @@ export const FacultyDetails: React.FC = () => {
             </Card>
 
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-              <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <CardHeader className="border-b border-border py-3 px-5">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" /> Assigned Teaching Activity
                 </CardTitle>
               </CardHeader>
@@ -712,11 +829,11 @@ export const FacultyDetails: React.FC = () => {
 
             {/* Attendance Trend Chart */}
             <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-              <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" /> Monthly Faculty Attendance Trend (Last 6 Months)
+              <CardHeader className="border-b border-border py-3 px-5 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" /> Monthly Attendance Trend
                 </CardTitle>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="text-xs font-medium text-muted-foreground">
                   {faculty.attendance}% overall
                 </span>
               </CardHeader>
@@ -744,7 +861,7 @@ export const FacultyDetails: React.FC = () => {
                     </ResponsiveContainer>
                   ) : (
                     <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                      No daily attendance history yet for trend chart.
+                      No daily attendance records in the last 6 months.
                     </div>
                   )}
                 </div>
@@ -756,8 +873,8 @@ export const FacultyDetails: React.FC = () => {
         {/* ─── TAB 4: WEEKLY SCHEDULE ─────────────────────────────────── */}
         {activeTab === "schedule" && (
           <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-            <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+            <CardHeader className="border-b border-border py-3 px-5">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" /> Weekly Class Timetable
               </CardTitle>
             </CardHeader>
@@ -796,6 +913,19 @@ export const FacultyDetails: React.FC = () => {
                 <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
                 Loading student reviews...
               </div>
+            ) : isReviewsError ? (
+              <Card className="border border-border shadow-xs bg-card rounded-xl">
+                <CardContent className="py-14 text-center space-y-3">
+                  <AlertCircle className="h-8 w-8 text-rose-500/70 mx-auto" />
+                  <p className="text-sm font-medium text-foreground">Could not load student reviews</p>
+                  <p className="text-xs text-muted-foreground">
+                    Check your connection or permissions, then try again.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetchReviews()}>
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
             ) : facultyReviews.length === 0 ? (
               <Card className="border border-border shadow-xs bg-card rounded-xl">
                 <CardContent className="py-14 text-center">
@@ -834,7 +964,9 @@ export const FacultyDetails: React.FC = () => {
                         "{item.comment || "No written comment"}"
                       </p>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-bold text-foreground">— {item.student?.user?.name || "Student"}</p>
+                        <p className="text-xs font-semibold text-foreground">
+                          — {item.student?.user?.name || "Student"}
+                        </p>
                         <p className="text-[11px] text-muted-foreground truncate">
                           {item.classSession?.title || item.classSession?.batch?.name || "Class session"}
                         </p>
@@ -853,23 +985,33 @@ export const FacultyDetails: React.FC = () => {
             <CardContent className="p-0">
               {facultyDailyAttendance.length > 0 ? (
                 <div className="divide-y divide-border">
-                  {facultyDailyAttendance.map((record) => (
-                    <div key={record.id} className="p-4 flex justify-between items-center text-xs hover:bg-muted/30 transition-colors">
-                      <div>
-                        <p className="font-bold text-foreground">{formatDate(record.date)}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {record.status === "PRESENT"
-                            ? `In: ${record.inTime || "—"} — Out: ${record.outTime || "—"}`
-                            : record.comments || record.status.replace("_", " ")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
+                  {facultyDailyAttendance.map((record) => {
+                    const statusLabel = record.status.replace("_", " ");
+                    const detail =
+                      record.status === "PRESENT"
+                        ? `In: ${record.inTime || "—"} — Out: ${record.outTime || "—"}`
+                        : record.comments?.trim() &&
+                            record.comments.trim().toUpperCase() !== statusLabel
+                          ? record.comments.trim()
+                          : null;
+
+                    return (
+                      <div
+                        key={record.id}
+                        className="p-4 flex justify-between items-center gap-3 text-xs hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">{formatDate(record.date)}</p>
+                          {detail ? (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>
+                          ) : null}
+                        </div>
                         <Badge className={statusBadgeClass(record.status)}>
-                          {record.status.replace("_", " ")}
+                          {statusLabel}
                         </Badge>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-8 text-center text-muted-foreground text-xs">

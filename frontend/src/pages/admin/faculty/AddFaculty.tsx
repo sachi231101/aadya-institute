@@ -6,6 +6,7 @@ import * as z from "zod";
 import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
@@ -58,6 +59,7 @@ export const AddFaculty: React.FC = () => {
   const createMutation = useCreateFaculty();
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
+  const setSelectedBranchId = useBranchStore((s) => s.setSelectedBranchId);
   const { canEditItem, isAdmin, roleScope } = usePermissions();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const { policy } = usePasswordRequirements();
@@ -134,6 +136,9 @@ export const AddFaculty: React.FC = () => {
         designationMasterId: data.designationMasterId || undefined,
         qualificationMasterId: data.qualificationMasterId || undefined,
       });
+      // Align directory branch filter with the new member so they are not hidden
+      // by a persisted filter for a different branch.
+      setSelectedBranchId(data.branchId);
       navigate(`${basePath}/faculty/all`);
     } catch (error: any) {
       const message = error?.response?.data?.message || "Failed to create faculty member.";

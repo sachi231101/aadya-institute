@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, MoreHorizontal } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer, PageHeader, MetricGrid, FilterToolbar } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { useBranchStore } from "@/store/branch.store";
-import { useBranches } from "@/hooks/useBranches";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useBranchScopeForLists } from "@/hooks/useBranchScopeForLists";
 import { useFacultyReport } from "@/hooks/useReports";
-import { useFacultyList } from "@/hooks/useFaculty";
+import { useFacultyList, useDeleteFaculty } from "@/hooks/useFaculty";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
+import { getApiErrorMessage } from "@/utils/api-error";
 
 const ProgressBar = ({ value, colorClass }: { value: number, colorClass: string }) => (
   <div className="w-full bg-muted rounded-full h-1.5 mt-1.5 overflow-hidden">
@@ -26,9 +41,17 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
+type FacultyDeleteTarget = {
+  id: string;
+  name: string;
+  employeeCode: string;
+};
+
 export const AllFaculty: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = usePermissions();
+  const deleteFaculty = useDeleteFaculty();
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
@@ -36,24 +59,21 @@ export const AllFaculty: React.FC = () => {
       : "/admin";
   const [selectedFilterTab, setSelectedFilterTab] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [facultyToDelete, setFacultyToDelete] = useState<FacultyDeleteTarget | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
-  const { data: branchesResponse } = useBranches({ limit: 100 });
-  const branches = branchesResponse?.data || [];
+  const {
+    branches,
+    allowAllBranches,
+    showBranchSelector,
+    selectedBranchId,
+    branchIdForQuery,
+    setSelectedBranchId,
+  } = useBranchScopeForLists();
 
-  useEffect(() => {
-    if (branches.length > 0 && selectedBranchId !== "ALL" && !branches.some((b) => b.id === selectedBranchId)) {
-      setSelectedBranchId("ALL");
-    }
-  }, [branches, selectedBranchId, setSelectedBranchId]);
-
-  const activeBranchId =
-    selectedBranchId !== "ALL" && branches.some((b) => b.id === selectedBranchId)
-      ? selectedBranchId
-      : undefined;
-  const { data: facultyReport, isLoading: isReportLoading } = useFacultyReport(activeBranchId);
+  const { data: facultyReport } = useFacultyReport(branchIdForQuery);
   const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({
-    branchId: activeBranchId,
+    branchId: branchIdForQuery,
     limit: 100,
   });
 
@@ -115,6 +135,23 @@ export const AllFaculty: React.FC = () => {
   ];
 
   const isLoading = isListLoading;
+
+  const closeDeleteDialog = () => {
+    if (deleteFaculty.isPending) return;
+    setFacultyToDelete(null);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!facultyToDelete) return;
+    setDeleteError(null);
+    try {
+      await deleteFaculty.mutateAsync(facultyToDelete.id);
+      setFacultyToDelete(null);
+    } catch (err) {
+      setDeleteError(getApiErrorMessage(err, "Failed to delete faculty."));
+    }
+  };
 
   return (
     <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
@@ -185,16 +222,20 @@ export const AllFaculty: React.FC = () => {
               </select>
 
               {/* Branch Filter Dropdown */}
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="text-xs font-semibold border border-border rounded-lg px-3 py-1.5 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer h-[34px]"
-              >
-                <option value="ALL">All Branches ({branches.length})</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              {showBranchSelector && (
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="text-xs font-semibold border border-border rounded-lg px-3 py-1.5 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer h-[34px]"
+                >
+                  {allowAllBranches && (
+                    <option value="ALL">All Branches ({branches.length})</option>
+                  )}
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </FilterToolbar>
 
@@ -260,18 +301,46 @@ export const AllFaculty: React.FC = () => {
                           {fac.status}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white transition-all font-semibold rounded-lg cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`${basePath}/faculty/${fac.id}`);
-                          }}
-                        >
-                          View Details
-                        </Button>
+                      <td
+                        className="px-4 py-2.5 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => navigate(`${basePath}/faculty/${fac.id}`)}
+                            >
+                              View Details
+                            </DropdownMenuItem>
+                            {isAdmin && String(fac.status).toUpperCase() !== "INACTIVE" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={() => {
+                                  setDeleteError(null);
+                                  setFacultyToDelete({
+                                    id: fac.id,
+                                    name: fac.name,
+                                    employeeCode: fac.employeeCode,
+                                  });
+                                }}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))
@@ -289,6 +358,64 @@ export const AllFaculty: React.FC = () => {
             <span className="text-xs text-muted-foreground font-medium">Showing {filteredFaculty.length} of {rawFacultyList.length} faculty</span>
           </div>
         </Card>
+
+      <Dialog
+        open={!!facultyToDelete}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete faculty</DialogTitle>
+            <DialogDescription>
+              This deactivates the faculty account and cannot be undone from this screen.
+            </DialogDescription>
+          </DialogHeader>
+          {facultyToDelete && (
+            <div className="space-y-2 text-sm rounded-lg border border-border bg-muted/40 p-3">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Faculty</span>
+                <span className="font-medium text-foreground">{facultyToDelete.name}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Employee code</span>
+                <span className="font-mono text-foreground">{facultyToDelete.employeeCode}</span>
+              </div>
+            </div>
+          )}
+          {deleteError && (
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteFaculty.isPending}
+              onClick={closeDeleteDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteFaculty.isPending}
+              onClick={() => void handleConfirmDelete()}
+            >
+              {deleteFaculty.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };
