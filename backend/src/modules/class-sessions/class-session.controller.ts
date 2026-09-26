@@ -117,7 +117,7 @@ export const createSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    const session = await classSessionService.createSession(instituteId, req.body);
+    const session = await classSessionService.createSession(instituteId, req.body, toAuthUser(req));
     sendSuccess(res, session, 201, "Class session created successfully");
   } catch (error) {
     next(error);
@@ -131,7 +131,12 @@ export const updateSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    const session = await classSessionService.updateSession(req.params.id as string, instituteId, req.body);
+    const session = await classSessionService.updateSession(
+      req.params.id as string,
+      instituteId,
+      req.body,
+      toAuthUser(req)
+    );
     sendSuccess(res, session, 200, "Class session updated successfully");
   } catch (error) {
     next(error);
@@ -145,7 +150,7 @@ export const cancelSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    const session = await classSessionService.cancelSession(req.params.id as string, instituteId);
+    const session = await classSessionService.cancelSession(req.params.id as string, instituteId, toAuthUser(req));
     sendSuccess(res, session, 200, "Class session cancelled successfully");
   } catch (error) {
     next(error);
@@ -247,7 +252,7 @@ export const deleteSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    await classSessionService.deleteSession(req.params.id as string, instituteId);
+    await classSessionService.deleteSession(req.params.id as string, instituteId, toAuthUser(req));
     sendSuccess(res, { id: req.params.id, deleted: true }, 200, "Class session deleted successfully");
   } catch (error) {
     next(error);

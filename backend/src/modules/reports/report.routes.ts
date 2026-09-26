@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import {
+  requirePermission,
+  requirePermissionUnlessRoles,
+} from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   studentReportQuerySchema,
@@ -26,9 +29,10 @@ const router = Router();
 
 router.use(authMiddleware);
 
+// FACULTY bypass: RolePermission may lack report.read; controller scopes to teaching-desk students.
 router.get(
   "/students",
-  requirePermission("report.read"),
+  requirePermissionUnlessRoles("report.read", "FACULTY"),
   validate(studentReportQuerySchema, "query"),
   getStudentReport
 );

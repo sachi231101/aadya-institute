@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import axios from "axios";
 import {
   Users,
   Download,
@@ -136,7 +137,9 @@ export const StudentReports: React.FC = () => {
     [branchFilter, courseId, batchId, status, riskFlag, dateFrom, dateTo]
   );
 
-  const { data, isLoading, isError, refetch } = useStudentReport(reportParams);
+  const { data, isLoading, isError, error, refetch } = useStudentReport(reportParams);
+  const isForbidden =
+    axios.isAxiosError(error) && error.response?.status === 403;
   const { courses } = useCourses({ status: "ACTIVE" });
   const { batches } = useBatches({
     ...(courseId ? { courseId } : {}),
@@ -503,15 +506,41 @@ export const StudentReports: React.FC = () => {
   if (isError) {
     return (
       <PageContainer>
-        <div className="p-8 bg-red-50 border border-red-200 rounded-xl text-center space-y-3">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-          <h3 className="text-lg font-bold text-red-800">Failed to load student reports</h3>
-          <p className="text-xs text-red-600">
-            Unable to retrieve real-time student analytics metrics from database.
+        <div
+          className={`p-8 border rounded-xl text-center space-y-3 ${
+            isForbidden
+              ? "bg-amber-50 border-amber-200"
+              : "bg-red-50 border-red-200"
+          }`}
+        >
+          {isForbidden ? (
+            <ShieldAlert className="h-8 w-8 text-amber-600 mx-auto" />
+          ) : (
+            <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+          )}
+          <h3
+            className={`text-lg font-bold ${
+              isForbidden ? "text-amber-900" : "text-red-800"
+            }`}
+          >
+            {isForbidden
+              ? "You don't have permission"
+              : "Failed to load student reports"}
+          </h3>
+          <p
+            className={`text-xs ${
+              isForbidden ? "text-amber-800" : "text-red-600"
+            }`}
+          >
+            {isForbidden
+              ? "You don't have permission to view student reports. Contact an administrator if you need access."
+              : "Unable to retrieve real-time student analytics metrics from database."}
           </p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            Retry Loading
-          </Button>
+          {!isForbidden && (
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Retry Loading
+            </Button>
+          )}
         </div>
       </PageContainer>
     );
